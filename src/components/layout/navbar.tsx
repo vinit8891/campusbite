@@ -1,5 +1,6 @@
+"use client";
 import Link from "next/link";
-import { Menu } from "lucide-react";
+import { Menu, ShoppingCart } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -7,8 +8,15 @@ import {
   SheetContent,
   SheetTrigger,
 } from "@/components/ui/sheet";
+import { useCart } from "@/context/CartContext";
 
 export function Navbar() {
+  const { cart } = useCart();
+
+      const totalItems = cart.reduce(
+        (sum, item) => sum + item.quantity,
+        0
+      );
   return (
     <header className="sticky top-0 z-50 border-b bg-background/90 backdrop-blur">
       <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
@@ -30,9 +38,20 @@ export function Navbar() {
         </nav>
 
         {/* Desktop Login */}
-        <div className="hidden md:block">
-          <Button>Login</Button>
-        </div>
+        <div className="hidden items-center gap-4 md:flex">
+
+          <a href="/cart">
+            <Button variant="outline">
+              <ShoppingCart className="mr-2 h-4 w-4" />
+              {totalItems}
+            </Button>
+          </a>
+
+          <Button>
+            Login
+          </Button>
+
+</div>
 
         {/* Mobile Menu */}
         <div className="md:hidden">
