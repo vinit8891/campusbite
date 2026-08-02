@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@/context/AuthContext";
 import { ShoppingCart } from "lucide-react";
 import { useCart } from "@/context/CartContext";
 
@@ -14,6 +15,8 @@ import {
 } from "@/components/ui/sheet";
 
 export function Navbar() {
+
+  const { user, logout, isLoggedIn } = useAuth();
       const { cart } = useCart();
 
     const totalItems = cart.reduce(
@@ -54,11 +57,26 @@ export function Navbar() {
             </Button>
           </Link>
 
-          <Link href="/login">
-            <Button>
-              Login
-            </Button>
-          </Link>
+          {isLoggedIn ? (
+            <div className="flex items-center gap-3">
+              <span className="font-medium">
+                👋 {user?.name}
+              </span>
+
+              <Button
+                variant="outline"
+                onClick={logout}
+              >
+                Logout
+              </Button>
+            </div>
+          ) : (
+            <Link href="/login">
+              <Button>
+                Login
+              </Button>
+            </Link>
+          )}
 
 </div>
 
@@ -114,11 +132,27 @@ export function Navbar() {
 
               </Link>
 
-              <Link href="/login">
-                <Button className="mt-4 w-full">
-                  Login
-                </Button>
-              </Link>
+              {isLoggedIn ? (
+  <>
+                    <div className="font-medium">
+                      👋 {user?.name}
+                    </div>
+
+                    <Button
+                      variant="outline"
+                      className="w-full"
+                      onClick={logout}
+                    >
+                      Logout
+                    </Button>
+                  </>
+                ) : (
+                  <Link href="/login">
+                    <Button className="mt-4 w-full">
+                      Login
+                    </Button>
+                  </Link>
+                )}
 
               </div>
 

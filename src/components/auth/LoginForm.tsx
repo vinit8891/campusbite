@@ -1,5 +1,6 @@
 "use client";
 
+import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
@@ -9,16 +10,19 @@ import { Input } from "@/components/ui/input";
 
 export default function LoginForm() {
   const router = useRouter();
+  const { login } = useAuth();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
   function handleLogin(e: React.FormEvent) {
     e.preventDefault();
-
-    // Temporary login
-    alert("Login Successful!");
-
+  
+    login({
+      name: "Vinit",
+      email: email,
+    });
+  
     router.push("/");
   }
 
