@@ -1,9 +1,9 @@
-"use client";
-import { useCart } from "@/context/CartContext";
+import MenuCard from "@/components/menu/MenuCard";
 import Image from "next/image";
 import { notFound } from "next/navigation";
+
 import { Button } from "@/components/ui/button";
-import { restaurants } from "@/data/restaurants";
+import { restaurantService } from "@/services/api";
 
 type Props = {
   params: Promise<{
@@ -11,84 +11,85 @@ type Props = {
   }>;
 };
 
-export default async function RestaurantPage({ params }: Props) {
+export default async function RestaurantPage({
+  params,
+}: Props) {
   const { slug } = await params;
 
-  const restaurant = restaurants.find((r) => r.slug === slug);
-  const { addToCart } = useCart();
+  const restaurant = restaurantService.getBySlug(slug);
 
   if (!restaurant) {
     notFound();
   }
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-10">
+    <main className="mx-auto max-w-7xl px-6 py-12">
 
-      <Image
-        src={restaurant.image}
-        alt={restaurant.name}
-        width={1200}
-        height={400}
-        className="h-80 w-full rounded-3xl object-cover"
-      />
+      {/* Restaurant Header */}
 
-      <h1 className="mt-8 text-4xl font-bold">
-        {restaurant.name}
-      </h1>
+      <div className="grid gap-10 lg:grid-cols-2">
 
-      <p className="mt-2 text-gray-500">
-        {restaurant.cuisine}
-      </p>
+        <div className="relative h-[400px] overflow-hidden rounded-3xl">
 
-      <div className="mt-3 flex gap-6 text-sm text-gray-600">
-        <span>⭐ {restaurant.rating}</span>
-        <span>🕒 {restaurant.deliveryTime}</span>
-        <span>📍 {restaurant.distance}</span>
-      </div>
+          <Image
+            src={restaurant.image}
+            alt={restaurant.name}
+            fill
+            className="object-cover"
+          />
 
-      <h2 className="mt-12 mb-6 text-3xl font-bold">
-        Menu
-      </h2>
+        </div>
 
-      <div className="grid gap-6 md:grid-cols-2">
-        {restaurant.menu.map((item) => (
-          <div
-            key={item.id}
-            className="flex items-center gap-4 rounded-2xl border p-4 shadow-sm"
-          >
-            <Image
-              src={item.image}
-              alt={item.name}
-              width={100}
-              height={100}
-              className="rounded-xl"
-            />
+        <div>
 
-            <div className="flex-1">
-              <h3 className="font-semibold">
-                {item.name}
-              </h3>
+          <h1 className="text-4xl font-bold">
+            {restaurant.name}
+          </h1>
 
-              <p className="text-orange-600 font-bold">
-                ₹{item.price}
-              </p>
-            </div>
+          <p className="mt-4 text-lg text-gray-600">
+            {restaurant.description}
+          </p>
 
-            <Button
-                onClick={() =>
-                    addToCart({
-                    id: item.id,
-                    name: item.name,
-                    price: item.price,
-                    image: item.image,
-                    })
-        }
->
-  Add
-</Button>
+          <div className="mt-8 flex flex-wrap gap-3">
+
+            <span className="rounded-full bg-orange-100 px-4 py-2 text-orange-700">
+              ⭐ {restaurant.rating}
+            </span>
+
+            <span className="rounded-full bg-green-100 px-4 py-2 text-green-700">
+              🚚 25-35 min
+            </span>
+
+            <span className="rounded-full bg-blue-100 px-4 py-2 text-blue-700">
+              📍 Pune
+            </span>
+
           </div>
-        ))}
+
+        </div>
+
       </div>
+
+      {/* Menu */}
+
+      <section className="mt-20">
+
+        <h2 className="mb-10 text-3xl font-bold">
+          Popular Menu
+        </h2>
+
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+
+        {restaurant.menu.map((item) => (
+  <MenuCard
+    key={item.id}
+    item={item}
+  />
+))}
+
+        </div>
+
+      </section>
 
     </main>
   );

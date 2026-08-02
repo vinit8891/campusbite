@@ -2,25 +2,24 @@
 
 import {
   createContext,
-  useContext,
-  useState,
   ReactNode,
+  useContext,
+  useEffect,
+  useState,
 } from "react";
 
-type CartItem = {
-  id: number;
-  name: string;
-  price: number;
-  image: string;
-  quantity: number;
-};
+import { CartItem } from "@/types";
 
 type CartContextType = {
   cart: CartItem[];
-  addToCart: (item: Omit<CartItem, "quantity">) => void;
+  addToCart: (item: CartItem) => void;
+  increaseQuantity: (id: number) => void;
+  decreaseQuantity: (id: number) => void;
+  removeFromCart: (id: number) => void;
+  clearCart: () => void;
 };
 
-const CartContext = createContext<CartContextType | null>(null);
+const CartContext = createContext<CartContextType | undefined>(undefined);
 
 export function CartProvider({
   children,
@@ -29,20 +28,75 @@ export function CartProvider({
 }) {
   const [cart, setCart] = useState<CartItem[]>([]);
 
-  function addToCart(item: Omit<CartItem, "quantity">) {
-    setCart((prev) => {
-      const existing = prev.find((i) => i.id === item.id);
+  useEffect(() => {
+    const savedCart = localStorage.getItem("cart");
+
+    if (savedCart) {
+      setCart(JSON.parse(savedCart));
+    }
+  }, []);
+
+  useEffect(() => {
+    localStorage.setItem("cart", JSON.stringify(cart));
+  }, [cart]);
+
+  function addToCart(item: CartItem) {
+    setCart((previous) => {
+      const existing = previous.find(
+        (cartItem) => cartItem.id === item.id
+      );
 
       if (existing) {
-        return prev.map((i) =>
-          i.id === item.id
-            ? { ...i, quantity: i.quantity + 1 }
-            : i
+        return previous.map((cartItem) =>
+          cartItem.id === item.id
+            ? {
+                ...cartItem,
+                quantity: cartItem.quantity + 1,
+              }
+            : cartItem
         );
       }
 
-      return [...prev, { ...item, quantity: 1 }];
+      return [...previous, item];
     });
+  }
+
+  function increaseQuantity(id: number) {
+    setCart((previous) =>
+      previous.map((item) =>
+        item.id === id
+          ? {
+              ...item,
+              quantity: item.quantity + 1,
+            }
+          : item
+      )
+    );
+  }
+
+  function decreaseQuantity(id: number) {
+    setCart((previous) =>
+      previous
+        .map((item) =>
+          item.id === id
+            ? {
+                ...item,
+                quantity: item.quantity - 1,
+              }
+            : item
+        )
+        .filter((item) => item.quantity > 0)
+    );
+  }
+
+  function removeFromCart(id: number) {
+    setCart((previous) =>
+      previous.filter((item) => item.id !== id)
+    );
+  }
+
+  function clearCart() {
+    setCart([]);
   }
 
   return (
@@ -50,6 +104,10 @@ export function CartProvider({
       value={{
         cart,
         addToCart,
+        increaseQuantity,
+        decreaseQuantity,
+        removeFromCart,
+        clearCart,
       }}
     >
       {children}
@@ -61,7 +119,9 @@ export function useCart() {
   const context = useContext(CartContext);
 
   if (!context) {
-    throw new Error("useCart must be used inside CartProvider");
+    throw new Error(
+      "useCart must be used inside CartProvider"
+    );
   }
 
   return context;

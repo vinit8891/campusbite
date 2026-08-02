@@ -1,4 +1,5 @@
-export const restaurants = [
+import { Restaurant } from "@/types";
+export const restaurants: Restaurant[] = [
     {
       slug: "pizza-palace",
       name: "Pizza Palace",
