@@ -1,6 +1,10 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routes.auth import router as auth_router
+from app.routes.restaurant_owner import (
+    router as restaurant_owner_router,
+)
+from app.routes.menu import router as menu_router
 
 from app.routes.restaurant import router as restaurant_router
 from app.routes.order import router as order_router
@@ -25,6 +29,10 @@ app.add_middleware(
 # Routes
 app.include_router(restaurant_router)
 app.include_router(auth_router)
+app.include_router(
+    restaurant_owner_router
+)
+app.include_router(menu_router)
 app.include_router(order_router)
 
 
