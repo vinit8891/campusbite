@@ -1,0 +1,37 @@
+const API_URL = "http://127.0.0.1:8000";
+
+export async function getRestaurants() {
+  const res = await fetch(`${API_URL}/restaurants/`, {
+    cache: "no-store",
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to fetch restaurants");
+  }
+
+  return res.json();
+}
+
+export async function addRestaurant(data: any) {
+  const res = await fetch(`${API_URL}/restaurants/`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(data),
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to add restaurant");
+  }
+
+  return res.json();
+}
+
+export async function deleteRestaurant(id: string) {
+    const res = await fetch(`http://127.0.0.1:8000/restaurants/${id}`, {
+      method: "DELETE",
+    });
+  
+    return res.json();
+  }
