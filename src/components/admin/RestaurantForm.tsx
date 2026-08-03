@@ -1,29 +1,46 @@
 "use client";
 
 import { useState } from "react";
-import { addRestaurant } from "@/services/adminService";
 import { useRouter } from "next/navigation";
+import {
+  addRestaurant,
+  updateRestaurant,
+} from "@/services/adminService";
 
-export default function RestaurantForm() {
+type Props = {
+  initialData?: any;
+};
+
+export default function RestaurantForm({
+  initialData,
+}: Props) {
   const router = useRouter();
 
-  const [form, setForm] = useState({
-    slug: "",
-    name: "",
-    cuisine: "",
-    rating: 4.5,
-    delivery_time: "30 min",
-    distance: "2 km",
-    image: "/images/restaurants/default.jpg",
-    menu: [],
-  });
+  const isEdit = !!initialData;
+
+  const [form, setForm] = useState(
+    initialData || {
+      slug: "",
+      name: "",
+      cuisine: "",
+      rating: 4.5,
+      delivery_time: "30 min",
+      distance: "2 km",
+      image: "/images/restaurants/default.jpg",
+      menu: [],
+    }
+  );
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
 
-    await addRestaurant(form);
-
-    alert("Restaurant Added Successfully!");
+    if (isEdit) {
+      await updateRestaurant(initialData._id, form);
+      alert("Restaurant Updated Successfully!");
+    } else {
+      await addRestaurant(form);
+      alert("Restaurant Added Successfully!");
+    }
 
     router.push("/admin/restaurants");
     router.refresh();
@@ -62,9 +79,9 @@ export default function RestaurantForm() {
       />
 
       <input
-        className="w-full rounded border p-3"
         type="number"
         step="0.1"
+        className="w-full rounded border p-3"
         value={form.rating}
         onChange={(e) =>
           setForm({
@@ -74,10 +91,8 @@ export default function RestaurantForm() {
         }
       />
 
-      <button
-        className="rounded bg-orange-500 px-6 py-3 text-white"
-      >
-        Add Restaurant
+      <button className="rounded bg-orange-500 px-6 py-3 text-white">
+        {isEdit ? "Update Restaurant" : "Add Restaurant"}
       </button>
     </form>
   );
