@@ -1,8 +1,11 @@
 "use client";
 
 import { Input } from "@/components/ui/input";
+import { useCheckout } from "@/context/CheckoutContext";
 
 export default function AddressForm() {
+  const { checkout, setCheckout } = useCheckout();
+
   return (
     <section className="rounded-3xl border bg-white p-8 shadow-sm">
 
@@ -19,6 +22,13 @@ export default function AddressForm() {
 
           <Input
             placeholder="Enter your full name"
+            value={checkout.customer_name}
+            onChange={(e) =>
+              setCheckout((prev) => ({
+                ...prev,
+                customer_name: e.target.value,
+              }))
+            }
           />
         </div>
 
@@ -29,6 +39,13 @@ export default function AddressForm() {
 
           <Input
             placeholder="9876543210"
+            value={checkout.phone}
+            onChange={(e) =>
+              setCheckout((prev) => ({
+                ...prev,
+                phone: e.target.value,
+              }))
+            }
           />
         </div>
 
@@ -39,6 +56,13 @@ export default function AddressForm() {
 
           <Input
             placeholder="Flat, Building, Street"
+            value={checkout.address}
+            onChange={(e) =>
+              setCheckout((prev) => ({
+                ...prev,
+                address: e.target.value,
+              }))
+            }
           />
         </div>
 
@@ -51,6 +75,13 @@ export default function AddressForm() {
 
             <Input
               placeholder="Pune"
+              value={checkout.city}
+              onChange={(e) =>
+                setCheckout((prev) => ({
+                  ...prev,
+                  city: e.target.value,
+                }))
+              }
             />
           </div>
 
@@ -61,6 +92,13 @@ export default function AddressForm() {
 
             <Input
               placeholder="411041"
+              value={checkout.pincode}
+              onChange={(e) =>
+                setCheckout((prev) => ({
+                  ...prev,
+                  pincode: e.target.value,
+                }))
+              }
             />
           </div>
 
@@ -73,6 +111,13 @@ export default function AddressForm() {
 
           <Input
             placeholder="Near Zeal College"
+            value={checkout.landmark}
+            onChange={(e) =>
+              setCheckout((prev) => ({
+                ...prev,
+                landmark: e.target.value,
+              }))
+            }
           />
         </div>
 
@@ -80,4 +125,4 @@ export default function AddressForm() {
 
     </section>
   );
-}
+} 

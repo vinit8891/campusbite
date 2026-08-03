@@ -3,7 +3,7 @@ import Image from "next/image";
 import { notFound } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
-import { restaurantService } from "@/services/api";
+import { getRestaurantBySlug } from "@/services/adminService";
 
 type Props = {
   params: Promise<{
@@ -16,7 +16,7 @@ export default async function RestaurantPage({
 }: Props) {
   const { slug } = await params;
 
-  const restaurant = restaurantService.getBySlug(slug);
+  const restaurant = await getRestaurantBySlug(slug);
 
   if (!restaurant) {
     notFound();

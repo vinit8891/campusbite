@@ -68,3 +68,18 @@ export async function deleteRestaurant(id: string) {
     return res.json();
   }
 
+  export async function getRestaurantBySlug(slug: string) {
+    const res = await fetch("http://127.0.0.1:8000/restaurants/", {
+      cache: "no-store",
+    });
+  
+    if (!res.ok) {
+      throw new Error("Failed to fetch restaurants");
+    }
+  
+    const restaurants = await res.json();
+  
+    return restaurants.find(
+      (restaurant: any) => restaurant.slug === slug
+    );
+  }

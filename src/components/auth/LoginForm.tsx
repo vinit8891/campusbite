@@ -15,15 +15,60 @@ export default function LoginForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  function handleLogin(e: React.FormEvent) {
+  const [loading, setLoading] = useState(false);
+
+  const [error, setError] = useState("");
+
+  async function handleLogin(
+    e: React.FormEvent
+  ) {
     e.preventDefault();
-  
-    login({
-      name: "Vinit",
-      email: email,
-    });
-  
-    router.push("/");
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const response = await fetch(
+        "http://127.0.0.1:8000/auth/login",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            email,
+            password,
+          }),
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(
+          data.detail || "Login failed"
+        );
+        setLoading(false);
+        return;
+      }
+
+      login(
+        {
+          name: email.split("@")[0],
+          email,
+        },
+        data.access_token
+      );
+
+      router.push("/");
+
+    } catch {
+      setError(
+        "Unable to connect to server."
+      );
+    }
+
+    setLoading(false);
   }
 
   return (
@@ -41,7 +86,9 @@ export default function LoginForm() {
         onSubmit={handleLogin}
         className="space-y-5"
       >
+
         <div>
+
           <label className="mb-2 block font-medium">
             Email
           </label>
@@ -53,10 +100,13 @@ export default function LoginForm() {
             onChange={(e) =>
               setEmail(e.target.value)
             }
+            required
           />
+
         </div>
 
         <div>
+
           <label className="mb-2 block font-medium">
             Password
           </label>
@@ -68,15 +118,27 @@ export default function LoginForm() {
             onChange={(e) =>
               setPassword(e.target.value)
             }
+            required
           />
+
         </div>
+
+        {error && (
+          <p className="text-sm text-red-600">
+            {error}
+          </p>
+        )}
 
         <Button
           type="submit"
           className="w-full"
+          disabled={loading}
         >
-          Login
+          {loading
+            ? "Logging in..."
+            : "Login"}
         </Button>
+
       </form>
 
       <p className="mt-6 text-center text-sm text-gray-500">
@@ -88,6 +150,7 @@ export default function LoginForm() {
           Register
         </Link>
       </p>
+
     </div>
   );
 }

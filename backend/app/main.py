@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.routes.auth import router as auth_router
 
 from app.routes.restaurant import router as restaurant_router
+from app.routes.order import router as order_router
 from app.db.database import database
 
 app = FastAPI(
@@ -20,7 +22,10 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Routes
 app.include_router(restaurant_router)
+app.include_router(auth_router)
+app.include_router(order_router)
 
 
 @app.get("/")

@@ -1,6 +1,10 @@
 "use client";
 
+import { useCheckout } from "@/context/CheckoutContext";
+
 export default function PaymentMethods() {
+  const { checkout, setCheckout } = useCheckout();
+
   return (
     <section className="rounded-3xl border bg-white p-8 shadow-sm">
 
@@ -15,7 +19,13 @@ export default function PaymentMethods() {
           <input
             type="radio"
             name="payment"
-            defaultChecked
+            checked={checkout.payment_method === "Cash on Delivery"}
+            onChange={() =>
+              setCheckout((prev) => ({
+                ...prev,
+                payment_method: "Cash on Delivery",
+              }))
+            }
           />
 
           <div>
@@ -35,6 +45,13 @@ export default function PaymentMethods() {
           <input
             type="radio"
             name="payment"
+            checked={checkout.payment_method === "Online Payment"}
+            onChange={() =>
+              setCheckout((prev) => ({
+                ...prev,
+                payment_method: "Online Payment",
+              }))
+            }
           />
 
           <div>

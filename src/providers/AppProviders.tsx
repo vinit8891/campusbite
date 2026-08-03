@@ -4,6 +4,7 @@ import { ReactNode } from "react";
 
 import { CartProvider } from "@/context/CartContext";
 import { AuthProvider } from "@/context/AuthContext";
+import { CheckoutProvider } from "@/context/CheckoutContext";
 
 export default function AppProviders({
   children,
@@ -12,9 +13,11 @@ export default function AppProviders({
 }) {
   return (
     <AuthProvider>
-      <CartProvider>
-        {children}
-      </CartProvider>
+      <CheckoutProvider>
+        <CartProvider>
+          {children}
+        </CartProvider>
+      </CheckoutProvider>
     </AuthProvider>
   );
 }

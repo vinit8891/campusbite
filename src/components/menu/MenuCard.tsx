@@ -51,18 +51,20 @@ export default function MenuCard({
           </span>
 
           <Button
-            onClick={() =>
+            onClick={() => {
               addToCart({
                 id: item.id,
                 name: item.name,
                 image: item.image,
                 price: item.price,
                 quantity: 1,
-              })
-            }
+              });
+
+              alert(`${item.name} added to cart!`);
+            }}
           >
             Add
-          </Button>
+           </Button>
 
         </div>
 
