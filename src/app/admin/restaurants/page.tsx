@@ -48,10 +48,19 @@ export default async function RestaurantsPage() {
             ⭐ {restaurant.rating}
                 </td>
 
-                <td className="p-4">
+                <td className="p-4 flex gap-2">
+
+                <Link
+                    href={`/admin/edit-restaurant/${restaurant._id}`}
+                    className="rounded bg-blue-500 px-4 py-2 text-white"
+                >
+                    Edit
+                </Link>
+
                 <DeleteRestaurantButton
                     id={restaurant._id}
                 />
+
                 </td>
             </tr>
           ))}

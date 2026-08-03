@@ -35,3 +35,14 @@ export async function deleteRestaurant(id: string) {
   
     return res.json();
   }
+
+  export async function getRestaurantById(id: string) {
+    const res = await fetch(`http://127.0.0.1:8000/restaurants/`, {
+      cache: "no-store",
+    });
+  
+    const restaurants = await res.json();
+  
+    return restaurants.find((restaurant: any) => restaurant._id === id);
+  }
+
