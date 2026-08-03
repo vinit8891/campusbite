@@ -46,3 +46,25 @@ export async function deleteRestaurant(id: string) {
     return restaurants.find((restaurant: any) => restaurant._id === id);
   }
 
+  export async function updateRestaurant(
+    id: string,
+    data: any
+  ) {
+    const res = await fetch(
+      `http://127.0.0.1:8000/restaurants/${id}`,
+      {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(data),
+      }
+    );
+  
+    if (!res.ok) {
+      throw new Error("Failed to update restaurant");
+    }
+  
+    return res.json();
+  }
+
