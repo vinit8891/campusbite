@@ -26,6 +26,12 @@ export default function OrdersPage() {
 
   useEffect(() => {
     fetchOrders();
+
+    const interval = setInterval(() => {
+      fetchOrders();
+    }, 5000);
+
+    return () => clearInterval(interval);
   }, []);
 
   async function fetchOrders() {
@@ -54,18 +60,51 @@ export default function OrdersPage() {
     id: string,
     status: string
   ) {
-    await fetch(
-      `http://127.0.0.1:8000/orders/${id}/${status}`,
-      {
-        method: "PUT",
-      }
-    );
+    try {
+      await fetch(
+        `http://127.0.0.1:8000/orders/${id}/${status}`,
+        {
+          method: "PUT",
+        }
+      );
 
-    fetchOrders();
+      fetchOrders();
+    } catch (error) {
+      console.error(error);
+    }
+  }
+
+  function badgeColor(status: string) {
+    switch (status) {
+      case "Accepted":
+        return "bg-blue-100 text-blue-700";
+
+      case "Preparing":
+        return "bg-yellow-100 text-yellow-700";
+
+      case "Ready for Pickup":
+        return "bg-indigo-100 text-indigo-700";
+
+      case "Out for Delivery":
+        return "bg-purple-100 text-purple-700";
+
+      case "Delivered":
+        return "bg-green-100 text-green-700";
+
+      case "Rejected":
+        return "bg-red-100 text-red-700";
+
+      default:
+        return "bg-gray-100 text-gray-700";
+    }
   }
 
   if (loading) {
-    return <h2 className="text-2xl">Loading...</h2>;
+    return (
+      <h2 className="text-2xl font-semibold">
+        Loading Orders...
+      </h2>
+    );
   }
 
   return (
@@ -76,14 +115,16 @@ export default function OrdersPage() {
       </h1>
 
       {orders.length === 0 ? (
-        <div className="rounded-xl border bg-white p-10 text-center shadow">
-          <h2 className="text-2xl font-semibold">
+        <div className="rounded-2xl border bg-white p-10 text-center shadow">
+
+          <h2 className="text-2xl font-bold">
             No Orders Yet
           </h2>
 
-          <p className="mt-2 text-gray-500">
-            Orders from customers will appear here.
+          <p className="mt-3 text-gray-500">
+            Customer orders will appear here.
           </p>
+
         </div>
       ) : (
         <div className="space-y-6">
@@ -94,7 +135,7 @@ export default function OrdersPage() {
               className="rounded-2xl border bg-white p-6 shadow"
             >
 
-              <div className="flex items-center justify-between">
+              <div className="flex flex-wrap items-center justify-between gap-4">
 
                 <div>
 
@@ -112,25 +153,27 @@ export default function OrdersPage() {
 
                 <div className="text-right">
 
-                  <p className="text-lg font-bold text-orange-600">
+                  <p className="text-2xl font-bold text-orange-600">
                     ₹{order.total}
                   </p>
 
-                  <p className="font-semibold">
-                    {order.payment_method}
-                  </p>
+                  <p>{order.payment_method}</p>
 
-                  <p className="mt-2 rounded bg-orange-100 px-3 py-1">
+                  <span
+                    className={`mt-2 inline-block rounded-full px-4 py-2 text-sm font-semibold ${badgeColor(
+                      order.status
+                    )}`}
+                  >
                     {order.status}
-                  </p>
+                  </span>
 
                 </div>
 
               </div>
 
-              <hr className="my-5" />
+              <hr className="my-6" />
 
-              <h3 className="mb-3 font-bold">
+              <h3 className="mb-3 text-lg font-bold">
                 Ordered Items
               </h3>
 
@@ -139,8 +182,9 @@ export default function OrdersPage() {
                 {order.items.map((item) => (
                   <div
                     key={item.id}
-                    className="flex justify-between"
+                    className="flex justify-between border-b pb-2"
                   >
+
                     <span>
                       {item.name} × {item.quantity}
                     </span>
@@ -148,56 +192,66 @@ export default function OrdersPage() {
                     <span>
                       ₹{item.price * item.quantity}
                     </span>
+
                   </div>
                 ))}
 
               </div>
 
-              <div className="mt-6 flex gap-3 flex-wrap">
+              <div className="mt-6 flex flex-wrap gap-3">
 
                 <button
                   onClick={() =>
                     updateStatus(order._id, "Accepted")
                   }
-                  className="rounded-lg bg-green-600 px-4 py-2 text-white"
+                  className="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
                 >
-                  Accept
+                  ✅ Accept
                 </button>
 
                 <button
                   onClick={() =>
                     updateStatus(order._id, "Preparing")
                   }
-                  className="rounded-lg bg-yellow-600 px-4 py-2 text-white"
+                  className="rounded-lg bg-yellow-500 px-4 py-2 text-white hover:bg-yellow-600"
                 >
-                  Preparing
+                  🍳 Preparing
+                </button>
+
+                <button
+                  onClick={() =>
+                    updateStatus(order._id, "Ready for Pickup")
+                  }
+                  className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700"
+                >
+                  📦 Ready for Pickup
                 </button>
 
                 <button
                   onClick={() =>
                     updateStatus(order._id, "Out for Delivery")
                   }
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-white"
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
                 >
-                  Out for Delivery
+                  🛵 Out for Delivery
                 </button>
 
                 <button
                   onClick={() =>
                     updateStatus(order._id, "Delivered")
                   }
-                  className="rounded-lg bg-gray-700 px-4 py-2 text-white"
+                  className="rounded-lg bg-gray-700 px-4 py-2 text-white hover:bg-gray-800"
                 >
-                  Delivered
+                  ✅ Delivered
                 </button>
 
                 <button
                   onClick={() =>
                     updateStatus(order._id, "Rejected")
                   }
-                  className="rounded-lg bg-red-600 px-4 py-2 text-white"
+                  className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
                 >
-                  Reject
+                  ❌ Reject
                 </button>
 
               </div>

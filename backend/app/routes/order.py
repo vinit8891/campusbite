@@ -5,8 +5,11 @@ from app.schemas.order import Order
 from app.models.order import (
     create_order,
     get_orders,
+    get_customer_orders,
     get_restaurant_orders,
+    get_available_orders,
     update_order_status,
+    assign_delivery_partner,
 )
 
 router = APIRouter(
@@ -15,6 +18,9 @@ router = APIRouter(
 )
 
 
+# -----------------------------
+# Place New Order
+# -----------------------------
 @router.post("/")
 async def add_order(order: Order):
 
@@ -28,16 +34,61 @@ async def add_order(order: Order):
     }
 
 
+# -----------------------------
+# Get All Orders (Admin)
+# -----------------------------
 @router.get("/")
 async def fetch_orders():
     return await get_orders()
 
 
+# -----------------------------
+# Get Customer Orders
+# -----------------------------
+@router.get("/customer/{phone}")
+async def customer_orders(phone: str):
+    return await get_customer_orders(phone)
+
+
+# -----------------------------
+# Get Restaurant Orders
+# -----------------------------
 @router.get("/restaurant/{email}")
 async def restaurant_orders(email: str):
     return await get_restaurant_orders(email)
 
 
+# -----------------------------
+# Get Available Orders (Delivery)
+# -----------------------------
+@router.get("/delivery/available")
+async def available_orders():
+    return await get_available_orders()
+
+
+# -----------------------------
+# Assign Delivery Partner
+# -----------------------------
+@router.put("/assign-delivery/{order_id}")
+async def assign_delivery(
+    order_id: str,
+    partner_name: str,
+    partner_phone: str,
+):
+    await assign_delivery_partner(
+        order_id,
+        partner_name,
+        partner_phone,
+    )
+
+    return {
+        "message": "Delivery Partner Assigned Successfully"
+    }
+
+
+# -----------------------------
+# Update Order Status
+# -----------------------------
 @router.put("/{order_id}/{status}")
 async def change_status(
     order_id: str,

@@ -1,13 +1,23 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+
 from app.routes.auth import router as auth_router
 from app.routes.restaurant_owner import (
     router as restaurant_owner_router,
 )
 from app.routes.menu import router as menu_router
-
 from app.routes.restaurant import router as restaurant_router
 from app.routes.order import router as order_router
+from app.routes.dashboard import (
+    router as dashboard_router,
+)
+from app.routes.analytics import (
+    router as analytics_router,
+)
+from app.routes.delivery_partner import (
+    router as delivery_partner_router,
+)
+
 from app.db.database import database
 
 app = FastAPI(
@@ -34,6 +44,9 @@ app.include_router(
 )
 app.include_router(menu_router)
 app.include_router(order_router)
+app.include_router(dashboard_router)
+app.include_router(analytics_router)
+app.include_router(delivery_partner_router)
 
 
 @app.get("/")

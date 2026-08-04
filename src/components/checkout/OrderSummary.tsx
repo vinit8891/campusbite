@@ -11,10 +11,7 @@ import { placeOrder } from "@/services/orderService";
 export default function OrderSummary() {
   const router = useRouter();
 
-  const {
-    cart,
-    clearCart,
-  } = useCart();
+  const { cart, clearCart } = useCart();
 
   const { checkout } = useCheckout();
 
@@ -44,15 +41,27 @@ export default function OrderSummary() {
     try {
       setLoading(true);
 
+      // Save customer details for My Orders page
+      localStorage.setItem(
+        "checkout",
+        JSON.stringify({
+          customer_name: checkout.customer_name,
+          phone: checkout.phone,
+          address: `${checkout.address}, ${checkout.city} - ${checkout.pincode}${
+            checkout.landmark ? `, ${checkout.landmark}` : ""
+          }`,
+        })
+      );
+
       await placeOrder({
+        restaurant_email: "owner@test.com", // TODO: Replace with selected restaurant email later
+
         customer_name: checkout.customer_name,
 
         phone: checkout.phone,
 
         address: `${checkout.address}, ${checkout.city} - ${checkout.pincode}${
-          checkout.landmark
-            ? `, ${checkout.landmark}`
-            : ""
+          checkout.landmark ? `, ${checkout.landmark}` : ""
         }`,
 
         payment_method: checkout.payment_method,
@@ -77,13 +86,11 @@ export default function OrderSummary() {
 
   return (
     <section className="sticky top-24 rounded-3xl border bg-white p-8 shadow-sm">
-
       <h2 className="mb-6 text-2xl font-bold">
         Order Summary
       </h2>
 
       <div className="space-y-4">
-
         {cart.map((item) => (
           <div
             key={item.id}
@@ -118,7 +125,6 @@ export default function OrderSummary() {
             ₹{total}
           </span>
         </div>
-
       </div>
 
       <Button
@@ -128,7 +134,6 @@ export default function OrderSummary() {
       >
         {loading ? "Placing Order..." : "Place Order"}
       </Button>
-
     </section>
   );
 }

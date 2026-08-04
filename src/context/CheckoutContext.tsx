@@ -4,6 +4,7 @@ import {
   createContext,
   useContext,
   useState,
+  useEffect,
   ReactNode,
 } from "react";
 
@@ -24,6 +25,16 @@ type CheckoutContextType = {
   >;
 };
 
+const defaultCheckout: CheckoutData = {
+  customer_name: "",
+  phone: "",
+  address: "",
+  city: "",
+  pincode: "",
+  landmark: "",
+  payment_method: "Cash on Delivery",
+};
+
 const CheckoutContext =
   createContext<CheckoutContextType | null>(null);
 
@@ -32,15 +43,40 @@ export function CheckoutProvider({
 }: {
   children: ReactNode;
 }) {
-  const [checkout, setCheckout] = useState<CheckoutData>({
-    customer_name: "",
-    phone: "",
-    address: "",
-    city: "",
-    pincode: "",
-    landmark: "",
-    payment_method: "Cash on Delivery",
-  });
+  const [checkout, setCheckout] =
+    useState<CheckoutData>(defaultCheckout);
+
+  // Load checkout from localStorage on app start
+  useEffect(() => {
+    const saved = localStorage.getItem("checkout");
+
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+
+setCheckout({
+  customer_name: parsed.customer_name || "",
+  phone: parsed.phone || "",
+  address: parsed.address || "",
+  city: parsed.city || "",
+  pincode: parsed.pincode || "",
+  landmark: parsed.landmark || "",
+  payment_method:
+    parsed.payment_method || "Cash on Delivery",
+});
+      } catch (error) {
+        console.error("Invalid checkout data", error);
+      }
+    }
+  }, []);
+
+  // Save checkout whenever it changes
+  useEffect(() => {
+    localStorage.setItem(
+      "checkout",
+      JSON.stringify(checkout)
+    );
+  }, [checkout]);
 
   return (
     <CheckoutContext.Provider

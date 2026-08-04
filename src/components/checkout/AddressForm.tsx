@@ -8,13 +8,12 @@ export default function AddressForm() {
 
   return (
     <section className="rounded-3xl border bg-white p-8 shadow-sm">
-
       <h2 className="mb-6 text-2xl font-bold">
         Delivery Address
       </h2>
 
       <div className="grid gap-5">
-
+        {/* Full Name */}
         <div>
           <label className="mb-2 block font-medium">
             Full Name
@@ -22,7 +21,7 @@ export default function AddressForm() {
 
           <Input
             placeholder="Enter your full name"
-            value={checkout.customer_name}
+            value={checkout.customer_name ?? ""}
             onChange={(e) =>
               setCheckout((prev) => ({
                 ...prev,
@@ -32,14 +31,16 @@ export default function AddressForm() {
           />
         </div>
 
+        {/* Mobile */}
         <div>
           <label className="mb-2 block font-medium">
             Mobile Number
           </label>
 
           <Input
+            type="tel"
             placeholder="9876543210"
-            value={checkout.phone}
+            value={checkout.phone ?? ""}
             onChange={(e) =>
               setCheckout((prev) => ({
                 ...prev,
@@ -49,6 +50,7 @@ export default function AddressForm() {
           />
         </div>
 
+        {/* Address */}
         <div>
           <label className="mb-2 block font-medium">
             Address
@@ -56,7 +58,7 @@ export default function AddressForm() {
 
           <Input
             placeholder="Flat, Building, Street"
-            value={checkout.address}
+            value={checkout.address ?? ""}
             onChange={(e) =>
               setCheckout((prev) => ({
                 ...prev,
@@ -67,7 +69,7 @@ export default function AddressForm() {
         </div>
 
         <div className="grid gap-5 md:grid-cols-2">
-
+          {/* City */}
           <div>
             <label className="mb-2 block font-medium">
               City
@@ -75,7 +77,7 @@ export default function AddressForm() {
 
             <Input
               placeholder="Pune"
-              value={checkout.city}
+              value={checkout.city ?? ""}
               onChange={(e) =>
                 setCheckout((prev) => ({
                   ...prev,
@@ -85,6 +87,7 @@ export default function AddressForm() {
             />
           </div>
 
+          {/* Pincode */}
           <div>
             <label className="mb-2 block font-medium">
               PIN Code
@@ -92,7 +95,7 @@ export default function AddressForm() {
 
             <Input
               placeholder="411041"
-              value={checkout.pincode}
+              value={checkout.pincode ?? ""}
               onChange={(e) =>
                 setCheckout((prev) => ({
                   ...prev,
@@ -101,9 +104,9 @@ export default function AddressForm() {
               }
             />
           </div>
-
         </div>
 
+        {/* Landmark */}
         <div>
           <label className="mb-2 block font-medium">
             Landmark
@@ -111,7 +114,7 @@ export default function AddressForm() {
 
           <Input
             placeholder="Near Zeal College"
-            value={checkout.landmark}
+            value={checkout.landmark ?? ""}
             onChange={(e) =>
               setCheckout((prev) => ({
                 ...prev,
@@ -120,9 +123,7 @@ export default function AddressForm() {
             }
           />
         </div>
-
       </div>
-
     </section>
   );
-} 
+}
