@@ -46,17 +46,22 @@ export default function OrderSummary() {
 
       await placeOrder({
         customer_name: checkout.customer_name,
+
         phone: checkout.phone,
-        address: checkout.address,
-        city: checkout.city,
-        pincode: checkout.pincode,
-        landmark: checkout.landmark,
+
+        address: `${checkout.address}, ${checkout.city} - ${checkout.pincode}${
+          checkout.landmark
+            ? `, ${checkout.landmark}`
+            : ""
+        }`,
+
         payment_method: checkout.payment_method,
+
         items: cart,
-        subtotal,
-        delivery_fee: deliveryFee,
+
         total,
-        status: "Pending",
+
+        status: "Placed",
       });
 
       clearCart();

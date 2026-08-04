@@ -3,16 +3,22 @@ const API_URL =
   "http://127.0.0.1:8000";
 
 export async function placeOrder(data: any) {
+  const payload = {
+    ...data,
+    restaurant_email: "owner@test.com",
+  };
+
   const res = await fetch(`${API_URL}/orders/`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify(data),
+    body: JSON.stringify(payload),
   });
 
   if (!res.ok) {
-    throw new Error("Failed to place order");
+    const error = await res.text();
+    throw new Error(error);
   }
 
   return res.json();

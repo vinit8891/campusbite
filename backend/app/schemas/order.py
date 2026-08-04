@@ -5,23 +5,15 @@ class OrderItem(BaseModel):
     id: int
     name: str
     price: float
-    image: str
     quantity: int
 
 
 class Order(BaseModel):
+    restaurant_email: str
     customer_name: str
     phone: str
     address: str
-    city: str
-    pincode: str
-    landmark: str
     payment_method: str
-
-    items: list[OrderItem]
-
-    subtotal: float
-    delivery_fee: float
     total: float
-
-    status: str
+    status: str = "Placed"
+    items: list[OrderItem]
