@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Body
 
 from app.schemas.order import Order
 
@@ -8,6 +8,8 @@ from app.models.order import (
     get_customer_orders,
     get_restaurant_orders,
     get_available_orders,
+    get_delivered_orders,
+    get_delivery_orders,
     update_order_status,
     assign_delivery_partner,
 )
@@ -64,6 +66,41 @@ async def restaurant_orders(email: str):
 @router.get("/delivery/available")
 async def available_orders():
     return await get_available_orders()
+
+
+# -----------------------------
+# Delivery History
+# -----------------------------
+@router.get("/delivery/history")
+async def delivery_history():
+    return await get_delivered_orders()
+
+
+# -----------------------------
+# Delivery Partner Orders
+# -----------------------------
+@router.get("/delivery/my/{phone}")
+async def my_delivery_orders(phone: str):
+    return await get_delivery_orders(phone)
+
+
+# -----------------------------
+# Delivery Partner Accept Order
+# -----------------------------
+@router.put("/delivery/accept/{order_id}")
+async def accept_delivery(
+    order_id: str,
+    partner: dict = Body(...)
+):
+    await update_order_status(
+        order_id,
+        "Assigned",
+        partner,
+    )
+
+    return {
+        "message": "Delivery Assigned"
+    }
 
 
 # -----------------------------

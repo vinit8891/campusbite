@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import OrderNotification from "@/components/notifications/OrderNotification";
+import OrderTimeline from "@/components/orders/OrderTimeline";
 
 type OrderItem = {
   id: number;
@@ -168,6 +169,16 @@ export default function MyOrdersPage() {
               >
                 {statusLabel(order.status)}
               </span>
+            </div>
+
+            <div className="mt-6 rounded-2xl bg-gray-50 p-5">
+              <h3 className="mb-4 text-lg font-bold">
+                Order Status
+              </h3>
+
+              <OrderTimeline
+                status={order.status}
+              />
             </div>
 
             <div className="space-y-3">

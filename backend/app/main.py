@@ -11,6 +11,9 @@ from app.routes.order import router as order_router
 from app.routes.dashboard import (
     router as dashboard_router,
 )
+from app.routes.delivery_dashboard import (
+    router as delivery_dashboard_router,
+)
 from app.routes.analytics import (
     router as analytics_router,
 )
@@ -45,6 +48,7 @@ app.include_router(
 app.include_router(menu_router)
 app.include_router(order_router)
 app.include_router(dashboard_router)
+app.include_router(delivery_dashboard_router)
 app.include_router(analytics_router)
 app.include_router(delivery_partner_router)
 

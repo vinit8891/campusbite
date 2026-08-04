@@ -72,6 +72,38 @@ async def get_available_orders():
 
 
 # -----------------------------
+# Get Delivered Orders
+# -----------------------------
+async def get_delivered_orders():
+    orders = []
+
+    async for order in order_collection.find(
+        {"status": "Delivered"}
+    ):
+        order["_id"] = str(order["_id"])
+        orders.append(order)
+
+    return orders
+
+
+# -----------------------------
+# Get Assigned Orders
+# -----------------------------
+async def get_delivery_orders(phone: str):
+    orders = []
+
+    async for order in order_collection.find(
+        {
+            "delivery_partner.phone": phone
+        }
+    ):
+        order["_id"] = str(order["_id"])
+        orders.append(order)
+
+    return orders
+
+
+# -----------------------------
 # Assign Delivery Partner
 # -----------------------------
 async def assign_delivery_partner(
@@ -101,14 +133,20 @@ async def assign_delivery_partner(
 async def update_order_status(
     order_id: str,
     status: str,
+    delivery_partner: dict | None = None,
 ):
+    update_data = {
+        "status": status
+    }
+
+    if delivery_partner:
+        update_data["delivery_partner"] = delivery_partner
+
     result = await order_collection.update_one(
         {"_id": ObjectId(order_id)},
         {
-            "$set": {
-                "status": status
-            }
-        },
+            "$set": update_data
+        }
     )
 
     return result.modified_count
