@@ -8,6 +8,7 @@ import {
   Clock3,
   Bike,
   IndianRupee,
+  Navigation,
 } from "lucide-react";
 
 import {
@@ -47,6 +48,21 @@ export default function AvailableOrdersPage() {
       console.error(err);
       alert("Failed to accept order");
     }
+  }
+
+  function openNavigation(order: any) {
+    if (
+      order.latitude == null ||
+      order.longitude == null
+    ) {
+      alert("Customer location not available.");
+      return;
+    }
+
+    window.open(
+      `https://www.google.com/maps/dir/?api=1&destination=${order.latitude},${order.longitude}`,
+      "_blank"
+    );
   }
 
   if (loading) {
@@ -195,12 +211,24 @@ export default function AvailableOrdersPage() {
 
                 </div>
 
-                <button
-                  onClick={() => handleAccept(order._id)}
-                  className="rounded-xl bg-green-600 px-8 py-3 text-lg font-semibold text-white transition hover:bg-green-700"
-                >
-                  🚴 Accept Delivery
-                </button>
+                <div className="flex flex-wrap gap-4">
+
+                  <button
+                    onClick={() => openNavigation(order)}
+                    className="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-lg font-semibold text-white transition hover:bg-blue-700"
+                  >
+                    <Navigation size={20} />
+                    Navigate
+                  </button>
+
+                  <button
+                    onClick={() => handleAccept(order._id)}
+                    className="rounded-xl bg-green-600 px-8 py-3 text-lg font-semibold text-white transition hover:bg-green-700"
+                  >
+                    🚴 Accept Delivery
+                  </button>
+
+                </div>
 
               </div>
 

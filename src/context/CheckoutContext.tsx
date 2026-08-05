@@ -16,6 +16,10 @@ type CheckoutData = {
   pincode: string;
   landmark: string;
   payment_method: string;
+
+  // Google Maps
+  latitude: number | null;
+  longitude: number | null;
 };
 
 type CheckoutContextType = {
@@ -33,6 +37,9 @@ const defaultCheckout: CheckoutData = {
   pincode: "",
   landmark: "",
   payment_method: "Cash on Delivery",
+
+  latitude: null,
+  longitude: null,
 };
 
 const CheckoutContext =
@@ -46,7 +53,7 @@ export function CheckoutProvider({
   const [checkout, setCheckout] =
     useState<CheckoutData>(defaultCheckout);
 
-  // Load checkout from localStorage on app start
+  // Load checkout from localStorage
   useEffect(() => {
     const saved = localStorage.getItem("checkout");
 
@@ -54,23 +61,34 @@ export function CheckoutProvider({
       try {
         const parsed = JSON.parse(saved);
 
-setCheckout({
-  customer_name: parsed.customer_name || "",
-  phone: parsed.phone || "",
-  address: parsed.address || "",
-  city: parsed.city || "",
-  pincode: parsed.pincode || "",
-  landmark: parsed.landmark || "",
-  payment_method:
-    parsed.payment_method || "Cash on Delivery",
-});
+        setCheckout({
+          customer_name:
+            parsed.customer_name || "",
+          phone: parsed.phone || "",
+          address: parsed.address || "",
+          city: parsed.city || "",
+          pincode: parsed.pincode || "",
+          landmark: parsed.landmark || "",
+          payment_method:
+            parsed.payment_method ||
+            "Cash on Delivery",
+
+          latitude:
+            parsed.latitude ?? null,
+
+          longitude:
+            parsed.longitude ?? null,
+        });
       } catch (error) {
-        console.error("Invalid checkout data", error);
+        console.error(
+          "Invalid checkout data",
+          error
+        );
       }
     }
   }, []);
 
-  // Save checkout whenever it changes
+  // Save checkout
   useEffect(() => {
     localStorage.setItem(
       "checkout",
@@ -91,7 +109,9 @@ setCheckout({
 }
 
 export function useCheckout() {
-  const context = useContext(CheckoutContext);
+  const context = useContext(
+    CheckoutContext
+  );
 
   if (!context) {
     throw new Error(

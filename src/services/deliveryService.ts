@@ -70,3 +70,60 @@ export async function getMyDeliveries(
 
   return res.json();
 }
+
+// ====================================================
+// LIVE DELIVERY TRACKING
+// ====================================================
+
+// ----------------------
+// Update Delivery Partner Location
+// ----------------------
+export async function updateDeliveryLocation(
+  orderId: string,
+  latitude: number,
+  longitude: number
+) {
+  const res = await fetch(
+    `${API_URL}/orders/delivery/location/${orderId}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        latitude,
+        longitude,
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error(
+      "Failed to update location"
+    );
+  }
+
+  return res.json();
+}
+
+// ----------------------
+// Get Live Delivery Location
+// ----------------------
+export async function getDeliveryLocation(
+  orderId: string
+) {
+  const res = await fetch(
+    `${API_URL}/orders/delivery/location/${orderId}`,
+    {
+      cache: "no-store",
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error(
+      "Failed to fetch live location"
+    );
+  }
+
+  return res.json();
+}

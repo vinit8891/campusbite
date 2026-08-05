@@ -12,6 +12,8 @@ from app.models.order import (
     get_delivery_orders,
     update_order_status,
     assign_delivery_partner,
+    update_delivery_location,
+    get_delivery_location,
 )
 
 router = APIRouter(
@@ -139,3 +141,36 @@ async def change_status(
     return {
         "message": "Status Updated"
     }
+
+
+# =====================================================
+# LIVE DELIVERY TRACKING
+# =====================================================
+
+# -----------------------------
+# Update Delivery Partner Location
+# -----------------------------
+@router.put("/delivery/location/{order_id}")
+async def update_location(
+    order_id: str,
+    location: dict = Body(...),
+):
+    await update_delivery_location(
+        order_id,
+        location["latitude"],
+        location["longitude"],
+    )
+
+    return {
+        "message": "Delivery Location Updated"
+    }
+
+
+# -----------------------------
+# Get Live Delivery Location
+# -----------------------------
+@router.get("/delivery/location/{order_id}")
+async def get_location(
+    order_id: str,
+):
+    return await get_delivery_location(order_id)

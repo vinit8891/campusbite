@@ -38,30 +38,28 @@ export default function OrderSummary() {
       return;
     }
 
+    if (
+      checkout.latitude === null ||
+      checkout.longitude === null
+    ) {
+      alert(
+        "Please allow location permission before placing the order."
+      );
+      return;
+    }
+
     try {
       setLoading(true);
 
-      // Save customer details for My Orders page
-      localStorage.setItem(
-        "checkout",
-        JSON.stringify({
-          customer_name: checkout.customer_name,
-          phone: checkout.phone,
-          address: `${checkout.address}, ${checkout.city} - ${checkout.pincode}${
-            checkout.landmark ? `, ${checkout.landmark}` : ""
-          }`,
-        })
-      );
-
       await placeOrder({
-        restaurant_email: "owner@test.com", // TODO: Replace with selected restaurant email later
-
         customer_name: checkout.customer_name,
 
         phone: checkout.phone,
 
         address: `${checkout.address}, ${checkout.city} - ${checkout.pincode}${
-          checkout.landmark ? `, ${checkout.landmark}` : ""
+          checkout.landmark
+            ? `, ${checkout.landmark}`
+            : ""
         }`,
 
         payment_method: checkout.payment_method,
@@ -69,6 +67,10 @@ export default function OrderSummary() {
         items: cart,
 
         total,
+
+        latitude: checkout.latitude,
+
+        longitude: checkout.longitude,
 
         status: "Placed",
       });

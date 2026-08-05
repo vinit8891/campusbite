@@ -2,6 +2,11 @@
 
 import { useEffect, useState } from "react";
 
+import {
+  getDeliveryStatus,
+  updateDeliveryStatus,
+} from "@/services/deliveryPartnerService";
+
 type DeliveryPartner = {
   name: string;
   phone: string;
@@ -20,45 +25,76 @@ export default function DeliveryProfilePage() {
     rating: 4.9,
     totalDeliveries: 0,
     totalEarnings: 0,
-    online: true,
+    online: false,
   });
 
   useEffect(() => {
-    const saved = localStorage.getItem("deliveryPartner");
-
-    if (saved) {
-      const user = JSON.parse(saved);
-
-      setPartner({
-        name: user.name || "Delivery Partner",
-        phone: user.phone || "",
-        vehicle: user.vehicle || "Bike",
-        rating: user.rating || 4.9,
-        totalDeliveries: user.totalDeliveries || 0,
-        totalEarnings: user.totalEarnings || 0,
-        online:
-          user.online !== undefined ? user.online : true,
-      });
-    }
+    loadPartner();
   }, []);
 
-  function toggleStatus() {
-    const updated = {
-      ...partner,
-      online: !partner.online,
-    };
+  async function loadPartner() {
+    const saved = localStorage.getItem("deliveryPartner");
 
-    setPartner(updated);
+    if (!saved) return;
 
-    localStorage.setItem(
-      "deliveryPartner",
-      JSON.stringify(updated)
-    );
+    const user = JSON.parse(saved);
+
+    let online = false;
+
+    try {
+      const status = await getDeliveryStatus(
+        user.phone
+      );
+
+      online = status.online;
+    } catch (err) {
+      console.error(err);
+    }
+
+    setPartner({
+      name: user.name || "Delivery Partner",
+      phone: user.phone || "",
+      vehicle: user.vehicle || "Bike",
+      rating: user.rating || 4.9,
+      totalDeliveries:
+        user.totalDeliveries || 0,
+      totalEarnings:
+        user.totalEarnings || 0,
+      online,
+    });
+  }
+
+  async function toggleStatus() {
+    try {
+      const updated = {
+        ...partner,
+        online: !partner.online,
+      };
+
+      setPartner(updated);
+
+      localStorage.setItem(
+        "deliveryPartner",
+        JSON.stringify(updated)
+      );
+
+      await updateDeliveryStatus(
+        updated.phone,
+        updated.online
+      );
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update status");
+    }
   }
 
   function logout() {
-    localStorage.removeItem("deliveryPartner");
-    window.location.href = "/delivery/login";
+    localStorage.removeItem(
+      "deliveryPartner"
+    );
+
+    window.location.href =
+      "/delivery/login";
   }
 
   return (

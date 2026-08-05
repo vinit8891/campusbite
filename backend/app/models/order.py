@@ -150,3 +150,56 @@ async def update_order_status(
     )
 
     return result.modified_count
+
+
+# =====================================================
+# LIVE DELIVERY TRACKING
+# =====================================================
+
+# -----------------------------
+# Update Delivery Partner Location
+# -----------------------------
+async def update_delivery_location(
+    order_id: str,
+    latitude: float,
+    longitude: float,
+):
+    result = await order_collection.update_one(
+        {"_id": ObjectId(order_id)},
+        {
+            "$set": {
+                "delivery_partner.latitude": latitude,
+                "delivery_partner.longitude": longitude,
+            }
+        },
+    )
+
+    return result.modified_count
+
+
+# -----------------------------
+# Get Live Delivery Location
+# -----------------------------
+async def get_delivery_location(
+    order_id: str,
+):
+    order = await order_collection.find_one(
+        {"_id": ObjectId(order_id)}
+    )
+
+    if not order:
+        return None
+
+    return {
+        "partner_latitude":
+            order.get("delivery_partner", {}).get("latitude"),
+
+        "partner_longitude":
+            order.get("delivery_partner", {}).get("longitude"),
+
+        "customer_latitude":
+            order.get("latitude"),
+
+        "customer_longitude":
+            order.get("longitude"),
+    }

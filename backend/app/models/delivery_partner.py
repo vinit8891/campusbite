@@ -3,15 +3,30 @@ from app.db.database import database
 delivery_collection = database["delivery_partners"]
 
 
-async def register_partner(data):
-    result = await delivery_collection.insert_one(data)
-    return str(result.inserted_id)
-
-
-async def login_partner(email: str, password: str):
-    return await delivery_collection.find_one(
+async def update_status(phone: str, online: bool):
+    await delivery_collection.update_one(
+        {"phone": phone},
         {
-            "email": email,
-            "password": password,
-        }
+            "$set": {
+                "online": online
+            }
+        },
+        upsert=True,
     )
+
+    return True
+
+
+async def get_status(phone: str):
+    partner = await delivery_collection.find_one(
+        {"phone": phone}
+    )
+
+    if not partner:
+        return {
+            "online": False
+        }
+
+    return {
+        "online": partner.get("online", False)
+    }

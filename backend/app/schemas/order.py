@@ -10,10 +10,21 @@ class OrderItem(BaseModel):
 
 class Order(BaseModel):
     restaurant_email: str
+
     customer_name: str
+
     phone: str
+
     address: str
+
     payment_method: str
+
     total: float
+
+    latitude: float
+
+    longitude: float
+
     status: str = "Placed"
+
     items: list[OrderItem]

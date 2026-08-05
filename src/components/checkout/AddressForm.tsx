@@ -1,19 +1,57 @@
 "use client";
 
+import { useEffect } from "react";
+
 import { Input } from "@/components/ui/input";
 import { useCheckout } from "@/context/CheckoutContext";
 
 export default function AddressForm() {
   const { checkout, setCheckout } = useCheckout();
 
+  // -----------------------------
+  // Get Customer GPS Location
+  // -----------------------------
+  useEffect(() => {
+    if (
+      checkout.latitude !== null &&
+      checkout.longitude !== null
+    ) {
+      return;
+    }
+
+    if (!navigator.geolocation) {
+      console.log(
+        "Geolocation is not supported."
+      );
+      return;
+    }
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setCheckout((prev) => ({
+          ...prev,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
+        }));
+      },
+      (error) => {
+        console.log(
+          "Location Permission Denied",
+          error
+        );
+      }
+    );
+  }, []);
+
   return (
     <section className="rounded-3xl border bg-white p-8 shadow-sm">
+
       <h2 className="mb-6 text-2xl font-bold">
         Delivery Address
       </h2>
 
       <div className="grid gap-5">
-        {/* Full Name */}
+
         <div>
           <label className="mb-2 block font-medium">
             Full Name
@@ -31,14 +69,12 @@ export default function AddressForm() {
           />
         </div>
 
-        {/* Mobile */}
         <div>
           <label className="mb-2 block font-medium">
             Mobile Number
           </label>
 
           <Input
-            type="tel"
             placeholder="9876543210"
             value={checkout.phone ?? ""}
             onChange={(e) =>
@@ -50,7 +86,6 @@ export default function AddressForm() {
           />
         </div>
 
-        {/* Address */}
         <div>
           <label className="mb-2 block font-medium">
             Address
@@ -69,7 +104,7 @@ export default function AddressForm() {
         </div>
 
         <div className="grid gap-5 md:grid-cols-2">
-          {/* City */}
+
           <div>
             <label className="mb-2 block font-medium">
               City
@@ -87,7 +122,6 @@ export default function AddressForm() {
             />
           </div>
 
-          {/* Pincode */}
           <div>
             <label className="mb-2 block font-medium">
               PIN Code
@@ -104,9 +138,9 @@ export default function AddressForm() {
               }
             />
           </div>
+
         </div>
 
-        {/* Landmark */}
         <div>
           <label className="mb-2 block font-medium">
             Landmark
@@ -123,7 +157,24 @@ export default function AddressForm() {
             }
           />
         </div>
+
+        {/* GPS Status */}
+        <div className="rounded-xl bg-green-50 p-4 text-sm">
+
+          {checkout.latitude && checkout.longitude ? (
+            <div className="text-green-700">
+              📍 Live Location Captured Successfully
+            </div>
+          ) : (
+            <div className="text-orange-600">
+              📍 Waiting for Location Permission...
+            </div>
+          )}
+
+        </div>
+
       </div>
+
     </section>
   );
 }

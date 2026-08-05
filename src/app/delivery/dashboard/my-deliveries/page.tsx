@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 
 import {
   getMyDeliveries,
+  updateDeliveryLocation,
 } from "@/services/deliveryService";
 
 export default function MyDeliveriesPage() {
@@ -36,10 +37,43 @@ export default function MyDeliveriesPage() {
   useEffect(() => {
     loadOrders();
 
-    const interval = setInterval(loadOrders, 5000);
+    const refresh = setInterval(loadOrders, 5000);
+
+    return () => clearInterval(refresh);
+  }, []);
+
+  // -----------------------------------------
+  // LIVE GPS TRACKING
+  // -----------------------------------------
+  useEffect(() => {
+    if (orders.length === 0) return;
+
+    const interval = setInterval(() => {
+      navigator.geolocation.getCurrentPosition(
+        async (position) => {
+          try {
+            for (const order of orders) {
+              if (order.status !== "Delivered") {
+                await updateDeliveryLocation(
+                  order._id,
+                  position.coords.latitude,
+                  position.coords.longitude
+                );
+              }
+            }
+          } catch (err) {
+            console.error(err);
+          }
+        },
+        (err) => console.error(err),
+        {
+          enableHighAccuracy: true,
+        }
+      );
+    }, 5000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [orders]);
 
   async function updateStatus(
     id: string,
@@ -191,16 +225,29 @@ export default function MyDeliveriesPage() {
                   ✅ Delivered
                 </button>
 
-                <a
-                  href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-                    order.address
-                  )}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <button
+                  onClick={() => {
+                    if (
+                      order.latitude &&
+                      order.longitude
+                    ) {
+                      window.open(
+                        `https://www.google.com/maps/dir/?api=1&destination=${order.latitude},${order.longitude}`,
+                        "_blank"
+                      );
+                    } else {
+                      window.open(
+                        `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+                          order.address
+                        )}`,
+                        "_blank"
+                      );
+                    }
+                  }}
                   className="rounded-lg bg-purple-600 px-4 py-2 text-white hover:bg-purple-700"
                 >
                   🗺 Navigate
-                </a>
+                </button>
 
               </div>
 

@@ -11,6 +11,12 @@ type OrderItem = {
   quantity: number;
 };
 
+type DeliveryPartner = {
+  name: string;
+  phone: string;
+  vehicle: string;
+};
+
 type Order = {
   _id: string;
   customer_name: string;
@@ -21,6 +27,11 @@ type Order = {
   total: number;
   status: string;
   items: OrderItem[];
+
+  latitude?: number;
+  longitude?: number;
+
+  delivery_partner?: DeliveryPartner;
 };
 
 export default function MyOrdersPage() {
@@ -52,7 +63,10 @@ export default function MyOrdersPage() {
       }
 
       const res = await fetch(
-        `http://127.0.0.1:8000/orders/customer/${phone}`
+        `http://127.0.0.1:8000/orders/customer/${phone}`,
+        {
+          cache: "no-store",
+        }
       );
 
       const data = await res.json();
@@ -75,6 +89,9 @@ export default function MyOrdersPage() {
 
       case "Ready for Pickup":
         return "bg-indigo-100 text-indigo-700";
+
+      case "Picked Up":
+        return "bg-orange-100 text-orange-700";
 
       case "Out for Delivery":
         return "bg-purple-100 text-purple-700";
@@ -100,6 +117,9 @@ export default function MyOrdersPage() {
 
       case "Ready for Pickup":
         return "📦 Ready for Pickup";
+
+      case "Picked Up":
+        return "📦 Picked Up";
 
       case "Out for Delivery":
         return "🛵 Out for Delivery";
@@ -139,20 +159,26 @@ export default function MyOrdersPage() {
 
   return (
     <div className="mx-auto max-w-6xl p-6">
+
       <h1 className="mb-8 text-4xl font-bold">
         My Orders
       </h1>
 
       <div className="space-y-8">
+
         {orders.map((order) => (
+
           <div
             key={order._id}
             className="rounded-3xl border bg-white p-6 shadow"
           >
+
             <OrderNotification status={order.status} />
 
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+
               <div>
+
                 <h2 className="text-xl font-bold">
                   🍽 {order.restaurant_email}
                 </h2>
@@ -160,6 +186,7 @@ export default function MyOrdersPage() {
                 <p className="text-gray-500">
                   {order.customer_name}
                 </p>
+
               </div>
 
               <span
@@ -169,9 +196,11 @@ export default function MyOrdersPage() {
               >
                 {statusLabel(order.status)}
               </span>
+
             </div>
 
             <div className="mt-6 rounded-2xl bg-gray-50 p-5">
+
               <h3 className="mb-4 text-lg font-bold">
                 Order Status
               </h3>
@@ -179,14 +208,18 @@ export default function MyOrdersPage() {
               <OrderTimeline
                 status={order.status}
               />
+
             </div>
 
-            <div className="space-y-3">
+            <div className="mt-6 space-y-3">
+
               {order.items.map((item) => (
+
                 <div
                   key={item.id}
                   className="flex justify-between border-b pb-2"
                 >
+
                   <span>
                     {item.name} × {item.quantity}
                   </span>
@@ -194,13 +227,17 @@ export default function MyOrdersPage() {
                   <span>
                     ₹{item.price * item.quantity}
                   </span>
+
                 </div>
+
               ))}
+
             </div>
 
             <hr className="my-5" />
 
             <div className="grid gap-3 md:grid-cols-2">
+
               <p>
                 <strong>📍 Address:</strong>{" "}
                 {order.address}
@@ -219,10 +256,59 @@ export default function MyOrdersPage() {
               <p className="text-xl font-bold text-orange-600">
                 Total ₹{order.total}
               </p>
+
             </div>
+
+            {order.status === "Out for Delivery" &&
+              order.delivery_partner && (
+
+                <div className="mt-8 rounded-2xl border border-green-200 bg-green-50 p-6">
+
+                  <h3 className="mb-4 text-xl font-bold">
+                    🚴 Delivery Partner
+                  </h3>
+
+                  <div className="space-y-2">
+
+                    <p>
+                      <strong>Name:</strong>{" "}
+                      {order.delivery_partner.name}
+                    </p>
+
+                    <p>
+                      <strong>Phone:</strong>{" "}
+                      {order.delivery_partner.phone}
+                    </p>
+
+                    <p>
+                      <strong>Vehicle:</strong>{" "}
+                      {order.delivery_partner.vehicle}
+                    </p>
+
+                  </div>
+
+                  <button
+                    onClick={() =>
+                      window.open(
+                        `/track-order/${order._id}`,
+                        "_blank"
+                      )
+                    }
+                    className="mt-6 rounded-xl bg-green-600 px-6 py-3 font-semibold text-white transition hover:bg-green-700"
+                  >
+                    📍 Live Track Order
+                  </button>
+
+                </div>
+
+              )}
+
           </div>
+
         ))}
+
       </div>
+
     </div>
   );
 }

@@ -1,49 +1,28 @@
 from fastapi import APIRouter
 
-from app.schemas.delivery_partner import DeliveryPartner
 from app.models.delivery_partner import (
-    register_partner,
-    login_partner,
+    update_status,
+    get_status,
 )
 
 router = APIRouter(
-    prefix="/delivery",
+    prefix="/delivery-partner",
     tags=["Delivery Partner"],
 )
 
 
-@router.post("/register")
-async def register(data: DeliveryPartner):
-
-    partner = data.model_dump()
-
-    partner["available"] = True
-    partner["earnings"] = 0
-
-    partner_id = await register_partner(partner)
-
-    return {
-        "message": "Partner Registered",
-        "id": partner_id,
-    }
-
-
-@router.post("/login")
-async def login(data: dict):
-
-    partner = await login_partner(
-        data["email"],
-        data["password"],
+@router.put("/status")
+async def change_status(data: dict):
+    await update_status(
+        data["phone"],
+        data["online"],
     )
 
-    if not partner:
-        return {
-            "success": False,
-        }
-
-    partner["_id"] = str(partner["_id"])
-
     return {
-        "success": True,
-        "partner": partner,
+        "message": "Status Updated"
     }
+
+
+@router.get("/status/{phone}")
+async def status(phone: str):
+    return await get_status(phone)
