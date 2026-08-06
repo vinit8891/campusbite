@@ -20,6 +20,9 @@ from app.routes.analytics import (
 from app.routes.delivery_partner import (
     router as delivery_partner_router,
 )
+from app.routes.review import (
+    router as review_router,
+)
 
 from app.db.database import database
 
@@ -28,7 +31,9 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# ----------------------------------------
 # CORS
+# ----------------------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
@@ -39,20 +44,52 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Routes
-app.include_router(restaurant_router)
+# ----------------------------------------
+# API Routes
+# ----------------------------------------
 app.include_router(auth_router)
+
 app.include_router(
     restaurant_owner_router
 )
-app.include_router(menu_router)
-app.include_router(order_router)
-app.include_router(dashboard_router)
-app.include_router(delivery_dashboard_router)
-app.include_router(analytics_router)
-app.include_router(delivery_partner_router)
+
+app.include_router(
+    restaurant_router
+)
+
+app.include_router(
+    menu_router
+)
+
+app.include_router(
+    order_router
+)
+
+app.include_router(
+    dashboard_router
+)
+
+app.include_router(
+    delivery_dashboard_router
+)
+
+app.include_router(
+    analytics_router
+)
+
+app.include_router(
+    delivery_partner_router
+)
+
+# ⭐ Review Routes
+app.include_router(
+    review_router
+)
 
 
+# ----------------------------------------
+# Root
+# ----------------------------------------
 @app.get("/")
 async def root():
     return {
@@ -60,11 +97,14 @@ async def root():
     }
 
 
+# ----------------------------------------
+# Database Test
+# ----------------------------------------
 @app.get("/test-db")
 async def test_db():
     collections = await database.list_collection_names()
 
     return {
         "connected": True,
-        "collections": collections
+        "collections": collections,
     }

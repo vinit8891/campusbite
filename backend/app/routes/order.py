@@ -1,4 +1,7 @@
-from fastapi import APIRouter, Body
+import random
+from datetime import datetime, UTC
+
+from fastapi import APIRouter, Body, HTTPException
 
 from app.schemas.order import Order
 
@@ -14,12 +17,24 @@ from app.models.order import (
     assign_delivery_partner,
     update_delivery_location,
     get_delivery_location,
+    get_order_otp,
+    verify_delivery_otp,
 )
 
 router = APIRouter(
     prefix="/orders",
     tags=["Orders"],
 )
+
+VALID_STATUS = [
+    "Pending",
+    "Accepted",
+    "Ready For Pickup",
+    "Assigned",
+    "Picked Up",
+    "Delivered",
+    "Cancelled",
+]
 
 
 # -----------------------------
@@ -28,9 +43,21 @@ router = APIRouter(
 @router.post("/")
 async def add_order(order: Order):
 
-    order_id = await create_order(
-        order.model_dump()
-    )
+    data = order.model_dump()
+
+    # Generate Delivery OTP
+    data["delivery_otp"] = random.randint(1000, 9999)
+
+    # OTP not verified initially
+    data["otp_verified"] = False
+
+    # Review not submitted initially
+    data["review_submitted"] = False
+
+    # Order creation time (UTC)
+    data["created_at"] = datetime.now(UTC)
+
+    order_id = await create_order(data)
 
     return {
         "message": "Order placed successfully",
@@ -92,7 +119,7 @@ async def my_delivery_orders(phone: str):
 @router.put("/delivery/accept/{order_id}")
 async def accept_delivery(
     order_id: str,
-    partner: dict = Body(...)
+    partner: dict = Body(...),
 ):
     await update_order_status(
         order_id,
@@ -133,13 +160,21 @@ async def change_status(
     order_id: str,
     status: str,
 ):
+    if status not in VALID_STATUS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid status. Allowed values: {', '.join(VALID_STATUS)}",
+        )
+
     await update_order_status(
         order_id,
         status,
     )
 
     return {
-        "message": "Status Updated"
+        "success": True,
+        "status": status,
+        "message": "Order status updated successfully.",
     }
 
 
@@ -155,10 +190,19 @@ async def update_location(
     order_id: str,
     location: dict = Body(...),
 ):
+    latitude = location.get("latitude")
+    longitude = location.get("longitude")
+
+    if latitude is None or longitude is None:
+        raise HTTPException(
+            status_code=400,
+            detail="Latitude and Longitude are required."
+        )
+
     await update_delivery_location(
         order_id,
-        location["latitude"],
-        location["longitude"],
+        latitude,
+        longitude,
     )
 
     return {
@@ -174,3 +218,58 @@ async def get_location(
     order_id: str,
 ):
     return await get_delivery_location(order_id)
+
+
+# =====================================================
+# DELIVERY OTP
+# =====================================================
+
+# -----------------------------
+# Get Delivery OTP
+# -----------------------------
+@router.get("/otp/{order_id}")
+async def get_otp(
+    order_id: str,
+):
+    otp = await get_order_otp(order_id)
+
+    if not otp:
+        raise HTTPException(
+            status_code=404,
+            detail="Order not found",
+        )
+
+    return otp
+
+
+# -----------------------------
+# Verify Delivery OTP
+# -----------------------------
+@router.put("/verify-otp/{order_id}")
+async def verify_otp(
+    order_id: str,
+    body: dict = Body(...),
+):
+    otp = body.get("otp")
+
+    if otp is None:
+        raise HTTPException(
+            status_code=400,
+            detail="OTP is required."
+        )
+
+    success = await verify_delivery_otp(
+        order_id,
+        otp,
+    )
+
+    if not success:
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid OTP",
+        )
+
+    return {
+        "success": True,
+        "message": "OTP Verified",
+    }

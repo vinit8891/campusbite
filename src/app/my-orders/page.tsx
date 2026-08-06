@@ -2,7 +2,13 @@
 
 import { useEffect, useState } from "react";
 import OrderNotification from "@/components/notifications/OrderNotification";
+import LiveDeliveryNotification from "@/components/notifications/LiveDeliveryNotification";
 import OrderTimeline from "@/components/orders/OrderTimeline";
+import ReviewModal from "@/components/reviews/ReviewModal";
+
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://127.0.0.1:8000";
 
 type OrderItem = {
   id: number;
@@ -14,7 +20,6 @@ type OrderItem = {
 type DeliveryPartner = {
   name: string;
   phone: string;
-  vehicle: string;
 };
 
 type Order = {
@@ -32,18 +37,23 @@ type Order = {
   longitude?: number;
 
   delivery_partner?: DeliveryPartner;
+
+  otp_verified?: boolean;
+  review_submitted?: boolean;
 };
 
 export default function MyOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [deliveryOtps, setDeliveryOtps] = useState<
+    Record<string, number>
+  >({});
+
   useEffect(() => {
     fetchOrders();
 
-    const interval = setInterval(() => {
-      fetchOrders();
-    }, 5000);
+    const interval = setInterval(fetchOrders, 5000);
 
     return () => clearInterval(interval);
   }, []);
@@ -54,16 +64,14 @@ export default function MyOrdersPage() {
         localStorage.getItem("checkout") || "{}"
       );
 
-      const phone = checkout.phone;
-
-      if (!phone) {
+      if (!checkout.phone) {
         setOrders([]);
         setLoading(false);
         return;
       }
 
       const res = await fetch(
-        `http://127.0.0.1:8000/orders/customer/${phone}`,
+        `${API_URL}/orders/customer/${checkout.phone}`,
         {
           cache: "no-store",
         }
@@ -72,10 +80,43 @@ export default function MyOrdersPage() {
       const data = await res.json();
 
       setOrders(data);
+
+      for (const order of data) {
+        if (
+          order.delivery_partner &&
+          !order.otp_verified &&
+          (order.status === "Picked Up" ||
+            order.status === "Out for Delivery")
+        ) {
+          fetchOtp(order._id);
+        }
+      }
     } catch (error) {
-      console.error("Failed to fetch orders:", error);
+      console.error(error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function fetchOtp(orderId: string) {
+    try {
+      const res = await fetch(
+        `${API_URL}/orders/otp/${orderId}`,
+        {
+          cache: "no-store",
+        }
+      );
+
+      if (!res.ok) return;
+
+      const data = await res.json();
+
+      setDeliveryOtps((prev) => ({
+        ...prev,
+        [orderId]: data.otp,
+      }));
+    } catch (error) {
+      console.error(error);
     }
   }
 
@@ -159,26 +200,26 @@ export default function MyOrdersPage() {
 
   return (
     <div className="mx-auto max-w-6xl p-6">
-
       <h1 className="mb-8 text-4xl font-bold">
         My Orders
       </h1>
 
       <div className="space-y-8">
-
         {orders.map((order) => (
-
           <div
             key={order._id}
             className="rounded-3xl border bg-white p-6 shadow"
           >
+            <>
+              <OrderNotification status={order.status} />
 
-            <OrderNotification status={order.status} />
+              <LiveDeliveryNotification
+                status={order.status}
+              />
+            </>
 
             <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-
               <div>
-
                 <h2 className="text-xl font-bold">
                   🍽 {order.restaurant_email}
                 </h2>
@@ -186,7 +227,6 @@ export default function MyOrdersPage() {
                 <p className="text-gray-500">
                   {order.customer_name}
                 </p>
-
               </div>
 
               <span
@@ -196,30 +236,22 @@ export default function MyOrdersPage() {
               >
                 {statusLabel(order.status)}
               </span>
-
             </div>
 
             <div className="mt-6 rounded-2xl bg-gray-50 p-5">
-
               <h3 className="mb-4 text-lg font-bold">
                 Order Status
               </h3>
 
-              <OrderTimeline
-                status={order.status}
-              />
-
+              <OrderTimeline status={order.status} />
             </div>
 
             <div className="mt-6 space-y-3">
-
               {order.items.map((item) => (
-
                 <div
                   key={item.id}
                   className="flex justify-between border-b pb-2"
                 >
-
                   <span>
                     {item.name} × {item.quantity}
                   </span>
@@ -227,17 +259,13 @@ export default function MyOrdersPage() {
                   <span>
                     ₹{item.price * item.quantity}
                   </span>
-
                 </div>
-
               ))}
-
             </div>
 
             <hr className="my-5" />
 
             <div className="grid gap-3 md:grid-cols-2">
-
               <p>
                 <strong>📍 Address:</strong>{" "}
                 {order.address}
@@ -256,37 +284,48 @@ export default function MyOrdersPage() {
               <p className="text-xl font-bold text-orange-600">
                 Total ₹{order.total}
               </p>
-
             </div>
 
-            {order.status === "Out for Delivery" &&
-              order.delivery_partner && (
+            {order.delivery_partner && (
+              <div className="mt-8 rounded-2xl border border-green-200 bg-green-50 p-6">
+                <h3 className="mb-4 text-xl font-bold">
+                  🚴 Delivery Partner
+                </h3>
 
-                <div className="mt-8 rounded-2xl border border-green-200 bg-green-50 p-6">
+                <div className="space-y-2">
+                  <p>
+                    <strong>Name:</strong>{" "}
+                    {order.delivery_partner.name}
+                  </p>
 
-                  <h3 className="mb-4 text-xl font-bold">
-                    🚴 Delivery Partner
-                  </h3>
+                  <p>
+                    <strong>Phone:</strong>{" "}
+                    {order.delivery_partner.phone}
+                  </p>
+                </div>
 
-                  <div className="space-y-2">
+                {!order.otp_verified &&
+                  (order.status === "Picked Up" ||
+                    order.status ===
+                      "Out for Delivery") &&
+                  deliveryOtps[order._id] && (
+                    <div className="mt-6 rounded-xl border-2 border-orange-400 bg-orange-100 p-5 text-center">
+                      <h4 className="text-lg font-bold">
+                        🔐 Delivery OTP
+                      </h4>
 
-                    <p>
-                      <strong>Name:</strong>{" "}
-                      {order.delivery_partner.name}
-                    </p>
+                      <p className="mt-2 text-5xl font-extrabold tracking-[10px] text-orange-700">
+                        {deliveryOtps[order._id]}
+                      </p>
 
-                    <p>
-                      <strong>Phone:</strong>{" "}
-                      {order.delivery_partner.phone}
-                    </p>
+                      <p className="mt-3 text-sm text-gray-600">
+                        Share this OTP only after
+                        receiving your order.
+                      </p>
+                    </div>
+                  )}
 
-                    <p>
-                      <strong>Vehicle:</strong>{" "}
-                      {order.delivery_partner.vehicle}
-                    </p>
-
-                  </div>
-
+                {order.status === "Out for Delivery" && (
                   <button
                     onClick={() =>
                       window.open(
@@ -298,17 +337,46 @@ export default function MyOrdersPage() {
                   >
                     📍 Live Track Order
                   </button>
+                )}
 
-                </div>
+                {order.status === "Delivered" &&
+                  !order.review_submitted &&
+                  order.delivery_partner && (
+                    <div className="mt-6">
+                      <ReviewModal
+                        orderId={order._id}
+                        restaurantEmail={
+                          order.restaurant_email
+                        }
+                        deliveryPartnerPhone={
+                          order.delivery_partner.phone
+                        }
+                        customerName={
+                          order.customer_name
+                        }
+                        onSuccess={fetchOrders}
+                      />
+                    </div>
+                  )}
 
-              )}
+                {order.status === "Delivered" &&
+                  order.review_submitted && (
+                    <div className="mt-6 rounded-xl border border-green-300 bg-green-50 p-5 text-center">
+                      <h3 className="text-xl font-bold text-green-700">
+                        ⭐ Thank You!
+                      </h3>
 
+                      <p className="mt-2 text-gray-600">
+                        Your review has been submitted
+                        successfully.
+                      </p>
+                    </div>
+                  )}
+              </div>
+            )}
           </div>
-
         ))}
-
       </div>
-
     </div>
   );
 }

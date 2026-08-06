@@ -3,16 +3,35 @@
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
+import LiveTrackingMap from "@/components/maps/LiveTrackingMap";
+
 const API =
   process.env.NEXT_PUBLIC_API_URL ||
   "http://127.0.0.1:8000";
+
+type TrackingLocation = {
+  customer_latitude: number;
+  customer_longitude: number;
+
+  partner_latitude: number;
+  partner_longitude: number;
+
+  restaurant_latitude: number;
+  restaurant_longitude: number;
+
+  status: string;
+};
 
 export default function TrackOrderPage() {
   const params = useParams();
 
   const orderId = params.id as string;
 
-  const [location, setLocation] = useState<any>(null);
+  const [location, setLocation] =
+    useState<TrackingLocation | null>(null);
+
+  const [loading, setLoading] =
+    useState(true);
 
   async function loadLocation() {
     try {
@@ -23,25 +42,35 @@ export default function TrackOrderPage() {
         }
       );
 
-      if (!res.ok) return;
+      if (!res.ok) {
+        throw new Error(
+          "Failed to fetch tracking location"
+        );
+      }
 
       const data = await res.json();
 
       setLocation(data);
     } catch (err) {
       console.error(err);
+    } finally {
+      setLoading(false);
     }
   }
 
   useEffect(() => {
+    if (!orderId) return;
+
     loadLocation();
 
-    const interval = setInterval(loadLocation, 5000);
+    const interval = setInterval(() => {
+      loadLocation();
+    }, 5000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [orderId]);
 
-  if (!location) {
+  if (loading) {
     return (
       <div className="flex h-screen items-center justify-center text-2xl font-bold">
         Loading Live Tracking...
@@ -49,8 +78,16 @@ export default function TrackOrderPage() {
     );
   }
 
+  if (!location) {
+    return (
+      <div className="flex h-screen items-center justify-center text-xl">
+        Unable to load tracking information.
+      </div>
+    );
+  }
+
   return (
-    <main className="mx-auto max-w-5xl p-8">
+    <main className="mx-auto max-w-6xl p-8">
 
       <h1 className="mb-8 text-4xl font-bold">
         📍 Live Order Tracking
@@ -58,61 +95,76 @@ export default function TrackOrderPage() {
 
       <div className="rounded-3xl bg-white p-8 shadow">
 
-        <div className="grid gap-6 md:grid-cols-2">
+        <div className="mb-8 grid gap-6 md:grid-cols-3">
 
-          <div>
+          <div className="rounded-2xl bg-gray-50 p-6">
 
             <h2 className="mb-4 text-2xl font-bold">
-              Customer
+              🍽 Restaurant
             </h2>
 
             <p>
-              Latitude:
-              {" "}
+              <strong>Latitude:</strong>{" "}
+              {location.restaurant_latitude}
+            </p>
+
+            <p>
+              <strong>Longitude:</strong>{" "}
+              {location.restaurant_longitude}
+            </p>
+
+          </div>
+
+          <div className="rounded-2xl bg-gray-50 p-6">
+
+            <h2 className="mb-4 text-2xl font-bold">
+              🛵 Delivery Partner
+            </h2>
+
+            <p>
+              <strong>Latitude:</strong>{" "}
+              {location.partner_latitude}
+            </p>
+
+            <p>
+              <strong>Longitude:</strong>{" "}
+              {location.partner_longitude}
+            </p>
+
+            <p className="mt-3 font-semibold text-green-600">
+              Status: {location.status}
+            </p>
+
+          </div>
+
+          <div className="rounded-2xl bg-gray-50 p-6">
+
+            <h2 className="mb-4 text-2xl font-bold">
+              🏠 Customer
+            </h2>
+
+            <p>
+              <strong>Latitude:</strong>{" "}
               {location.customer_latitude}
             </p>
 
             <p>
-              Longitude:
-              {" "}
+              <strong>Longitude:</strong>{" "}
               {location.customer_longitude}
             </p>
 
           </div>
 
-          <div>
-
-            <h2 className="mb-4 text-2xl font-bold">
-              Delivery Partner
-            </h2>
-
-            <p>
-              Latitude:
-              {" "}
-              {location.partner_latitude}
-            </p>
-
-            <p>
-              Longitude:
-              {" "}
-              {location.partner_longitude}
-            </p>
-
-          </div>
-
         </div>
 
-        <div className="mt-10">
-
-          <iframe
-            width="100%"
-            height="500"
-            loading="lazy"
-            className="rounded-2xl"
-            src={`https://www.google.com/maps?q=${location.partner_latitude},${location.partner_longitude}&z=16&output=embed`}
-          />
-
-        </div>
+        <LiveTrackingMap
+          partnerLat={location.partner_latitude}
+          partnerLng={location.partner_longitude}
+          customerLat={location.customer_latitude}
+          customerLng={location.customer_longitude}
+          restaurantLat={location.restaurant_latitude}
+          restaurantLng={location.restaurant_longitude}
+        />
 
       </div>
 

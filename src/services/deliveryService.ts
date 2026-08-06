@@ -71,14 +71,10 @@ export async function getMyDeliveries(
   return res.json();
 }
 
-// ====================================================
-// LIVE DELIVERY TRACKING
-// ====================================================
-
 // ----------------------
-// Update Delivery Partner Location
+// Update Live Location
 // ----------------------
-export async function updateDeliveryLocation(
+export async function updateLiveLocation(
   orderId: string,
   latitude: number,
   longitude: number
@@ -107,22 +103,47 @@ export async function updateDeliveryLocation(
 }
 
 // ----------------------
-// Get Live Delivery Location
+// Get Delivery OTP
 // ----------------------
-export async function getDeliveryLocation(
+export async function getOrderOTP(
   orderId: string
 ) {
   const res = await fetch(
-    `${API_URL}/orders/delivery/location/${orderId}`,
+    `${API_URL}/orders/otp/${orderId}`,
     {
       cache: "no-store",
     }
   );
 
   if (!res.ok) {
-    throw new Error(
-      "Failed to fetch live location"
-    );
+    throw new Error("Failed to get OTP");
+  }
+
+  return res.json();
+}
+
+// ----------------------
+// Verify Delivery OTP
+// ----------------------
+export async function verifyDeliveryOTP(
+  orderId: string,
+  otp: number
+) {
+  const res = await fetch(
+    `${API_URL}/orders/verify-otp/${orderId}`,
+    {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        otp,
+      }),
+    }
+  );
+
+  if (!res.ok) {
+    throw new Error("OTP verification failed");
   }
 
   return res.json();

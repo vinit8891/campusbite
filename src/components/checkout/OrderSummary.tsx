@@ -52,6 +52,8 @@ export default function OrderSummary() {
       setLoading(true);
 
       await placeOrder({
+        restaurant_email: checkout.restaurant_email,
+
         customer_name: checkout.customer_name,
 
         phone: checkout.phone,
@@ -68,9 +70,13 @@ export default function OrderSummary() {
 
         total,
 
+        // Customer GPS
         latitude: checkout.latitude,
-
         longitude: checkout.longitude,
+
+        // Restaurant GPS
+        restaurant_latitude: checkout.restaurant_latitude,
+        restaurant_longitude: checkout.restaurant_longitude,
 
         status: "Placed",
       });

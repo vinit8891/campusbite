@@ -21,10 +21,20 @@ class Order(BaseModel):
 
     total: float
 
+    # Customer GPS
     latitude: float
-
     longitude: float
 
+    # Restaurant GPS
+    restaurant_latitude: float
+    restaurant_longitude: float
+
     status: str = "Placed"
+
+    delivery_otp: int | None = None
+
+    otp_verified: bool = False
+
+    review_submitted: bool = False
 
     items: list[OrderItem]
