@@ -29,9 +29,11 @@ router = APIRouter(
 VALID_STATUS = [
     "Pending",
     "Accepted",
-    "Ready For Pickup",
+    "Preparing",
+    "Ready for Pickup",
     "Assigned",
     "Picked Up",
+    "Out for Delivery",
     "Delivered",
     "Cancelled",
 ]
@@ -121,14 +123,22 @@ async def accept_delivery(
     order_id: str,
     partner: dict = Body(...),
 ):
-    await update_order_status(
-        order_id,
-        "Assigned",
-        partner,
+    success = await assign_delivery_partner(
+        order_id=order_id,
+        partner_name=partner.get("name", ""),
+        partner_phone=partner.get("phone", ""),
+        partner_vehicle=partner.get("vehicle", ""),
     )
 
+    if not success:
+        raise HTTPException(
+            status_code=400,
+            detail="This order has already been accepted by another delivery partner or is no longer available."
+        )
+
     return {
-        "message": "Delivery Assigned"
+        "success": True,
+        "message": "Order accepted successfully"
     }
 
 
@@ -166,10 +176,16 @@ async def change_status(
             detail=f"Invalid status. Allowed values: {', '.join(VALID_STATUS)}",
         )
 
-    await update_order_status(
+    updated = await update_order_status(
         order_id,
         status,
     )
+
+    if updated == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="Order not updated",
+        )
 
     return {
         "success": True,
@@ -241,7 +257,6 @@ async def get_otp(
 
     return otp
 
-
 # -----------------------------
 # Verify Delivery OTP
 # -----------------------------
@@ -250,6 +265,10 @@ async def verify_otp(
     order_id: str,
     body: dict = Body(...),
 ):
+    print("===== VERIFY ROUTE HIT =====")
+    print("Order ID:", order_id)
+    print("Body:", body)
+
     otp = body.get("otp")
 
     if otp is None:
@@ -262,6 +281,8 @@ async def verify_otp(
         order_id,
         otp,
     )
+
+    print("Verification Result:", success)
 
     if not success:
         raise HTTPException(

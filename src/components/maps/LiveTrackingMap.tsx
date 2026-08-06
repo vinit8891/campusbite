@@ -18,14 +18,14 @@ import bikeIcon from "@/assets/maps/bike.png";
 import homeIcon from "@/assets/maps/home.png";
 
 type Props = {
-  partnerLat: number;
-  partnerLng: number;
+  partnerLat: number | null;
+  partnerLng: number | null;
 
-  customerLat: number;
-  customerLng: number;
+  customerLat: number | null;
+  customerLng: number | null;
 
-  restaurantLat: number;
-  restaurantLng: number;
+  restaurantLat: number | null;
+  restaurantLng: number | null;
 };
 
 const containerStyle = {
@@ -47,10 +47,10 @@ export default function LiveTrackingMap({
   const animationRef =
     useRef<number>();
 
-  const previousPosition =
+    const previousPosition =
     useRef({
-      lat: partnerLat,
-      lng: partnerLng,
+      lat: partnerLat ?? customerLat ?? 0,
+      lng: partnerLng ?? customerLng ?? 0,
     });
 
   const { isLoaded } = useJsApiLoader({
@@ -67,10 +67,10 @@ export default function LiveTrackingMap({
   const [duration, setDuration] =
     useState("--");
 
-  const [animatedPosition, setAnimatedPosition] =
+    const [animatedPosition, setAnimatedPosition] =
     useState({
-      lat: partnerLat,
-      lng: partnerLng,
+      lat: partnerLat ?? customerLat ?? 0,
+      lng: partnerLng ?? customerLng ?? 0,
     });
 
   const [heading, setHeading] =
@@ -126,7 +126,11 @@ export default function LiveTrackingMap({
       partnerLat == null ||
       partnerLng == null ||
       customerLat == null ||
-      customerLng == null
+      customerLng == null ||
+      Number.isNaN(partnerLat) ||
+      Number.isNaN(partnerLng) ||
+      Number.isNaN(customerLat) ||
+      Number.isNaN(customerLng)
     ) {
       return;
     }
@@ -176,13 +180,15 @@ export default function LiveTrackingMap({
     customerLng,
   ]);
 
-  // -----------------------------
+   // -----------------------------
   // Smooth Bike Animation
   // -----------------------------
   useEffect(() => {
     if (
       partnerLat == null ||
-      partnerLng == null
+      partnerLng == null ||
+      Number.isNaN(partnerLat) ||
+      Number.isNaN(partnerLng)
     ) {
       return;
     }
@@ -265,6 +271,19 @@ export default function LiveTrackingMap({
     );
   }
 
+  if (
+    customerLat == null ||
+    customerLng == null ||
+    Number.isNaN(customerLat) ||
+    Number.isNaN(customerLng)
+  ) {
+    return (
+      <div className="flex h-[500px] items-center justify-center rounded-xl border">
+        Customer location unavailable.
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="mb-6 grid gap-4 md:grid-cols-2">
@@ -293,12 +312,18 @@ export default function LiveTrackingMap({
         mapContainerStyle={
           containerStyle
         }
-        center={{
-          lat:
-            (customerLat + partnerLat) / 2,
-          lng:
-            (customerLng + partnerLng) / 2,
-        }}
+        center={
+          partnerLat != null &&
+          partnerLng != null
+            ? {
+                lat: partnerLat,
+                lng: partnerLng,
+              }
+            : {
+                lat: customerLat,
+                lng: customerLng,
+              }
+        }
         zoom={15}
         onLoad={(map) => {
           mapRef.current = map;
@@ -310,13 +335,16 @@ export default function LiveTrackingMap({
           zoomControl: true,
         }}
       >
-        <Marker
-          position={{
-            lat: restaurantLat,
-            lng: restaurantLng,
-          }}
-          icon={restaurantMarker}
-        />
+        {restaurantLat != null &&
+          restaurantLng != null && (
+            <Marker
+              position={{
+                lat: restaurantLat,
+                lng: restaurantLng,
+              }}
+              icon={restaurantMarker}
+            />
+          )}
 
         <Marker
           position={animatedPosition}

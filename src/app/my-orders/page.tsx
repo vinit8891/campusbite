@@ -5,6 +5,7 @@ import OrderNotification from "@/components/notifications/OrderNotification";
 import LiveDeliveryNotification from "@/components/notifications/LiveDeliveryNotification";
 import OrderTimeline from "@/components/orders/OrderTimeline";
 import ReviewModal from "@/components/reviews/ReviewModal";
+import { getOrderOTP } from "@/services/deliveryService";
 
 const API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
@@ -20,6 +21,7 @@ type OrderItem = {
 type DeliveryPartner = {
   name: string;
   phone: string;
+  vehicle?: string;
 };
 
 type Order = {
@@ -46,8 +48,15 @@ export default function MyOrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const [deliveryOtps, setDeliveryOtps] = useState<
-    Record<string, number>
+  const [orderOtps, setOrderOtps] = useState<
+    Record<
+      string,
+      {
+        otp: number;
+        verified: boolean;
+        status: string;
+      }
+    >
   >({});
 
   useEffect(() => {
@@ -83,12 +92,11 @@ export default function MyOrdersPage() {
 
       for (const order of data) {
         if (
-          order.delivery_partner &&
-          !order.otp_verified &&
           (order.status === "Picked Up" ||
-            order.status === "Out for Delivery")
+            order.status === "Out for Delivery") &&
+          !orderOtps[order._id]
         ) {
-          fetchOtp(order._id);
+          loadOrderOTP(order._id);
         }
       }
     } catch (error) {
@@ -98,25 +106,16 @@ export default function MyOrdersPage() {
     }
   }
 
-  async function fetchOtp(orderId: string) {
+  async function loadOrderOTP(orderId: string) {
     try {
-      const res = await fetch(
-        `${API_URL}/orders/otp/${orderId}`,
-        {
-          cache: "no-store",
-        }
-      );
+      const otp = await getOrderOTP(orderId);
 
-      if (!res.ok) return;
-
-      const data = await res.json();
-
-      setDeliveryOtps((prev) => ({
+      setOrderOtps((prev) => ({
         ...prev,
-        [orderId]: data.otp,
+        [orderId]: otp,
       }));
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(err);
     }
   }
 
@@ -175,7 +174,6 @@ export default function MyOrdersPage() {
         return status;
     }
   }
-
   if (loading) {
     return (
       <div className="p-10 text-center text-xl">
@@ -302,20 +300,27 @@ export default function MyOrdersPage() {
                     <strong>Phone:</strong>{" "}
                     {order.delivery_partner.phone}
                   </p>
+
+                  {order.delivery_partner.vehicle && (
+                    <p>
+                      <strong>Vehicle:</strong>{" "}
+                      {order.delivery_partner.vehicle}
+                    </p>
+                  )}
                 </div>
 
-                {!order.otp_verified &&
+                {!orderOtps[order._id]?.verified &&
                   (order.status === "Picked Up" ||
                     order.status ===
                       "Out for Delivery") &&
-                  deliveryOtps[order._id] && (
+                  orderOtps[order._id]?.otp && (
                     <div className="mt-6 rounded-xl border-2 border-orange-400 bg-orange-100 p-5 text-center">
                       <h4 className="text-lg font-bold">
                         🔐 Delivery OTP
                       </h4>
 
                       <p className="mt-2 text-5xl font-extrabold tracking-[10px] text-orange-700">
-                        {deliveryOtps[order._id]}
+                        {orderOtps[order._id]?.otp}
                       </p>
 
                       <p className="mt-3 text-sm text-gray-600">
@@ -340,8 +345,7 @@ export default function MyOrdersPage() {
                 )}
 
                 {order.status === "Delivered" &&
-                  !order.review_submitted &&
-                  order.delivery_partner && (
+                  !order.review_submitted && (
                     <div className="mt-6">
                       <ReviewModal
                         orderId={order._id}

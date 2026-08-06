@@ -108,6 +108,10 @@ export async function updateLiveLocation(
 export async function getOrderOTP(
   orderId: string
 ) {
+  if (!orderId) {
+    throw new Error("Invalid Order ID");
+  }
+
   const res = await fetch(
     `${API_URL}/orders/otp/${orderId}`,
     {
@@ -115,11 +119,15 @@ export async function getOrderOTP(
     }
   );
 
+  const data = await res.json();
+
   if (!res.ok) {
-    throw new Error("Failed to get OTP");
+    throw new Error(
+      data.detail || "Unable to fetch OTP"
+    );
   }
 
-  return res.json();
+  return data;
 }
 
 // ----------------------
@@ -127,8 +135,14 @@ export async function getOrderOTP(
 // ----------------------
 export async function verifyDeliveryOTP(
   orderId: string,
-  otp: number
+  otp: string | number
 ) {
+  const payload = {
+    otp: String(otp).trim(),
+  };
+
+  console.log("Sending OTP:", payload);
+
   const res = await fetch(
     `${API_URL}/orders/verify-otp/${orderId}`,
     {
@@ -136,15 +150,19 @@ export async function verifyDeliveryOTP(
       headers: {
         "Content-Type": "application/json",
       },
-      body: JSON.stringify({
-        otp,
-      }),
+      body: JSON.stringify(payload),
     }
   );
 
+  const data = await res.json();
+
+  console.log("OTP Response:", data);
+
   if (!res.ok) {
-    throw new Error("OTP verification failed");
+    throw new Error(
+      data.detail || "OTP verification failed"
+    );
   }
 
-  return res.json();
+  return data;
 }

@@ -5,7 +5,12 @@ const API_URL =
 export async function placeOrder(data: any) {
   const payload = {
     ...data,
+  
     restaurant_email: "owner@test.com",
+  
+    // Restaurant Location (Hardcoded for now)
+    restaurant_latitude: 18.520430,
+    restaurant_longitude: 73.856743,
   };
 
   const res = await fetch(`${API_URL}/orders/`, {

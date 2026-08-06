@@ -50,6 +50,8 @@ export default function TrackOrderPage() {
 
       const data = await res.json();
 
+      console.log("Tracking Location:", data);
+
       setLocation(data);
     } catch (err) {
       console.error(err);
@@ -122,14 +124,14 @@ export default function TrackOrderPage() {
             </h2>
 
             <p>
-              <strong>Latitude:</strong>{" "}
-              {location.partner_latitude}
-            </p>
+                <strong>Latitude:</strong>{" "}
+                {location.partner_latitude ?? "Waiting for location..."}
+              </p>
 
-            <p>
-              <strong>Longitude:</strong>{" "}
-              {location.partner_longitude}
-            </p>
+              <p>
+                <strong>Longitude:</strong>{" "}
+                {location.partner_longitude ?? "Waiting for location..."}
+              </p>
 
             <p className="mt-3 font-semibold text-green-600">
               Status: {location.status}
@@ -158,12 +160,12 @@ export default function TrackOrderPage() {
         </div>
 
         <LiveTrackingMap
-          partnerLat={location.partner_latitude}
-          partnerLng={location.partner_longitude}
-          customerLat={location.customer_latitude}
-          customerLng={location.customer_longitude}
-          restaurantLat={location.restaurant_latitude}
-          restaurantLng={location.restaurant_longitude}
+          partnerLat={location.partner_latitude ?? 0}
+          partnerLng={location.partner_longitude ?? 0}
+          customerLat={location.customer_latitude ?? 0}
+          customerLng={location.customer_longitude ?? 0}
+          restaurantLat={location.restaurant_latitude ?? 0}
+          restaurantLng={location.restaurant_longitude ?? 0}
         />
 
       </div>

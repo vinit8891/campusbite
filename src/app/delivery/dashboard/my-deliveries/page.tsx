@@ -87,12 +87,14 @@ export default function MyDeliveriesPage() {
     watchIdRef.current =
       navigator.geolocation.watchPosition(
         async (position) => {
-          const activeOrders =
-            ordersRef.current.filter(
-              (order) =>
-                order.status !== "Assigned" &&
-                order.status !== "Delivered"
-            );
+          const activeOrders = ordersRef.current.filter(
+            (order) =>
+              [
+                "Assigned",
+                "Picked Up",
+                "Out for Delivery",
+              ].includes(order.status)
+          );
 
           for (const order of activeOrders) {
             try {
@@ -135,22 +137,25 @@ export default function MyDeliveriesPage() {
   ) {
     try {
       const res = await fetch(
-        `${API_URL}/orders/${id}/${status}`,
+        `${API_URL}/orders/${id}/${encodeURIComponent(status)}`,
         {
           method: "PUT",
         }
       );
-
+  
+      const data = await res.json();
+  
+      console.log(data);
+  
       if (!res.ok) {
-        throw new Error("Failed");
+        throw new Error(data.detail || "Failed to update status");
       }
-
+  
       await loadOrders();
     } catch (err) {
       console.error(err);
     }
   }
-
   // -----------------------------
   // Verify Delivery OTP
   // -----------------------------
@@ -308,18 +313,25 @@ export default function MyDeliveriesPage() {
                     ✅ Delivered
                   </button>
 
-                  {order.status ===
-                    "Out for Delivery" && (
-                    <span className="rounded-lg bg-cyan-600 px-4 py-2 font-semibold text-white">
-                      📍 Live Tracking Active
-                    </span>
-                  )}
+                  {order.status === "Out for Delivery" && (
+                      <button
+                        onClick={() =>
+                          window.open(
+                            `/track-order/${order._id}`,
+                            "_blank"
+                          )
+                        }
+                        className="rounded-lg bg-cyan-600 px-4 py-2 font-semibold text-white hover:bg-cyan-700"
+                      >
+                        📍 Live Tracking
+                      </button>
+                    )}
 
                   <button
                     onClick={() => {
                       if (
-                        order.latitude &&
-                        order.longitude
+                        order.latitude != null &&
+                        order.longitude != null
                       ) {
                         window.open(
                           `https://www.google.com/maps/dir/?api=1&destination=${order.latitude},${order.longitude}`,

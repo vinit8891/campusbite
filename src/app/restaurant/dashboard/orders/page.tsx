@@ -2,6 +2,10 @@
 
 import { useEffect, useState } from "react";
 
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://127.0.0.1:8000";
+
 type OrderItem = {
   id: number;
   name: string;
@@ -39,38 +43,59 @@ export default function OrdersPage() {
       const owner = JSON.parse(
         localStorage.getItem("restaurantOwner") || "{}"
       );
-
+  
       const email = owner.email || "owner@test.com";
-
+  
       const res = await fetch(
-        `http://127.0.0.1:8000/orders/restaurant/${email}`
+        `${API_URL}/orders/restaurant/${email}`,
+        {
+          cache: "no-store",
+        }
       );
-
+  
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
+  
       const data = await res.json();
-
+  
       setOrders(data);
-    } catch (error) {
-      console.error(error);
+    } catch (err) {
+      console.error(
+        "Restaurant Orders Error:",
+        err
+      );
     } finally {
       setLoading(false);
     }
   }
-
   async function updateStatus(
     id: string,
     status: string
   ) {
     try {
-      await fetch(
-        `http://127.0.0.1:8000/orders/${id}/${status}`,
+      console.log("Updating Order:", id, status);
+  
+      const res = await fetch(
+        `${API_URL}/orders/${id}/${encodeURIComponent(status)}`,
         {
           method: "PUT",
         }
       );
-
-      fetchOrders();
+  
+      const data = await res.json();
+  
+      console.log("Update Status:", data);
+  
+      if (!res.ok) {
+        throw new Error(
+          data.detail || "Failed to update status"
+        );
+      }
+  
+      await fetchOrders();
     } catch (error) {
-      console.error(error);
+      console.error("Update Status Error:", error);
     }
   }
 
@@ -200,61 +225,52 @@ export default function OrdersPage() {
 
               <div className="mt-6 flex flex-wrap gap-3">
 
-                <button
-                  onClick={() =>
-                    updateStatus(order._id, "Accepted")
-                  }
-                  className="rounded-lg bg-green-600 px-4 py-2 text-white hover:bg-green-700"
-                >
-                  ✅ Accept
-                </button>
+                  <button
+                    disabled={order.status !== "Pending"}
+                    onClick={() =>
+                      updateStatus(order._id, "Accepted")
+                    }
+                    className="rounded-lg bg-green-600 px-4 py-2 text-white disabled:opacity-40"
+                  >
+                    ✅ Accept
+                  </button>
 
-                <button
-                  onClick={() =>
-                    updateStatus(order._id, "Preparing")
-                  }
-                  className="rounded-lg bg-yellow-500 px-4 py-2 text-white hover:bg-yellow-600"
-                >
-                  🍳 Preparing
-                </button>
+                  <button
+                    disabled={order.status !== "Accepted"}
+                    onClick={() =>
+                      updateStatus(order._id, "Preparing")
+                    }
+                    className="rounded-lg bg-yellow-500 px-4 py-2 text-white disabled:opacity-40"
+                  >
+                    🍳 Preparing
+                  </button>
 
-                <button
-                  onClick={() =>
-                    updateStatus(order._id, "Ready for Pickup")
-                  }
-                  className="rounded-lg bg-indigo-600 px-4 py-2 text-white hover:bg-indigo-700"
-                >
-                  📦 Ready for Pickup
-                </button>
+                  <button
+                    disabled={order.status !== "Preparing"}
+                    onClick={() =>
+                      updateStatus(order._id, "Ready for Pickup")
+                    }
+                    className="rounded-lg bg-indigo-600 px-4 py-2 text-white disabled:opacity-40"
+                  >
+                    📦 Ready for Pickup
+                  </button>
 
-                <button
-                  onClick={() =>
-                    updateStatus(order._id, "Out for Delivery")
-                  }
-                  className="rounded-lg bg-blue-600 px-4 py-2 text-white hover:bg-blue-700"
-                >
-                  🛵 Out for Delivery
-                </button>
+                  <button
+                    disabled={
+                      order.status === "Delivered" ||
+                      order.status === "Cancelled"
+                    }
+                    onClick={() =>
+                      updateStatus(order._id, "Cancelled")
+                    }
+                    className="rounded-lg bg-red-600 px-4 py-2 text-white disabled:opacity-40"
+                  >
+                    ❌ Reject
+                  </button>
 
-                <button
-                  onClick={() =>
-                    updateStatus(order._id, "Delivered")
-                  }
-                  className="rounded-lg bg-gray-700 px-4 py-2 text-white hover:bg-gray-800"
-                >
-                  ✅ Delivered
-                </button>
+                </div>
 
-                <button
-                  onClick={() =>
-                    updateStatus(order._id, "Rejected")
-                  }
-                  className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
-                >
-                  ❌ Reject
-                </button>
-
-              </div>
+      
 
             </div>
           ))}
