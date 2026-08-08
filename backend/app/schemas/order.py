@@ -29,7 +29,7 @@ class Order(BaseModel):
     restaurant_latitude: float
     restaurant_longitude: float
 
-    status: str = "Placed"
+    status: str = "Pending"
 
     delivery_otp: int | None = None
 

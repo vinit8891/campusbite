@@ -44,8 +44,10 @@ VALID_STATUS = [
 # -----------------------------
 @router.post("/")
 async def add_order(order: Order):
-
     data = order.model_dump()
+
+    # Always start new orders as Pending
+    data["status"] = "Pending"
 
     # Generate Delivery OTP
     data["delivery_otp"] = random.randint(1000, 9999)

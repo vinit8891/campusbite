@@ -176,6 +176,9 @@ async def assign_delivery_partner(
 # -----------------------------
 # Update Status
 # -----------------------------
+# -----------------------------
+# Update Status
+# -----------------------------
 async def update_order_status(
     order_id: str,
     status: str,
@@ -185,41 +188,63 @@ async def update_order_status(
 
     print("========== UPDATE STATUS ==========")
     print("Order ID:", order_id)
-    print("ObjectId:", oid)
     print("Requested Status:", status)
 
     if not oid:
-        print("Invalid ObjectId")
-        return 0
+        return False
 
     order = await order_collection.find_one({"_id": oid})
 
     if not order:
-        print("Order NOT FOUND")
-        return 0
+        return False
 
-    print("Current Status:", order.get("status"))
+    current_status = order["status"]
 
+    print("Current:", current_status)
+
+    # Restaurant cannot mark Delivered
     if status == "Delivered":
-        print("Delivered is blocked here")
-        return 0
+        return False
+
+    # Prevent updating to same status
+    if current_status == status:
+        return True
+
+    # Allowed status transitions
+    allowed = {
+        "Pending": ["Accepted", "Cancelled"],
+        "Placed": ["Accepted", "Cancelled"],
+        "Accepted": ["Preparing", "Cancelled"],
+        "Preparing": ["Ready for Pickup", "Cancelled"],
+        "Ready for Pickup": [],
+        "Assigned": ["Picked Up"],
+        "Picked Up": ["Out for Delivery"],
+        "Out for Delivery": [],
+    }
+
+    if status not in allowed.get(current_status, []):
+        print("Invalid transition")
+        return False
 
     update_data = {
         "status": status
     }
 
+    if delivery_partner:
+        update_data["delivery_partner"] = delivery_partner
+
     result = await order_collection.update_one(
         {"_id": oid},
         {
             "$set": update_data
-        },
+        }
     )
 
     print("Matched:", result.matched_count)
     print("Modified:", result.modified_count)
     print("==============================")
 
-    return result.modified_count
+    return result.matched_count > 0
 
 
 # =====================================================
