@@ -55,9 +55,18 @@ export default function OrdersPage() {
   
       if (!res.ok) {
         throw new Error(await res.text());
-      }
+      } 
   
       const data = await res.json();
+
+      console.log("RESTAURANT ORDERS:", data);
+      console.log(
+        "ORDER STATUSES:",
+        data.map((order: Order) => ({
+          id: order._id,
+          status: JSON.stringify(order.status),
+        }))
+      );
   
       setOrders(data);
     } catch (err) {

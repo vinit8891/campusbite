@@ -163,39 +163,6 @@ async def assign_delivery(
         "message": "Delivery Partner Assigned Successfully"
     }
 
-
-# -----------------------------
-# Update Order Status
-# -----------------------------
-@router.put("/{order_id}/{status}")
-async def change_status(
-    order_id: str,
-    status: str,
-):
-    if status not in VALID_STATUS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid status. Allowed values: {', '.join(VALID_STATUS)}",
-        )
-
-    updated = await update_order_status(
-        order_id,
-        status,
-    )
-
-    if updated == 0:
-        raise HTTPException(
-            status_code=404,
-            detail="Order not updated",
-        )
-
-    return {
-        "success": True,
-        "status": status,
-        "message": "Order status updated successfully.",
-    }
-
-
 # =====================================================
 # LIVE DELIVERY TRACKING
 # =====================================================
@@ -295,4 +262,36 @@ async def verify_otp(
     return {
         "success": True,
         "message": "OTP Verified",
+    }
+
+# =====================================================
+# Update Order Status
+# =====================================================
+
+@router.put("/{order_id}/{status}")
+async def change_status(
+    order_id: str,
+    status: str,
+):
+    if status not in VALID_STATUS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid status. Allowed values: {', '.join(VALID_STATUS)}",
+        )
+
+    updated = await update_order_status(
+        order_id,
+        status,
+    )
+
+    if updated == 0:
+        raise HTTPException(
+            status_code=404,
+            detail="Order not updated",
+        )
+
+    return {
+        "success": True,
+        "status": status,
+        "message": "Order status updated successfully.",
     }
