@@ -2,21 +2,19 @@ from pydantic import BaseModel
 
 
 class OrderItem(BaseModel):
-    id: int
+    id: str
     name: str
     price: float
     quantity: int
+    image: str | None = None
 
 
 class Order(BaseModel):
     restaurant_email: str
 
     customer_name: str
-
     phone: str
-
     address: str
-
     payment_method: str
 
     total: float
@@ -32,9 +30,7 @@ class Order(BaseModel):
     status: str = "Pending"
 
     delivery_otp: int | None = None
-
     otp_verified: bool = False
-
     review_submitted: bool = False
 
     items: list[OrderItem]

@@ -1,9 +1,32 @@
 import MenuCard from "@/components/menu/MenuCard";
+import RestaurantCheckoutSetup from "@/components/restaurant/RestaurantCheckoutSetup";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 
-import { Button } from "@/components/ui/button";
 import { getRestaurantBySlug } from "@/services/adminService";
+
+type MenuItem = {
+  _id: string;
+  restaurant_email: string;
+  name: string;
+  description: string;
+  image: string;
+  price: number;
+  available: boolean;
+};
+
+type Restaurant = {
+  _id: string;
+  email: string;
+  name: string;
+  slug: string;
+  description: string;
+  image: string;
+  rating: number;
+  latitude?: number;
+  longitude?: number;
+  menu: MenuItem[];
+};
 
 type Props = {
   params: Promise<{
@@ -16,18 +39,28 @@ export default async function RestaurantPage({
 }: Props) {
   const { slug } = await params;
 
-  const restaurant = await getRestaurantBySlug(slug);
+  const restaurant: Restaurant | null =
+    await getRestaurantBySlug(slug);
 
   if (!restaurant) {
     notFound();
   }
 
   return (
-    <main className="mx-auto max-w-7xl px-6 py-12">
+    <main>
+      {/* Restaurant Checkout Information */}
+
+      <RestaurantCheckoutSetup
+        restaurantEmail={restaurant.email}
+        latitude={restaurant.latitude}
+        longitude={restaurant.longitude}
+      />
 
       {/* Restaurant Header */}
 
       <div className="grid gap-10 lg:grid-cols-2">
+
+        {/* Restaurant Image */}
 
         <div className="relative h-[400px] overflow-hidden rounded-3xl">
 
@@ -40,7 +73,9 @@ export default async function RestaurantPage({
 
         </div>
 
-        <div>
+        {/* Restaurant Information */}
+
+        <div className="flex flex-col justify-center">
 
           <h1 className="text-4xl font-bold">
             {restaurant.name}
@@ -78,16 +113,40 @@ export default async function RestaurantPage({
           Popular Menu
         </h2>
 
-        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+        {restaurant.menu && restaurant.menu.length > 0 ? (
 
-        {restaurant.menu.map((item) => (
-  <MenuCard
-    key={item.id}
-    item={item}
-  />
-))}
+          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
 
-        </div>
+            {restaurant.menu.map((item) => (
+
+              <div
+                key={item._id}
+                className="overflow-hidden rounded-2xl border bg-white shadow-sm"
+              >
+
+                <MenuCard item={item} />
+
+              </div>
+
+            ))}
+
+          </div>
+
+        ) : (
+
+          <div className="rounded-2xl border bg-white p-10 text-center shadow-sm">
+
+            <h3 className="text-xl font-semibold">
+              Menu Coming Soon
+            </h3>
+
+            <p className="mt-2 text-gray-500">
+              This restaurant has not added any menu items yet.
+            </p>
+
+          </div>
+
+        )}
 
       </section>
 

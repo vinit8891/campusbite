@@ -59,10 +59,26 @@ export default function OrderNotification({
         });
         break;
 
+      case "Assigned":
+        toast("🛵 Delivery Partner Assigned", {
+          description:
+            "A delivery partner has accepted your order.",
+          duration: 5000,
+        });
+        break;
+
+      case "Picked Up":
+        toast("📦 Order Picked Up", {
+          description:
+            "Your delivery partner has picked up your order.",
+          duration: 5000,
+        });
+        break;
+
       case "Out for Delivery":
         toast("🛵 Out for Delivery", {
           description:
-            "Your delivery partner has picked up your order and is on the way.",
+            "Your delivery partner is on the way.",
           duration: 5000,
         });
         break;
@@ -79,6 +95,14 @@ export default function OrderNotification({
         toast.error("❌ Order Rejected", {
           description:
             "Unfortunately, the restaurant couldn't accept your order.",
+          duration: 5000,
+        });
+        break;
+
+      case "Cancelled":
+        toast.error("❌ Order Cancelled", {
+          description:
+            "This order has been cancelled.",
           duration: 5000,
         });
         break;

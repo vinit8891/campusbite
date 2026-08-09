@@ -4,8 +4,13 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
+const API_URL =
+  process.env.NEXT_PUBLIC_API_URL ||
+  "http://127.0.0.1:8000";
+
 type MenuItem = {
   _id: string;
+  restaurant_email: string;
   name: string;
   description: string;
   price: number;
@@ -19,6 +24,7 @@ export default function MenuPage() {
 
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
+  const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchMenu();
@@ -30,12 +36,18 @@ export default function MenuPage() {
         localStorage.getItem("restaurantOwner") || "{}"
       );
 
-      // Temporary email until we store it during login
       const email = owner.email || "owner@test.com";
 
       const res = await fetch(
-        `http://127.0.0.1:8000/menu/${email}`
+        `${API_URL}/menu/${encodeURIComponent(email)}`,
+        {
+          cache: "no-store",
+        }
       );
+
+      if (!res.ok) {
+        throw new Error(await res.text());
+      }
 
       const data = await res.json();
 
@@ -44,6 +56,65 @@ export default function MenuPage() {
       console.error("Failed to fetch menu:", error);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function toggleAvailability(item: MenuItem) {
+    try {
+      setUpdatingId(item._id);
+
+      const owner = JSON.parse(
+        localStorage.getItem("restaurantOwner") || "{}"
+      );
+
+      const email = owner.email || "owner@test.com";
+
+      const res = await fetch(
+        `${API_URL}/menu/${item._id}`,
+        {
+          method: "PUT",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            restaurant_email: email,
+            name: item.name,
+            description: item.description,
+            price: Number(item.price),
+            category: item.category,
+            image: item.image,
+            available: !item.available,
+          }),
+        }
+      );
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        throw new Error(
+          data.detail || "Failed to update availability"
+        );
+      }
+
+      setMenu((prev) =>
+        prev.map((menuItem) =>
+          menuItem._id === item._id
+            ? {
+                ...menuItem,
+                available: !menuItem.available,
+              }
+            : menuItem
+        )
+      );
+    } catch (error) {
+      console.error(
+        "Availability Update Error:",
+        error
+      );
+
+      alert("Unable to update availability.");
+    } finally {
+      setUpdatingId(null);
     }
   }
 
@@ -56,7 +127,7 @@ export default function MenuPage() {
 
     try {
       const res = await fetch(
-        `http://127.0.0.1:8000/menu/${id}`,
+        `${API_URL}/menu/${id}`,
         {
           method: "DELETE",
         }
@@ -65,10 +136,13 @@ export default function MenuPage() {
       const data = await res.json();
 
       if (res.ok) {
-        alert("Food deleted successfully ✅");
+        alert("Food deleted successfully!");
         fetchMenu();
       } else {
-        alert(data.message || "Unable to delete item.");
+        alert(
+          data.message ||
+            "Unable to delete item."
+        );
       }
     } catch (error) {
       console.error(error);
@@ -76,11 +150,19 @@ export default function MenuPage() {
     }
   }
 
+  if (loading) {
+    return (
+      <div className="p-8 text-center text-xl">
+        Loading menu...
+      </div>
+    );
+  }
+
   return (
-    <>
-      <div className="mb-8 flex items-center justify-between">
+    <main className="p-8">
+      <div className="mb-8 flex flex-wrap items-center justify-between gap-4">
         <h1 className="text-4xl font-bold">
-          Menu
+          Restaurant Menu
         </h1>
 
         <Link href="/restaurant/dashboard/menu/add">
@@ -90,16 +172,15 @@ export default function MenuPage() {
         </Link>
       </div>
 
-      {loading ? (
-        <p className="text-lg">Loading menu...</p>
-      ) : menu.length === 0 ? (
+      {menu.length === 0 ? (
         <div className="rounded-xl border bg-white p-10 text-center shadow">
           <h2 className="text-2xl font-semibold">
             No Menu Items Yet
           </h2>
 
           <p className="mt-3 text-gray-500">
-            Click "Add Food" to create your first menu item.
+            Click "Add Food" to create your first
+            menu item.
           </p>
         </div>
       ) : (
@@ -135,17 +216,39 @@ export default function MenuPage() {
                   </span>
                 </p>
 
-                <p
-                  className={`mt-2 text-sm font-semibold ${
-                    item.available
-                      ? "text-green-600"
-                      : "text-red-600"
-                  }`}
-                >
-                  {item.available
-                    ? "🟢 Available"
-                    : "🔴 Unavailable"}
-                </p>
+                <div className="mt-3 flex items-center justify-between">
+                  <p
+                    className={`text-sm font-semibold ${
+                      item.available
+                        ? "text-green-600"
+                        : "text-red-600"
+                    }`}
+                  >
+                    {item.available
+                      ? "🟢 Available"
+                      : "🔴 Unavailable"}
+                  </p>
+
+                  <button
+                    onClick={() =>
+                      toggleAvailability(item)
+                    }
+                    disabled={
+                      updatingId === item._id
+                    }
+                    className={`rounded-lg px-3 py-2 text-sm font-semibold text-white ${
+                      item.available
+                        ? "bg-red-500 hover:bg-red-600"
+                        : "bg-green-600 hover:bg-green-700"
+                    } disabled:cursor-not-allowed disabled:opacity-50`}
+                  >
+                    {updatingId === item._id
+                      ? "Updating..."
+                      : item.available
+                      ? "Turn Off"
+                      : "Make Available"}
+                  </button>
+                </div>
 
                 <div className="mt-5 flex gap-3">
                   <button
@@ -160,7 +263,9 @@ export default function MenuPage() {
                   </button>
 
                   <button
-                    onClick={() => deleteItem(item._id)}
+                    onClick={() =>
+                      deleteItem(item._id)
+                    }
                     className="rounded-lg bg-red-600 px-4 py-2 text-white hover:bg-red-700"
                   >
                     Delete
@@ -171,6 +276,6 @@ export default function MenuPage() {
           ))}
         </div>
       )}
-    </>
+    </main>
   );
 }

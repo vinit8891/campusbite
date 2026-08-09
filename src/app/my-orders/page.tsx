@@ -151,25 +151,31 @@ export default function MyOrdersPage() {
     switch (status) {
       case "Accepted":
         return "🎉 Accepted";
-
+  
       case "Preparing":
         return "🍳 Preparing";
-
+  
       case "Ready for Pickup":
         return "📦 Ready for Pickup";
-
+  
+      case "Assigned":
+        return "🛵 Delivery Partner Assigned";
+  
       case "Picked Up":
         return "📦 Picked Up";
-
+  
       case "Out for Delivery":
         return "🛵 Out for Delivery";
-
+  
       case "Delivered":
         return "✅ Delivered";
-
+  
       case "Rejected":
         return "❌ Rejected";
-
+  
+      case "Cancelled":
+        return "❌ Cancelled";
+  
       default:
         return status;
     }

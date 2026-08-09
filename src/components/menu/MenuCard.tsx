@@ -7,32 +7,44 @@ import { useCart } from "@/context/CartContext";
 
 type MenuCardProps = {
   item: {
-    id: number;
+    _id: string;
     name: string;
     description: string;
     image: string;
     price: number;
+    available: boolean;
   };
 };
 
-export default function MenuCard({
-  item,
-}: MenuCardProps) {
+export default function MenuCard({ item }: MenuCardProps) {
   const { addToCart } = useCart();
 
+  function handleAddToCart() {
+    addToCart({
+      id: item._id,
+      name: item.name,
+      image: item.image,
+      price: item.price,
+      quantity: 1,
+    });
+
+    alert(`${item.name} added to cart!`);
+  }
+
   return (
-    <div className="overflow-hidden rounded-3xl border bg-white shadow-md">
+    <>
+      {/* Food Image */}
 
       <div className="relative h-52">
-
         <Image
           src={item.image}
           alt={item.name}
           fill
           className="object-cover"
         />
-
       </div>
+
+      {/* Food Information */}
 
       <div className="space-y-4 p-6">
 
@@ -50,26 +62,19 @@ export default function MenuCard({
             ₹{item.price}
           </span>
 
-          <Button
-            onClick={() => {
-              addToCart({
-                id: item.id,
-                name: item.name,
-                image: item.image,
-                price: item.price,
-                quantity: 1,
-              });
-
-              alert(`${item.name} added to cart!`);
-            }}
-          >
-            Add
-           </Button>
+          {item.available ? (
+            <Button onClick={handleAddToCart}>
+              Add
+            </Button>
+          ) : (
+            <Button disabled>
+              Unavailable
+            </Button>
+          )}
 
         </div>
 
       </div>
-
-    </div>
+    </>
   );
 }
