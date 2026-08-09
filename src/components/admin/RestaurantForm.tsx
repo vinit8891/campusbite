@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+
 import {
   addRestaurant,
   updateRestaurant,
@@ -28,6 +29,10 @@ export default function RestaurantForm({
       delivery_time: "30 min",
       distance: "2 km",
       image: "/images/restaurants/default.jpg",
+
+      // Restaurant GPS
+      latitude: 18.52043,
+      longitude: 73.856743,
     }
   );
 
@@ -37,16 +42,6 @@ export default function RestaurantForm({
     e.preventDefault();
 
     try {
-      if (
-        !form.name ||
-        !form.email ||
-        !form.slug ||
-        !form.cuisine
-      ) {
-        alert("Please fill all required fields.");
-        return;
-      }
-
       if (isEdit) {
         await updateRestaurant(
           initialData._id,
@@ -70,7 +65,7 @@ export default function RestaurantForm({
       console.error(error);
 
       alert(
-        "Failed to save restaurant. Please try again."
+        "Something went wrong. Please try again."
       );
     }
   }
@@ -78,18 +73,18 @@ export default function RestaurantForm({
   return (
     <form
       onSubmit={handleSubmit}
-      className="space-y-5 rounded-2xl bg-white p-8 shadow"
+      className="space-y-5"
     >
       {/* Restaurant Name */}
 
       <div>
-        <label className="mb-2 block font-medium">
+        <label className="mb-2 block font-semibold">
           Restaurant Name
         </label>
 
         <input
-          className="w-full rounded-lg border p-3"
-          placeholder="Pizza Palace"
+          className="w-full rounded border p-3"
+          placeholder="Restaurant Name"
           value={form.name}
           onChange={(e) =>
             setForm({
@@ -101,17 +96,17 @@ export default function RestaurantForm({
         />
       </div>
 
-      {/* Restaurant Email */}
+      {/* Email */}
 
       <div>
-        <label className="mb-2 block font-medium">
-          Restaurant Owner Email
+        <label className="mb-2 block font-semibold">
+          Restaurant Email
         </label>
 
         <input
           type="email"
-          className="w-full rounded-lg border p-3"
-          placeholder="owner@test.com"
+          className="w-full rounded border p-3"
+          placeholder="owner@example.com"
           value={form.email}
           onChange={(e) =>
             setForm({
@@ -121,22 +116,17 @@ export default function RestaurantForm({
           }
           required
         />
-
-        <p className="mt-1 text-sm text-gray-500">
-          This email connects the restaurant with
-          its menu items.
-        </p>
       </div>
 
       {/* Slug */}
 
       <div>
-        <label className="mb-2 block font-medium">
+        <label className="mb-2 block font-semibold">
           Slug
         </label>
 
         <input
-          className="w-full rounded-lg border p-3"
+          className="w-full rounded border p-3"
           placeholder="pizza-palace"
           value={form.slug}
           onChange={(e) =>
@@ -152,13 +142,13 @@ export default function RestaurantForm({
       {/* Cuisine */}
 
       <div>
-        <label className="mb-2 block font-medium">
+        <label className="mb-2 block font-semibold">
           Cuisine
         </label>
 
         <input
-          className="w-full rounded-lg border p-3"
-          placeholder="Pizza, Italian"
+          className="w-full rounded border p-3"
+          placeholder="Indian, Chinese, Pizza..."
           value={form.cuisine}
           onChange={(e) =>
             setForm({
@@ -173,21 +163,23 @@ export default function RestaurantForm({
       {/* Rating */}
 
       <div>
-        <label className="mb-2 block font-medium">
+        <label className="mb-2 block font-semibold">
           Rating
         </label>
 
         <input
           type="number"
+          step="0.1"
           min="0"
           max="5"
-          step="0.1"
-          className="w-full rounded-lg border p-3"
+          className="w-full rounded border p-3"
           value={form.rating}
           onChange={(e) =>
             setForm({
               ...form,
-              rating: Number(e.target.value),
+              rating: Number(
+                e.target.value
+              ),
             })
           }
         />
@@ -196,17 +188,19 @@ export default function RestaurantForm({
       {/* Delivery Time */}
 
       <div>
-        <label className="mb-2 block font-medium">
+        <label className="mb-2 block font-semibold">
           Delivery Time
         </label>
 
         <input
-          className="w-full rounded-lg border p-3"
+          className="w-full rounded border p-3"
+          placeholder="30 min"
           value={form.delivery_time}
           onChange={(e) =>
             setForm({
               ...form,
-              delivery_time: e.target.value,
+              delivery_time:
+                e.target.value,
             })
           }
         />
@@ -215,17 +209,19 @@ export default function RestaurantForm({
       {/* Distance */}
 
       <div>
-        <label className="mb-2 block font-medium">
+        <label className="mb-2 block font-semibold">
           Distance
         </label>
 
         <input
-          className="w-full rounded-lg border p-3"
+          className="w-full rounded border p-3"
+          placeholder="2 km"
           value={form.distance}
           onChange={(e) =>
             setForm({
               ...form,
-              distance: e.target.value,
+              distance:
+                e.target.value,
             })
           }
         />
@@ -234,12 +230,13 @@ export default function RestaurantForm({
       {/* Image */}
 
       <div>
-        <label className="mb-2 block font-medium">
+        <label className="mb-2 block font-semibold">
           Restaurant Image URL
         </label>
 
         <input
-          className="w-full rounded-lg border p-3"
+          className="w-full rounded border p-3"
+          placeholder="https://..."
           value={form.image}
           onChange={(e) =>
             setForm({
@@ -250,9 +247,70 @@ export default function RestaurantForm({
         />
       </div>
 
+      {/* GPS */}
+
+      <div className="rounded-xl border bg-orange-50 p-5">
+        <h3 className="mb-4 text-lg font-bold">
+          📍 Restaurant Location
+        </h3>
+
+        <div className="grid gap-4 md:grid-cols-2">
+          <div>
+            <label className="mb-2 block font-semibold">
+              Latitude
+            </label>
+
+            <input
+              type="number"
+              step="any"
+              className="w-full rounded border p-3"
+              value={form.latitude}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  latitude: Number(
+                    e.target.value
+                  ),
+                })
+              }
+              required
+            />
+          </div>
+
+          <div>
+            <label className="mb-2 block font-semibold">
+              Longitude
+            </label>
+
+            <input
+              type="number"
+              step="any"
+              className="w-full rounded border p-3"
+              value={form.longitude}
+              onChange={(e) =>
+                setForm({
+                  ...form,
+                  longitude: Number(
+                    e.target.value
+                  ),
+                })
+              }
+              required
+            />
+          </div>
+        </div>
+
+        <p className="mt-3 text-sm text-gray-600">
+          These coordinates will be used for
+          delivery tracking.
+        </p>
+      </div>
+
+      {/* Submit */}
+
       <button
         type="submit"
-        className="rounded-xl bg-orange-600 px-8 py-3 font-semibold text-white hover:bg-orange-700"
+        className="rounded bg-orange-500 px-6 py-3 font-semibold text-white hover:bg-orange-600"
       >
         {isEdit
           ? "Update Restaurant"

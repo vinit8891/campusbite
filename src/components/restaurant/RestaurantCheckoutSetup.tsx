@@ -5,14 +5,14 @@ import { useCheckout } from "@/context/CheckoutContext";
 
 type Props = {
   restaurantEmail: string;
-  latitude?: number;
-  longitude?: number;
+  latitude?: number | null;
+  longitude?: number | null;
 };
 
 export default function RestaurantCheckoutSetup({
   restaurantEmail,
-  latitude = 18.52043,
-  longitude = 73.856743,
+  latitude,
+  longitude,
 }: Props) {
   const { setCheckout } = useCheckout();
 
@@ -22,9 +22,11 @@ export default function RestaurantCheckoutSetup({
 
       restaurant_email: restaurantEmail,
 
-      restaurant_latitude: latitude,
+      restaurant_latitude:
+        latitude ?? prev.restaurant_latitude ?? 18.52043,
 
-      restaurant_longitude: longitude,
+      restaurant_longitude:
+        longitude ?? prev.restaurant_longitude ?? 73.856743,
     }));
   }, [
     restaurantEmail,

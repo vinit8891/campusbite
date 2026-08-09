@@ -1,14 +1,4 @@
-from pydantic import BaseModel, Field
-from typing import List
-
-
-class MenuItem(BaseModel):
-    _id: str | None = None
-    name: str
-    description: str = ""
-    image: str
-    price: float
-    available: bool = True
+from pydantic import BaseModel
 
 
 class Restaurant(BaseModel):
@@ -20,5 +10,7 @@ class Restaurant(BaseModel):
     delivery_time: str
     distance: str
     image: str
-    description: str = ""
-    menu: List[MenuItem] = Field(default_factory=list)
+
+    # Restaurant GPS
+    latitude: float = 18.52043
+    longitude: float = 73.856743
