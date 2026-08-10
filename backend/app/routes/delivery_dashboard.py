@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 from app.db.database import database
 
 router = APIRouter(
@@ -9,35 +9,51 @@ router = APIRouter(
 orders = database["orders"]
 
 
-@router.get("/stats")
-async def delivery_stats():
+@router.get("/stats/{phone}")
+async def delivery_stats(phone: str):
 
-    pending = await orders.count_documents({
-        "status": {
-            "$in": [
-                "Accepted",
-                "Picked Up",
-                "Out for Delivery"
-            ]
-        }
+    if not phone:
+        raise HTTPException(
+            status_code=400,
+            detail="Delivery partner phone is required",
+        )
+
+    # ==========================================
+    # Partner's orders
+    # ==========================================
+
+    partner_orders = orders.find({
+        "delivery_partner.phone": phone
     })
 
-    completed = await orders.count_documents({
-        "status": "Delivered"
-    })
-
-    delivered_orders = orders.find({
-        "status": "Delivered"
-    })
-
+    pending = 0
+    completed = 0
     earnings = 0
 
-    async for order in delivered_orders:
-        earnings += 50
+    async for order in partner_orders:
+
+        status = order.get("status")
+
+        # Orders still being handled
+        if status in [
+            "Assigned",
+            "Accepted",
+            "Picked Up",
+            "Out for Delivery",
+        ]:
+            pending += 1
+
+        # Completed deliveries
+        elif status == "Delivered":
+            completed += 1
+
+            # Current CampusBite delivery earning
+            earnings += 50
 
     return {
+        "phone": phone,
         "pending": pending,
         "completed": completed,
         "earnings": earnings,
-        "rating": 4.9
+        "rating": 4.9,
     }
