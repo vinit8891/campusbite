@@ -8,12 +8,15 @@ import { PopularRestaurants } from "@/components/home/PopularRestaurants";
 export default function Home() {
   return (
     <>
-    <Navbar />
-    <Hero />
-    <SearchBar />
-    <Categories />
-    <StudentSpecials />
-    <PopularRestaurants />
-  </>
+      <Navbar />
+
+      <main>
+        <Hero />
+        <SearchBar />
+        <Categories />
+        <StudentSpecials />
+        <PopularRestaurants />
+      </main>
+    </>
   );
 }

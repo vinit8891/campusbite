@@ -25,6 +25,26 @@ async def create_order(data):
     result = await order_collection.insert_one(data)
     return str(result.inserted_id)
 
+# -----------------------------
+# Get Single Order
+# -----------------------------
+async def get_order_by_id(order_id: str):
+    oid = get_object_id(order_id)
+
+    if not oid:
+        return None
+
+    order = await order_collection.find_one(
+        {"_id": oid}
+    )
+
+    if not order:
+        return None
+
+    order["_id"] = str(order["_id"])
+
+    return order
+
 
 # -----------------------------
 # Get All Orders

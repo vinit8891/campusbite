@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { getCustomerOrders } from "@/services/orderService";
 
 type OrderItem = {
   id: string;
@@ -23,10 +24,6 @@ type Order = {
   created_at?: string;
   delivery_for?: string;
 };
-
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://127.0.0.1:8000";
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -54,18 +51,7 @@ export default function OrdersPage() {
           return;
         }
 
-        const res = await fetch(
-          `${API_URL}/orders/customer/${phone}`,
-          {
-            cache: "no-store",
-          }
-        );
-
-        if (!res.ok) {
-          throw new Error("Failed to load orders");
-        }
-
-        const result = await res.json();
+        const result = await getCustomerOrders(phone);
 
         setOrders(result);
       } catch (err) {

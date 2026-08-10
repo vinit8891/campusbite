@@ -71,44 +71,39 @@ export default function OrderDetailsPage() {
   const [error, setError] =
     useState("");
 
-  async function loadOrder() {
-    try {
-      const res = await fetch(
-        `${API_URL}/orders/`,
-        {
-          cache: "no-store",
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(
-          "Failed to load orders"
+    async function loadOrder() {
+      try {
+        const res = await fetch(
+          `${API_URL}/orders/${orderId}`,
+          {
+            cache: "no-store",
+          }
         );
+    
+        if (res.status === 404) {
+          setError("Order not found.");
+          return;
+        }
+    
+        if (!res.ok) {
+          throw new Error(
+            "Failed to load order"
+          );
+        }
+    
+        const data = await res.json();
+    
+        setOrder(data);
+      } catch (err) {
+        console.error(err);
+    
+        setError(
+          "Unable to load order details."
+        );
+      } finally {
+        setLoading(false);
       }
-
-      const orders = await res.json();
-
-      const foundOrder = orders.find(
-        (item: Order) =>
-          item._id === orderId
-      );
-
-      if (!foundOrder) {
-        setError("Order not found.");
-        return;
-      }
-
-      setOrder(foundOrder);
-    } catch (err) {
-      console.error(err);
-
-      setError(
-        "Unable to load order details."
-      );
-    } finally {
-      setLoading(false);
     }
-  }
 
   useEffect(() => {
     loadOrder();

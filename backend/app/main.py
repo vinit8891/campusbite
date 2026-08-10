@@ -20,6 +20,10 @@ from app.routes.analytics import (
 from app.routes.delivery_partner import (
     router as delivery_partner_router,
 )
+
+from app.routes.delivery_auth import (
+    router as delivery_auth_router,
+)
 from app.routes.review import (
     router as review_router,
 )
@@ -75,6 +79,10 @@ app.include_router(
 
 app.include_router(
     analytics_router
+)
+
+app.include_router(
+    delivery_auth_router
 )
 
 app.include_router(

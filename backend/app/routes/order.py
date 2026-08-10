@@ -7,6 +7,7 @@ from app.schemas.order import Order
 
 from app.models.order import (
     create_order,
+    get_order_by_id,
     get_orders,
     get_customer_orders,
     get_restaurant_orders,
@@ -76,6 +77,21 @@ async def add_order(order: Order):
 async def fetch_orders():
     return await get_orders()
 
+
+# -----------------------------
+# Get Single Order
+# -----------------------------
+@router.get("/{order_id}")
+async def fetch_order(order_id: str):
+    order = await get_order_by_id(order_id)
+
+    if not order:
+        raise HTTPException(
+            status_code=404,
+            detail="Order not found",
+        )
+
+    return order
 
 # -----------------------------
 # Get Customer Orders

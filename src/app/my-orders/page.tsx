@@ -12,7 +12,7 @@ const API_URL =
   "http://127.0.0.1:8000";
 
 type OrderItem = {
-  id: number;
+  id: string;
   name: string;
   price: number;
   quantity: number;

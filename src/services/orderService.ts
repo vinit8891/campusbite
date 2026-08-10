@@ -63,3 +63,27 @@ export async function placeOrder(
 
   return res.json();
 }
+
+export async function getCustomerOrders(
+  phone: string
+) {
+  const res = await fetch(
+    `${API_URL}/orders/customer/${encodeURIComponent(phone)}`,
+    {
+      cache: "no-store",
+    }
+  );
+
+  if (!res.ok) {
+    const error = await res.text();
+
+    console.error(
+      "Get Customer Orders Error:",
+      error
+    );
+
+    throw new Error(error);
+  }
+
+  return res.json();
+}
