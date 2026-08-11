@@ -3,10 +3,7 @@
 import { useState } from "react";
 
 import RatingStars from "./RatingStars";
-
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://127.0.0.1:8000";
+import { AuthHttpError, authJson } from "@/services/authFetch";
 
 type Props = {
   orderId: string;
@@ -43,40 +40,18 @@ export default function ReviewModal({
     try {
       setLoading(true);
 
-      const res = await fetch(
-        `${API_URL}/reviews`,
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-            order_id: orderId,
-
-            restaurant_email:
-              restaurantEmail,
-
-            delivery_partner_phone:
-              deliveryPartnerPhone,
-
-            customer_name:
-              customerName,
-
-            rating,
-
-            review,
-          }),
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(
-          "Review submission failed"
-        );
-      }
+      await authJson("/reviews/", {
+        role: "customer",
+        method: "POST",
+        body: JSON.stringify({
+          order_id: orderId,
+          restaurant_email: restaurantEmail,
+          delivery_partner_phone: deliveryPartnerPhone,
+          customer_name: customerName,
+          rating,
+          review,
+        }),
+      });
 
       alert(
         "Thank you for your feedback ❤️"
@@ -92,8 +67,14 @@ export default function ReviewModal({
     } catch (err) {
       console.error(err);
 
+      if (err instanceof AuthHttpError && err.status === 401) {
+        return;
+      }
+
       alert(
-        "Unable to submit review."
+        err instanceof Error
+          ? err.message
+          : "Unable to submit review."
       );
     } finally {
       setLoading(false);

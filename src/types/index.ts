@@ -1,20 +1,23 @@
 export interface MenuItem {
     id: number;
     name: string;
-    description: string;
+    description?: string;
     image: string;
     price: number;
   }
   
   export interface Restaurant {
-    id: number;
+    id?: number;
     slug: string;
     name: string;
     image: string;
     rating: number;
     deliveryTime: string;
-    category: string;
-    address: string;
+    category?: string;
+    cuisine?: string;
+    distance?: string;
+    description?: string;
+    address?: string;
     menu: MenuItem[];
   }
   

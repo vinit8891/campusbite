@@ -1,138 +1,88 @@
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://127.0.0.1:8000";
+import { AuthHttpError, authFetch, authJson } from "@/services/authFetch";
 
-// ----------------------
-// Get Available Orders
-// ----------------------
 export async function getAvailableOrders() {
-  const res = await fetch(
-    `${API_URL}/orders/delivery/available`,
-    {
-      cache: "no-store",
-    }
-  );
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch orders");
-  }
-
-  return res.json();
+  return authJson<any[]>("/orders/delivery/available", {
+    role: "delivery_partner",
+    cache: "no-store",
+  });
 }
 
-// ----------------------
-// Accept Delivery
-// ----------------------
 export async function acceptDelivery(
   orderId: string,
-  partner: {
+  partner?: {
     name: string;
     phone: string;
     vehicle: string;
   }
 ) {
-  const res = await fetch(
-    `${API_URL}/orders/delivery/accept/${orderId}`,
+  const res = await authFetch(
+    `/orders/delivery/accept/${orderId}`,
     {
+      role: "delivery_partner",
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(partner),
+      body: JSON.stringify(partner || {}),
     }
   );
 
-  if (!res.ok) {
-    throw new Error("Failed to accept order");
-  }
-
-  return res.json();
-}
-
-// ----------------------
-// My Deliveries
-// ----------------------
-export async function getMyDeliveries(
-  phone: string
-) {
-  const res = await fetch(
-    `${API_URL}/orders/delivery/my/${phone}`,
-    {
-      cache: "no-store",
-    }
-  );
+  const data = await res.json().catch(() => null);
 
   if (!res.ok) {
-    throw new Error(
-      "Failed to fetch deliveries"
-    );
-  }
-
-  return res.json();
-}
-
-// ----------------------
-// Update Live Location
-// ----------------------
-export async function updateLiveLocation(
-  orderId: string,
-  latitude: number,
-  longitude: number
-) {
-  const res = await fetch(
-    `${API_URL}/orders/delivery/location/${orderId}`,
-    {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        latitude,
-        longitude,
-      }),
-    }
-  );
-
-  if (!res.ok) {
-    throw new Error(
-      "Failed to update location"
-    );
-  }
-
-  return res.json();
-}
-
-// ----------------------
-// Get Delivery OTP
-// ----------------------
-export async function getOrderOTP(
-  orderId: string
-) {
-  if (!orderId) {
-    throw new Error("Invalid Order ID");
-  }
-
-  const res = await fetch(
-    `${API_URL}/orders/otp/${orderId}`,
-    {
-      cache: "no-store",
-    }
-  );
-
-  const data = await res.json();
-
-  if (!res.ok) {
-    throw new Error(
-      data.detail || "Unable to fetch OTP"
+    throw new AuthHttpError(
+      res.status,
+      data?.detail || "Failed to accept order"
     );
   }
 
   return data;
 }
 
-// ----------------------
-// Verify Delivery OTP
-// ----------------------
+export async function getMyDeliveries(phone: string) {
+  return authJson<any[]>(
+    `/orders/delivery/my/${encodeURIComponent(phone)}`,
+    {
+      role: "delivery_partner",
+      cache: "no-store",
+    }
+  );
+}
+
+export async function getDeliveryHistory() {
+  return authJson<any[]>("/orders/delivery/history", {
+    role: "delivery_partner",
+    cache: "no-store",
+  });
+}
+
+export async function updateLiveLocation(
+  orderId: string,
+  latitude: number,
+  longitude: number
+) {
+  return authJson(`/orders/delivery/location/${orderId}`, {
+    role: "delivery_partner",
+    method: "PUT",
+    body: JSON.stringify({
+      latitude,
+      longitude,
+    }),
+  });
+}
+
+export async function getOrderOTP(orderId: string) {
+  if (!orderId) {
+    throw new Error("Invalid Order ID");
+  }
+
+  return authJson<{
+    otp: number;
+    verified: boolean;
+    status: string;
+  }>(`/orders/otp/${orderId}`, {
+    role: "customer",
+    cache: "no-store",
+  });
+}
+
 export async function verifyDeliveryOTP(
   orderId: string,
   otp: string | number
@@ -141,28 +91,22 @@ export async function verifyDeliveryOTP(
     otp: String(otp).trim(),
   };
 
-  console.log("Sending OTP:", payload);
+  return authJson(`/orders/verify-otp/${orderId}`, {
+    role: "delivery_partner",
+    method: "PUT",
+    body: JSON.stringify(payload),
+  });
+}
 
-  const res = await fetch(
-    `${API_URL}/orders/verify-otp/${orderId}`,
+export async function updateDeliveryOrderStatus(
+  orderId: string,
+  status: string
+) {
+  return authJson(
+    `/orders/${orderId}/${encodeURIComponent(status)}`,
     {
+      role: "delivery_partner",
       method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(payload),
     }
   );
-
-  const data = await res.json();
-
-  console.log("OTP Response:", data);
-
-  if (!res.ok) {
-    throw new Error(
-      data.detail || "OTP verification failed"
-    );
-  }
-
-  return data;
 }

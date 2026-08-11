@@ -5,6 +5,8 @@ import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { AUTH_STORAGE_KEYS } from "@/lib/authTokens";
+import { publicFetch } from "@/services/authFetch";
 
 export default function RestaurantLoginForm() {
   const router = useRouter();
@@ -26,14 +28,10 @@ export default function RestaurantLoginForm() {
     setError("");
 
     try {
-      const response = await fetch(
-        "http://127.0.0.1:8000/restaurant-owner/login",
+      const response = await publicFetch(
+        "/restaurant-owner/login",
         {
           method: "POST",
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
           body: JSON.stringify({
             email,
             password,
@@ -51,17 +49,19 @@ export default function RestaurantLoginForm() {
         return;
       }
 
+      const ownerEmail = data.email || email;
+
       localStorage.setItem(
-        "restaurantToken",
+        AUTH_STORAGE_KEYS.restaurantToken,
         data.access_token
       );
 
       localStorage.setItem(
-        "restaurantOwner",
+        AUTH_STORAGE_KEYS.restaurantOwner,
         JSON.stringify({
           ownerName: data.owner_name,
-          restaurantName:
-            data.restaurant_name,
+          restaurantName: data.restaurant_name,
+          email: ownerEmail,
         })
       );
 

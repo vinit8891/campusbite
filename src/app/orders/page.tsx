@@ -2,7 +2,11 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+
+import { useAuth } from "@/context/AuthContext";
+import { getCustomerPhone } from "@/lib/authTokens";
 import { getCustomerOrders } from "@/services/orderService";
+import { AuthHttpError } from "@/services/authFetch";
 
 type OrderItem = {
   id: string;
@@ -26,6 +30,7 @@ type Order = {
 };
 
 export default function OrdersPage() {
+  const { isLoggedIn } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -33,17 +38,21 @@ export default function OrdersPage() {
   useEffect(() => {
     async function loadOrders() {
       try {
-        // For now we use the phone saved during checkout.
-        const checkout = localStorage.getItem("checkout");
-
-        if (!checkout) {
-          setOrders([]);
+        if (!isLoggedIn && !localStorage.getItem("token")) {
+          setError("Please log in to view your orders.");
           setLoading(false);
           return;
         }
 
-        const data = JSON.parse(checkout);
-        const phone = data.phone;
+        // Prefer authenticated customer phone; fall back to checkout phone.
+        let phone = getCustomerPhone();
+
+        if (!phone) {
+          const checkout = localStorage.getItem("checkout");
+          if (checkout) {
+            phone = JSON.parse(checkout).phone || null;
+          }
+        }
 
         if (!phone) {
           setOrders([]);
@@ -52,18 +61,24 @@ export default function OrdersPage() {
         }
 
         const result = await getCustomerOrders(phone);
-
         setOrders(result);
       } catch (err) {
         console.error(err);
-        setError("Unable to load your orders.");
+        if (err instanceof AuthHttpError && err.status === 401) {
+          return;
+        }
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Unable to load your orders."
+        );
       } finally {
         setLoading(false);
       }
     }
 
     loadOrders();
-  }, []);
+  }, [isLoggedIn]);
 
   function getStatusStyle(status: string) {
     switch (status) {

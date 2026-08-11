@@ -21,6 +21,7 @@ export default function MenuCard({ item }: MenuCardProps) {
   function handleAddToCart() {
     addToCart({
       id: item._id,
+      restaurant_email: "",
       name: item.name,
       image: item.image,
       price: item.price,

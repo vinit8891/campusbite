@@ -6,10 +6,9 @@ import LiveDeliveryNotification from "@/components/notifications/LiveDeliveryNot
 import OrderTimeline from "@/components/orders/OrderTimeline";
 import ReviewModal from "@/components/reviews/ReviewModal";
 import { getOrderOTP } from "@/services/deliveryService";
-
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://127.0.0.1:8000";
+import { getCustomerOrders } from "@/services/orderService";
+import { getCustomerPhone } from "@/lib/authTokens";
+import { AuthHttpError } from "@/services/authFetch";
 
 type OrderItem = {
   id: string;
@@ -69,24 +68,22 @@ export default function MyOrdersPage() {
 
   async function fetchOrders() {
     try {
-      const checkout = JSON.parse(
-        localStorage.getItem("checkout") || "{}"
-      );
+      let phone = getCustomerPhone();
 
-      if (!checkout.phone) {
+      if (!phone) {
+        const checkout = JSON.parse(
+          localStorage.getItem("checkout") || "{}"
+        );
+        phone = checkout.phone || null;
+      }
+
+      if (!phone) {
         setOrders([]);
         setLoading(false);
         return;
       }
 
-      const res = await fetch(
-        `${API_URL}/orders/customer/${checkout.phone}`,
-        {
-          cache: "no-store",
-        }
-      );
-
-      const data = await res.json();
+      const data = await getCustomerOrders(phone);
 
       setOrders(data);
 
@@ -101,6 +98,9 @@ export default function MyOrdersPage() {
       }
     } catch (error) {
       console.error(error);
+      if (error instanceof AuthHttpError && error.status === 401) {
+        return;
+      }
     } finally {
       setLoading(false);
     }

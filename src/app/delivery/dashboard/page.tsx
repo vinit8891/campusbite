@@ -7,6 +7,9 @@ import {
   getAvailableOrders,
   getMyDeliveries,
 } from "@/services/deliveryService";
+import { getDeliveryStats } from "@/services/deliveryPartnerService";
+import { getDeliveryPartnerSession } from "@/lib/authTokens";
+import { AuthHttpError } from "@/services/authFetch";
 
 type DeliveryPartner = {
   id?: string;
@@ -38,11 +41,9 @@ export default function DeliveryDashboard() {
 
   useEffect(() => {
     try {
-      const storedPartner =
-        localStorage.getItem("deliveryPartner");
-
-      if (storedPartner) {
-        setPartner(JSON.parse(storedPartner));
+      const current = getDeliveryPartnerSession();
+      if (current) {
+        setPartner(current);
       }
     } catch (err) {
       console.error(
@@ -59,15 +60,8 @@ export default function DeliveryDashboard() {
   useEffect(() => {
     async function loadDashboard() {
       try {
-        const storedPartner =
-          localStorage.getItem("deliveryPartner");
-
-        const currentPartner: DeliveryPartner =
-          storedPartner
-            ? JSON.parse(storedPartner)
-            : {};
-
-        const phone = currentPartner.phone;
+        const currentPartner = getDeliveryPartnerSession();
+        const phone = currentPartner?.phone;
 
         const available =
           await getAvailableOrders();
@@ -92,6 +86,9 @@ export default function DeliveryDashboard() {
           "Failed to load dashboard:",
           err
         );
+        if (err instanceof AuthHttpError && err.status === 401) {
+          return;
+        }
       }
     }
 
@@ -112,48 +109,25 @@ export default function DeliveryDashboard() {
   useEffect(() => {
     async function loadStats() {
       try {
-        const storedPartner =
-          localStorage.getItem("deliveryPartner");
+        const currentPartner = getDeliveryPartnerSession();
     
-        if (!storedPartner) {
-          console.error(
-            "Delivery partner not found"
-          );
-          return;
-        }
-    
-        const partner = JSON.parse(
-          storedPartner
-        );
-    
-        if (!partner.phone) {
+        if (!currentPartner?.phone) {
           console.error(
             "Delivery partner phone not found"
           );
           return;
         }
     
-        const res = await fetch(
-          `http://127.0.0.1:8000/delivery-dashboard/stats/${partner.phone}`,
-          {
-            cache: "no-store",
-          }
-        );
-    
-        if (!res.ok) {
-          throw new Error(
-            "Failed to load delivery statistics"
-          );
-        }
-    
-        const data = await res.json();
-    
+        const data = await getDeliveryStats(currentPartner.phone);
         setStats(data);
       } catch (err) {
         console.error(
           "Failed to load delivery stats:",
           err
         );
+        if (err instanceof AuthHttpError && err.status === 401) {
+          return;
+        }
       }
     }
 

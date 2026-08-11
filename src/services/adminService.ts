@@ -1,7 +1,7 @@
-const API_URL = "http://127.0.0.1:8000";
+import { AuthHttpError, authFetch, authJson, publicFetch } from "@/services/authFetch";
 
 export async function getRestaurants() {
-  const res = await fetch(`${API_URL}/restaurants/`, {
+  const res = await publicFetch("/restaurants/", {
     cache: "no-store",
   });
 
@@ -13,73 +13,41 @@ export async function getRestaurants() {
 }
 
 export async function addRestaurant(data: any) {
-  const res = await fetch(`${API_URL}/restaurants/`, {
+  return authJson("/restaurants/", {
+    role: "admin",
     method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
     body: JSON.stringify(data),
   });
+}
 
-  if (!res.ok) {
-    throw new Error("Failed to add restaurant");
-  }
+export async function deleteRestaurant(id: string) {
+  const res = await authFetch(`/restaurants/${id}`, {
+    role: "admin",
+    method: "DELETE",
+  });
 
   return res.json();
 }
 
-export async function deleteRestaurant(id: string) {
-    const res = await fetch(`http://127.0.0.1:8000/restaurants/${id}`, {
-      method: "DELETE",
-    });
-  
-    return res.json();
-  }
+export async function getRestaurantById(id: string) {
+  const restaurants = await getRestaurants();
+  return restaurants.find((restaurant: any) => restaurant._id === id);
+}
 
-  export async function getRestaurantById(id: string) {
-    const res = await fetch(`http://127.0.0.1:8000/restaurants/`, {
-      cache: "no-store",
-    });
-  
-    const restaurants = await res.json();
-  
-    return restaurants.find((restaurant: any) => restaurant._id === id);
-  }
+export async function updateRestaurant(id: string, data: any) {
+  return authJson(`/restaurants/${id}`, {
+    role: "admin",
+    method: "PUT",
+    body: JSON.stringify(data),
+  });
+}
 
-  export async function updateRestaurant(
-    id: string,
-    data: any
-  ) {
-    const res = await fetch(
-      `http://127.0.0.1:8000/restaurants/${id}`,
-      {
-        method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(data),
-      }
-    );
-  
-    if (!res.ok) {
-      throw new Error("Failed to update restaurant");
-    }
-  
-    return res.json();
-  }
+export async function getRestaurantBySlug(slug: string) {
+  const restaurants = await getRestaurants();
 
-  export async function getRestaurantBySlug(slug: string) {
-    const res = await fetch("http://127.0.0.1:8000/restaurants/", {
-      cache: "no-store",
-    });
-  
-    if (!res.ok) {
-      throw new Error("Failed to fetch restaurants");
-    }
-  
-    const restaurants = await res.json();
-  
-    return restaurants.find(
-      (restaurant: any) => restaurant.slug === slug
-    );
-  }
+  return restaurants.find(
+    (restaurant: any) => restaurant.slug === slug
+  );
+}
+
+export { AuthHttpError };

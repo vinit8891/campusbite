@@ -1,55 +1,40 @@
-const API =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://127.0.0.1:8000";
+import { authJson } from "@/services/authFetch";
 
-// ----------------------
-// Get Delivery Partner Status
-// ----------------------
-export async function getDeliveryStatus(
-  phone: string
-) {
-  const res = await fetch(
-    `${API}/delivery-partner/status/${phone}`,
+export async function getDeliveryStatus(phone: string) {
+  return authJson<{ online: boolean }>(
+    `/delivery-partner/status/${encodeURIComponent(phone)}`,
     {
+      role: "delivery_partner",
       cache: "no-store",
     }
   );
-
-  if (!res.ok) {
-    throw new Error(
-      "Failed to fetch delivery partner status"
-    );
-  }
-
-  return res.json();
 }
 
-// ----------------------
-// Update Online / Offline Status
-// ----------------------
 export async function updateDeliveryStatus(
   phone: string,
   online: boolean
 ) {
-  const res = await fetch(
-    `${API}/delivery-partner/status`,
+  return authJson("/delivery-partner/status", {
+    role: "delivery_partner",
+    method: "PUT",
+    body: JSON.stringify({
+      phone,
+      online,
+    }),
+  });
+}
+
+export async function getDeliveryStats(phone: string) {
+  return authJson<{
+    pending: number;
+    completed: number;
+    earnings: number;
+    rating: number;
+  }>(
+    `/delivery-dashboard/stats/${encodeURIComponent(phone)}`,
     {
-      method: "PUT",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        phone,
-        online,
-      }),
+      role: "delivery_partner",
+      cache: "no-store",
     }
   );
-
-  if (!res.ok) {
-    throw new Error(
-      "Failed to update delivery status"
-    );
-  }
-
-  return res.json();
 }

@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
+
+import { getRestaurantOwnerEmail } from "@/lib/authTokens";
+import { AuthHttpError, authJson } from "@/services/authFetch";
 
 type DashboardData = {
   orders: number;
@@ -15,6 +19,8 @@ type FoodAnalytics = {
 };
 
 export default function DashboardPage() {
+  const router = useRouter();
+
   const [dashboard, setDashboard] =
     useState<DashboardData>({
       orders: 0,
@@ -28,6 +34,7 @@ export default function DashboardPage() {
   >([]);
 
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetchDashboard();
@@ -42,34 +49,38 @@ export default function DashboardPage() {
 
   async function fetchDashboard() {
     try {
-      const owner = JSON.parse(
-        localStorage.getItem(
-          "restaurantOwner"
-        ) || "{}"
+      const email = getRestaurantOwnerEmail();
+
+      if (!email) {
+        setError("Restaurant owner email not found. Please log in again.");
+        router.replace("/restaurant/login");
+        return;
+      }
+
+      const dashboardData = await authJson<DashboardData>(
+        `/dashboard/${encodeURIComponent(email)}`,
+        { role: "restaurant_owner", cache: "no-store" }
       );
-
-      const email =
-        owner.email || "owner@test.com";
-
-      const dashboardRes = await fetch(
-        `http://127.0.0.1:8000/dashboard/${email}`
-      );
-
-      const dashboardData =
-        await dashboardRes.json();
 
       setDashboard(dashboardData);
 
-      const analyticsRes = await fetch(
-        `http://127.0.0.1:8000/analytics/best-selling/${email}`
+      const analyticsData = await authJson<FoodAnalytics[]>(
+        `/analytics/best-selling/${encodeURIComponent(email)}`,
+        { role: "restaurant_owner", cache: "no-store" }
       );
 
-      const analyticsData =
-        await analyticsRes.json();
-
       setFoods(analyticsData);
+      setError("");
     } catch (err) {
       console.error(err);
+      if (err instanceof AuthHttpError && err.status === 401) {
+        return;
+      }
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to load dashboard"
+      );
     } finally {
       setLoading(false);
     }
@@ -89,6 +100,12 @@ export default function DashboardPage() {
       <h1 className="text-4xl font-bold">
         Restaurant Dashboard
       </h1>
+
+      {error && (
+        <p className="rounded-xl bg-red-50 p-4 text-sm text-red-600">
+          {error}
+        </p>
+      )}
 
       {/* Stats */}
 

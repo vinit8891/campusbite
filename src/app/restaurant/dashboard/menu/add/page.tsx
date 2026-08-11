@@ -3,6 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 
+import { getRestaurantOwnerEmail } from "@/lib/authTokens";
+import { AuthHttpError, authJson } from "@/services/authFetch";
+
 export default function AddFoodPage() {
   const router = useRouter();
 
@@ -20,19 +23,20 @@ export default function AddFoodPage() {
   ) {
     e.preventDefault();
 
-    const owner = JSON.parse(
-      localStorage.getItem("restaurantOwner") || "{}"
-    );
+    const email = getRestaurantOwnerEmail();
 
-    const response = await fetch(
-      "http://127.0.0.1:8000/menu/",
-      {
+    if (!email) {
+      alert("Please log in again.");
+      router.replace("/restaurant/login");
+      return;
+    }
+
+    try {
+      await authJson("/menu/", {
+        role: "restaurant_owner",
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
-          restaurant_email: owner.email || "owner@test.com",
+          restaurant_email: email,
           name: form.name,
           description: form.description,
           price: Number(form.price),
@@ -40,14 +44,15 @@ export default function AddFoodPage() {
           image: form.image,
           available: true,
         }),
-      }
-    );
+      });
 
-    if (response.ok) {
       alert("Food Added Successfully ✅");
       router.push("/restaurant/dashboard/menu");
-    } else {
-      alert("Unable to add food.");
+    } catch (err) {
+      if (err instanceof AuthHttpError && err.status === 401) return;
+      alert(
+        err instanceof Error ? err.message : "Unable to add food."
+      );
     }
   }
 

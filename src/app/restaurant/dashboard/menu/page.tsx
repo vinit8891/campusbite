@@ -4,9 +4,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://127.0.0.1:8000";
+import { getRestaurantOwnerEmail } from "@/lib/authTokens";
+import { AuthHttpError, authJson, publicFetch } from "@/services/authFetch";
 
 type MenuItem = {
   _id: string;
@@ -25,6 +24,7 @@ export default function MenuPage() {
   const [menu, setMenu] = useState<MenuItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetchMenu();
@@ -32,17 +32,18 @@ export default function MenuPage() {
 
   async function fetchMenu() {
     try {
-      const owner = JSON.parse(
-        localStorage.getItem("restaurantOwner") || "{}"
-      );
+      const email = getRestaurantOwnerEmail();
 
-      const email = owner.email || "owner@test.com";
+      if (!email) {
+        setError("Restaurant owner email not found. Please log in again.");
+        router.replace("/restaurant/login");
+        return;
+      }
 
-      const res = await fetch(
-        `${API_URL}/menu/${encodeURIComponent(email)}`,
-        {
-          cache: "no-store",
-        }
+      // Menu browse endpoint is public; ownership is enforced on writes.
+      const res = await publicFetch(
+        `/menu/${encodeURIComponent(email)}`,
+        { cache: "no-store" }
       );
 
       if (!res.ok) {
@@ -50,10 +51,11 @@ export default function MenuPage() {
       }
 
       const data = await res.json();
-
       setMenu(data);
-    } catch (error) {
-      console.error("Failed to fetch menu:", error);
+      setError("");
+    } catch (err) {
+      console.error("Failed to fetch menu:", err);
+      setError("Unable to load menu.");
     } finally {
       setLoading(false);
     }
@@ -63,38 +65,26 @@ export default function MenuPage() {
     try {
       setUpdatingId(item._id);
 
-      const owner = JSON.parse(
-        localStorage.getItem("restaurantOwner") || "{}"
-      );
+      const email = getRestaurantOwnerEmail();
 
-      const email = owner.email || "owner@test.com";
-
-      const res = await fetch(
-        `${API_URL}/menu/${item._id}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            restaurant_email: email,
-            name: item.name,
-            description: item.description,
-            price: Number(item.price),
-            category: item.category,
-            image: item.image,
-            available: !item.available,
-          }),
-        }
-      );
-
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(
-          data.detail || "Failed to update availability"
-        );
+      if (!email) {
+        router.replace("/restaurant/login");
+        return;
       }
+
+      await authJson(`/menu/${item._id}`, {
+        role: "restaurant_owner",
+        method: "PUT",
+        body: JSON.stringify({
+          restaurant_email: email,
+          name: item.name,
+          description: item.description,
+          price: Number(item.price),
+          category: item.category,
+          image: item.image,
+          available: !item.available,
+        }),
+      });
 
       setMenu((prev) =>
         prev.map((menuItem) =>
@@ -106,13 +96,14 @@ export default function MenuPage() {
             : menuItem
         )
       );
-    } catch (error) {
-      console.error(
-        "Availability Update Error:",
-        error
+    } catch (err) {
+      console.error("Availability Update Error:", err);
+      if (err instanceof AuthHttpError && err.status === 401) return;
+      alert(
+        err instanceof Error
+          ? err.message
+          : "Unable to update availability."
       );
-
-      alert("Unable to update availability.");
     } finally {
       setUpdatingId(null);
     }
@@ -126,27 +117,19 @@ export default function MenuPage() {
     if (!confirmDelete) return;
 
     try {
-      const res = await fetch(
-        `${API_URL}/menu/${id}`,
-        {
-          method: "DELETE",
-        }
+      await authJson(`/menu/${id}`, {
+        role: "restaurant_owner",
+        method: "DELETE",
+      });
+
+      alert("Food deleted successfully!");
+      fetchMenu();
+    } catch (err) {
+      console.error(err);
+      if (err instanceof AuthHttpError && err.status === 401) return;
+      alert(
+        err instanceof Error ? err.message : "Unable to delete item."
       );
-
-      const data = await res.json();
-
-      if (res.ok) {
-        alert("Food deleted successfully!");
-        fetchMenu();
-      } else {
-        alert(
-          data.message ||
-            "Unable to delete item."
-        );
-      }
-    } catch (error) {
-      console.error(error);
-      alert("Server Error");
     }
   }
 
@@ -171,6 +154,12 @@ export default function MenuPage() {
           </button>
         </Link>
       </div>
+
+      {error && (
+        <p className="mb-6 rounded-xl bg-red-50 p-4 text-sm text-red-600">
+          {error}
+        </p>
+      )}
 
       {menu.length === 0 ? (
         <div className="rounded-xl border bg-white p-10 text-center shadow">

@@ -4,10 +4,8 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 
 import LiveTrackingMap from "@/components/maps/LiveTrackingMap";
-
-const API =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://127.0.0.1:8000";
+import { getDeliveryLocation } from "@/services/orderService";
+import { AuthHttpError } from "@/services/authFetch";
 
 type TrackingLocation = {
   customer_latitude: number;
@@ -33,28 +31,23 @@ export default function TrackOrderPage() {
   const [loading, setLoading] =
     useState(true);
 
+  const [error, setError] = useState("");
+
   async function loadLocation() {
     try {
-      const res = await fetch(
-        `${API}/orders/delivery/location/${orderId}`,
-        {
-          cache: "no-store",
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(
-          "Failed to fetch tracking location"
-        );
-      }
-
-      const data = await res.json();
-
-      console.log("Tracking Location:", data);
-
+      const data = await getDeliveryLocation(orderId);
       setLocation(data);
+      setError("");
     } catch (err) {
       console.error(err);
+      if (err instanceof AuthHttpError && err.status === 401) {
+        return;
+      }
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Failed to fetch tracking location"
+      );
     } finally {
       setLoading(false);
     }

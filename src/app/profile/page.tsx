@@ -80,7 +80,7 @@ export default function ProfilePage() {
           </Button>
 
           <Button
-            variant="destructive"
+            variant="outline"
             className="w-full"
             onClick={() => {
               logout();

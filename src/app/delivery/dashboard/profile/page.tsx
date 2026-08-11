@@ -6,6 +6,12 @@ import {
   getDeliveryStatus,
   updateDeliveryStatus,
 } from "@/services/deliveryPartnerService";
+import {
+  AUTH_STORAGE_KEYS,
+  clearAuthForRole,
+  getDeliveryPartnerSession,
+} from "@/lib/authTokens";
+import { AuthHttpError } from "@/services/authFetch";
 
 type DeliveryPartner = {
   name: string;
@@ -33,11 +39,9 @@ export default function DeliveryProfilePage() {
   }, []);
 
   async function loadPartner() {
-    const saved = localStorage.getItem("deliveryPartner");
+    const user = getDeliveryPartnerSession();
 
-    if (!saved) return;
-
-    const user = JSON.parse(saved);
+    if (!user) return;
 
     let online = false;
 
@@ -49,17 +53,16 @@ export default function DeliveryProfilePage() {
       online = status.online;
     } catch (err) {
       console.error(err);
+      if (err instanceof AuthHttpError && err.status === 401) return;
     }
 
     setPartner({
       name: user.name || "Delivery Partner",
       phone: user.phone || "",
       vehicle: user.vehicle || "Bike",
-      rating: user.rating || 4.9,
-      totalDeliveries:
-        user.totalDeliveries || 0,
-      totalEarnings:
-        user.totalEarnings || 0,
+      rating: 4.9,
+      totalDeliveries: 0,
+      totalEarnings: 0,
       online,
     });
   }
@@ -74,8 +77,13 @@ export default function DeliveryProfilePage() {
       setPartner(updated);
 
       localStorage.setItem(
-        "deliveryPartner",
-        JSON.stringify(updated)
+        AUTH_STORAGE_KEYS.deliveryPartner,
+        JSON.stringify({
+          ...getDeliveryPartnerSession(),
+          name: updated.name,
+          phone: updated.phone,
+          vehicle: updated.vehicle,
+        })
       );
 
       await updateDeliveryStatus(
@@ -89,9 +97,7 @@ export default function DeliveryProfilePage() {
   }
 
   function logout() {
-    localStorage.removeItem(
-      "deliveryPartner"
-    );
+    clearAuthForRole("delivery_partner");
 
     window.location.href =
       "/delivery/login";

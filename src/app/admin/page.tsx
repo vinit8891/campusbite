@@ -7,7 +7,14 @@ export default function AdminPage() {
         Admin Dashboard
       </h1>
 
-      <div className="flex gap-4">
+      <div className="flex flex-wrap gap-4">
+        <Link
+          href="/admin/login"
+          className="rounded-lg bg-gray-800 px-6 py-3 text-white"
+        >
+          Admin Login
+        </Link>
+
         <Link
           href="/admin/restaurants"
           className="rounded-lg bg-orange-500 px-6 py-3 text-white"

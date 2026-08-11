@@ -11,10 +11,12 @@ import {
   Navigation,
 } from "lucide-react";
 
+import { getDeliveryPartnerSession } from "@/lib/authTokens";
 import {
   getAvailableOrders,
   acceptDelivery,
 } from "@/services/deliveryService";
+import { AuthHttpError } from "@/services/authFetch";
 
 export default function AvailableOrdersPage() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -26,6 +28,7 @@ export default function AvailableOrdersPage() {
       setOrders(data);
     } catch (err) {
       console.error(err);
+      if (err instanceof AuthHttpError && err.status === 401) return;
     } finally {
       setLoading(false);
     }
@@ -37,16 +40,27 @@ export default function AvailableOrdersPage() {
 
   async function handleAccept(orderId: string) {
     try {
+      const partner = getDeliveryPartnerSession();
+
+      if (!partner) {
+        alert("Please log in as a delivery partner.");
+        window.location.assign("/delivery/login");
+        return;
+      }
+
       await acceptDelivery(orderId, {
-        name: "Rahul Sharma",
-        phone: "9876543210",
-        vehicle: "Bike",
+        name: partner.name,
+        phone: partner.phone,
+        vehicle: partner.vehicle || "Bike",
       });
 
       loadOrders();
     } catch (err) {
       console.error(err);
-      alert("Failed to accept order");
+      if (err instanceof AuthHttpError && err.status === 401) return;
+      alert(
+        err instanceof Error ? err.message : "Failed to accept order"
+      );
     }
   }
 

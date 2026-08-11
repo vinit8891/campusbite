@@ -45,7 +45,7 @@ export default function LiveTrackingMap({
     useRef<google.maps.Map | null>(null);
 
   const animationRef =
-    useRef<number>();
+    useRef<number | undefined>(undefined);
 
     const previousPosition =
     useRef({

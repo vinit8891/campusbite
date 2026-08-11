@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { publicFetch } from "@/services/authFetch";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -28,19 +29,13 @@ export default function LoginForm() {
     setError("");
 
     try {
-      const response = await fetch(
-        "http://127.0.0.1:8000/auth/login",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            email,
-            password,
-          }),
-        }
-      );
+      const response = await publicFetch("/auth/login", {
+        method: "POST",
+        body: JSON.stringify({
+          email,
+          password,
+        }),
+      });
 
       const data = await response.json();
 

@@ -4,6 +4,9 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
+import { getOrderById } from "@/services/orderService";
+import { AuthHttpError } from "@/services/authFetch";
+
 type OrderItem = {
   id: string | number;
   name: string;
@@ -42,10 +45,6 @@ type Order = {
   created_at?: string;
 };
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://127.0.0.1:8000";
-
 const statuses = [
   "Pending",
   "Accepted",
@@ -73,32 +72,25 @@ export default function OrderDetailsPage() {
 
     async function loadOrder() {
       try {
-        const res = await fetch(
-          `${API_URL}/orders/${orderId}`,
-          {
-            cache: "no-store",
-          }
-        );
-    
-        if (res.status === 404) {
+        const data = await getOrderById(orderId);
+        setOrder(data);
+        setError("");
+      } catch (err) {
+        console.error(err);
+
+        if (err instanceof AuthHttpError && err.status === 401) {
+          return;
+        }
+
+        if (err instanceof AuthHttpError && err.status === 404) {
           setError("Order not found.");
           return;
         }
-    
-        if (!res.ok) {
-          throw new Error(
-            "Failed to load order"
-          );
-        }
-    
-        const data = await res.json();
-    
-        setOrder(data);
-      } catch (err) {
-        console.error(err);
-    
+
         setError(
-          "Unable to load order details."
+          err instanceof Error
+            ? err.message
+            : "Unable to load order details."
         );
       } finally {
         setLoading(false);

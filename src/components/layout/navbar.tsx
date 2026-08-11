@@ -72,7 +72,7 @@ export function Navbar() {
               </Link>
 
               <Button
-                variant="destructive"
+                variant="outline"
                 onClick={logout}
               >
                 Logout
@@ -177,7 +177,7 @@ export function Navbar() {
                     </Link>
 
                     <Button
-                      variant="destructive"
+                      variant="outline"
                       className="w-full"
                       onClick={logout}
                     >

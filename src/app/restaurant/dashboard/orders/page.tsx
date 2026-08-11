@@ -1,10 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://127.0.0.1:8000";
+import { getRestaurantOwnerEmail } from "@/lib/authTokens";
+import { AuthHttpError, authJson } from "@/services/authFetch";
 
 type OrderItem = {
   id: number;
@@ -25,8 +25,10 @@ type Order = {
 };
 
 export default function OrdersPage() {
+  const router = useRouter();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     fetchOrders();
@@ -40,71 +42,63 @@ export default function OrdersPage() {
 
   async function fetchOrders() {
     try {
-      const owner = JSON.parse(
-        localStorage.getItem("restaurantOwner") || "{}"
-      );
-  
-      const email = owner.email || "owner@test.com";
-  
-      const res = await fetch(
-        `${API_URL}/orders/restaurant/${email}`,
+      const email = getRestaurantOwnerEmail();
+
+      if (!email) {
+        setError("Restaurant owner email not found. Please log in again.");
+        router.replace("/restaurant/login");
+        return;
+      }
+
+      const data = await authJson<Order[]>(
+        `/orders/restaurant/${encodeURIComponent(email)}`,
         {
+          role: "restaurant_owner",
           cache: "no-store",
         }
       );
-  
-      if (!res.ok) {
-        throw new Error(await res.text());
-      } 
-  
-      const data = await res.json();
 
-      console.log("RESTAURANT ORDERS:", data);
-      console.log(
-        "ORDER STATUSES:",
-        data.map((order: Order) => ({
-          id: order._id,
-          status: JSON.stringify(order.status),
-        }))
-      );
-  
       setOrders(data);
+      setError("");
     } catch (err) {
-      console.error(
-        "Restaurant Orders Error:",
-        err
+      console.error("Restaurant Orders Error:", err);
+      if (err instanceof AuthHttpError && err.status === 401) {
+        return;
+      }
+      setError(
+        err instanceof Error
+          ? err.message
+          : "Unable to load orders"
       );
     } finally {
       setLoading(false);
     }
   }
+
   async function updateStatus(
     id: string,
     status: string
   ) {
     try {
-      console.log("Updating Order:", id, status);
-  
-      const res = await fetch(
-        `${API_URL}/orders/${id}/${encodeURIComponent(status)}`,
+      await authJson(
+        `/orders/${id}/${encodeURIComponent(status)}`,
         {
+          role: "restaurant_owner",
           method: "PUT",
         }
       );
-  
-      const data = await res.json();
-  
-      console.log("Update Status:", data);
-  
-      if (!res.ok) {
-        throw new Error(
-          data.detail || "Failed to update status"
-        );
-      }
-  
+
       await fetchOrders();
     } catch (error) {
       console.error("Update Status Error:", error);
+      if (error instanceof AuthHttpError && error.status === 401) {
+        return;
+      }
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to update status"
+      );
     }
   }
 
@@ -147,6 +141,12 @@ export default function OrdersPage() {
       <h1 className="mb-8 text-4xl font-bold">
         Restaurant Orders
       </h1>
+
+      {error && (
+        <p className="mb-6 rounded-xl bg-red-50 p-4 text-sm text-red-600">
+          {error}
+        </p>
+      )}
 
       {orders.length === 0 ? (
         <div className="rounded-2xl border bg-white p-10 text-center shadow">
@@ -279,7 +279,7 @@ export default function OrdersPage() {
 
                 </div>
 
-      
+
 
             </div>
           ))}

@@ -4,15 +4,18 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useCheckout } from "@/context/CheckoutContext";
 import { placeOrder } from "@/services/orderService";
+import { AuthHttpError } from "@/services/authFetch";
 
 export default function OrderSummary() {
   const router = useRouter();
 
   const { cart, clearCart } = useCart();
   const { checkout } = useCheckout();
+  const { isLoggedIn, user } = useAuth();
 
   const [loading, setLoading] = useState(false);
 
@@ -38,6 +41,12 @@ export default function OrderSummary() {
   async function handlePlaceOrder() {
     // Prevent duplicate submission
     if (loading) {
+      return;
+    }
+
+    if (!isLoggedIn) {
+      alert("Please log in to place an order.");
+      router.push("/login");
       return;
     }
 
@@ -131,10 +140,10 @@ export default function OrderSummary() {
           checkout.restaurant_email,
 
         customer_name:
-          checkout.customer_name,
+          user?.name || checkout.customer_name,
 
         phone:
-          checkout.phone,
+          user?.phone || checkout.phone,
 
         address: fullAddress,
 
@@ -204,8 +213,14 @@ export default function OrderSummary() {
         error
       );
 
+      if (error instanceof AuthHttpError && error.status === 401) {
+        return;
+      }
+
       alert(
-        "Failed to place order. Please check that the backend is running and try again."
+        error instanceof Error
+          ? error.message
+          : "Failed to place order. Please check that the backend is running and try again."
       );
     } finally {
       setLoading(false);

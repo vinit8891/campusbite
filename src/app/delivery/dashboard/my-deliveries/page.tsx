@@ -4,12 +4,11 @@ import { useEffect, useRef, useState } from "react";
 import {
   getMyDeliveries,
   updateLiveLocation,
+  updateDeliveryOrderStatus,
   verifyDeliveryOTP,
 } from "@/services/deliveryService";
-
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://127.0.0.1:8000";
+import { getDeliveryPartnerSession } from "@/lib/authTokens";
+import { AuthHttpError } from "@/services/authFetch";
 
 export default function MyDeliveriesPage() {
   const [orders, setOrders] = useState<any[]>([]);
@@ -41,11 +40,9 @@ export default function MyDeliveriesPage() {
   // -----------------------------
   async function loadOrders() {
     try {
-      const partner = JSON.parse(
-        localStorage.getItem("deliveryPartner") || "{}"
-      );
+      const partner = getDeliveryPartnerSession();
 
-      if (!partner.phone) {
+      if (!partner?.phone) {
         setOrders([]);
         return;
       }
@@ -57,6 +54,7 @@ export default function MyDeliveriesPage() {
       setOrders(data);
     } catch (err) {
       console.error(err);
+      if (err instanceof AuthHttpError && err.status === 401) return;
     } finally {
       setLoading(false);
     }
@@ -136,24 +134,14 @@ export default function MyDeliveriesPage() {
     status: string
   ) {
     try {
-      const res = await fetch(
-        `${API_URL}/orders/${id}/${encodeURIComponent(status)}`,
-        {
-          method: "PUT",
-        }
-      );
-  
-      const data = await res.json();
-  
-      console.log(data);
-  
-      if (!res.ok) {
-        throw new Error(data.detail || "Failed to update status");
-      }
-  
+      await updateDeliveryOrderStatus(id, status);
       await loadOrders();
     } catch (err) {
       console.error(err);
+      if (err instanceof AuthHttpError && err.status === 401) return;
+      alert(
+        err instanceof Error ? err.message : "Failed to update status"
+      );
     }
   }
   // -----------------------------

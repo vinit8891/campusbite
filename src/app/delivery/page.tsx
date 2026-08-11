@@ -2,6 +2,13 @@
 
 import { useEffect, useState } from "react";
 
+import {
+  acceptDelivery,
+  getAvailableOrders,
+} from "@/services/deliveryService";
+import { getDeliveryPartnerSession } from "@/lib/authTokens";
+import { AuthHttpError } from "@/services/authFetch";
+
 type Order = {
   _id: string;
   customer_name: string;
@@ -17,10 +24,6 @@ type Order = {
   }[];
 };
 
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://127.0.0.1:8000";
-
 export default function DeliveryPage() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
@@ -32,29 +35,29 @@ export default function DeliveryPage() {
     vehicle: "",
   });
 
+  useEffect(() => {
+    const session = getDeliveryPartnerSession();
+    if (session) {
+      setPartner({
+        name: session.name || "",
+        phone: session.phone || "",
+        vehicle: session.vehicle || "",
+      });
+    }
+  }, []);
+
   async function loadAvailableOrders() {
     try {
-      const res = await fetch(
-        `${API_URL}/orders/delivery/available`,
-        {
-          cache: "no-store",
-        }
-      );
-
-      if (!res.ok) {
-        throw new Error(
-          "Failed to load available orders"
-        );
-      }
-
-      const data = await res.json();
-
+      const data = await getAvailableOrders();
       setOrders(data);
     } catch (error) {
       console.error(
         "Available Orders Error:",
         error
       );
+      if (error instanceof AuthHttpError && error.status === 401) {
+        return;
+      }
     } finally {
       setLoading(false);
     }
@@ -73,19 +76,26 @@ export default function DeliveryPage() {
   }, []);
 
   async function acceptOrder(orderId: string) {
-    if (!partner.name.trim()) {
+    const session = getDeliveryPartnerSession();
+
+    const name = session?.name || partner.name;
+    const phone = session?.phone || partner.phone;
+    const vehicle =
+      session?.vehicle || partner.vehicle || "Bike";
+
+    if (!name.trim()) {
       alert("Please enter your name.");
       return;
     }
 
-    if (!/^[0-9]{10}$/.test(partner.phone)) {
+    if (!/^[0-9]{10}$/.test(phone)) {
       alert(
         "Please enter a valid 10-digit mobile number."
       );
       return;
     }
 
-    if (!partner.vehicle.trim()) {
+    if (!vehicle.trim()) {
       alert("Please enter your vehicle.");
       return;
     }
@@ -93,44 +103,23 @@ export default function DeliveryPage() {
     try {
       setAccepting(orderId);
 
-      const res = await fetch(
-        `${API_URL}/orders/delivery/accept/${orderId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            name: partner.name,
-            phone: partner.phone,
-            vehicle: partner.vehicle,
-          }),
-        }
-      );
+      await acceptDelivery(orderId, {
+        name,
+        phone,
+        vehicle,
+      });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(
-          data.detail ||
-            "Unable to accept order."
-        );
-      }
-
-      alert(
-        "Order accepted successfully!"
-      );
-
+      alert("Order accepted successfully");
       await loadAvailableOrders();
-    } catch (error: any) {
-      console.error(
-        "Accept Order Error:",
-        error
-      );
-
+    } catch (error) {
+      console.error(error);
+      if (error instanceof AuthHttpError && error.status === 401) {
+        return;
+      }
       alert(
-        error.message ||
-          "Failed to accept order."
+        error instanceof Error
+          ? error.message
+          : "Unable to accept order."
       );
     } finally {
       setAccepting(null);

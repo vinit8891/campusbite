@@ -3,45 +3,59 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { AUTH_STORAGE_KEYS } from "@/lib/authTokens";
+import { publicFetch } from "@/services/authFetch";
+
 export default function DeliveryLoginForm() {
   const router = useRouter();
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
 
   async function handleLogin(
     e: React.FormEvent
   ) {
     e.preventDefault();
+    setError("");
 
-    const res = await fetch(
-      "http://127.0.0.1:8000/delivery/login",
-      {
+    try {
+      const res = await publicFetch("/delivery/login", {
         method: "POST",
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
         body: JSON.stringify({
           email,
           password,
         }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data.success) {
+        setError(data.detail || "Invalid Login");
+        return;
       }
-    );
 
-    const data = await res.json();
+      const token = data.access_token || data.token;
 
-    if (!data.success) {
-      alert("Invalid Login");
-      return;
+      if (!token) {
+        setError("Login succeeded but no token was returned.");
+        return;
+      }
+
+      localStorage.setItem(
+        AUTH_STORAGE_KEYS.deliveryToken,
+        token
+      );
+
+      localStorage.setItem(
+        AUTH_STORAGE_KEYS.deliveryPartner,
+        JSON.stringify(data.partner)
+      );
+
+      router.push("/delivery/dashboard");
+    } catch {
+      setError("Unable to connect to server.");
     }
-
-    localStorage.setItem(
-      "deliveryPartner",
-      JSON.stringify(data.partner)
-    );
-
-    router.push("/delivery/dashboard");
   }
 
   return (
@@ -71,6 +85,12 @@ export default function DeliveryLoginForm() {
           setPassword(e.target.value)
         }
       />
+
+      {error && (
+        <p className="mb-4 text-sm text-red-600">
+          {error}
+        </p>
+      )}
 
       <button className="w-full rounded-xl bg-orange-600 py-3 font-semibold text-white">
         Login

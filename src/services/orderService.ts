@@ -1,89 +1,62 @@
-const API_URL =
-  process.env.NEXT_PUBLIC_API_URL ||
-  "http://127.0.0.1:8000";
+import { AuthHttpError, authFetch, authJson } from "@/services/authFetch";
 
-export async function placeOrder(
-  data: any
-) {
+export async function placeOrder(data: any) {
   const payload = {
     ...data,
 
-    restaurant_email:
-      data.restaurant_email,
+    restaurant_email: data.restaurant_email,
 
-    restaurant_latitude:
-      data.restaurant_latitude ??
-      18.52043,
+    restaurant_latitude: data.restaurant_latitude ?? 18.52043,
 
-    restaurant_longitude:
-      data.restaurant_longitude ??
-      73.856743,
+    restaurant_longitude: data.restaurant_longitude ?? 73.856743,
 
-    // GPS is optional
-    latitude:
-      data.latitude ?? null,
+    latitude: data.latitude ?? null,
 
-    longitude:
-      data.longitude ?? null,
+    longitude: data.longitude ?? null,
 
-    delivery_for:
-      data.delivery_for || "self",
+    delivery_for: data.delivery_for || "self",
   };
 
-  console.log(
-    "Placing Order Payload:",
-    payload
-  );
+  const res = await authFetch("/orders/", {
+    role: "customer",
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
 
-  const res = await fetch(
-    `${API_URL}/orders/`,
-    {
-      method: "POST",
-
-      headers: {
-        "Content-Type":
-          "application/json",
-      },
-
-      body: JSON.stringify(payload),
-    }
-  );
+  const body = await res.json().catch(() => null);
 
   if (!res.ok) {
-    const error =
-      await res.text();
-
-    console.error(
-      "Place Order Error:",
-      error
+    throw new AuthHttpError(
+      res.status,
+      typeof body?.detail === "string"
+        ? body.detail
+        : "Failed to place order"
     );
-
-    throw new Error(error);
   }
 
-  return res.json();
+  return body;
 }
 
-export async function getCustomerOrders(
-  phone: string
-) {
-  const res = await fetch(
-    `${API_URL}/orders/customer/${encodeURIComponent(phone)}`,
+export async function getCustomerOrders(phone: string) {
+  return authJson<any[]>(
+    `/orders/customer/${encodeURIComponent(phone)}`,
     {
+      role: "customer",
       cache: "no-store",
     }
   );
+}
 
-  if (!res.ok) {
-    const error = await res.text();
+export async function getOrderById(orderId: string) {
+  return authJson<any>(`/orders/${orderId}`, {
+    role: "customer",
+    cache: "no-store",
+  });
+}
 
-    console.error(
-      "Get Customer Orders Error:",
-      error
-    );
-
-    throw new Error(error);
-  }
-
-  return res.json();
+export async function getDeliveryLocation(orderId: string) {
+  return authJson<any>(`/orders/delivery/location/${orderId}`, {
+    role: "customer",
+    cache: "no-store",
+  });
 }

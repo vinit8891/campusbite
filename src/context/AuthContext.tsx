@@ -8,9 +8,16 @@ import {
   useState,
 } from "react";
 
-interface User {
+import {
+  AUTH_STORAGE_KEYS,
+  clearAuthForRole,
+  decodeJwtPayload,
+} from "@/lib/authTokens";
+
+export interface User {
   name: string;
   email: string;
+  phone?: string;
 }
 
 interface AuthContextType {
@@ -25,6 +32,30 @@ const AuthContext = createContext<AuthContextType | undefined>(
   undefined
 );
 
+function userFromToken(token: string, fallback?: Partial<User>): User {
+  const payload = decodeJwtPayload(token);
+
+  const email =
+    (payload?.email as string | undefined) ||
+    fallback?.email ||
+    "";
+
+  const name =
+    (payload?.full_name as string | undefined) ||
+    fallback?.name ||
+    (email ? email.split("@")[0] : "Customer");
+
+  const phone =
+    (payload?.phone as string | undefined) ||
+    fallback?.phone;
+
+  return {
+    name,
+    email,
+    phone,
+  };
+}
+
 export function AuthProvider({
   children,
 }: {
@@ -35,46 +66,51 @@ export function AuthProvider({
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
-    const savedUser = localStorage.getItem("user");
+    const savedToken = localStorage.getItem(
+      AUTH_STORAGE_KEYS.customerToken
+    );
 
-    const savedToken = localStorage.getItem("token");
+    const savedUser = localStorage.getItem(
+      AUTH_STORAGE_KEYS.customerUser
+    );
 
-    if (savedUser) {
-      setUser(JSON.parse(savedUser));
-    }
+    if (!savedToken) return;
 
-    if (savedToken) {
-      setToken(savedToken);
-    }
+    const parsedUser = savedUser
+      ? (JSON.parse(savedUser) as User)
+      : undefined;
+
+    const hydrated = userFromToken(savedToken, parsedUser);
+
+    setToken(savedToken);
+    setUser(hydrated);
+    localStorage.setItem(
+      AUTH_STORAGE_KEYS.customerUser,
+      JSON.stringify(hydrated)
+    );
   }, []);
 
-  function login(
-    userData: User,
-    jwtToken: string
-  ) {
-    setUser(userData);
+  function login(userData: User, jwtToken: string) {
+    const hydrated = userFromToken(jwtToken, userData);
 
+    setUser(hydrated);
     setToken(jwtToken);
 
     localStorage.setItem(
-      "user",
-      JSON.stringify(userData)
+      AUTH_STORAGE_KEYS.customerUser,
+      JSON.stringify(hydrated)
     );
 
     localStorage.setItem(
-      "token",
+      AUTH_STORAGE_KEYS.customerToken,
       jwtToken
     );
   }
 
   function logout() {
     setUser(null);
-
     setToken(null);
-
-    localStorage.removeItem("user");
-
-    localStorage.removeItem("token");
+    clearAuthForRole("customer");
   }
 
   return (

@@ -3,6 +3,9 @@
 import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 
+import { getRestaurantOwnerEmail } from "@/lib/authTokens";
+import { AuthHttpError, authJson, publicFetch } from "@/services/authFetch";
+
 export default function EditFoodPage() {
   const router = useRouter();
   const params = useParams();
@@ -26,10 +29,7 @@ export default function EditFoodPage() {
 
   async function fetchFood() {
     try {
-      const res = await fetch(
-        `http://127.0.0.1:8000/menu/item/${id}`
-      );
-
+      const res = await publicFetch(`/menu/item/${id}`);
       const data = await res.json();
 
       setForm({
@@ -52,20 +52,20 @@ export default function EditFoodPage() {
   ) {
     e.preventDefault();
 
-    const owner = JSON.parse(
-      localStorage.getItem("restaurantOwner") || "{}"
-    );
+    const email = getRestaurantOwnerEmail();
 
-    const res = await fetch(
-      `http://127.0.0.1:8000/menu/${id}`,
-      {
+    if (!email) {
+      alert("Please log in again.");
+      router.replace("/restaurant/login");
+      return;
+    }
+
+    try {
+      await authJson(`/menu/${id}`, {
+        role: "restaurant_owner",
         method: "PUT",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
-          restaurant_email:
-            owner.email || "owner@test.com",
+          restaurant_email: email,
           name: form.name,
           description: form.description,
           price: Number(form.price),
@@ -73,14 +73,15 @@ export default function EditFoodPage() {
           image: form.image,
           available: form.available,
         }),
-      }
-    );
+      });
 
-    if (res.ok) {
       alert("Food Updated Successfully ✅");
       router.push("/restaurant/dashboard/menu");
-    } else {
-      alert("Unable to update food");
+    } catch (err) {
+      if (err instanceof AuthHttpError && err.status === 401) return;
+      alert(
+        err instanceof Error ? err.message : "Unable to update food"
+      );
     }
   }
 
@@ -103,6 +104,7 @@ export default function EditFoodPage() {
         onSubmit={updateFood}
         className="space-y-6 rounded-2xl bg-white p-8 shadow"
       >
+
         <input
           className="w-full rounded-lg border p-3"
           placeholder="Food Name"
@@ -113,6 +115,7 @@ export default function EditFoodPage() {
               name: e.target.value,
             })
           }
+          required
         />
 
         <textarea
@@ -125,6 +128,7 @@ export default function EditFoodPage() {
               description: e.target.value,
             })
           }
+          required
         />
 
         <input
@@ -138,6 +142,7 @@ export default function EditFoodPage() {
               price: e.target.value,
             })
           }
+          required
         />
 
         <input
@@ -150,6 +155,7 @@ export default function EditFoodPage() {
               category: e.target.value,
             })
           }
+          required
         />
 
         <input
@@ -162,6 +168,7 @@ export default function EditFoodPage() {
               image: e.target.value,
             })
           }
+          required
         />
 
         <label className="flex items-center gap-3">
@@ -175,16 +182,15 @@ export default function EditFoodPage() {
               })
             }
           />
-
           Available
         </label>
 
         <button
-          type="submit"
-          className="rounded-xl bg-orange-600 px-8 py-3 font-semibold text-white hover:bg-orange-700"
+          className="rounded-xl bg-orange-600 px-8 py-3 font-semibold text-white"
         >
           Update Food
         </button>
+
       </form>
 
     </main>
