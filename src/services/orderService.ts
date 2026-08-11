@@ -2,19 +2,23 @@ import { AuthHttpError, authFetch, authJson } from "@/services/authFetch";
 
 export async function placeOrder(data: any) {
   const payload = {
-    ...data,
-
     restaurant_email: data.restaurant_email,
-
-    restaurant_latitude: data.restaurant_latitude ?? 18.52043,
-
-    restaurant_longitude: data.restaurant_longitude ?? 73.856743,
-
-    latitude: data.latitude ?? null,
-
-    longitude: data.longitude ?? null,
-
+    customer_name: data.customer_name,
+    phone: data.phone,
+    address: data.address,
+    payment_method: data.payment_method,
+    total: data.total,
     delivery_for: data.delivery_for || "self",
+    restaurant_latitude: data.restaurant_latitude ?? 18.52043,
+    restaurant_longitude: data.restaurant_longitude ?? 73.856743,
+    latitude: data.latitude ?? null,
+    longitude: data.longitude ?? null,
+    items: (data.items || []).map((item: any) => ({
+      id: String(item.id),
+      name: item.name,
+      price: Number(item.price),
+      quantity: Number(item.quantity),
+    })),
   };
 
   const res = await authFetch("/orders/", {
@@ -35,6 +39,14 @@ export async function placeOrder(data: any) {
   }
 
   return body;
+}
+
+/** Preferred: load orders for the authenticated customer from JWT. */
+export async function getMyOrders() {
+  return authJson<any[]>("/orders/my", {
+    role: "customer",
+    cache: "no-store",
+  });
 }
 
 export async function getCustomerOrders(phone: string) {

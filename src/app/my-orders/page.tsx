@@ -6,9 +6,9 @@ import LiveDeliveryNotification from "@/components/notifications/LiveDeliveryNot
 import OrderTimeline from "@/components/orders/OrderTimeline";
 import ReviewModal from "@/components/reviews/ReviewModal";
 import { getOrderOTP } from "@/services/deliveryService";
-import { getCustomerOrders } from "@/services/orderService";
-import { getCustomerPhone } from "@/lib/authTokens";
+import { getMyOrders } from "@/services/orderService";
 import { AuthHttpError } from "@/services/authFetch";
+import { useAuth } from "@/context/AuthContext";
 
 type OrderItem = {
   id: string;
@@ -44,14 +44,16 @@ type Order = {
 };
 
 export default function MyOrdersPage() {
+  const { isLoggedIn } = useAuth();
   const [orders, setOrders] = useState<Order[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   const [orderOtps, setOrderOtps] = useState<
     Record<
       string,
       {
-        otp: number;
+        otp: number | null;
         verified: boolean;
         status: string;
       }
@@ -64,28 +66,21 @@ export default function MyOrdersPage() {
     const interval = setInterval(fetchOrders, 5000);
 
     return () => clearInterval(interval);
-  }, []);
+  }, [isLoggedIn]);
 
   async function fetchOrders() {
     try {
-      let phone = getCustomerPhone();
-
-      if (!phone) {
-        const checkout = JSON.parse(
-          localStorage.getItem("checkout") || "{}"
-        );
-        phone = checkout.phone || null;
-      }
-
-      if (!phone) {
+      if (!isLoggedIn && !localStorage.getItem("token")) {
+        setError("Please log in to view your orders.");
         setOrders([]);
         setLoading(false);
         return;
       }
 
-      const data = await getCustomerOrders(phone);
+      const data = await getMyOrders();
 
       setOrders(data);
+      setError("");
 
       for (const order of data) {
         if (
@@ -101,6 +96,11 @@ export default function MyOrdersPage() {
       if (error instanceof AuthHttpError && error.status === 401) {
         return;
       }
+      setError(
+        error instanceof Error
+          ? error.message
+          : "Unable to load your orders."
+      );
     } finally {
       setLoading(false);
     }
@@ -184,6 +184,15 @@ export default function MyOrdersPage() {
     return (
       <div className="p-10 text-center text-xl">
         Loading Orders...
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-10 text-center">
+        <h1 className="text-3xl font-bold">Unable to load orders</h1>
+        <p className="mt-4 text-red-600">{error}</p>
       </div>
     );
   }

@@ -74,7 +74,7 @@ export async function getOrderOTP(orderId: string) {
   }
 
   return authJson<{
-    otp: number;
+    otp: number | null;
     verified: boolean;
     status: string;
   }>(`/orders/otp/${orderId}`, {

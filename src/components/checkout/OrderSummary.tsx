@@ -50,6 +50,13 @@ export default function OrderSummary() {
       return;
     }
 
+    if (!user?.phone) {
+      alert(
+        "Your account is missing a phone number. Please log out and log in again."
+      );
+      return;
+    }
+
     // -----------------------------
     // Validate cart
     // -----------------------------
@@ -74,7 +81,12 @@ export default function OrderSummary() {
     // Validate phone
     // -----------------------------
 
-    if (!/^[0-9]{10}$/.test(checkout.phone)) {
+    const deliveryPhone =
+      checkout.delivery_for === "someone_else"
+        ? checkout.phone
+        : user.phone;
+
+    if (!/^[0-9]{10}$/.test(deliveryPhone)) {
       alert(
         "Please enter a valid 10-digit mobile number."
       );
@@ -142,10 +154,11 @@ export default function OrderSummary() {
         restaurant_email: restaurantEmail,
 
         customer_name:
-          user?.name || checkout.customer_name,
+          checkout.delivery_for === "someone_else"
+            ? checkout.customer_name
+            : user?.name || checkout.customer_name,
 
-        phone:
-          user?.phone || checkout.phone,
+        phone: deliveryPhone,
 
         address: fullAddress,
 
@@ -156,33 +169,21 @@ export default function OrderSummary() {
 
         total,
 
-        // GPS
-        // For "someone else", these will
-        // normally be null.
         latitude:
           checkout.latitude,
 
         longitude:
           checkout.longitude,
 
-        // Restaurant GPS
         restaurant_latitude:
           checkout.restaurant_latitude,
 
         restaurant_longitude:
           checkout.restaurant_longitude,
 
-        status: "Pending",
-
-        // Delivery recipient type
         delivery_for:
           checkout.delivery_for,
       };
-
-      console.log(
-        "Placing Order:",
-        orderData
-      );
 
       // -----------------------------
       // Send order to backend

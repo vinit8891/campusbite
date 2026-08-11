@@ -18,6 +18,7 @@ from app.models.order import (
     get_order_by_id,
     get_orders,
     get_customer_orders,
+    get_my_customer_orders,
     get_restaurant_orders,
     get_available_orders,
     get_delivered_orders,
@@ -67,6 +68,32 @@ def _owner_email(user: dict) -> str | None:
     )
 
 
+def _customer_owns_order(order: dict, user: dict) -> bool:
+    """Prefer customer_id/email from JWT; fall back to phone for legacy orders."""
+    customer_id = user.get("sub")
+    if (
+        customer_id
+        and order.get("customer_id")
+        and str(order.get("customer_id")) == str(customer_id)
+    ):
+        return True
+
+    token_email = user.get("email")
+    if (
+        token_email
+        and order.get("customer_email")
+        and str(token_email).lower()
+        == str(order.get("customer_email")).lower()
+    ):
+        return True
+
+    token_phone = user.get("phone")
+    if token_phone and str(token_phone) == str(order.get("phone")):
+        return True
+
+    return False
+
+
 def _assert_order_access(order: dict, user: dict):
     """Allow customer owner, restaurant owner, assigned delivery partner, or admin."""
     role = user.get("role")
@@ -75,8 +102,7 @@ def _assert_order_access(order: dict, user: dict):
         return
 
     if role == CUSTOMER:
-        token_phone = user.get("phone")
-        if not token_phone or str(token_phone) != str(order.get("phone")):
+        if not _customer_owns_order(order, user):
             raise HTTPException(
                 status_code=403,
                 detail="You can only access your own orders",
@@ -97,8 +123,6 @@ def _assert_order_access(order: dict, user: dict):
         token_phone = user.get("phone")
         if token_phone and str(partner.get("phone")) == str(token_phone):
             return
-        # Unassigned ready orders are visible via available-orders; single-order
-        # read is allowed for partners only after assignment.
         raise HTTPException(
             status_code=403,
             detail="You can only access orders assigned to you",
@@ -110,9 +134,6 @@ def _assert_order_access(order: dict, user: dict):
     )
 
 
-# -----------------------------
-# Place New Order
-# -----------------------------
 @router.post("/")
 async def add_order(
     order: Order,
@@ -120,25 +141,40 @@ async def add_order(
 ):
     data = order.model_dump()
 
-    # Prefer identity from JWT over client-supplied values
-    if current_user.get("phone"):
-        data["phone"] = current_user["phone"]
-    if current_user.get("full_name"):
-        data["customer_name"] = current_user["full_name"]
+    customer_id = current_user.get("sub")
+    customer_email = current_user.get("email")
+    token_phone = current_user.get("phone")
 
-    # Always start new orders as Pending
+    if not customer_id or not token_phone:
+        raise HTTPException(
+            status_code=400,
+            detail="Customer identity is incomplete. Please log in again.",
+        )
+
+    # Always bind ownership to authenticated customer
+    data["customer_id"] = str(customer_id)
+    data["customer_email"] = customer_email
+    data["customer_name"] = (
+        current_user.get("full_name") or data.get("customer_name")
+    )
+
+    # Self orders must use JWT phone. Someone-else keeps recipient phone
+    # but ownership remains via customer_id/email.
+    if data.get("delivery_for") != "someone_else":
+        data["phone"] = token_phone
+    elif not data.get("phone"):
+        data["phone"] = token_phone
+
+    if not data.get("restaurant_email"):
+        raise HTTPException(
+            status_code=400,
+            detail="restaurant_email is required",
+        )
+
     data["status"] = "Pending"
-
-    # Generate Delivery OTP
     data["delivery_otp"] = random.randint(1000, 9999)
-
-    # OTP not verified initially
     data["otp_verified"] = False
-
-    # Review not submitted initially
     data["review_submitted"] = False
-
-    # Order creation time (UTC)
     data["created_at"] = datetime.now(UTC)
 
     order_id = await create_order(data)
@@ -149,9 +185,6 @@ async def add_order(
     }
 
 
-# -----------------------------
-# Get All Orders (Admin)
-# -----------------------------
 @router.get("/")
 async def fetch_orders(
     _: Annotated[dict, Depends(require_roles(ADMIN))],
@@ -159,9 +192,17 @@ async def fetch_orders(
     return await get_orders()
 
 
-# -----------------------------
-# Get Customer Orders
-# -----------------------------
+@router.get("/my")
+async def my_orders(
+    current_user: Annotated[dict, Depends(require_roles(CUSTOMER))],
+):
+    return await get_my_customer_orders(
+        customer_id=current_user.get("sub"),
+        phone=current_user.get("phone"),
+        email=current_user.get("email"),
+    )
+
+
 @router.get("/customer/{phone}")
 async def customer_orders(
     phone: str,
@@ -171,9 +212,6 @@ async def customer_orders(
     return await get_customer_orders(phone)
 
 
-# -----------------------------
-# Get Restaurant Orders
-# -----------------------------
 @router.get("/restaurant/{email}")
 async def restaurant_orders(
     email: str,
@@ -185,9 +223,6 @@ async def restaurant_orders(
     return await get_restaurant_orders(email)
 
 
-# -----------------------------
-# Get Available Orders (Delivery)
-# -----------------------------
 @router.get("/delivery/available")
 async def available_orders(
     _: Annotated[dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))],
@@ -195,9 +230,6 @@ async def available_orders(
     return await get_available_orders()
 
 
-# -----------------------------
-# Delivery History
-# -----------------------------
 @router.get("/delivery/history")
 async def delivery_history(
     current_user: Annotated[
@@ -214,13 +246,9 @@ async def delivery_history(
             detail="Delivery partner phone missing from token",
         )
 
-    # Scope history to the authenticated partner
     return await get_delivery_orders(phone)
 
 
-# -----------------------------
-# Delivery Partner Orders
-# -----------------------------
 @router.get("/delivery/my/{phone}")
 async def my_delivery_orders(
     phone: str,
@@ -232,27 +260,23 @@ async def my_delivery_orders(
     return await get_delivery_orders(phone)
 
 
-# -----------------------------
-# Delivery Partner Accept Order
-# -----------------------------
 @router.put("/delivery/accept/{order_id}")
 async def accept_delivery(
     order_id: str,
     current_user: Annotated[dict, Depends(require_roles(DELIVERY_PARTNER))],
     partner: dict | None = Body(default=None),
 ):
-    partner = partner or {}
-
-    partner_name = current_user.get("name") or partner.get("name", "")
-    partner_phone = current_user.get("phone") or partner.get("phone", "")
-    partner_vehicle = (
-        current_user.get("vehicle") or partner.get("vehicle", "")
-    )
+    # Always use authenticated partner identity — never trust client body identity
+    partner_name = current_user.get("name")
+    partner_phone = current_user.get("phone")
+    partner_vehicle = current_user.get("vehicle") or (
+        (partner or {}).get("vehicle") if partner else ""
+    ) or ""
 
     if not partner_name or not partner_phone:
         raise HTTPException(
             status_code=400,
-            detail="Delivery partner identity is incomplete",
+            detail="Delivery partner identity is incomplete. Please log in again.",
         )
 
     success = await assign_delivery_partner(
@@ -265,18 +289,15 @@ async def accept_delivery(
     if not success:
         raise HTTPException(
             status_code=400,
-            detail="This order has already been accepted by another delivery partner or is no longer available."
+            detail="This order has already been accepted by another delivery partner or is no longer available.",
         )
 
     return {
         "success": True,
-        "message": "Order accepted successfully"
+        "message": "Order accepted successfully",
     }
 
 
-# -----------------------------
-# Assign Delivery Partner
-# -----------------------------
 @router.put("/assign-delivery/{order_id}")
 async def assign_delivery(
     order_id: str,
@@ -286,24 +307,23 @@ async def assign_delivery(
         dict, Depends(require_roles(ADMIN, RESTAURANT_OWNER))
     ],
 ):
-    await assign_delivery_partner(
+    success = await assign_delivery_partner(
         order_id,
         partner_name,
         partner_phone,
     )
+
+    if not success:
+        raise HTTPException(
+            status_code=400,
+            detail="Unable to assign delivery partner for this order.",
+        )
 
     return {
         "message": "Delivery Partner Assigned Successfully"
     }
 
 
-# =====================================================
-# LIVE DELIVERY TRACKING
-# =====================================================
-
-# -----------------------------
-# Update Delivery Partner Location
-# -----------------------------
 @router.put("/delivery/location/{order_id}")
 async def update_location(
     order_id: str,
@@ -332,23 +352,26 @@ async def update_location(
     if latitude is None or longitude is None:
         raise HTTPException(
             status_code=400,
-            detail="Latitude and Longitude are required."
+            detail="Latitude and Longitude are required.",
         )
 
-    await update_delivery_location(
+    updated = await update_delivery_location(
         order_id,
         latitude,
         longitude,
     )
+
+    if not updated:
+        raise HTTPException(
+            status_code=400,
+            detail="Unable to update location for this order status.",
+        )
 
     return {
         "message": "Delivery Location Updated"
     }
 
 
-# -----------------------------
-# Get Live Delivery Location
-# -----------------------------
 @router.get("/delivery/location/{order_id}")
 async def get_location(
     order_id: str,
@@ -376,13 +399,6 @@ async def get_location(
     return await get_delivery_location(order_id)
 
 
-# =====================================================
-# DELIVERY OTP
-# =====================================================
-
-# -----------------------------
-# Get Delivery OTP
-# -----------------------------
 @router.get("/otp/{order_id}")
 async def get_otp(
     order_id: str,
@@ -401,8 +417,7 @@ async def get_otp(
     role = current_user.get("role")
 
     if role == CUSTOMER:
-        token_phone = current_user.get("phone")
-        if not token_phone or str(token_phone) != str(order.get("phone")):
+        if not _customer_owns_order(order, current_user):
             raise HTTPException(
                 status_code=403,
                 detail="You can only view OTP for your own orders",
@@ -430,9 +445,6 @@ async def get_otp(
     return otp
 
 
-# -----------------------------
-# Verify Delivery OTP
-# -----------------------------
 @router.put("/verify-otp/{order_id}")
 async def verify_otp(
     order_id: str,
@@ -458,12 +470,24 @@ async def verify_otp(
                 detail="You can only verify OTP for your assigned orders",
             )
 
+    if order.get("status") == "Delivered" or order.get("otp_verified"):
+        raise HTTPException(
+            status_code=400,
+            detail="Order is already delivered.",
+        )
+
+    if order.get("status") != "Out for Delivery":
+        raise HTTPException(
+            status_code=400,
+            detail="OTP can only be verified when order is Out for Delivery.",
+        )
+
     otp = body.get("otp")
 
     if otp is None:
         raise HTTPException(
             status_code=400,
-            detail="OTP is required."
+            detail="OTP is required.",
         )
 
     success = await verify_delivery_otp(
@@ -483,9 +507,6 @@ async def verify_otp(
     }
 
 
-# -----------------------------
-# Get Single Order
-# -----------------------------
 @router.get("/{order_id}")
 async def fetch_order(
     order_id: str,
@@ -509,13 +530,13 @@ async def fetch_order(
             detail="Order not found",
         )
 
+    # Never expose OTP on the generic order detail endpoint
+    response = dict(order)
+    response.pop("delivery_otp", None)
+
     _assert_order_access(order, current_user)
-    return order
+    return response
 
-
-# =====================================================
-# Update Order Status
-# =====================================================
 
 @router.put("/{order_id}/{status}")
 async def change_status(
@@ -584,10 +605,10 @@ async def change_status(
         status,
     )
 
-    if updated == 0:
+    if not updated:
         raise HTTPException(
-            status_code=404,
-            detail="Order not updated",
+            status_code=400,
+            detail="Invalid status transition for this order.",
         )
 
     return {

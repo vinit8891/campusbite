@@ -4,8 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 
 import { useAuth } from "@/context/AuthContext";
-import { getCustomerPhone } from "@/lib/authTokens";
-import { getCustomerOrders } from "@/services/orderService";
+import { getMyOrders } from "@/services/orderService";
 import { AuthHttpError } from "@/services/authFetch";
 
 type OrderItem = {
@@ -44,24 +43,9 @@ export default function OrdersPage() {
           return;
         }
 
-        // Prefer authenticated customer phone; fall back to checkout phone.
-        let phone = getCustomerPhone();
-
-        if (!phone) {
-          const checkout = localStorage.getItem("checkout");
-          if (checkout) {
-            phone = JSON.parse(checkout).phone || null;
-          }
-        }
-
-        if (!phone) {
-          setOrders([]);
-          setLoading(false);
-          return;
-        }
-
-        const result = await getCustomerOrders(phone);
+        const result = await getMyOrders();
         setOrders(result);
+        setError("");
       } catch (err) {
         console.error(err);
         if (err instanceof AuthHttpError && err.status === 401) {
