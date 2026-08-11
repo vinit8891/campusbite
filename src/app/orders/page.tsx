@@ -6,6 +6,10 @@ import Link from "next/link";
 import { useAuth } from "@/context/AuthContext";
 import { getMyOrders } from "@/services/orderService";
 import { AuthHttpError } from "@/services/authFetch";
+import {
+  formatPaymentMethod,
+  formatPaymentStatus,
+} from "@/lib/paymentLabels";
 
 type OrderItem = {
   id: string;
@@ -21,6 +25,7 @@ type Order = {
   phone: string;
   address: string;
   payment_method: string;
+  payment_status?: string;
   total: number;
   status: string;
   items: OrderItem[];
@@ -268,8 +273,14 @@ export default function OrdersPage() {
                         Payment
                       </span>
 
-                      <span className="font-medium">
-                        {order.payment_method}
+                      <span className="text-right font-medium">
+                        {formatPaymentMethod(order.payment_method)}
+                        <span className="mt-0.5 block text-xs font-normal text-gray-500">
+                          {formatPaymentStatus(
+                            order.payment_status,
+                            order.payment_method
+                          )}
+                        </span>
                       </span>
                     </div>
 

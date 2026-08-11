@@ -13,6 +13,10 @@ import {
 
 import { getDeliveryPartnerSession } from "@/lib/authTokens";
 import {
+  formatPaymentMethod,
+  formatPaymentStatus,
+} from "@/lib/paymentLabels";
+import {
   getAvailableOrders,
   acceptDelivery,
 } from "@/services/deliveryService";
@@ -167,9 +171,15 @@ export default function AvailableOrdersPage() {
 
                 <div className="text-right">
 
-                  <div className="rounded-full bg-green-100 px-4 py-2 text-sm font-semibold text-green-700">
-                    {order.payment_method}
+                  <div className="rounded-full bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-800">
+                    {formatPaymentMethod(order.payment_method)}
                   </div>
+                  <p className="mt-2 text-xs text-gray-500">
+                    {formatPaymentStatus(
+                      order.payment_status,
+                      order.payment_method
+                    )}
+                  </p>
 
                   <div className="mt-5 flex items-center justify-end text-4xl font-bold text-orange-600">
                     <IndianRupee size={30} />

@@ -32,6 +32,7 @@ from app.routes.review import (
     router as review_router,
 )
 from app.routers.admin import router as admin_router
+from app.routes.payment import router as payment_router
 
 from app.db.database import database
 
@@ -73,6 +74,8 @@ app.include_router(
 app.include_router(
     order_router
 )
+
+app.include_router(payment_router)
 
 app.include_router(
     dashboard_router

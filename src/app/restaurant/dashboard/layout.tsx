@@ -8,9 +8,6 @@ import {
   LayoutDashboard,
   UtensilsCrossed,
   ClipboardList,
-  BarChart3,
-  Store,
-  Settings,
   LogOut,
 } from "lucide-react";
 
@@ -79,30 +76,6 @@ export default function RestaurantDashboardLayout({
           >
             <ClipboardList size={20} />
             Orders
-          </Link>
-
-          <Link
-            href="/restaurant/dashboard/analytics"
-            className="flex items-center gap-3 rounded-xl p-3 hover:bg-orange-500"
-          >
-            <BarChart3 size={20} />
-            Analytics
-          </Link>
-
-          <Link
-            href="/restaurant/dashboard/profile"
-            className="flex items-center gap-3 rounded-xl p-3 hover:bg-orange-500"
-          >
-            <Store size={20} />
-            Restaurant
-          </Link>
-
-          <Link
-            href="/restaurant/dashboard/settings"
-            className="flex items-center gap-3 rounded-xl p-3 hover:bg-orange-500"
-          >
-            <Settings size={20} />
-            Settings
           </Link>
 
           <button

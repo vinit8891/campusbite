@@ -32,8 +32,8 @@ export default function DeliverySidebar() {
       icon: Bike,
     },
     {
-      name: "Earnings",
-      href: "/delivery/dashboard/earnings",
+      name: "History",
+      href: "/delivery/dashboard/history",
       icon: IndianRupee,
     },
     {

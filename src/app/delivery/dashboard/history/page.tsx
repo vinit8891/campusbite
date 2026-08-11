@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 
 import { getDeliveryHistory } from "@/services/deliveryService";
 import { AuthHttpError } from "@/services/authFetch";
+import {
+  formatPaymentMethod,
+  formatPaymentStatus,
+} from "@/lib/paymentLabels";
 
 type OrderItem = {
   id: number;
@@ -20,6 +24,7 @@ type Order = {
   total: number;
   status: string;
   payment_method: string;
+  payment_status?: string;
   items: OrderItem[];
 };
 
@@ -80,7 +85,15 @@ export default function DeliveryHistoryPage() {
                   <p className="text-2xl font-bold text-orange-600">
                     Rs {order.total}
                   </p>
-                  <p className="font-semibold">{order.payment_method}</p>
+                  <p className="font-semibold">
+                    {formatPaymentMethod(order.payment_method)}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {formatPaymentStatus(
+                      order.payment_status,
+                      order.payment_method
+                    )}
+                  </p>
                   <span className="mt-2 inline-block rounded-full bg-green-100 px-4 py-1 text-green-700">
                     Delivered
                   </span>

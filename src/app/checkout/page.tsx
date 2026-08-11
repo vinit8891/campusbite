@@ -28,7 +28,7 @@ export default function CheckoutPage() {
           </h1>
 
           <p className="mt-2 text-gray-500">
-            Enter your delivery details and choose your payment method.
+            Enter your delivery details and choose COD or Online Payment.
           </p>
         </div>
 

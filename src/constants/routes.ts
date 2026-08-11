@@ -11,6 +11,13 @@ export const ROUTES = {
     ORDER_SUCCESS: "/order-success",
   
     PROFILE: "/profile",
-  
-    DASHBOARD: "/dashboard",
+
+    RESTAURANT_DASHBOARD: "/restaurant/dashboard",
+    RESTAURANT_ORDERS: "/restaurant/dashboard/orders",
+    RESTAURANT_MENU: "/restaurant/dashboard/menu",
+
+    DELIVERY_DASHBOARD: "/delivery/dashboard",
+    DELIVERY_AVAILABLE: "/delivery/dashboard/available-orders",
+    DELIVERY_MY: "/delivery/dashboard/my-deliveries",
+    DELIVERY_HISTORY: "/delivery/dashboard/history",
   };

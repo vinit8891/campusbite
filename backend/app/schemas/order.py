@@ -1,4 +1,4 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 
 class OrderItem(BaseModel):
@@ -17,7 +17,12 @@ class Order(BaseModel):
 
     address: str
 
-    payment_method: str
+    # "cod" | "online"
+    payment_method: str = Field(default="cod")
+
+    # Independent of order lifecycle status.
+    # COD stays pending; online moves through processing/paid/failed/etc.
+    payment_status: str = Field(default="pending")
 
     total: float
 

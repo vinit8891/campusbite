@@ -4,6 +4,11 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { getRestaurantOwnerEmail } from "@/lib/authTokens";
+import {
+  formatPaymentMethod,
+  formatPaymentStatus,
+  isOnlinePayment,
+} from "@/lib/paymentLabels";
 import { AuthHttpError, authJson } from "@/services/authFetch";
 
 type OrderItem = {
@@ -19,6 +24,7 @@ type Order = {
   phone: string;
   address: string;
   payment_method: string;
+  payment_status?: string;
   total: number;
   status: string;
   items: OrderItem[];
@@ -191,7 +197,15 @@ export default function OrdersPage() {
                     ₹{order.total}
                   </p>
 
-                  <p>{order.payment_method}</p>
+                  <p className="font-semibold">
+                    {formatPaymentMethod(order.payment_method)}
+                  </p>
+                  <p className="text-xs text-gray-500">
+                    {formatPaymentStatus(
+                      order.payment_status,
+                      order.payment_method
+                    )}
+                  </p>
 
                   <span
                     className={`mt-2 inline-block rounded-full px-4 py-2 text-sm font-semibold ${badgeColor(
@@ -234,8 +248,19 @@ export default function OrdersPage() {
 
               <div className="mt-6 flex flex-wrap gap-3">
 
+                  {isOnlinePayment(order.payment_method) &&
+                  order.payment_status !== "paid" ? (
+                    <p className="w-full text-sm font-medium text-amber-700">
+                      Waiting for online payment before kitchen processing.
+                    </p>
+                  ) : null}
+
                   <button
-                    disabled={order.status !== "Pending"}
+                    disabled={
+                      order.status !== "Pending" ||
+                      (isOnlinePayment(order.payment_method) &&
+                        order.payment_status !== "paid")
+                    }
                     onClick={() =>
                       updateStatus(order._id, "Accepted")
                     }
@@ -245,7 +270,11 @@ export default function OrdersPage() {
                   </button>
 
                   <button
-                    disabled={order.status !== "Accepted"}
+                    disabled={
+                      order.status !== "Accepted" ||
+                      (isOnlinePayment(order.payment_method) &&
+                        order.payment_status !== "paid")
+                    }
                     onClick={() =>
                       updateStatus(order._id, "Preparing")
                     }
@@ -255,7 +284,11 @@ export default function OrdersPage() {
                   </button>
 
                   <button
-                    disabled={order.status !== "Preparing"}
+                    disabled={
+                      order.status !== "Preparing" ||
+                      (isOnlinePayment(order.payment_method) &&
+                        order.payment_status !== "paid")
+                    }
                     onClick={() =>
                       updateStatus(order._id, "Ready for Pickup")
                     }

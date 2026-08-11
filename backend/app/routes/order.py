@@ -30,6 +30,11 @@ from app.models.order import (
     get_order_otp,
     verify_delivery_otp,
 )
+from app.payments.amounts import (
+    assert_client_total_matches,
+    calculate_payable_amount,
+    to_paise,
+)
 
 router = APIRouter(
     prefix="/orders",
@@ -60,6 +65,86 @@ DELIVERY_STATUSES = {
     "Picked Up",
     "Out for Delivery",
 }
+
+
+COD_METHOD = "cod"
+ONLINE_METHOD = "online"
+COD_ALIASES = {
+    "cod",
+    "cash_on_delivery",
+    "cashondelivery",
+    "cash",
+}
+ONLINE_ALIASES = {
+    "online",
+    "online_payment",
+    "upi",
+    "card",
+    "net_banking",
+    "razorpay",
+    "stripe",
+}
+
+
+def _normalize_payment_key(value: str | None) -> str:
+    if not value:
+        return ""
+    return (
+        str(value)
+        .strip()
+        .lower()
+        .replace("-", "_")
+        .replace(" ", "_")
+    )
+
+
+def _is_cod_method(value: str | None) -> bool:
+    key = _normalize_payment_key(value)
+    if not key:
+        return True
+    if key in COD_ALIASES:
+        return True
+    return "cash" in key
+
+
+def _is_online_method(value: str | None) -> bool:
+    key = _normalize_payment_key(value)
+    return key in ONLINE_ALIASES or key == ONLINE_METHOD
+
+
+def _apply_payment_defaults(order: dict) -> dict:
+    """Safe response defaults for legacy orders missing payment fields."""
+    response = dict(order)
+    method = response.get("payment_method")
+
+    if _is_cod_method(method) and not _is_online_method(method):
+        response["payment_method"] = COD_METHOD
+        # COD is never treated as paid
+        response["payment_status"] = "pending"
+    elif _is_online_method(method):
+        response["payment_method"] = ONLINE_METHOD
+        if not response.get("payment_status"):
+            response["payment_status"] = "pending"
+    else:
+        if not method:
+            response["payment_method"] = COD_METHOD
+        if not response.get("payment_status"):
+            response["payment_status"] = "pending"
+
+    return response
+
+
+def _public_order(order: dict) -> dict:
+    """Order payload for clients: payment defaults, never expose OTP/secrets."""
+    response = _apply_payment_defaults(order)
+    response.pop("delivery_otp", None)
+    # Signature is verification material — do not expose on generic APIs
+    response.pop("razorpay_signature", None)
+    return response
+
+
+def _public_orders(orders: list) -> list:
+    return [_public_order(order) for order in orders]
 
 
 def _owner_email(user: dict) -> str | None:
@@ -171,6 +256,30 @@ async def add_order(
             detail="restaurant_email is required",
         )
 
+    # Authoritative total from items — never trust client amount alone
+    server_total = calculate_payable_amount(data.get("items") or [])
+    assert_client_total_matches(data.get("total"), server_total)
+    data["total"] = server_total
+    data["amount_paise"] = to_paise(server_total)
+
+    raw_method = data.get("payment_method")
+    if _is_online_method(raw_method):
+        data["payment_method"] = ONLINE_METHOD
+        data["payment_status"] = "pending"
+        data["razorpay_order_id"] = None
+        data["razorpay_payment_id"] = None
+        data["razorpay_signature"] = None
+        data["refund_id"] = None
+    elif _is_cod_method(raw_method) or not _normalize_payment_key(raw_method):
+        data["payment_method"] = COD_METHOD
+        data["payment_status"] = "pending"
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported payment method. Use 'cod' or 'online'.",
+        )
+
+    # Order lifecycle status remains independent of payment_status
     data["status"] = "Pending"
     data["delivery_otp"] = random.randint(1000, 9999)
     data["otp_verified"] = False
@@ -182,6 +291,10 @@ async def add_order(
     return {
         "message": "Order placed successfully",
         "id": order_id,
+        "payment_method": data["payment_method"],
+        "payment_status": data["payment_status"],
+        "total": server_total,
+        "amount_paise": data["amount_paise"],
     }
 
 
@@ -189,17 +302,19 @@ async def add_order(
 async def fetch_orders(
     _: Annotated[dict, Depends(require_roles(ADMIN))],
 ):
-    return await get_orders()
+    return _public_orders(await get_orders())
 
 
 @router.get("/my")
 async def my_orders(
     current_user: Annotated[dict, Depends(require_roles(CUSTOMER))],
 ):
-    return await get_my_customer_orders(
-        customer_id=current_user.get("sub"),
-        phone=current_user.get("phone"),
-        email=current_user.get("email"),
+    return _public_orders(
+        await get_my_customer_orders(
+            customer_id=current_user.get("sub"),
+            phone=current_user.get("phone"),
+            email=current_user.get("email"),
+        )
     )
 
 
@@ -209,7 +324,7 @@ async def customer_orders(
     current_user: Annotated[dict, Depends(require_roles(CUSTOMER, ADMIN))],
 ):
     assert_same_identity(current_user, phone=phone)
-    return await get_customer_orders(phone)
+    return _public_orders(await get_customer_orders(phone))
 
 
 @router.get("/restaurant/{email}")
@@ -220,14 +335,14 @@ async def restaurant_orders(
     ],
 ):
     assert_same_identity(current_user, email=email)
-    return await get_restaurant_orders(email)
+    return _public_orders(await get_restaurant_orders(email))
 
 
 @router.get("/delivery/available")
 async def available_orders(
     _: Annotated[dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))],
 ):
-    return await get_available_orders()
+    return _public_orders(await get_available_orders())
 
 
 @router.get("/delivery/history")
@@ -237,7 +352,7 @@ async def delivery_history(
     ],
 ):
     if current_user.get("role") == ADMIN:
-        return await get_delivered_orders()
+        return _public_orders(await get_delivered_orders())
 
     phone = current_user.get("phone")
     if not phone:
@@ -246,7 +361,7 @@ async def delivery_history(
             detail="Delivery partner phone missing from token",
         )
 
-    return await get_delivery_orders(phone)
+    return _public_orders(await get_delivery_orders(phone))
 
 
 @router.get("/delivery/my/{phone}")
@@ -257,7 +372,7 @@ async def my_delivery_orders(
     ],
 ):
     assert_same_identity(current_user, phone=phone)
-    return await get_delivery_orders(phone)
+    return _public_orders(await get_delivery_orders(phone))
 
 
 @router.put("/delivery/accept/{order_id}")
@@ -530,12 +645,8 @@ async def fetch_order(
             detail="Order not found",
         )
 
-    # Never expose OTP on the generic order detail endpoint
-    response = dict(order)
-    response.pop("delivery_otp", None)
-
     _assert_order_access(order, current_user)
-    return response
+    return _public_order(order)
 
 
 @router.put("/{order_id}/{status}")
@@ -598,6 +709,21 @@ async def change_status(
             raise HTTPException(
                 status_code=403,
                 detail="Delivery partners cannot set this status",
+            )
+
+    # Online orders must be paid before kitchen/processing advances
+    restaurant_processing = RESTAURANT_STATUSES - {"Cancelled"}
+    if status in restaurant_processing:
+        if (
+            order.get("payment_method") == ONLINE_METHOD
+            and order.get("payment_status") != "paid"
+        ):
+            raise HTTPException(
+                status_code=400,
+                detail=(
+                    "Online orders must be paid before restaurant "
+                    "processing can begin."
+                ),
             )
 
     updated = await update_order_status(

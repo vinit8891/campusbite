@@ -9,6 +9,10 @@ import { getOrderOTP } from "@/services/deliveryService";
 import { getMyOrders } from "@/services/orderService";
 import { AuthHttpError } from "@/services/authFetch";
 import { useAuth } from "@/context/AuthContext";
+import {
+  formatPaymentMethod,
+  formatPaymentStatus,
+} from "@/lib/paymentLabels";
 
 type OrderItem = {
   id: string;
@@ -29,6 +33,7 @@ type Order = {
   phone: string;
   address: string;
   payment_method: string;
+  payment_status?: string;
   restaurant_email: string;
   total: number;
   status: string;
@@ -291,7 +296,15 @@ export default function MyOrdersPage() {
 
               <p>
                 <strong>💳 Payment:</strong>{" "}
-                {order.payment_method}
+                {formatPaymentMethod(order.payment_method)}
+                <span className="ml-2 text-sm text-gray-500">
+                  (
+                  {formatPaymentStatus(
+                    order.payment_status,
+                    order.payment_method
+                  )}
+                  )
+                </span>
               </p>
 
               <p className="text-xl font-bold text-orange-600">

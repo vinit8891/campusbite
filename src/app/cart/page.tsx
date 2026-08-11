@@ -227,7 +227,7 @@ export default function CartPage() {
             </Button>
 
             <p className="mt-4 text-center text-xs text-gray-400">
-              Secure checkout • Cash & Online Payment available
+              Secure checkout • COD & Razorpay Test Mode
             </p>
 
           </div>

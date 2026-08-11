@@ -6,6 +6,10 @@ import { useParams } from "next/navigation";
 
 import { getOrderById } from "@/services/orderService";
 import { AuthHttpError } from "@/services/authFetch";
+import {
+  formatPaymentMethod,
+  formatPaymentStatus,
+} from "@/lib/paymentLabels";
 
 type OrderItem = {
   id: string | number;
@@ -21,6 +25,7 @@ type Order = {
   phone: string;
   address: string;
   payment_method: string;
+  payment_status?: string;
   total: number;
   status: string;
   items: OrderItem[];
@@ -567,8 +572,21 @@ export default function OrderDetailsPage() {
                   Payment Method
                 </span>
 
-                <span className="font-medium">
-                  {order.payment_method}
+                <span className="text-right font-medium">
+                  {formatPaymentMethod(order.payment_method)}
+                </span>
+              </div>
+
+              <div className="flex justify-between text-sm">
+                <span className="text-gray-500">
+                  Payment Status
+                </span>
+
+                <span className="text-right font-medium">
+                  {formatPaymentStatus(
+                    order.payment_status,
+                    order.payment_method
+                  )}
                 </span>
               </div>
 
