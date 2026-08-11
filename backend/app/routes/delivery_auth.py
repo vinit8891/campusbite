@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 
+from app.auth.roles import DELIVERY_PARTNER
 from app.auth.security import (
     create_access_token,
     hash_password,
@@ -113,7 +114,9 @@ async def login_delivery_partner(
             "sub": str(partner["_id"]),
             "email": partner["email"],
             "name": partner["name"],
-            "role": "delivery_partner",
+            "phone": partner["phone"],
+            "vehicle": partner.get("vehicle"),
+            "role": DELIVERY_PARTNER,
         }
     )
 
@@ -121,6 +124,8 @@ async def login_delivery_partner(
         "success": True,
         "message": "Login successful",
         "token": token,
+        "access_token": token,
+        "token_type": "bearer",
         "partner": {
             "id": str(partner["_id"]),
             "name": partner["name"],

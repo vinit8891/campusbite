@@ -6,6 +6,7 @@ from app.models.restaurant_owner import (
     get_owner_by_email,
 )
 
+from app.auth.roles import RESTAURANT_OWNER
 from app.auth.security import (
     hash_password,
     verify_password,
@@ -70,7 +71,14 @@ async def login_owner(data: dict):
         )
 
     token = create_access_token(
-        {"sub": owner["email"]}
+        {
+            "sub": owner["email"],
+            "email": owner["email"],
+            "phone": owner.get("phone"),
+            "owner_name": owner.get("owner_name"),
+            "restaurant_name": owner.get("restaurant_name"),
+            "role": RESTAURANT_OWNER,
+        }
     )
 
     return {
@@ -78,4 +86,5 @@ async def login_owner(data: dict):
         "token_type": "bearer",
         "owner_name": owner["owner_name"],
         "restaurant_name": owner["restaurant_name"],
+        "email": owner["email"],
     }

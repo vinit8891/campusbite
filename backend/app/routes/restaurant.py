@@ -1,4 +1,9 @@
-from fastapi import APIRouter
+from typing import Annotated
+
+from fastapi import APIRouter, Depends
+
+from app.auth.auth import require_roles
+from app.auth.roles import ADMIN
 from app.schemas.restaurant import Restaurant
 from app.models.restaurant import (
     create_restaurant,
@@ -11,7 +16,10 @@ router = APIRouter(prefix="/restaurants", tags=["Restaurants"])
 
 
 @router.post("/")
-async def add_restaurant(restaurant: Restaurant):
+async def add_restaurant(
+    restaurant: Restaurant,
+    _: Annotated[dict, Depends(require_roles(ADMIN))],
+):
     restaurant_data = restaurant.model_dump()
 
     restaurant_id = await create_restaurant(restaurant_data)
@@ -31,6 +39,7 @@ async def fetch_restaurants():
 async def edit_restaurant(
     restaurant_id: str,
     restaurant: Restaurant,
+    _: Annotated[dict, Depends(require_roles(ADMIN))],
 ):
     data = restaurant.model_dump()
 
@@ -42,7 +51,10 @@ async def edit_restaurant(
 
 
 @router.delete("/{restaurant_id}")
-async def remove_restaurant(restaurant_id: str):
+async def remove_restaurant(
+    restaurant_id: str,
+    _: Annotated[dict, Depends(require_roles(ADMIN))],
+):
     deleted = await delete_restaurant(restaurant_id)
 
     if deleted == 0:

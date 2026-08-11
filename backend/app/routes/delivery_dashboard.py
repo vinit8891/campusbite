@@ -1,4 +1,9 @@
-from fastapi import APIRouter, HTTPException
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, HTTPException
+
+from app.auth.auth import assert_same_identity, require_roles
+from app.auth.roles import ADMIN, DELIVERY_PARTNER
 from app.db.database import database
 
 router = APIRouter(
@@ -10,13 +15,20 @@ orders = database["orders"]
 
 
 @router.get("/stats/{phone}")
-async def delivery_stats(phone: str):
+async def delivery_stats(
+    phone: str,
+    current_user: Annotated[
+        dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))
+    ],
+):
 
     if not phone:
         raise HTTPException(
             status_code=400,
             detail="Delivery partner phone is required",
         )
+
+    assert_same_identity(current_user, phone=phone)
 
     # ==========================================
     # Partner's orders

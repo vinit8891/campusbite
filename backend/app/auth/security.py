@@ -1,13 +1,24 @@
+import os
 from datetime import datetime, timedelta
 
+from dotenv import load_dotenv
 from jose import JWTError, jwt
 from passlib.context import CryptContext
 
-SECRET_KEY = "CHANGE_THIS_TO_A_LONG_RANDOM_SECRET_KEY_FOR_PRODUCTION"
+load_dotenv()
 
-ALGORITHM = "HS256"
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError(
+        "SECRET_KEY environment variable is required. "
+        "Set it in backend/.env"
+    )
 
-ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24
+ALGORITHM = os.getenv("JWT_ALGORITHM", "HS256")
+
+ACCESS_TOKEN_EXPIRE_MINUTES = int(
+    os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", str(60 * 24))
+)
 
 pwd_context = CryptContext(
     schemes=["bcrypt"],

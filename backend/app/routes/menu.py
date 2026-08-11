@@ -1,5 +1,9 @@
-from fastapi import APIRouter
+from typing import Annotated
 
+from fastapi import APIRouter, Depends
+
+from app.auth.auth import assert_same_identity, require_roles
+from app.auth.roles import ADMIN, RESTAURANT_OWNER
 from app.schemas.menu import MenuItem
 
 from app.models.menu import (
@@ -17,7 +21,16 @@ router = APIRouter(
 
 
 @router.post("/")
-async def add_menu(item: MenuItem):
+async def add_menu(
+    item: MenuItem,
+    current_user: Annotated[
+        dict, Depends(require_roles(RESTAURANT_OWNER, ADMIN))
+    ],
+):
+    assert_same_identity(
+        current_user,
+        email=item.restaurant_email,
+    )
 
     item_id = await create_menu_item(
         item.model_dump()
@@ -43,7 +56,15 @@ async def fetch_single(item_id: str):
 async def update_item(
     item_id: str,
     item: MenuItem,
+    current_user: Annotated[
+        dict, Depends(require_roles(RESTAURANT_OWNER, ADMIN))
+    ],
 ):
+    assert_same_identity(
+        current_user,
+        email=item.restaurant_email,
+    )
+
     await update_menu_item(
         item_id,
         item.model_dump(),
@@ -55,7 +76,25 @@ async def update_item(
 
 
 @router.delete("/{item_id}")
-async def remove_menu(item_id: str):
+async def remove_menu(
+    item_id: str,
+    current_user: Annotated[
+        dict, Depends(require_roles(RESTAURANT_OWNER, ADMIN))
+    ],
+):
+    existing = await get_single_menu_item(item_id)
+
+    if not existing:
+        return {
+            "message": "Item not found"
+        }
+
+    restaurant_email = existing.get("restaurant_email")
+    if restaurant_email:
+        assert_same_identity(
+            current_user,
+            email=restaurant_email,
+        )
 
     deleted = await delete_menu_item(
         item_id

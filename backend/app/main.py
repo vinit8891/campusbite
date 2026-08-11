@@ -1,6 +1,10 @@
-from fastapi import FastAPI
+from typing import Annotated
+
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from app.auth.auth import require_roles
+from app.auth.roles import ADMIN
 from app.routes.auth import router as auth_router
 from app.routes.restaurant_owner import (
     router as restaurant_owner_router,
@@ -27,6 +31,7 @@ from app.routes.delivery_auth import (
 from app.routes.review import (
     router as review_router,
 )
+from app.routers.admin import router as admin_router
 
 from app.db.database import database
 
@@ -94,6 +99,8 @@ app.include_router(
     review_router
 )
 
+app.include_router(admin_router)
+
 
 # ----------------------------------------
 # Root
@@ -109,7 +116,9 @@ async def root():
 # Database Test
 # ----------------------------------------
 @app.get("/test-db")
-async def test_db():
+async def test_db(
+    _: Annotated[dict, Depends(require_roles(ADMIN))],
+):
     collections = await database.list_collection_names()
 
     return {
