@@ -112,9 +112,12 @@ export default function OrderSummary() {
     // Validate restaurant
     // -----------------------------
 
-    if (
-      !checkout.restaurant_email.trim()
-    ) {
+    const restaurantEmail =
+      checkout.restaurant_email.trim() ||
+      cart.find((item) => item.restaurant_email)?.restaurant_email ||
+      "";
+
+    if (!restaurantEmail) {
       alert(
         "Restaurant information is missing. Please go back to the restaurant and try again."
       );
@@ -136,8 +139,7 @@ export default function OrderSummary() {
       // -----------------------------
 
       const orderData = {
-        restaurant_email:
-          checkout.restaurant_email,
+        restaurant_email: restaurantEmail,
 
         customer_name:
           user?.name || checkout.customer_name,

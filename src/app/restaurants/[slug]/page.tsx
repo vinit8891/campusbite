@@ -3,35 +3,7 @@ import RestaurantCheckoutSetup from "@/components/restaurant/RestaurantCheckoutS
 import Image from "next/image";
 import { notFound } from "next/navigation";
 
-import { getRestaurantBySlug } from "@/services/adminService";
-
-type MenuItem = {
-  _id: string;
-  name: string;
-  description: string;
-  image: string;
-  price: number;
-  available: boolean;
-};
-
-type Restaurant = {
-  _id: string;
-  name: string;
-  slug: string;
-  email: string;
-  description: string;
-  cuisine: string;
-  image: string;
-  rating: number;
-  delivery_time: string;
-  distance: string;
-
-  // Restaurant GPS
-  latitude?: number;
-  longitude?: number;
-
-  menu: MenuItem[];
-};
+import { getRestaurantBySlug } from "@/services/restaurantService";
 
 type Props = {
   params: Promise<{
@@ -44,12 +16,13 @@ export default async function RestaurantPage({
 }: Props) {
   const { slug } = await params;
 
-  const restaurant: Restaurant | null =
-    await getRestaurantBySlug(slug);
+  const restaurant = await getRestaurantBySlug(slug);
 
   if (!restaurant) {
     notFound();
   }
+
+  const menu = restaurant.menu || [];
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -61,15 +34,9 @@ export default async function RestaurantPage({
         longitude={restaurant.longitude}
       />
 
-      {/* =========================
-          RESTAURANT HEADER
-      ========================== */}
-
       <section className="border-b bg-white">
 
         <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
-
-          {/* Back */}
 
           <div className="mb-6">
             <a
@@ -82,25 +49,26 @@ export default async function RestaurantPage({
 
           <div className="grid items-center gap-8 lg:grid-cols-[420px_1fr]">
 
-            {/* Restaurant Image */}
+            <div className="relative h-[280px] overflow-hidden rounded-3xl bg-gray-100 shadow-md sm:h-[320px]">
 
-            <div className="relative h-[280px] overflow-hidden rounded-3xl shadow-md sm:h-[320px]">
-
-              <Image
-                src={restaurant.image}
-                alt={restaurant.name}
-                fill
-                priority
-                className="object-cover"
-              />
+              {restaurant.image ? (
+                <Image
+                  src={restaurant.image}
+                  alt={restaurant.name}
+                  fill
+                  priority
+                  className="object-cover"
+                  unoptimized={restaurant.image.startsWith("http")}
+                />
+              ) : (
+                <div className="flex h-full items-center justify-center text-6xl">
+                  🍽️
+                </div>
+              )}
 
             </div>
 
-            {/* Restaurant Details */}
-
             <div>
-
-              {/* Cuisine */}
 
               <div className="mb-3">
                 <span className="rounded-full bg-orange-100 px-3 py-1 text-sm font-semibold text-orange-700">
@@ -117,55 +85,35 @@ export default async function RestaurantPage({
                   "Delicious food made fresh for you."}
               </p>
 
-              {/* Restaurant Information */}
-
               <div className="mt-6 flex flex-wrap gap-3">
-
-                {/* Rating */}
 
                 <div className="flex items-center gap-2 rounded-xl bg-green-50 px-4 py-3">
                   <span className="text-lg">⭐</span>
-
                   <div>
                     <p className="text-sm font-bold text-gray-900">
-                      {restaurant.rating}
+                      {restaurant.rating ?? "—"}
                     </p>
-
-                    <p className="text-xs text-gray-500">
-                      Rating
-                    </p>
+                    <p className="text-xs text-gray-500">Rating</p>
                   </div>
                 </div>
 
-                {/* Delivery Time */}
-
                 <div className="flex items-center gap-2 rounded-xl bg-orange-50 px-4 py-3">
                   <span className="text-lg">🚚</span>
-
                   <div>
                     <p className="text-sm font-bold text-gray-900">
                       {restaurant.delivery_time || "25-35 min"}
                     </p>
-
-                    <p className="text-xs text-gray-500">
-                      Delivery
-                    </p>
+                    <p className="text-xs text-gray-500">Delivery</p>
                   </div>
                 </div>
 
-                {/* Location */}
-
                 <div className="flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-3">
                   <span className="text-lg">📍</span>
-
                   <div>
                     <p className="text-sm font-bold text-gray-900">
-                      Pune
+                      {restaurant.distance || "Nearby"}
                     </p>
-
-                    <p className="text-xs text-gray-500">
-                      Location
-                    </p>
+                    <p className="text-xs text-gray-500">Distance</p>
                   </div>
                 </div>
 
@@ -179,50 +127,53 @@ export default async function RestaurantPage({
 
       </section>
 
-      {/* =========================
-          MENU SECTION
-      ========================== */}
-
       <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-
-        {/* Menu Header */}
 
         <div className="mb-8 flex items-end justify-between gap-4">
 
           <div>
             <h2 className="text-3xl font-extrabold text-gray-900">
-              Popular Menu
+              Menu
             </h2>
-
             <p className="mt-2 text-gray-500">
               Choose your favorite dishes
             </p>
           </div>
 
-          {restaurant.menu &&
-            restaurant.menu.length > 0 && (
-              <span className="hidden rounded-full bg-white px-4 py-2 text-sm font-medium text-gray-600 shadow-sm sm:block">
-                {restaurant.menu.length} items
-              </span>
-            )}
+          {menu.length > 0 && (
+            <span className="hidden rounded-full bg-white px-4 py-2 text-sm font-medium text-gray-600 shadow-sm sm:block">
+              {menu.length} items
+            </span>
+          )}
 
         </div>
 
-        {/* Menu Items */}
-
-        {restaurant.menu &&
-        restaurant.menu.length > 0 ? (
+        {menu.length > 0 ? (
 
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
 
-            {restaurant.menu.map((item) => (
+            {menu.map((item) => (
 
               <div
                 key={item._id}
                 className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-lg"
               >
 
-                <MenuCard item={item} />
+                <MenuCard
+                  item={{
+                    _id: item._id,
+                    name: item.name,
+                    description: item.description,
+                    image: item.image,
+                    price: item.price,
+                    available: item.available,
+                  }}
+                  restaurant={{
+                    id: restaurant._id,
+                    email: restaurant.email,
+                    name: restaurant.name,
+                  }}
+                />
 
               </div>
 

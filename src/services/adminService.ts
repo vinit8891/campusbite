@@ -1,15 +1,13 @@
-import { AuthHttpError, authFetch, authJson, publicFetch } from "@/services/authFetch";
+import { AuthHttpError, authFetch, authJson } from "@/services/authFetch";
+import {
+  getRestaurantById as getPublicRestaurantById,
+  getRestaurantBySlug as getPublicRestaurantBySlug,
+  getRestaurants as getPublicRestaurants,
+} from "@/services/restaurantService";
 
+/** Public browse — no JWT required. */
 export async function getRestaurants() {
-  const res = await publicFetch("/restaurants/", {
-    cache: "no-store",
-  });
-
-  if (!res.ok) {
-    throw new Error("Failed to fetch restaurants");
-  }
-
-  return res.json();
+  return getPublicRestaurants();
 }
 
 export async function addRestaurant(data: any) {
@@ -30,8 +28,7 @@ export async function deleteRestaurant(id: string) {
 }
 
 export async function getRestaurantById(id: string) {
-  const restaurants = await getRestaurants();
-  return restaurants.find((restaurant: any) => restaurant._id === id);
+  return getPublicRestaurantById(id);
 }
 
 export async function updateRestaurant(id: string, data: any) {
@@ -43,11 +40,7 @@ export async function updateRestaurant(id: string, data: any) {
 }
 
 export async function getRestaurantBySlug(slug: string) {
-  const restaurants = await getRestaurants();
-
-  return restaurants.find(
-    (restaurant: any) => restaurant.slug === slug
-  );
+  return getPublicRestaurantBySlug(slug);
 }
 
 export { AuthHttpError };

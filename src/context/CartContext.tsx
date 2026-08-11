@@ -10,7 +10,9 @@ import {
 
 type CartItem = {
   id: string;
+  restaurant_id?: string;
   restaurant_email: string;
+  restaurant_name?: string;
   name: string;
   price: number;
   image: string;
