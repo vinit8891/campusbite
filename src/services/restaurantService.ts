@@ -22,6 +22,10 @@ export type BackendRestaurant = {
   distance?: string;
   image: string;
   description?: string;
+  address?: string;
+  phone?: string;
+  opening_hours?: string;
+  closing_hours?: string;
   latitude?: number;
   longitude?: number;
   menu?: BackendMenuItem[];
@@ -55,5 +59,18 @@ export async function getRestaurantById(
   const restaurants = await getRestaurants();
   return (
     restaurants.find((restaurant) => restaurant._id === id) || null
+  );
+}
+
+export async function getRestaurantByEmail(
+  email: string
+): Promise<BackendRestaurant | null> {
+  const restaurants = await getRestaurants();
+  const normalized = email.trim().toLowerCase();
+  return (
+    restaurants.find(
+      (restaurant) =>
+        (restaurant.email || "").trim().toLowerCase() === normalized
+    ) || null
   );
 }

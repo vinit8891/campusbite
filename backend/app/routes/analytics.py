@@ -4,7 +4,7 @@ from fastapi import APIRouter, Depends
 
 from app.auth.auth import assert_same_identity, require_roles
 from app.auth.roles import ADMIN, RESTAURANT_OWNER
-from app.models.analytics import best_selling_foods
+from app.models.analytics import best_selling_foods, get_restaurant_overview
 
 router = APIRouter(
     prefix="/analytics",
@@ -21,3 +21,15 @@ async def get_best_selling(
 ):
     assert_same_identity(current_user, email=email)
     return await best_selling_foods(email)
+
+
+@router.get("/overview/{email}")
+async def get_overview(
+    email: str,
+    current_user: Annotated[
+        dict, Depends(require_roles(RESTAURANT_OWNER, ADMIN))
+    ],
+):
+    """Read-only restaurant analytics overview."""
+    assert_same_identity(current_user, email=email)
+    return await get_restaurant_overview(email)

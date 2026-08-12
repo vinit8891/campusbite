@@ -347,9 +347,23 @@ async def restaurant_orders(
     current_user: Annotated[
         dict, Depends(require_roles(RESTAURANT_OWNER, ADMIN))
     ],
+    status: Annotated[str | None, Query()] = None,
+    payment_status: Annotated[str | None, Query()] = None,
+    payment_method: Annotated[str | None, Query()] = None,
+    q: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ):
     assert_same_identity(current_user, email=email)
-    return _public_orders(await get_restaurant_orders(email))
+    return _public_orders(
+        await get_restaurant_orders(
+            email,
+            status=status,
+            payment_status=payment_status,
+            payment_method=payment_method,
+            q=q,
+            limit=limit,
+        )
+    )
 
 
 @router.get("/delivery/available")

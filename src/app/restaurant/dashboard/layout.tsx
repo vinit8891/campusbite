@@ -9,6 +9,7 @@ import {
   UtensilsCrossed,
   ClipboardList,
   LogOut,
+  UserRound,
 } from "lucide-react";
 
 export default function RestaurantDashboardLayout({
@@ -76,6 +77,14 @@ export default function RestaurantDashboardLayout({
           >
             <ClipboardList size={20} />
             Orders
+          </Link>
+
+          <Link
+            href="/restaurant/dashboard/profile"
+            className="flex items-center gap-3 rounded-xl p-3 hover:bg-orange-500"
+          >
+            <UserRound size={20} />
+            Profile
           </Link>
 
           <button

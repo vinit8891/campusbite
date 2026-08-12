@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Query
 
 from app.auth.auth import assert_same_identity, require_roles
 from app.auth.roles import ADMIN, RESTAURANT_OWNER
@@ -43,8 +43,20 @@ async def add_menu(
 
 
 @router.get("/{email}")
-async def fetch_menu(email: str):
-    return await get_menu(email)
+async def fetch_menu(
+    email: str,
+    category: Annotated[str | None, Query()] = None,
+    available: Annotated[bool | None, Query()] = None,
+    q: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+):
+    return await get_menu(
+        email,
+        category=category,
+        available=available,
+        q=q,
+        limit=limit,
+    )
 
 
 @router.get("/item/{item_id}")
