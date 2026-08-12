@@ -2,7 +2,7 @@ import random
 from datetime import datetime, UTC
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
 from app.auth.auth import assert_same_identity, require_roles
 from app.auth.roles import (
@@ -301,8 +301,22 @@ async def add_order(
 @router.get("/")
 async def fetch_orders(
     _: Annotated[dict, Depends(require_roles(ADMIN))],
+    status: Annotated[str | None, Query()] = None,
+    payment_status: Annotated[str | None, Query()] = None,
+    payment_method: Annotated[str | None, Query()] = None,
+    q: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ):
-    return _public_orders(await get_orders())
+    """Admin order list. Optional filters; newest first. Read-only."""
+    return _public_orders(
+        await get_orders(
+            status=status,
+            payment_status=payment_status,
+            payment_method=payment_method,
+            q=q,
+            limit=limit,
+        )
+    )
 
 
 @router.get("/my")

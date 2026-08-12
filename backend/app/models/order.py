@@ -1,4 +1,6 @@
 from datetime import datetime, UTC
+import re
+
 from bson import ObjectId
 from bson.errors import InvalidId
 
@@ -34,10 +36,49 @@ async def get_order_by_id(order_id: str):
     return order
 
 
-async def get_orders():
-    orders = []
+async def get_orders(
+    *,
+    status: str | None = None,
+    payment_status: str | None = None,
+    payment_method: str | None = None,
+    q: str | None = None,
+    limit: int = 50,
+):
+    """List orders newest-first with optional admin filters. Read-only query."""
+    query: dict = {}
 
-    async for order in order_collection.find().sort("created_at", -1):
+    if status:
+        query["status"] = status
+
+    if payment_status:
+        query["payment_status"] = payment_status
+
+    if payment_method:
+        query["payment_method"] = payment_method
+
+    if q and q.strip():
+        term = q.strip()
+        escaped = re.escape(term)
+        or_clauses: list[dict] = [
+            {"customer_name": {"$regex": escaped, "$options": "i"}},
+            {"customer_email": {"$regex": escaped, "$options": "i"}},
+            {"restaurant_email": {"$regex": escaped, "$options": "i"}},
+        ]
+
+        oid = get_object_id(term)
+        if oid:
+            or_clauses.append({"_id": oid})
+
+        query["$or"] = or_clauses
+
+    safe_limit = max(1, min(int(limit or 50), 200))
+
+    orders = []
+    cursor = (
+        order_collection.find(query).sort("created_at", -1).limit(safe_limit)
+    )
+
+    async for order in cursor:
         order["_id"] = str(order["_id"])
         orders.append(order)
 
