@@ -3,8 +3,12 @@
 import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
 
+import AdminEmptyState from "@/components/admin/AdminEmptyState";
+import AdminPageHeader from "@/components/admin/AdminPageHeader";
+import AdminTableSkeleton from "@/components/admin/AdminTableSkeleton";
+import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { formatAdminDate } from "@/lib/adminFormat";
 import {
   AuthHttpError,
   getAdminCustomers,
@@ -22,27 +26,6 @@ const TABS: { id: UserTab; label: string }[] = [
   { id: "restaurant-owners", label: "Restaurant Owners" },
   { id: "delivery-partners", label: "Delivery Partners" },
 ];
-
-function formatCreatedAt(value?: string | null) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
-}
-
-function UsersTableSkeleton() {
-  return (
-    <div className="space-y-3 rounded-2xl border bg-white p-4">
-      {Array.from({ length: 6 }).map((_, index) => (
-        <div key={index} className="grid grid-cols-4 gap-3">
-          {Array.from({ length: 4 }).map((__, col) => (
-            <Skeleton key={col} className="h-8 w-full" />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 export default function AdminUsersPage() {
   const [tab, setTab] = useState<UserTab>("customers");
@@ -129,13 +112,11 @@ export default function AdminUsersPage() {
       (tab === "delivery-partners" && partners.length === 0));
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
-      <div>
-        <h1 className="text-4xl font-bold">Users</h1>
-        <p className="mt-2 text-gray-500">
-          Read-only directory of customers, owners, and delivery partners
-        </p>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-6 sm:space-y-8">
+      <AdminPageHeader
+        title="Users"
+        description="Read-only directory of customers, owners, and delivery partners"
+      />
 
       <div className="flex flex-wrap gap-2">
         {TABS.map((item) => (
@@ -143,7 +124,7 @@ export default function AdminUsersPage() {
             key={item.id}
             type="button"
             onClick={() => handleTabChange(item.id)}
-            className={`rounded-lg px-4 py-2 text-sm font-medium transition ${
+            className={`h-10 rounded-lg px-4 text-sm font-medium transition ${
               tab === item.id
                 ? "bg-slate-900 text-white"
                 : "border bg-white text-gray-700 hover:bg-gray-50"
@@ -156,9 +137,9 @@ export default function AdminUsersPage() {
 
       <form
         onSubmit={handleSearchSubmit}
-        className="flex flex-wrap gap-3 rounded-2xl border bg-white p-4"
+        className="flex flex-col gap-3 rounded-2xl border bg-white p-4 sm:flex-row"
       >
-        <div className="relative min-w-[240px] flex-1">
+        <div className="relative min-w-0 flex-1">
           <Search
             size={16}
             className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-gray-400"
@@ -170,12 +151,9 @@ export default function AdminUsersPage() {
             className="h-10 pl-9"
           />
         </div>
-        <button
-          type="submit"
-          className="h-10 rounded-lg bg-slate-900 px-5 text-sm font-medium text-white hover:bg-slate-800"
-        >
+        <Button type="submit" className="h-10 bg-slate-900 hover:bg-slate-800">
           Search
-        </button>
+        </Button>
       </form>
 
       {error && (
@@ -185,16 +163,12 @@ export default function AdminUsersPage() {
       )}
 
       {loading ? (
-        <UsersTableSkeleton />
+        <AdminTableSkeleton rows={6} columns={4} />
       ) : empty ? (
-        <div className="rounded-2xl border border-dashed bg-white px-6 py-16 text-center">
-          <p className="text-lg font-semibold text-gray-700">
-            No users found
-          </p>
-          <p className="mt-2 text-sm text-gray-500">
-            Try a different search term or switch tabs.
-          </p>
-        </div>
+        <AdminEmptyState
+          title="No users found"
+          description="Try a different search term or switch tabs."
+        />
       ) : (
         <div className="overflow-x-auto rounded-2xl border bg-white">
           {tab === "customers" && (
@@ -216,7 +190,7 @@ export default function AdminUsersPage() {
                     <td className="px-4 py-3">{user.email || "—"}</td>
                     <td className="px-4 py-3">{user.phone || "—"}</td>
                     <td className="px-4 py-3 text-gray-600">
-                      {formatCreatedAt(user.created_at)}
+                      {formatAdminDate(user.created_at)}
                     </td>
                   </tr>
                 ))}

@@ -3,9 +3,12 @@
 import { useEffect, useState } from "react";
 import { RefreshCw, Search } from "lucide-react";
 
+import AdminEmptyState from "@/components/admin/AdminEmptyState";
+import AdminPageHeader from "@/components/admin/AdminPageHeader";
+import AdminTableSkeleton from "@/components/admin/AdminTableSkeleton";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Skeleton } from "@/components/ui/skeleton";
+import { formatAdminDate } from "@/lib/adminFormat";
 import {
   formatPaymentMethod,
   formatPaymentStatus,
@@ -47,29 +50,8 @@ const PAYMENT_METHODS = [
 const selectClassName =
   "h-10 w-full rounded-lg border border-input bg-white px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50";
 
-function formatCreatedAt(value?: string) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
-}
-
 function shortId(id: string) {
   return id.length > 10 ? `${id.slice(0, 8)}…` : id;
-}
-
-function OrdersTableSkeleton() {
-  return (
-    <div className="space-y-3 rounded-2xl border bg-white p-4">
-      {Array.from({ length: 6 }).map((_, index) => (
-        <div key={index} className="grid grid-cols-8 gap-3">
-          {Array.from({ length: 8 }).map((__, col) => (
-            <Skeleton key={col} className="h-8 w-full" />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
 }
 
 export default function AdminOrdersPage() {
@@ -154,13 +136,11 @@ export default function AdminOrdersPage() {
   }
 
   return (
-    <div className="mx-auto max-w-7xl space-y-8">
-      <div>
-        <h1 className="text-4xl font-bold">Orders</h1>
-        <p className="mt-2 text-gray-500">
-          Read-only view of platform orders
-        </p>
-      </div>
+    <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
+      <AdminPageHeader
+        title="Orders"
+        description="Read-only view of platform orders"
+      />
 
       <form
         onSubmit={handleSearchSubmit}
@@ -202,9 +182,7 @@ export default function AdminOrdersPage() {
           onChange={(e) => {
             const next = e.target.value;
             setPaymentStatus(next);
-            void fetchOrders(
-              currentFilters({ payment_status: next })
-            );
+            void fetchOrders(currentFilters({ payment_status: next }));
           }}
           className={selectClassName}
           aria-label="Payment status"
@@ -217,15 +195,13 @@ export default function AdminOrdersPage() {
           ))}
         </select>
 
-        <div className="flex gap-2">
+        <div className="flex flex-col gap-2 sm:flex-row">
           <select
             value={paymentMethod}
             onChange={(e) => {
               const next = e.target.value;
               setPaymentMethod(next);
-              void fetchOrders(
-                currentFilters({ payment_method: next })
-              );
+              void fetchOrders(currentFilters({ payment_method: next }));
             }}
             className={selectClassName}
             aria-label="Payment method"
@@ -241,7 +217,7 @@ export default function AdminOrdersPage() {
           <Button
             type="submit"
             variant="outline"
-            className="shrink-0"
+            className="h-10 shrink-0 gap-2"
             disabled={loading}
             aria-label="Refresh orders"
           >
@@ -261,16 +237,12 @@ export default function AdminOrdersPage() {
       )}
 
       {loading ? (
-        <OrdersTableSkeleton />
+        <AdminTableSkeleton rows={6} columns={8} />
       ) : orders.length === 0 ? (
-        <div className="rounded-2xl border border-dashed bg-white px-6 py-16 text-center">
-          <p className="text-lg font-semibold text-gray-700">
-            No orders found
-          </p>
-          <p className="mt-2 text-sm text-gray-500">
-            Try clearing filters or searching with a different term.
-          </p>
-        </div>
+        <AdminEmptyState
+          title="No orders found"
+          description="Try clearing filters or searching with a different term."
+        />
       ) : (
         <div className="overflow-x-auto rounded-2xl border bg-white">
           <table className="min-w-full text-left text-sm">
@@ -324,7 +296,7 @@ export default function AdminOrdersPage() {
                     ₹{Number(order.total ?? 0).toFixed(2)}
                   </td>
                   <td className="px-4 py-3 whitespace-nowrap text-gray-600">
-                    {formatCreatedAt(order.created_at)}
+                    {formatAdminDate(order.created_at)}
                   </td>
                 </tr>
               ))}

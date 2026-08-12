@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Callable
 import re
 
 from fastapi import APIRouter, Depends, Query
@@ -74,6 +74,22 @@ def _text_search_filter(fields: list[str], q: str | None) -> dict:
     }
 
 
+async def _list_safe(
+    collection_name: str,
+    fields: list[str],
+    serializer: Callable[[dict], dict],
+    q: str | None,
+) -> list[dict]:
+    query = _text_search_filter(fields, q)
+    results: list[dict] = []
+    cursor = database[collection_name].find(query).sort("_id", -1)
+
+    async for doc in cursor:
+        results.append(serializer(doc))
+
+    return results
+
+
 @router.get("/health")
 async def admin_health(
     current_user: Annotated[dict, Depends(require_roles(ADMIN))],
@@ -110,18 +126,12 @@ async def list_customers(
     q: Annotated[str | None, Query()] = None,
 ):
     """Safe read-only customer list for admin (no secrets)."""
-    query = _text_search_filter(
+    return await _list_safe(
+        "users",
         ["full_name", "name", "email", "phone"],
+        _safe_customer,
         q,
     )
-
-    results = []
-    cursor = database["users"].find(query).sort("_id", -1)
-
-    async for doc in cursor:
-        results.append(_safe_customer(doc))
-
-    return results
 
 
 @router.get("/users/restaurant-owners")
@@ -130,18 +140,12 @@ async def list_restaurant_owners(
     q: Annotated[str | None, Query()] = None,
 ):
     """Safe read-only restaurant-owner list for admin (no secrets)."""
-    query = _text_search_filter(
+    return await _list_safe(
+        "restaurant_owners",
         ["owner_name", "name", "email", "restaurant_name", "phone"],
+        _safe_restaurant_owner,
         q,
     )
-
-    results = []
-    cursor = database["restaurant_owners"].find(query).sort("_id", -1)
-
-    async for doc in cursor:
-        results.append(_safe_restaurant_owner(doc))
-
-    return results
 
 
 @router.get("/users/delivery-partners")
@@ -150,15 +154,9 @@ async def list_delivery_partners(
     q: Annotated[str | None, Query()] = None,
 ):
     """Safe read-only delivery-partner list for admin (no secrets)."""
-    query = _text_search_filter(
+    return await _list_safe(
+        "delivery_partners",
         ["name", "email", "phone", "vehicle", "vehicle_number"],
+        _safe_delivery_partner,
         q,
     )
-
-    results = []
-    cursor = database["delivery_partners"].find(query).sort("_id", -1)
-
-    async for doc in cursor:
-        results.append(_safe_delivery_partner(doc))
-
-    return results

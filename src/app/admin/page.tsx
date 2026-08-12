@@ -3,6 +3,10 @@
 import Link from "next/link";
 import { useEffect, useState } from "react";
 
+import AdminEmptyState from "@/components/admin/AdminEmptyState";
+import AdminPageHeader from "@/components/admin/AdminPageHeader";
+import AdminTableSkeleton from "@/components/admin/AdminTableSkeleton";
+import { ROUTES } from "@/constants/routes";
 import {
   AuthHttpError,
   getAdminStats,
@@ -73,32 +77,41 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <div className="p-10 text-center text-xl text-gray-500">
-        Loading Dashboard...
+      <div className="mx-auto max-w-6xl space-y-8">
+        <AdminPageHeader title="Admin Dashboard" />
+        <AdminTableSkeleton rows={1} columns={5} />
       </div>
     );
   }
 
   return (
-    <div className="mx-auto max-w-6xl space-y-10">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <h1 className="text-4xl font-bold">Admin Dashboard</h1>
-
-        <div className="flex flex-wrap gap-3">
-          <Link
-            href="/admin/restaurants"
-            className="rounded-lg bg-orange-500 px-5 py-3 text-white"
-          >
-            Manage Restaurants
-          </Link>
-          <Link
-            href="/admin/add-restaurant"
-            className="rounded-lg bg-green-600 px-5 py-3 text-white"
-          >
-            Add Restaurant
-          </Link>
-        </div>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-8">
+      <AdminPageHeader
+        title="Admin Dashboard"
+        description="Platform overview and quick actions"
+        actions={
+          <>
+            <Link
+              href={ROUTES.ADMIN_RESTAURANTS}
+              className="inline-flex h-10 items-center rounded-lg bg-orange-500 px-4 text-sm font-medium text-white hover:bg-orange-600"
+            >
+              Manage Restaurants
+            </Link>
+            <Link
+              href={ROUTES.ADMIN_ADD_RESTAURANT}
+              className="inline-flex h-10 items-center rounded-lg bg-green-600 px-4 text-sm font-medium text-white hover:bg-green-700"
+            >
+              Add Restaurant
+            </Link>
+            <Link
+              href={ROUTES.ADMIN_ORDERS}
+              className="inline-flex h-10 items-center rounded-lg border bg-white px-4 text-sm font-medium hover:bg-gray-50"
+            >
+              View Orders
+            </Link>
+          </>
+        }
+      />
 
       {error && (
         <p className="rounded-xl bg-red-50 p-4 text-sm text-red-600">
@@ -106,19 +119,28 @@ export default function AdminPage() {
         </p>
       )}
 
-      <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-5">
-        {STAT_CARDS.map((card) => (
-          <div
-            key={card.key}
-            className="rounded-2xl bg-white p-6 shadow"
-          >
-            <h2 className="font-semibold text-gray-600">{card.label}</h2>
-            <p className={`mt-4 text-5xl font-bold ${card.valueClass}`}>
-              {stats?.[card.key] ?? 0}
-            </p>
-          </div>
-        ))}
-      </div>
+      {!error && !stats ? (
+        <AdminEmptyState
+          title="No statistics available"
+          description="Try refreshing the page after logging in again."
+        />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+          {STAT_CARDS.map((card) => (
+            <div
+              key={card.key}
+              className="rounded-2xl border bg-white p-5 shadow-sm"
+            >
+              <h2 className="text-sm font-semibold text-gray-600">
+                {card.label}
+              </h2>
+              <p className={`mt-3 text-4xl font-bold ${card.valueClass}`}>
+                {stats?.[card.key] ?? 0}
+              </p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

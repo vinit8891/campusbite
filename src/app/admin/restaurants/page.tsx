@@ -5,28 +5,20 @@ import { useEffect, useState } from "react";
 import { Plus, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 
+import AdminEmptyState from "@/components/admin/AdminEmptyState";
+import AdminPageHeader from "@/components/admin/AdminPageHeader";
+import AdminTableSkeleton from "@/components/admin/AdminTableSkeleton";
 import DeleteRestaurantButton from "@/components/admin/DeleteRestaurantButton";
 import { Button } from "@/components/ui/button";
-import { Skeleton } from "@/components/ui/skeleton";
+import {
+  ROUTES,
+  adminEditRestaurantPath,
+} from "@/constants/routes";
 import {
   AuthHttpError,
   getRestaurants,
   type BackendRestaurant,
 } from "@/services/adminService";
-
-function RestaurantsTableSkeleton() {
-  return (
-    <div className="space-y-3 rounded-2xl border bg-white p-4">
-      {Array.from({ length: 5 }).map((_, index) => (
-        <div key={index} className="grid grid-cols-4 gap-3">
-          {Array.from({ length: 4 }).map((__, col) => (
-            <Skeleton key={col} className="h-8 w-full" />
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
 
 export default function AdminRestaurantsPage() {
   const [restaurants, setRestaurants] = useState<BackendRestaurant[]>([]);
@@ -90,37 +82,35 @@ export default function AdminRestaurantsPage() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-6xl space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h1 className="text-4xl font-bold">Restaurants</h1>
-          <p className="mt-2 text-gray-500">
-            Manage CampusBite restaurant listings
-          </p>
-        </div>
-
-        <div className="flex flex-wrap gap-2">
-          <Button
-            type="button"
-            variant="outline"
-            onClick={() => void loadRestaurants()}
-            disabled={loading}
-          >
-            <RefreshCw
-              size={16}
-              className={loading ? "animate-spin" : ""}
-            />
-            Refresh
-          </Button>
-          <Link
-            href="/admin/add-restaurant"
-            className="inline-flex h-10 items-center gap-2 rounded-lg bg-orange-500 px-4 text-sm font-medium text-white hover:bg-orange-600"
-          >
-            <Plus size={16} />
-            Add Restaurant
-          </Link>
-        </div>
-      </div>
+    <div className="mx-auto max-w-6xl space-y-6 sm:space-y-8">
+      <AdminPageHeader
+        title="Restaurants"
+        description="Manage CampusBite restaurant listings"
+        actions={
+          <>
+            <Button
+              type="button"
+              variant="outline"
+              className="h-10 gap-2"
+              onClick={() => void loadRestaurants()}
+              disabled={loading}
+            >
+              <RefreshCw
+                size={16}
+                className={loading ? "animate-spin" : ""}
+              />
+              Refresh
+            </Button>
+            <Link
+              href={ROUTES.ADMIN_ADD_RESTAURANT}
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-orange-500 px-4 text-sm font-medium text-white hover:bg-orange-600"
+            >
+              <Plus size={16} />
+              Add Restaurant
+            </Link>
+          </>
+        }
+      />
 
       {error && (
         <p className="rounded-xl bg-red-50 p-4 text-sm text-red-600">
@@ -129,22 +119,20 @@ export default function AdminRestaurantsPage() {
       )}
 
       {loading ? (
-        <RestaurantsTableSkeleton />
+        <AdminTableSkeleton rows={5} columns={4} />
       ) : restaurants.length === 0 ? (
-        <div className="rounded-2xl border border-dashed bg-white px-6 py-16 text-center">
-          <p className="text-lg font-semibold text-gray-700">
-            No restaurants yet
-          </p>
-          <p className="mt-2 text-sm text-gray-500">
-            Add your first restaurant to get started.
-          </p>
-          <Link
-            href="/admin/add-restaurant"
-            className="mt-6 inline-flex rounded-lg bg-orange-500 px-5 py-3 text-white hover:bg-orange-600"
-          >
-            Add Restaurant
-          </Link>
-        </div>
+        <AdminEmptyState
+          title="No restaurants yet"
+          description="Add your first restaurant to get started."
+          action={
+            <Link
+              href={ROUTES.ADMIN_ADD_RESTAURANT}
+              className="inline-flex h-10 items-center rounded-lg bg-orange-500 px-5 text-sm font-medium text-white hover:bg-orange-600"
+            >
+              Add Restaurant
+            </Link>
+          }
+        />
       ) : (
         <div className="overflow-x-auto rounded-2xl border bg-white">
           <table className="min-w-full text-left text-sm">
@@ -171,8 +159,8 @@ export default function AdminRestaurantsPage() {
                   <td className="px-4 py-3">
                     <div className="flex flex-wrap gap-2">
                       <Link
-                        href={`/admin/edit-restaurant/${restaurant._id}`}
-                        className="rounded-lg bg-blue-500 px-4 py-2 text-white hover:bg-blue-600"
+                        href={adminEditRestaurantPath(restaurant._id)}
+                        className="inline-flex h-9 items-center rounded-lg bg-blue-500 px-4 text-sm text-white hover:bg-blue-600"
                       >
                         Edit
                       </Link>

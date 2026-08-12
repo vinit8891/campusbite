@@ -12,11 +12,19 @@ import {
   Users,
 } from "lucide-react";
 
+import { ROUTES } from "@/constants/routes";
 import {
   AUTH_STORAGE_KEYS,
   clearAuthForRole,
 } from "@/lib/authTokens";
 import { authFetch } from "@/services/authFetch";
+
+const NAV_LINK =
+  "flex items-center gap-3 rounded-xl p-3 transition hover:bg-slate-800";
+
+function navClass(active: boolean) {
+  return `${NAV_LINK}${active ? " bg-slate-800" : ""}`;
+}
 
 export default function AdminLayout({
   children,
@@ -25,7 +33,7 @@ export default function AdminLayout({
 }) {
   const router = useRouter();
   const pathname = usePathname();
-  const isLoginPage = pathname === "/admin/login";
+  const isLoginPage = pathname === ROUTES.ADMIN_LOGIN;
   const [ready, setReady] = useState(false);
 
   useEffect(() => {
@@ -39,7 +47,7 @@ export default function AdminLayout({
       const token = localStorage.getItem(AUTH_STORAGE_KEYS.adminToken);
 
       if (!token) {
-        router.replace("/admin/login");
+        router.replace(ROUTES.ADMIN_LOGIN);
         return;
       }
 
@@ -58,7 +66,7 @@ export default function AdminLayout({
         }
       } catch {
         clearAuthForRole("admin");
-        router.replace("/admin/login");
+        router.replace(ROUTES.ADMIN_LOGIN);
       }
     }
 
@@ -71,7 +79,7 @@ export default function AdminLayout({
 
   function logout() {
     clearAuthForRole("admin");
-    router.push("/admin/login");
+    router.push(ROUTES.ADMIN_LOGIN);
   }
 
   if (isLoginPage) {
@@ -87,54 +95,46 @@ export default function AdminLayout({
   }
 
   const restaurantsActive =
-    pathname === "/admin/restaurants" ||
-    pathname === "/admin/add-restaurant" ||
+    pathname === ROUTES.ADMIN_RESTAURANTS ||
+    pathname === ROUTES.ADMIN_ADD_RESTAURANT ||
     pathname.startsWith("/admin/edit-restaurant");
 
   return (
-    <div className="flex min-h-screen">
-      <aside className="w-72 bg-slate-900 text-white">
+    <div className="flex min-h-screen bg-gray-50">
+      <aside className="sticky top-0 flex h-screen w-64 shrink-0 flex-col bg-slate-900 text-white sm:w-72">
         <div className="border-b border-slate-700 p-6">
           <h1 className="text-2xl font-bold">CampusBite</h1>
-          <p className="text-slate-300">Admin Panel</p>
+          <p className="mt-1 text-sm text-slate-300">Admin Panel</p>
         </div>
 
-        <nav className="space-y-2 p-5">
+        <nav className="flex flex-1 flex-col space-y-1 p-4">
           <Link
-            href="/admin"
-            className={`flex items-center gap-3 rounded-xl p-3 hover:bg-slate-800 ${
-              pathname === "/admin" ? "bg-slate-800" : ""
-            }`}
+            href={ROUTES.ADMIN}
+            className={navClass(pathname === ROUTES.ADMIN)}
           >
             <LayoutDashboard size={20} />
             Dashboard
           </Link>
 
           <Link
-            href="/admin/orders"
-            className={`flex items-center gap-3 rounded-xl p-3 hover:bg-slate-800 ${
-              pathname === "/admin/orders" ? "bg-slate-800" : ""
-            }`}
+            href={ROUTES.ADMIN_ORDERS}
+            className={navClass(pathname === ROUTES.ADMIN_ORDERS)}
           >
             <ClipboardList size={20} />
             Orders
           </Link>
 
           <Link
-            href="/admin/restaurants"
-            className={`flex items-center gap-3 rounded-xl p-3 hover:bg-slate-800 ${
-              restaurantsActive ? "bg-slate-800" : ""
-            }`}
+            href={ROUTES.ADMIN_RESTAURANTS}
+            className={navClass(restaurantsActive)}
           >
             <Store size={20} />
             Restaurants
           </Link>
 
           <Link
-            href="/admin/users"
-            className={`flex items-center gap-3 rounded-xl p-3 hover:bg-slate-800 ${
-              pathname === "/admin/users" ? "bg-slate-800" : ""
-            }`}
+            href={ROUTES.ADMIN_USERS}
+            className={navClass(pathname === ROUTES.ADMIN_USERS)}
           >
             <Users size={20} />
             Users
@@ -143,7 +143,7 @@ export default function AdminLayout({
           <button
             type="button"
             onClick={logout}
-            className="flex w-full items-center gap-3 rounded-xl p-3 text-left hover:bg-red-600"
+            className="mt-auto flex w-full items-center gap-3 rounded-xl p-3 text-left transition hover:bg-red-600"
           >
             <LogOut size={20} />
             Logout
@@ -151,7 +151,9 @@ export default function AdminLayout({
         </nav>
       </aside>
 
-      <main className="flex-1 bg-gray-50 p-8">{children}</main>
+      <main className="min-w-0 flex-1 overflow-x-auto p-4 sm:p-6 lg:p-8">
+        {children}
+      </main>
     </div>
   );
 }

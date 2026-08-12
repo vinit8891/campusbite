@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { deleteRestaurant, AuthHttpError } from "@/services/adminService";
+import { Button } from "@/components/ui/button";
+import { AuthHttpError, deleteRestaurant } from "@/services/adminService";
 
 type Props = {
   id: string;
@@ -48,13 +49,14 @@ export default function DeleteRestaurantButton({
   }
 
   return (
-    <button
+    <Button
       type="button"
+      variant="outline"
       onClick={() => void handleDelete()}
       disabled={loading}
-      className="rounded-lg bg-red-500 px-4 py-2 text-white hover:bg-red-600 disabled:opacity-60"
+      className="h-9 border-red-200 bg-red-500 text-white hover:bg-red-600 hover:text-white"
     >
       {loading ? "Deleting..." : "Delete"}
-    </button>
+    </Button>
   );
 }

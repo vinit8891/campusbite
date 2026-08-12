@@ -1,12 +1,12 @@
-import { AuthHttpError, authFetch, authJson } from "@/services/authFetch";
+import { AuthHttpError, authJson } from "@/services/authFetch";
 import {
   type BackendRestaurant,
   getRestaurantById as getPublicRestaurantById,
-  getRestaurantBySlug as getPublicRestaurantBySlug,
   getRestaurants as getPublicRestaurants,
 } from "@/services/restaurantService";
 
 export type { BackendRestaurant };
+export { AuthHttpError };
 
 export type AdminStats = {
   users: number;
@@ -15,13 +15,6 @@ export type AdminStats = {
   delivery_partners: number;
   orders: number;
 };
-
-export async function getAdminStats() {
-  return authJson<AdminStats>("/admin/stats", {
-    role: "admin",
-    cache: "no-store",
-  });
-}
 
 export type AdminOrder = {
   _id: string;
@@ -43,28 +36,6 @@ export type AdminOrdersQuery = {
   q?: string;
   limit?: number;
 };
-
-export async function getAdminOrders(filters: AdminOrdersQuery = {}) {
-  const params = new URLSearchParams();
-
-  if (filters.status) params.set("status", filters.status);
-  if (filters.payment_status) {
-    params.set("payment_status", filters.payment_status);
-  }
-  if (filters.payment_method) {
-    params.set("payment_method", filters.payment_method);
-  }
-  if (filters.q?.trim()) params.set("q", filters.q.trim());
-  if (filters.limit) params.set("limit", String(filters.limit));
-
-  const query = params.toString();
-  const path = query ? `/orders/?${query}` : "/orders/";
-
-  return authJson<AdminOrder[]>(path, {
-    role: "admin",
-    cache: "no-store",
-  });
-}
 
 export type AdminCustomer = {
   id: string;
@@ -88,46 +59,79 @@ export type AdminDeliveryPartner = {
   status: string;
 };
 
-export async function getAdminCustomers(q?: string) {
-  const params = new URLSearchParams();
-  if (q?.trim()) params.set("q", q.trim());
-  const query = params.toString();
-  const path = query
-    ? `/admin/users/customers?${query}`
-    : "/admin/users/customers";
+export type AdminRestaurantInput = {
+  slug: string;
+  name: string;
+  email: string;
+  cuisine: string;
+  rating: number;
+  delivery_time: string;
+  distance: string;
+  image: string;
+  latitude: number;
+  longitude: number;
+};
 
-  return authJson<AdminCustomer[]>(path, {
-    role: "admin",
-    cache: "no-store",
-  });
+const ADMIN_JSON = {
+  role: "admin" as const,
+  cache: "no-store" as RequestCache,
+};
+
+function withQuery(
+  path: string,
+  params: Record<string, string | number | undefined>
+) {
+  const search = new URLSearchParams();
+
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === "") continue;
+    search.set(key, String(value));
+  }
+
+  const query = search.toString();
+  return query ? `${path}?${query}` : path;
+}
+
+export async function getAdminStats() {
+  return authJson<AdminStats>("/admin/stats", ADMIN_JSON);
+}
+
+export async function getAdminOrders(filters: AdminOrdersQuery = {}) {
+  return authJson<AdminOrder[]>(
+    withQuery("/orders/", {
+      status: filters.status,
+      payment_status: filters.payment_status,
+      payment_method: filters.payment_method,
+      q: filters.q?.trim() || undefined,
+      limit: filters.limit,
+    }),
+    ADMIN_JSON
+  );
+}
+
+export async function getAdminCustomers(q?: string) {
+  return authJson<AdminCustomer[]>(
+    withQuery("/admin/users/customers", { q: q?.trim() || undefined }),
+    ADMIN_JSON
+  );
 }
 
 export async function getAdminRestaurantOwners(q?: string) {
-  const params = new URLSearchParams();
-  if (q?.trim()) params.set("q", q.trim());
-  const query = params.toString();
-  const path = query
-    ? `/admin/users/restaurant-owners?${query}`
-    : "/admin/users/restaurant-owners";
-
-  return authJson<AdminRestaurantOwner[]>(path, {
-    role: "admin",
-    cache: "no-store",
-  });
+  return authJson<AdminRestaurantOwner[]>(
+    withQuery("/admin/users/restaurant-owners", {
+      q: q?.trim() || undefined,
+    }),
+    ADMIN_JSON
+  );
 }
 
 export async function getAdminDeliveryPartners(q?: string) {
-  const params = new URLSearchParams();
-  if (q?.trim()) params.set("q", q.trim());
-  const query = params.toString();
-  const path = query
-    ? `/admin/users/delivery-partners?${query}`
-    : "/admin/users/delivery-partners";
-
-  return authJson<AdminDeliveryPartner[]>(path, {
-    role: "admin",
-    cache: "no-store",
-  });
+  return authJson<AdminDeliveryPartner[]>(
+    withQuery("/admin/users/delivery-partners", {
+      q: q?.trim() || undefined,
+    }),
+    ADMIN_JSON
+  );
 }
 
 /** Public browse — no JWT required. */
@@ -135,51 +139,32 @@ export async function getRestaurants() {
   return getPublicRestaurants();
 }
 
-export async function addRestaurant(data: Record<string, unknown>) {
+export async function getRestaurantById(id: string) {
+  return getPublicRestaurantById(id);
+}
+
+export async function addRestaurant(data: AdminRestaurantInput) {
   return authJson("/restaurants/", {
-    role: "admin",
+    ...ADMIN_JSON,
     method: "POST",
     body: JSON.stringify(data),
   });
 }
 
-export async function deleteRestaurant(id: string) {
-  const res = await authFetch(`/restaurants/${id}`, {
-    role: "admin",
-    method: "DELETE",
-  });
-
-  const body = await res.json().catch(() => null);
-
-  if (!res.ok) {
-    throw new AuthHttpError(
-      res.status,
-      typeof body?.detail === "string"
-        ? body.detail
-        : "Failed to delete restaurant"
-    );
-  }
-
-  return body;
-}
-
-export async function getRestaurantById(id: string) {
-  return getPublicRestaurantById(id);
-}
-
 export async function updateRestaurant(
   id: string,
-  data: Record<string, unknown>
+  data: AdminRestaurantInput
 ) {
   return authJson(`/restaurants/${id}`, {
-    role: "admin",
+    ...ADMIN_JSON,
     method: "PUT",
     body: JSON.stringify(data),
   });
 }
 
-export async function getRestaurantBySlug(slug: string) {
-  return getPublicRestaurantBySlug(slug);
+export async function deleteRestaurant(id: string) {
+  return authJson(`/restaurants/${id}`, {
+    ...ADMIN_JSON,
+    method: "DELETE",
+  });
 }
-
-export { AuthHttpError };

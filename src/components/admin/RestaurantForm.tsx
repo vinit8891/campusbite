@@ -7,10 +7,12 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ROUTES } from "@/constants/routes";
 import {
   AuthHttpError,
   addRestaurant,
   updateRestaurant,
+  type AdminRestaurantInput,
   type BackendRestaurant,
 } from "@/services/adminService";
 
@@ -22,7 +24,7 @@ export default function RestaurantForm({ initialData }: Props) {
   const router = useRouter();
   const isEdit = !!initialData;
 
-  const [form, setForm] = useState({
+  const [form, setForm] = useState<AdminRestaurantInput>({
     slug: initialData?.slug || "",
     name: initialData?.name || "",
     email: initialData?.email || "",
@@ -52,7 +54,7 @@ export default function RestaurantForm({ initialData }: Props) {
         toast.success("Restaurant added successfully");
       }
 
-      router.push("/admin/restaurants");
+      router.push(ROUTES.ADMIN_RESTAURANTS);
       router.refresh();
     } catch (err) {
       if (err instanceof AuthHttpError && err.status === 401) {
@@ -221,7 +223,7 @@ export default function RestaurantForm({ initialData }: Props) {
         </Button>
 
         <Link
-          href="/admin/restaurants"
+          href={ROUTES.ADMIN_RESTAURANTS}
           className="inline-flex h-10 items-center rounded-lg border px-4 text-sm font-medium hover:bg-gray-50"
         >
           Cancel

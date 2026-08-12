@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { ROUTES } from "@/constants/routes";
 import { AUTH_STORAGE_KEYS } from "@/lib/authTokens";
 import { publicFetch } from "@/services/authFetch";
 
@@ -45,7 +46,7 @@ export default function AdminLoginPage() {
         JSON.stringify({ email })
       );
 
-      router.push("/admin");
+      router.push(ROUTES.ADMIN);
     } catch {
       setError("Unable to connect to server.");
     }
