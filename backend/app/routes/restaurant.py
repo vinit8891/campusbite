@@ -4,7 +4,9 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.auth.auth import assert_same_identity, require_roles
 from app.auth.roles import ADMIN, RESTAURANT_OWNER
+from app.core.audit import log_admin_action
 from app.core.logging import get_logger
+from app.core.sanitize import sanitize_email, sanitize_search_query
 from app.schemas.restaurant import Restaurant
 from app.models.restaurant import (
     create_restaurant,
@@ -33,12 +35,19 @@ OWNER_PROFILE_FIELDS = {
 @router.post("/")
 async def add_restaurant(
     restaurant: Restaurant,
-    _: Annotated[dict, Depends(require_roles(ADMIN))],
+    current_user: Annotated[dict, Depends(require_roles(ADMIN))],
 ):
     logger.info("restaurants.create request received")
     restaurant_data = restaurant.model_dump(exclude_none=True)
 
     restaurant_id = await create_restaurant(restaurant_data)
+
+    await log_admin_action(
+        admin_email=current_user.get("email") or "",
+        action="restaurant.create",
+        resource="restaurant",
+        resource_id=restaurant_id,
+    )
 
     logger.info("restaurants.create completed successfully")
     return {
@@ -60,9 +69,9 @@ async def fetch_restaurants(
     result = await get_all_restaurants(
         page=page,
         limit=limit,
-        q=q,
-        email=email,
-        slug=slug,
+        q=sanitize_search_query(q),
+        email=sanitize_email(email),
+        slug=(slug.strip() if slug else None),
         include_menu=include_menu,
     )
     logger.info("restaurants.list completed successfully")
@@ -112,6 +121,14 @@ async def edit_restaurant(
 
     await update_restaurant(restaurant_id, data)
 
+    if role == ADMIN:
+        await log_admin_action(
+            admin_email=current_user.get("email") or "",
+            action="restaurant.update",
+            resource="restaurant",
+            resource_id=restaurant_id,
+        )
+
     logger.info("restaurants.update completed successfully")
     return {
         "message": "Restaurant updated successfully"
@@ -121,7 +138,7 @@ async def edit_restaurant(
 @router.delete("/{restaurant_id}")
 async def remove_restaurant(
     restaurant_id: str,
-    _: Annotated[dict, Depends(require_roles(ADMIN))],
+    current_user: Annotated[dict, Depends(require_roles(ADMIN))],
 ):
     logger.info("restaurants.delete request received")
     deleted = await delete_restaurant(restaurant_id)
@@ -130,6 +147,13 @@ async def remove_restaurant(
         return {
             "message": "Restaurant not found"
         }
+
+    await log_admin_action(
+        admin_email=current_user.get("email") or "",
+        action="restaurant.delete",
+        resource="restaurant",
+        resource_id=restaurant_id,
+    )
 
     logger.info("restaurants.delete completed successfully")
     return {

@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request
 
 from app.auth.auth import require_roles
 from app.auth.roles import ADMIN, CUSTOMER, RESTAURANT_OWNER
+from app.core.audit import log_admin_action
 from app.core.logging import get_logger
 from app.payments import service as payment_service
 from app.schemas.payment import (
@@ -140,6 +141,20 @@ async def create_refund(
         reason=body.reason,
         idempotency_key=body.idempotency_key,
         actor=current_user,
+    )
+    refund_doc = result.get("refund") if isinstance(result, dict) else {}
+    refund_id = None
+    if isinstance(refund_doc, dict):
+        refund_id = refund_doc.get("refund_id") or refund_doc.get("_id")
+    await log_admin_action(
+        admin_email=current_user.get("email") or "",
+        action="refund.create",
+        resource="refund",
+        resource_id=str(refund_id or body.order_id),
+        metadata={
+            "order_id": body.order_id,
+            "role": current_user.get("role"),
+        },
     )
     logger.info("payments.refund completed successfully order_id=%s", body.order_id)
     return result

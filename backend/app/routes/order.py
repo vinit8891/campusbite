@@ -31,6 +31,7 @@ from app.models.order import (
     verify_delivery_otp,
 )
 from app.core.logging import get_logger
+from app.core.sanitize import sanitize_email, sanitize_search_query
 from app.payments.amounts import (
     assert_client_total_matches,
     calculate_payable_amount,
@@ -330,7 +331,7 @@ async def fetch_orders(
             status=status,
             payment_status=payment_status,
             payment_method=payment_method,
-            q=q,
+            q=sanitize_search_query(q),
             page=page,
             limit=limit,
         )
@@ -378,7 +379,7 @@ async def restaurant_orders(
             status=status,
             payment_status=payment_status,
             payment_method=payment_method,
-            q=q,
+            q=sanitize_search_query(q),
             limit=limit,
         )
     )
@@ -395,7 +396,7 @@ async def available_orders(
 ):
     return _public_paginated(
         await get_available_orders(
-            q=q,
+            q=sanitize_search_query(q),
             restaurant=restaurant,
             payment_method=payment_method,
             page=page,
@@ -420,7 +421,7 @@ async def delivery_history(
             await get_delivered_orders(
                 from_date=from_date,
                 to_date=to_date,
-                q=q,
+                q=sanitize_search_query(q),
                 page=page,
                 limit=limit,
             )
@@ -439,7 +440,7 @@ async def delivery_history(
             status="Delivered",
             from_date=from_date,
             to_date=to_date,
-            q=q,
+            q=sanitize_search_query(q),
             page=page,
             limit=limit,
         )
@@ -461,7 +462,7 @@ async def my_delivery_orders(
         await get_delivery_orders(
             phone,
             status=status,
-            q=q,
+            q=sanitize_search_query(q),
             limit=limit,
         )
     )

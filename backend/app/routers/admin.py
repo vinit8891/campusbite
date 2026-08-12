@@ -6,6 +6,7 @@ from fastapi import APIRouter, Depends, Query
 from app.auth.auth import require_roles
 from app.auth.roles import ADMIN
 from app.core.logging import get_logger
+from app.core.sanitize import sanitize_search_query
 from app.db.database import database
 
 router = APIRouter(
@@ -93,7 +94,7 @@ async def _list_safe(
         skip_for,
     )
 
-    query = _text_search_filter(fields, q)
+    query = _text_search_filter(fields, sanitize_search_query(q))
     safe_page = normalize_page(page)
     safe_limit = normalize_limit(limit, default=20)
     total = await database[collection_name].count_documents(query)

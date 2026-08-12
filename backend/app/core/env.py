@@ -37,6 +37,25 @@ def _resolve_secret_key() -> None:
         os.environ["SECRET_KEY"] = jwt_secret
 
 
+def get_allowed_origins() -> list[str]:
+    """
+    Parse ALLOWED_ORIGINS from environment.
+
+    Supports comma-separated or newline-separated values.
+    Defaults to local Next.js dev server when unset.
+    """
+    raw = (os.getenv("ALLOWED_ORIGINS") or "").strip()
+    if not raw:
+        return ["http://localhost:3000"]
+
+    parts: list[str] = []
+    for chunk in raw.replace("\n", ",").split(","):
+        origin = chunk.strip()
+        if origin:
+            parts.append(origin)
+    return parts or ["http://localhost:3000"]
+
+
 def validate_environment() -> None:
     """
     Validate required environment variables during startup.

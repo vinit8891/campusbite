@@ -1,6 +1,6 @@
 # Infrastructure must initialize before route imports (env + logging).
 from app.core.logging import setup_logging, get_logger
-from app.core.env import validate_environment
+from app.core.env import get_allowed_origins, validate_environment
 
 setup_logging()
 validate_environment()
@@ -20,6 +20,11 @@ from app.core.errors import (
     validation_exception_handler,
 )
 from app.core.middleware import RequestLoggingMiddleware
+from app.core.security_middleware import (
+    RateLimitMiddleware,
+    RequestSizeLimitMiddleware,
+    SecurityHeadersMiddleware,
+)
 from app.routes.auth import router as auth_router
 from app.routes.restaurant_owner import (
     router as restaurant_owner_router,
@@ -63,19 +68,25 @@ app.add_exception_handler(RequestValidationError, validation_exception_handler)
 app.add_exception_handler(Exception, unhandled_exception_handler)
 
 # ----------------------------------------
-# CORS
+# Security middleware (CORS registered last = outermost)
 # ----------------------------------------
+app.add_middleware(SecurityHeadersMiddleware)
+app.add_middleware(RequestSizeLimitMiddleware)
+app.add_middleware(RateLimitMiddleware)
+app.add_middleware(RequestLoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-    ],
+    allow_origins=get_allowed_origins(),
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+    allow_headers=[
+        "Authorization",
+        "Content-Type",
+        "Accept",
+        "X-Razorpay-Signature",
+        "X-Requested-With",
+    ],
 )
-
-app.add_middleware(RequestLoggingMiddleware)
 
 # ----------------------------------------
 # API Routes

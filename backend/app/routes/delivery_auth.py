@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from app.auth.roles import DELIVERY_PARTNER
 from app.auth.security import (
@@ -6,7 +6,10 @@ from app.auth.security import (
     hash_password,
     verify_password,
 )
+from app.core.brute_force import login_guard
 from app.core.logging import get_logger
+from app.core.rate_limit import client_ip
+from app.core.sanitize import sanitize_email
 
 from app.models.delivery_partner import (
     create_delivery_partner,
@@ -82,10 +85,11 @@ async def register_delivery_partner(
 
 @router.post("/login")
 async def login_delivery_partner(
-    data: dict
+    data: dict,
+    request: Request,
 ):
     logger.info("delivery.login request received")
-    email = data.get("email")
+    email = sanitize_email(data.get("email"))
     password = data.get("password")
 
     if not email or not password:
@@ -94,6 +98,9 @@ async def login_delivery_partner(
             detail="Email and password are required",
         )
 
+    ip = client_ip(request)
+    login_guard.assert_not_blocked(ip, email)
+
     partner = (
         await get_delivery_partner_by_email(
             email
@@ -101,6 +108,7 @@ async def login_delivery_partner(
     )
 
     if not partner:
+        login_guard.record_failure(ip, email)
         raise HTTPException(
             status_code=401,
             detail="Invalid email or password",
@@ -110,10 +118,13 @@ async def login_delivery_partner(
         password,
         partner["password"],
     ):
+        login_guard.record_failure(ip, email)
         raise HTTPException(
             status_code=401,
             detail="Invalid email or password",
         )
+
+    login_guard.record_success(ip, email)
 
     token = create_access_token(
         {

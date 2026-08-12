@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, Query
 
 from app.auth.auth import assert_same_identity, require_roles
 from app.auth.roles import ADMIN, RESTAURANT_OWNER
+from app.core.sanitize import sanitize_email, sanitize_search_query
 from app.schemas.menu import MenuItem
 
 from app.models.menu import (
@@ -52,10 +53,10 @@ async def fetch_menu(
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ):
     return await get_menu(
-        email,
+        sanitize_email(email) or email.strip(),
         category=category,
         available=available,
-        q=q,
+        q=sanitize_search_query(q),
         page=page,
         limit=limit,
     )

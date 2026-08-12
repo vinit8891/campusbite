@@ -1,6 +1,6 @@
 import os
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from app.auth.roles import ADMIN, CUSTOMER
 from app.auth.security import (
@@ -8,7 +8,10 @@ from app.auth.security import (
     hash_password,
     verify_password,
 )
+from app.core.brute_force import login_guard
 from app.core.logging import get_logger
+from app.core.rate_limit import client_ip
+from app.core.sanitize import sanitize_email
 from app.models.user import (
     create_user,
     get_user_by_email,
@@ -58,12 +61,17 @@ async def register(user: UserRegister):
     "/login",
     response_model=Token,
 )
-async def login(user: UserLogin):
+async def login(user: UserLogin, request: Request):
     logger.info("auth.login request received")
 
-    db_user = await get_user_by_email(user.email)
+    email = sanitize_email(str(user.email)) or ""
+    ip = client_ip(request)
+    login_guard.assert_not_blocked(ip, email)
+
+    db_user = await get_user_by_email(email)
 
     if not db_user:
+        login_guard.record_failure(ip, email)
         raise HTTPException(
             status_code=401,
             detail="Invalid email or password",
@@ -73,10 +81,13 @@ async def login(user: UserLogin):
         user.password,
         db_user["password"],
     ):
+        login_guard.record_failure(ip, email)
         raise HTTPException(
             status_code=401,
             detail="Invalid email or password",
         )
+
+    login_guard.record_success(ip, email)
 
     token = create_access_token(
         {
@@ -96,7 +107,7 @@ async def login(user: UserLogin):
 
 
 @router.post("/admin/login", response_model=Token)
-async def admin_login(user: UserLogin):
+async def admin_login(user: UserLogin, request: Request):
     """Issue an admin JWT using credentials from environment variables."""
     logger.info("auth.admin_login request received")
     admin_email = os.getenv("ADMIN_EMAIL")
@@ -108,14 +119,21 @@ async def admin_login(user: UserLogin):
             detail="Admin login is not configured",
         )
 
+    email = sanitize_email(str(user.email)) or ""
+    ip = client_ip(request)
+    login_guard.assert_not_blocked(ip, email)
+
     if (
-        user.email.lower() != admin_email.lower()
+        email != admin_email.lower()
         or user.password != admin_password
     ):
+        login_guard.record_failure(ip, email)
         raise HTTPException(
             status_code=401,
             detail="Invalid email or password",
         )
+
+    login_guard.record_success(ip, email)
 
     token = create_access_token(
         {

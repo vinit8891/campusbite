@@ -39,6 +39,7 @@ async def ensure_app_indexes() -> None:
     reviews = database["reviews"]
     payments = database["payments"]
     refunds = database["refunds"]
+    audit_logs = database["admin_audit_logs"]
 
     # users
     await _safe_create_index(users, "email", unique=True, sparse=True)
@@ -91,5 +92,10 @@ async def ensure_app_indexes() -> None:
     await ensure_payment_indexes()
     await _safe_create_index(payments, "razorpay_payment_id", sparse=True)
     await _safe_create_index(refunds, "refund_id", sparse=True)
+
+    # admin audit logs
+    await _safe_create_index(audit_logs, [("timestamp", -1)])
+    await _safe_create_index(audit_logs, "admin_email")
+    await _safe_create_index(audit_logs, "action")
 
     logger.info("MongoDB indexes ensured")

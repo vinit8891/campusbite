@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
 from app.schemas.restaurant_owner import RestaurantOwner
 from app.models.restaurant_owner import (
@@ -12,7 +12,10 @@ from app.auth.security import (
     verify_password,
     create_access_token,
 )
+from app.core.brute_force import login_guard
 from app.core.logging import get_logger
+from app.core.rate_limit import client_ip
+from app.core.sanitize import sanitize_email
 
 router = APIRouter(
     prefix="/restaurant-owner",
@@ -54,27 +57,36 @@ async def register_owner(owner: RestaurantOwner):
 
 
 @router.post("/login")
-async def login_owner(data: dict):
+async def login_owner(data: dict, request: Request):
     logger.info("restaurant_owner.login request received")
 
+    email = sanitize_email(data.get("email")) or ""
+    password = data.get("password")
+    ip = client_ip(request)
+    login_guard.assert_not_blocked(ip, email)
+
     owner = await get_owner_by_email(
-        data["email"]
+        email
     )
 
     if not owner:
+        login_guard.record_failure(ip, email)
         raise HTTPException(
             status_code=401,
             detail="Invalid credentials",
         )
 
     if not verify_password(
-        data["password"],
+        password,
         owner["password"],
     ):
+        login_guard.record_failure(ip, email)
         raise HTTPException(
             status_code=401,
             detail="Invalid credentials",
         )
+
+    login_guard.record_success(ip, email)
 
     token = create_access_token(
         {
