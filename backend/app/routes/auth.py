@@ -8,6 +8,7 @@ from app.auth.security import (
     hash_password,
     verify_password,
 )
+from app.core.logging import get_logger
 from app.models.user import (
     create_user,
     get_user_by_email,
@@ -23,9 +24,12 @@ router = APIRouter(
     tags=["Authentication"],
 )
 
+logger = get_logger(__name__)
+
 
 @router.post("/register")
 async def register(user: UserRegister):
+    logger.info("auth.register request received")
 
     existing = await get_user_by_email(user.email)
 
@@ -43,6 +47,7 @@ async def register(user: UserRegister):
 
     user_id = await create_user(user_data)
 
+    logger.info("auth.register completed successfully")
     return {
         "message": "User registered successfully",
         "id": user_id,
@@ -54,6 +59,7 @@ async def register(user: UserRegister):
     response_model=Token,
 )
 async def login(user: UserLogin):
+    logger.info("auth.login request received")
 
     db_user = await get_user_by_email(user.email)
 
@@ -82,6 +88,7 @@ async def login(user: UserLogin):
         }
     )
 
+    logger.info("auth.login completed successfully")
     return {
         "access_token": token,
         "token_type": "bearer",
@@ -91,6 +98,7 @@ async def login(user: UserLogin):
 @router.post("/admin/login", response_model=Token)
 async def admin_login(user: UserLogin):
     """Issue an admin JWT using credentials from environment variables."""
+    logger.info("auth.admin_login request received")
     admin_email = os.getenv("ADMIN_EMAIL")
     admin_password = os.getenv("ADMIN_PASSWORD")
 
@@ -117,6 +125,7 @@ async def admin_login(user: UserLogin):
         }
     )
 
+    logger.info("auth.admin_login completed successfully")
     return {
         "access_token": token,
         "token_type": "bearer",

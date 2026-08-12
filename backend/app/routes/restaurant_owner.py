@@ -12,15 +12,19 @@ from app.auth.security import (
     verify_password,
     create_access_token,
 )
+from app.core.logging import get_logger
 
 router = APIRouter(
     prefix="/restaurant-owner",
     tags=["Restaurant Owner"],
 )
 
+logger = get_logger(__name__)
+
 
 @router.post("/register")
 async def register_owner(owner: RestaurantOwner):
+    logger.info("restaurant_owner.register request received")
 
     existing = await get_owner_by_email(
         owner.email
@@ -42,6 +46,7 @@ async def register_owner(owner: RestaurantOwner):
         data
     )
 
+    logger.info("restaurant_owner.register completed successfully")
     return {
         "message": "Restaurant Owner Registered",
         "id": owner_id,
@@ -50,6 +55,7 @@ async def register_owner(owner: RestaurantOwner):
 
 @router.post("/login")
 async def login_owner(data: dict):
+    logger.info("restaurant_owner.login request received")
 
     owner = await get_owner_by_email(
         data["email"]
@@ -81,6 +87,7 @@ async def login_owner(data: dict):
         }
     )
 
+    logger.info("restaurant_owner.login completed successfully")
     return {
         "access_token": token,
         "token_type": "bearer",

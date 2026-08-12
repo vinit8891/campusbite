@@ -5,12 +5,15 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.auth.auth import assert_same_identity, require_roles
 from app.auth.roles import ADMIN, DELIVERY_PARTNER
+from app.core.logging import get_logger
 from app.db.database import database
 
 router = APIRouter(
     prefix="/delivery-dashboard",
     tags=["Delivery Dashboard"],
 )
+
+logger = get_logger(__name__)
 
 orders = database["orders"]
 
@@ -58,6 +61,7 @@ async def delivery_stats(
     ],
 ):
 
+    logger.info("delivery_dashboard.stats request received")
     if not phone:
         raise HTTPException(
             status_code=400,
@@ -132,7 +136,7 @@ async def delivery_stats(
         if status in PICKED_UP_STATUSES:
             picked_up_orders += 1
 
-    return {
+    result = {
         # Legacy fields (unchanged)
         "phone": phone,
         "pending": pending,
@@ -149,3 +153,5 @@ async def delivery_stats(
         "deliveries_this_month": deliveries_this_month,
         "recent_assigned_orders": recent_assigned_orders,
     }
+    logger.info("delivery_dashboard.stats completed successfully")
+    return result

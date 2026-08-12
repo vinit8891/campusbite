@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException
 
 from app.auth.auth import assert_same_identity, require_roles
 from app.auth.roles import ADMIN, DELIVERY_PARTNER
+from app.core.logging import get_logger
 from app.models.delivery_partner import (
     get_delivery_partner_by_email,
     get_delivery_partner_by_id,
@@ -19,6 +20,8 @@ router = APIRouter(
     prefix="/delivery-partner",
     tags=["Delivery Partner"],
 )
+
+logger = get_logger(__name__)
 
 
 def _resolve_partner(current_user: dict):
@@ -43,6 +46,7 @@ async def get_my_profile(
         dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))
     ],
 ):
+    logger.info("delivery_partner.profile.get request received")
     partner = await _resolve_partner(current_user)
 
     if not partner:
@@ -57,6 +61,7 @@ async def get_my_profile(
     )
 
     profile = serialize_partner_profile(partner)
+    logger.info("delivery_partner.profile.get completed successfully")
     return profile
 
 
@@ -67,6 +72,7 @@ async def update_my_profile(
         dict, Depends(require_roles(DELIVERY_PARTNER))
     ],
 ):
+    logger.info("delivery_partner.profile.update request received")
     partner = await _resolve_partner(current_user)
 
     if not partner:
@@ -134,6 +140,7 @@ async def update_my_profile(
         )
 
     refreshed = await get_delivery_partner_by_phone(phone)
+    logger.info("delivery_partner.profile.update completed successfully")
     return {
         "message": "Profile updated successfully",
         "partner": serialize_partner_profile(refreshed),
@@ -147,6 +154,7 @@ async def change_status(
         dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))
     ],
 ):
+    logger.info("delivery_partner.status.update request received")
     phone = current_user.get("phone") or data.get("phone")
 
     if not phone:
@@ -168,6 +176,7 @@ async def change_status(
         data["online"],
     )
 
+    logger.info("delivery_partner.status.update completed successfully")
     return {
         "message": "Status Updated"
     }
@@ -180,5 +189,8 @@ async def status(
         dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))
     ],
 ):
+    logger.info("delivery_partner.status.get request received")
     assert_same_identity(current_user, phone=phone)
-    return await get_status(phone)
+    result = await get_status(phone)
+    logger.info("delivery_partner.status.get completed successfully")
+    return result

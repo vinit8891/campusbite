@@ -6,6 +6,7 @@ from app.auth.security import (
     hash_password,
     verify_password,
 )
+from app.core.logging import get_logger
 
 from app.models.delivery_partner import (
     create_delivery_partner,
@@ -21,6 +22,8 @@ router = APIRouter(
     tags=["Delivery Authentication"],
 )
 
+logger = get_logger(__name__)
+
 
 # ==========================================
 # Delivery Partner Registration
@@ -30,6 +33,7 @@ router = APIRouter(
 async def register_delivery_partner(
     partner: DeliveryPartner
 ):
+    logger.info("delivery.register request received")
     existing_email = (
         await get_delivery_partner_by_email(
             partner.email
@@ -64,6 +68,7 @@ async def register_delivery_partner(
         partner_data
     )
 
+    logger.info("delivery.register completed successfully")
     return {
         "success": True,
         "message": "Delivery partner registered successfully",
@@ -79,6 +84,7 @@ async def register_delivery_partner(
 async def login_delivery_partner(
     data: dict
 ):
+    logger.info("delivery.login request received")
     email = data.get("email")
     password = data.get("password")
 
@@ -120,6 +126,7 @@ async def login_delivery_partner(
         }
     )
 
+    logger.info("delivery.login completed successfully")
     return {
         "success": True,
         "message": "Login successful",

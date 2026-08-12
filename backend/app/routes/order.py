@@ -30,6 +30,7 @@ from app.models.order import (
     get_order_otp,
     verify_delivery_otp,
 )
+from app.core.logging import get_logger
 from app.payments.amounts import (
     assert_client_total_matches,
     calculate_payable_amount,
@@ -40,6 +41,8 @@ router = APIRouter(
     prefix="/orders",
     tags=["Orders"],
 )
+
+logger = get_logger(__name__)
 
 VALID_STATUS = [
     "Pending",
@@ -224,6 +227,7 @@ async def add_order(
     order: Order,
     current_user: Annotated[dict, Depends(require_roles(CUSTOMER))],
 ):
+    logger.info("orders.create request received")
     data = order.model_dump()
 
     customer_id = current_user.get("sub")
@@ -288,6 +292,7 @@ async def add_order(
 
     order_id = await create_order(data)
 
+    logger.info("orders.create completed successfully")
     return {
         "message": "Order placed successfully",
         "id": order_id,

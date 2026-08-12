@@ -5,12 +5,15 @@ from fastapi import APIRouter, Depends, Query
 
 from app.auth.auth import require_roles
 from app.auth.roles import ADMIN
+from app.core.logging import get_logger
 from app.db.database import database
 
 router = APIRouter(
     prefix="/admin",
     tags=["Admin"],
 )
+
+logger = get_logger(__name__)
 
 
 def _stringify_id(doc: dict) -> str:
@@ -95,11 +98,14 @@ async def admin_health(
     current_user: Annotated[dict, Depends(require_roles(ADMIN))],
 ):
     """Simple protected admin probe used for auth verification."""
-    return {
+    logger.info("admin.health request received")
+    result = {
         "ok": True,
         "role": current_user.get("role"),
         "email": current_user.get("email"),
     }
+    logger.info("admin.health completed successfully")
+    return result
 
 
 @router.get("/stats")
@@ -107,7 +113,8 @@ async def admin_stats(
     current_user: Annotated[dict, Depends(require_roles(ADMIN))],
 ):
     """Platform-wide document counts for the admin dashboard."""
-    return {
+    logger.info("admin.stats request received")
+    result = {
         "users": await database["users"].count_documents({}),
         "restaurant_owners": await database["restaurant_owners"].count_documents(
             {}
@@ -118,6 +125,8 @@ async def admin_stats(
         ),
         "orders": await database["orders"].count_documents({}),
     }
+    logger.info("admin.stats completed successfully")
+    return result
 
 
 @router.get("/users/customers")
