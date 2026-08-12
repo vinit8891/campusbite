@@ -2,12 +2,16 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Header, HTTPException, Request
+from fastapi import APIRouter, BackgroundTasks, Depends, Header, HTTPException, Request
 
 from app.auth.auth import require_roles
 from app.auth.roles import ADMIN, CUSTOMER, RESTAURANT_OWNER
 from app.core.audit import log_admin_action
 from app.core.logging import get_logger
+from app.services.notification_service import (
+    notify_refund_initiated,
+    schedule_notification,
+)
 from app.payments import service as payment_service
 from app.schemas.payment import (
     CancelPaymentRequest,
@@ -129,6 +133,7 @@ async def razorpay_webhook(
 @router.post("/refunds")
 async def create_refund(
     body: CreateRefundRequest,
+    background_tasks: BackgroundTasks,
     current_user: Annotated[
         dict, Depends(require_roles(ADMIN, RESTAURANT_OWNER))
     ],
@@ -155,6 +160,12 @@ async def create_refund(
             "order_id": body.order_id,
             "role": current_user.get("role"),
         },
+    )
+    schedule_notification(
+        background_tasks,
+        notify_refund_initiated,
+        body.order_id,
+        str(refund_id) if refund_id else None,
     )
     logger.info("payments.refund completed successfully order_id=%s", body.order_id)
     return result

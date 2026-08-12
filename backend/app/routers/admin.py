@@ -205,3 +205,21 @@ async def list_delivery_partners(
         page=page,
         limit=limit,
     )
+
+
+@router.get("/subscription-plans")
+async def list_subscription_plans(
+    _: Annotated[dict, Depends(require_roles(ADMIN))],
+    q: Annotated[str | None, Query()] = None,
+    restaurant_email: Annotated[str | None, Query()] = None,
+    active: Annotated[bool | None, Query()] = None,
+):
+    from app.core.sanitize import sanitize_email
+    from app.models.subscription_plan import list_plans_admin
+
+    items = await list_plans_admin(
+        q=sanitize_search_query(q),
+        restaurant_email=sanitize_email(restaurant_email),
+        active=active,
+    )
+    return {"items": items}

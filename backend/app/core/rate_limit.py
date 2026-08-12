@@ -6,6 +6,7 @@ import time
 from collections import defaultdict
 from threading import Lock
 
+from app.core.request_id import get_request_id
 from starlette.requests import Request
 from starlette.responses import JSONResponse, Response
 
@@ -98,8 +99,25 @@ def check_rate_limit(request: Request) -> Response | None:
     if _limiter.allow(bucket_key, limit):
         return None
 
+    body = {"detail": "Too many requests. Please try again later."}
+    request_id = get_request_id(request)
+    if request_id:
+        body["request_id"] = request_id
+
     return JSONResponse(
         status_code=429,
-        content={"detail": "Too many requests. Please try again later."},
+        content=body,
         headers={"Retry-After": str(WINDOW_SECONDS)},
     )
+
+
+def active_rate_limit_entries() -> int:
+    """Count rate-limit buckets with at least one hit in the current window."""
+    now = time.time()
+    cutoff = now - WINDOW_SECONDS
+    with _limiter._lock:
+        active = 0
+        for hits in _limiter._hits.values():
+            if any(t > cutoff for t in hits):
+                active += 1
+        return active

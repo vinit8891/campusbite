@@ -40,6 +40,10 @@ async def ensure_app_indexes() -> None:
     payments = database["payments"]
     refunds = database["refunds"]
     audit_logs = database["admin_audit_logs"]
+    notification_logs = database["notification_logs"]
+    subscriptions = database["subscriptions"]
+    subscription_plans = database["subscription_plans"]
+    subscription_payments = database["subscription_payments"]
 
     # users
     await _safe_create_index(users, "email", unique=True, sparse=True)
@@ -76,6 +80,14 @@ async def ensure_app_indexes() -> None:
         orders,
         [("delivery_partner.phone", 1), ("status", 1), ("delivered_at", -1)],
     )
+    await _safe_create_index(orders, "subscription_id", sparse=True)
+    await _safe_create_index(
+        orders,
+        [("subscription_id", 1), ("subscription_order_date", 1)],
+        unique=True,
+        sparse=True,
+    )
+    await _safe_create_index(orders, "generated_by", sparse=True)
 
     # menu
     await _safe_create_index(menu, "restaurant_email")
@@ -97,5 +109,75 @@ async def ensure_app_indexes() -> None:
     await _safe_create_index(audit_logs, [("timestamp", -1)])
     await _safe_create_index(audit_logs, "admin_email")
     await _safe_create_index(audit_logs, "action")
+
+    # notification logs
+    await _safe_create_index(notification_logs, [("created_at", -1)])
+    await _safe_create_index(notification_logs, "recipient")
+    await _safe_create_index(notification_logs, "type")
+    await _safe_create_index(notification_logs, "status")
+
+    # subscriptions
+    await _safe_create_index(subscriptions, "customer_email")
+    await _safe_create_index(subscriptions, "restaurant_email")
+    await _safe_create_index(subscriptions, "status")
+    await _safe_create_index(subscriptions, [("start_date", 1), ("end_date", 1)])
+    await _safe_create_index(
+        subscriptions,
+        [("customer_email", 1), ("status", 1), ("created_at", -1)],
+    )
+    await _safe_create_index(
+        subscriptions,
+        [("restaurant_email", 1), ("status", 1), ("created_at", -1)],
+    )
+    await _safe_create_index(subscriptions, "plan_id", sparse=True)
+
+    # subscription plans
+    await _safe_create_index(subscription_plans, "restaurant_email")
+    await _safe_create_index(subscription_plans, "active")
+    await _safe_create_index(
+        subscription_plans,
+        [("restaurant_email", 1), ("active", 1), ("created_at", -1)],
+    )
+
+    # subscription payments
+    await _safe_create_index(subscription_payments, "subscription_id")
+    await _safe_create_index(subscription_payments, "customer_email")
+    await _safe_create_index(subscription_payments, "restaurant_email")
+    await _safe_create_index(subscription_payments, "payment_status")
+    await _safe_create_index(subscription_payments, [("created_at", -1)])
+    await _safe_create_index(
+        subscription_payments,
+        [("customer_email", 1), ("created_at", -1)],
+    )
+    await _safe_create_index(
+        subscription_payments,
+        [("restaurant_email", 1), ("created_at", -1)],
+    )
+    await _safe_create_index(
+        subscription_payments,
+        "transaction_reference",
+        unique=True,
+        sparse=True,
+    )
+    await _safe_create_index(
+        subscription_payments,
+        "razorpay_order_id",
+        unique=True,
+        sparse=True,
+    )
+    await _safe_create_index(
+        subscription_payments,
+        "razorpay_payment_id",
+        unique=True,
+        sparse=True,
+    )
+    await _safe_create_index(
+        subscription_payments,
+        [("subscription_id", 1), ("billing_period", 1)],
+        unique=True,
+        partialFilterExpression={
+            "payment_status": {"$in": ["pending", "processing", "paid"]},
+        },
+    )
 
     logger.info("MongoDB indexes ensured")

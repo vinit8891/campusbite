@@ -71,6 +71,15 @@ async def get_dashboard(email: str):
         float(order.get("total") or 0) for order in today_delivered
     )
 
+    today_iso = datetime.now(UTC).date().isoformat()
+    today_subscription_meals = await order_collection.count_documents(
+        {
+            **base_filter,
+            "generated_by": "subscription",
+            "subscription_order_date": today_iso,
+        }
+    )
+
     menu_items = await menu_collection.count_documents(
         {"restaurant_email": email}
     )
@@ -101,5 +110,6 @@ async def get_dashboard(email: str):
         "cancelled_orders": cancelled_orders,
         "today_orders": today_orders,
         "today_revenue": round(today_revenue, 2),
+        "today_subscription_meals": today_subscription_meals,
         "review_count": review_count,
     }

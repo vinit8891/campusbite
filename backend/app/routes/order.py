@@ -2,7 +2,7 @@ import random
 from datetime import datetime, UTC
 from typing import Annotated
 
-from fastapi import APIRouter, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query
 
 from app.auth.auth import assert_same_identity, require_roles
 from app.auth.roles import (
@@ -29,6 +29,13 @@ from app.models.order import (
     get_delivery_location,
     get_order_otp,
     verify_delivery_otp,
+)
+from app.services.notification_service import (
+    notify_delivery_assigned,
+    notify_order_accepted,
+    notify_order_delivered,
+    notify_order_placed,
+    schedule_notification,
 )
 from app.core.logging import get_logger
 from app.core.sanitize import sanitize_email, sanitize_search_query
@@ -155,7 +162,13 @@ def _public_paginated(result) -> dict | list:
     """Serialize list or paginated order payloads."""
     if isinstance(result, list):
         return _public_orders(result)
-    items = result.get("items") or []
+    raw_items = result.get("items")
+    if isinstance(raw_items, list):
+        items = raw_items
+    elif isinstance(raw_items, dict) and raw_items.get("_id"):
+        items = [raw_items]
+    else:
+        items = []
     return {
         **result,
         "items": _public_orders(items),
@@ -237,6 +250,7 @@ def _assert_order_access(order: dict, user: dict):
 @router.post("/")
 async def add_order(
     order: Order,
+    background_tasks: BackgroundTasks,
     current_user: Annotated[dict, Depends(require_roles(CUSTOMER))],
 ):
     logger.info("orders.create request received")
@@ -303,6 +317,12 @@ async def add_order(
     data["created_at"] = datetime.now(UTC)
 
     order_id = await create_order(data)
+
+    schedule_notification(
+        background_tasks,
+        notify_order_placed,
+        order_id,
+    )
 
     logger.info("orders.create completed successfully")
     return {
@@ -471,6 +491,7 @@ async def my_delivery_orders(
 @router.put("/delivery/accept/{order_id}")
 async def accept_delivery(
     order_id: str,
+    background_tasks: BackgroundTasks,
     current_user: Annotated[dict, Depends(require_roles(DELIVERY_PARTNER))],
     partner: dict | None = Body(default=None),
 ):
@@ -500,6 +521,12 @@ async def accept_delivery(
             detail="This order has already been accepted by another delivery partner or is no longer available.",
         )
 
+    schedule_notification(
+        background_tasks,
+        notify_delivery_assigned,
+        order_id,
+    )
+
     return {
         "success": True,
         "message": "Order accepted successfully",
@@ -511,6 +538,7 @@ async def assign_delivery(
     order_id: str,
     partner_name: str,
     partner_phone: str,
+    background_tasks: BackgroundTasks,
     _: Annotated[
         dict, Depends(require_roles(ADMIN, RESTAURANT_OWNER))
     ],
@@ -526,6 +554,12 @@ async def assign_delivery(
             status_code=400,
             detail="Unable to assign delivery partner for this order.",
         )
+
+    schedule_notification(
+        background_tasks,
+        notify_delivery_assigned,
+        order_id,
+    )
 
     return {
         "message": "Delivery Partner Assigned Successfully"
@@ -656,6 +690,7 @@ async def get_otp(
 @router.put("/verify-otp/{order_id}")
 async def verify_otp(
     order_id: str,
+    background_tasks: BackgroundTasks,
     current_user: Annotated[
         dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))
     ],
@@ -709,6 +744,12 @@ async def verify_otp(
             detail="Invalid OTP",
         )
 
+    schedule_notification(
+        background_tasks,
+        notify_order_delivered,
+        order_id,
+    )
+
     return {
         "success": True,
         "message": "OTP Verified",
@@ -746,6 +787,7 @@ async def fetch_order(
 async def change_status(
     order_id: str,
     status: str,
+    background_tasks: BackgroundTasks,
     current_user: Annotated[
         dict,
         Depends(
@@ -828,6 +870,13 @@ async def change_status(
         raise HTTPException(
             status_code=400,
             detail="Invalid status transition for this order.",
+        )
+
+    if status == "Accepted":
+        schedule_notification(
+            background_tasks,
+            notify_order_accepted,
+            order_id,
         )
 
     return {

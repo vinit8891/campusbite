@@ -10,16 +10,20 @@ from fastapi.responses import JSONResponse
 from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.core.logging import get_logger
+from app.core.request_id import get_request_id
 
 logger = get_logger(__name__)
 
 
-def error_payload(detail: Any, *, success: bool = False) -> dict:
+def error_payload(detail: Any, *, success: bool = False, request_id: str | None = None) -> dict:
     """Build a consistent JSON error body without altering success responses."""
-    return {
+    body = {
         "detail": detail,
         "success": success,
     }
+    if request_id:
+        body["request_id"] = request_id
+    return body
 
 
 def http_error(
@@ -42,7 +46,7 @@ async def http_exception_handler(
     )
     return JSONResponse(
         status_code=exc.status_code,
-        content=error_payload(exc.detail),
+        content=error_payload(exc.detail, request_id=get_request_id(request)),
     )
 
 
@@ -57,7 +61,7 @@ async def validation_exception_handler(
     )
     return JSONResponse(
         status_code=422,
-        content=error_payload(exc.errors()),
+        content=error_payload(exc.errors(), request_id=get_request_id(request)),
     )
 
 
@@ -72,5 +76,8 @@ async def unhandled_exception_handler(
     )
     return JSONResponse(
         status_code=500,
-        content=error_payload("Internal server error"),
+        content=error_payload(
+            "Internal server error",
+            request_id=get_request_id(request),
+        ),
     )

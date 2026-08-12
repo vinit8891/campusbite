@@ -78,6 +78,35 @@ async def create_order(data):
     return str(result.inserted_id)
 
 
+async def subscription_order_exists(
+    subscription_id: str,
+    order_date: str,
+) -> bool:
+    """True when a subscription-generated order already exists for this date."""
+    count = await order_collection.count_documents(
+        {
+            "subscription_id": subscription_id,
+            "subscription_order_date": order_date,
+            "generated_by": "subscription",
+        }
+    )
+    return count > 0
+
+
+async def get_last_subscription_order_for_customer(customer_email: str) -> dict | None:
+    order = await order_collection.find_one(
+        {
+            "customer_email": customer_email.lower(),
+            "generated_by": "subscription",
+        },
+        sort=[("created_at", -1)],
+    )
+    if not order:
+        return None
+    order["_id"] = str(order["_id"])
+    return order
+
+
 async def get_order_by_id(order_id: str):
     oid = get_object_id(order_id)
 

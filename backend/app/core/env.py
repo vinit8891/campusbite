@@ -56,6 +56,20 @@ def get_allowed_origins() -> list[str]:
     return parts or ["http://localhost:3000"]
 
 
+def is_environment_ready() -> tuple[bool, list[str]]:
+    """Check required env vars without raising (for readiness probe)."""
+    missing: list[str] = []
+
+    for name in ALWAYS_REQUIRED:
+        if not (os.getenv(name) or "").strip():
+            missing.append(name)
+
+    if not (os.getenv("SECRET_KEY") or "").strip():
+        missing.append("SECRET_KEY (or JWT_SECRET)")
+
+    return (len(missing) == 0, missing)
+
+
 def validate_environment() -> None:
     """
     Validate required environment variables during startup.
