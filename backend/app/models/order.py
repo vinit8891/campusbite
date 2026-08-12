@@ -16,6 +16,63 @@ def get_object_id(order_id: str):
         return None
 
 
+def parse_date_bound(value: str | None, *, end_of_day: bool = False) -> datetime | None:
+    """Parse YYYY-MM-DD or ISO datetime into UTC-aware bound."""
+    if not value or not str(value).strip():
+        return None
+
+    raw = str(value).strip()
+    try:
+        if len(raw) == 10 and raw[4] == "-" and raw[7] == "-":
+            dt = datetime.strptime(raw, "%Y-%m-%d").replace(tzinfo=UTC)
+            if end_of_day:
+                return dt.replace(
+                    hour=23, minute=59, second=59, microsecond=999999
+                )
+            return dt
+
+        dt = datetime.fromisoformat(raw.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=UTC)
+        else:
+            dt = dt.astimezone(UTC)
+        return dt
+    except ValueError:
+        return None
+
+
+def _date_range_clause(
+    from_dt: datetime | None,
+    to_dt: datetime | None,
+) -> dict | None:
+    if not from_dt and not to_dt:
+        return None
+
+    range_q: dict = {}
+    if from_dt:
+        range_q["$gte"] = from_dt
+    if to_dt:
+        range_q["$lte"] = to_dt
+
+    # Prefer delivered_at; fall back to created_at when missing
+    return {
+        "$or": [
+            {"delivered_at": range_q},
+            {
+                "$and": [
+                    {
+                        "$or": [
+                            {"delivered_at": {"$exists": False}},
+                            {"delivered_at": None},
+                        ]
+                    },
+                    {"created_at": range_q},
+                ]
+            },
+        ]
+    }
+
+
 async def create_order(data):
     result = await order_collection.insert_one(data)
     return str(result.inserted_id)
@@ -146,19 +203,85 @@ async def get_restaurant_orders(
     return orders
 
 
-async def get_available_orders():
-    orders = []
+async def get_available_orders(
+    *,
+    q: str | None = None,
+    restaurant: str | None = None,
+    payment_method: str | None = None,
+    limit: int = 50,
+):
+    """Unassigned Ready-for-Pickup orders, newest first, optional filters."""
+    query: dict = {
+        "status": "Ready for Pickup",
+        "$or": [
+            {"delivery_partner": {"$exists": False}},
+            {"delivery_partner": None},
+            {"delivery_partner.phone": {"$exists": False}},
+        ],
+    }
+    ands: list[dict] = []
 
-    async for order in order_collection.find(
-        {
-            "status": "Ready for Pickup",
-            "$or": [
-                {"delivery_partner": {"$exists": False}},
-                {"delivery_partner": None},
-                {"delivery_partner.phone": {"$exists": False}},
-            ],
+    if restaurant and restaurant.strip():
+        escaped = re.escape(restaurant.strip())
+        ands.append(
+            {
+                "restaurant_email": {
+                    "$regex": escaped,
+                    "$options": "i",
+                }
+            }
+        )
+
+    if payment_method and payment_method.strip():
+        method = payment_method.strip().lower()
+        ands.append(
+            {
+                "payment_method": {
+                    "$regex": f"^{re.escape(method)}$",
+                    "$options": "i",
+                }
+            }
+        )
+
+    if q and q.strip():
+        term = q.strip()
+        escaped = re.escape(term)
+        or_clauses: list[dict] = [
+            {"customer_name": {"$regex": escaped, "$options": "i"}},
+            {"customer_email": {"$regex": escaped, "$options": "i"}},
+            {"restaurant_email": {"$regex": escaped, "$options": "i"}},
+            {"address": {"$regex": escaped, "$options": "i"}},
+        ]
+        oid = get_object_id(term)
+        if oid:
+            or_clauses.append({"_id": oid})
+        ands.append({"$or": or_clauses})
+
+    if ands:
+        query = {
+            "$and": [
+                {"status": "Ready for Pickup"},
+                {
+                    "$or": [
+                        {"delivery_partner": {"$exists": False}},
+                        {"delivery_partner": None},
+                        {"delivery_partner.phone": {"$exists": False}},
+                    ]
+                },
+                *ands,
+            ]
         }
-    ).sort("created_at", -1):
+
+    safe_limit = max(1, min(int(limit or 50), 200))
+
+    orders = []
+    cursor = (
+        order_collection.find(query)
+        .sort("created_at", -1)
+        .limit(safe_limit)
+    )
+
+    async for order in cursor:
         order["_id"] = str(order["_id"])
         orders.append(order)
 
@@ -195,22 +318,112 @@ async def get_my_customer_orders(
     return orders
 
 
-async def get_delivered_orders():
-    orders = []
+async def get_delivered_orders(
+    *,
+    from_date: str | None = None,
+    to_date: str | None = None,
+    q: str | None = None,
+    limit: int = 50,
+):
+    """All delivered orders (admin history), newest first, optional filters."""
+    query: dict = {"status": "Delivered"}
+    ands: list[dict] = []
 
-    async for order in order_collection.find({"status": "Delivered"}):
+    if q and q.strip():
+        term = q.strip()
+        escaped = re.escape(term)
+        or_clauses: list[dict] = [
+            {"customer_name": {"$regex": escaped, "$options": "i"}},
+            {"customer_email": {"$regex": escaped, "$options": "i"}},
+            {"restaurant_email": {"$regex": escaped, "$options": "i"}},
+        ]
+        oid = get_object_id(term)
+        if oid:
+            or_clauses.append({"_id": oid})
+        ands.append({"$or": or_clauses})
+
+    date_clause = _date_range_clause(
+        parse_date_bound(from_date),
+        parse_date_bound(to_date, end_of_day=True),
+    )
+    if date_clause:
+        ands.append(date_clause)
+
+    if ands:
+        query["$and"] = ands
+
+    safe_limit = max(1, min(int(limit or 50), 200))
+
+    orders = []
+    cursor = (
+        order_collection.find(query)
+        .sort([("delivered_at", -1), ("created_at", -1)])
+        .limit(safe_limit)
+    )
+
+    async for order in cursor:
         order["_id"] = str(order["_id"])
         orders.append(order)
 
     return orders
 
 
-async def get_delivery_orders(phone: str):
-    orders = []
+async def get_delivery_orders(
+    phone: str,
+    *,
+    status: str | None = None,
+    q: str | None = None,
+    limit: int = 50,
+    from_date: str | None = None,
+    to_date: str | None = None,
+):
+    """Partner-scoped delivery orders, newest first, with optional filters."""
+    query: dict = {"delivery_partner.phone": phone}
+    ands: list[dict] = []
 
-    async for order in order_collection.find(
-        {"delivery_partner.phone": phone}
-    ).sort("delivery_partner.accepted_at", -1):
+    if status:
+        query["status"] = status
+
+    if q and q.strip():
+        term = q.strip()
+        escaped = re.escape(term)
+        or_clauses: list[dict] = [
+            {"customer_name": {"$regex": escaped, "$options": "i"}},
+            {"customer_email": {"$regex": escaped, "$options": "i"}},
+            {"restaurant_email": {"$regex": escaped, "$options": "i"}},
+        ]
+
+        oid = get_object_id(term)
+        if oid:
+            or_clauses.append({"_id": oid})
+
+        ands.append({"$or": or_clauses})
+
+    date_clause = _date_range_clause(
+        parse_date_bound(from_date),
+        parse_date_bound(to_date, end_of_day=True),
+    )
+    if date_clause:
+        ands.append(date_clause)
+
+    if ands:
+        query["$and"] = ands
+
+    safe_limit = max(1, min(int(limit or 50), 200))
+
+    # History (Delivered) prefers delivered_at; active orders use accepted_at
+    primary_sort = (
+        "delivered_at" if status == "Delivered" else "delivery_partner.accepted_at"
+    )
+
+    orders = []
+    cursor = (
+        order_collection.find(query)
+        .sort([(primary_sort, -1), ("created_at", -1)])
+        .limit(safe_limit)
+    )
+
+    async for order in cursor:
         order["_id"] = str(order["_id"])
         orders.append(order)
 

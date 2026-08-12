@@ -27,8 +27,8 @@ export default function DeliverySidebar() {
       icon: Package,
     },
     {
-      name: "My Deliveries",
-      href: "/delivery/dashboard/my-deliveries",
+      name: "My Orders",
+      href: "/delivery/dashboard/orders",
       icon: Bike,
     },
     {

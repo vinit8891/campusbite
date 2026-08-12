@@ -1,7 +1,27 @@
 import { AuthHttpError, authFetch, authJson } from "@/services/authFetch";
 
-export async function getAvailableOrders() {
-  return authJson<any[]>("/orders/delivery/available", {
+export type AvailableOrdersQuery = {
+  q?: string;
+  restaurant?: string;
+  payment_method?: string;
+  limit?: number;
+};
+
+export async function getAvailableOrders(
+  filters: AvailableOrdersQuery = {}
+) {
+  const params = new URLSearchParams();
+  if (filters.q?.trim()) params.set("q", filters.q.trim());
+  if (filters.restaurant?.trim()) {
+    params.set("restaurant", filters.restaurant.trim());
+  }
+  if (filters.payment_method) {
+    params.set("payment_method", filters.payment_method);
+  }
+  params.set("limit", String(filters.limit ?? 50));
+
+  const query = params.toString();
+  return authJson<any[]>(`/orders/delivery/available?${query}`, {
     role: "delivery_partner",
     cache: "no-store",
   });
@@ -36,9 +56,24 @@ export async function acceptDelivery(
   return data;
 }
 
-export async function getMyDeliveries(phone: string) {
+export type MyDeliveriesQuery = {
+  status?: string;
+  q?: string;
+  limit?: number;
+};
+
+export async function getMyDeliveries(
+  phone: string,
+  filters: MyDeliveriesQuery = {}
+) {
+  const params = new URLSearchParams();
+  if (filters.status) params.set("status", filters.status);
+  if (filters.q?.trim()) params.set("q", filters.q.trim());
+  params.set("limit", String(filters.limit ?? 50));
+
+  const query = params.toString();
   return authJson<any[]>(
-    `/orders/delivery/my/${encodeURIComponent(phone)}`,
+    `/orders/delivery/my/${encodeURIComponent(phone)}?${query}`,
     {
       role: "delivery_partner",
       cache: "no-store",
@@ -46,8 +81,24 @@ export async function getMyDeliveries(phone: string) {
   );
 }
 
-export async function getDeliveryHistory() {
-  return authJson<any[]>("/orders/delivery/history", {
+export type DeliveryHistoryQuery = {
+  from_date?: string;
+  to_date?: string;
+  q?: string;
+  limit?: number;
+};
+
+export async function getDeliveryHistory(
+  filters: DeliveryHistoryQuery = {}
+) {
+  const params = new URLSearchParams();
+  if (filters.from_date) params.set("from_date", filters.from_date);
+  if (filters.to_date) params.set("to_date", filters.to_date);
+  if (filters.q?.trim()) params.set("q", filters.q.trim());
+  params.set("limit", String(filters.limit ?? 50));
+
+  const query = params.toString();
+  return authJson<any[]>(`/orders/delivery/history?${query}`, {
     role: "delivery_partner",
     cache: "no-store",
   });

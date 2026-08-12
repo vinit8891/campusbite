@@ -369,8 +369,19 @@ async def restaurant_orders(
 @router.get("/delivery/available")
 async def available_orders(
     _: Annotated[dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))],
+    q: Annotated[str | None, Query()] = None,
+    restaurant: Annotated[str | None, Query()] = None,
+    payment_method: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ):
-    return _public_orders(await get_available_orders())
+    return _public_orders(
+        await get_available_orders(
+            q=q,
+            restaurant=restaurant,
+            payment_method=payment_method,
+            limit=limit,
+        )
+    )
 
 
 @router.get("/delivery/history")
@@ -378,9 +389,20 @@ async def delivery_history(
     current_user: Annotated[
         dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))
     ],
+    from_date: Annotated[str | None, Query()] = None,
+    to_date: Annotated[str | None, Query()] = None,
+    q: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ):
     if current_user.get("role") == ADMIN:
-        return _public_orders(await get_delivered_orders())
+        return _public_orders(
+            await get_delivered_orders(
+                from_date=from_date,
+                to_date=to_date,
+                q=q,
+                limit=limit,
+            )
+        )
 
     phone = current_user.get("phone")
     if not phone:
@@ -389,7 +411,16 @@ async def delivery_history(
             detail="Delivery partner phone missing from token",
         )
 
-    return _public_orders(await get_delivery_orders(phone))
+    return _public_orders(
+        await get_delivery_orders(
+            phone,
+            status="Delivered",
+            from_date=from_date,
+            to_date=to_date,
+            q=q,
+            limit=limit,
+        )
+    )
 
 
 @router.get("/delivery/my/{phone}")
@@ -398,9 +429,19 @@ async def my_delivery_orders(
     current_user: Annotated[
         dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))
     ],
+    status: Annotated[str | None, Query()] = None,
+    q: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ):
     assert_same_identity(current_user, phone=phone)
-    return _public_orders(await get_delivery_orders(phone))
+    return _public_orders(
+        await get_delivery_orders(
+            phone,
+            status=status,
+            q=q,
+            limit=limit,
+        )
+    )
 
 
 @router.put("/delivery/accept/{order_id}")
