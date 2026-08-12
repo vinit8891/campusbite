@@ -2,32 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { Clock3, MapPin, Star } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 
+import PaginationControls from "@/components/ui/PaginationControls";
 import { Button } from "@/components/ui/button";
 import {
   BackendRestaurant,
-  getRestaurants,
+  getRestaurantsPage,
 } from "@/services/restaurantService";
-
-function matchesQuery(restaurant: BackendRestaurant, query: string) {
-  if (!query) return true;
-
-  const haystack = [
-    restaurant.name,
-    restaurant.cuisine,
-    restaurant.email,
-    restaurant.distance,
-    ...(restaurant.menu || []).map((item) => item.name),
-  ]
-    .filter(Boolean)
-    .join(" ")
-    .toLowerCase();
-
-  return haystack.includes(query.toLowerCase());
-}
 
 export default function RestaurantsClient() {
   const searchParams = useSearchParams();
@@ -35,11 +19,17 @@ export default function RestaurantsClient() {
 
   const [restaurants, setRestaurants] = useState<BackendRestaurant[]>([]);
   const [query, setQuery] = useState(initialQuery);
+  const [draftQuery, setDraftQuery] = useState(initialQuery);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   useEffect(() => {
     setQuery(initialQuery);
+    setDraftQuery(initialQuery);
+    setPage(1);
   }, [initialQuery]);
 
   useEffect(() => {
@@ -49,9 +39,17 @@ export default function RestaurantsClient() {
       try {
         setLoading(true);
         setError("");
-        const data = await getRestaurants();
+        const data = await getRestaurantsPage({
+          page,
+          limit: 20,
+          q: query.trim() || undefined,
+          include_menu: false,
+        });
         if (!cancelled) {
-          setRestaurants(data);
+          setRestaurants(data.items);
+          setPages(data.pages);
+          setTotal(data.total);
+          setPage(data.page);
         }
       } catch (err) {
         console.error(err);
@@ -67,16 +65,17 @@ export default function RestaurantsClient() {
       }
     }
 
-    load();
+    void load();
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [page, query]);
 
-  const filtered = useMemo(
-    () => restaurants.filter((r) => matchesQuery(r, query.trim())),
-    [restaurants, query]
-  );
+  function handleSearchSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    setPage(1);
+    setQuery(draftQuery.trim());
+  }
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -98,15 +97,15 @@ export default function RestaurantsClient() {
           </p>
         </div>
 
-        <div className="mb-8">
+        <form onSubmit={handleSearchSubmit} className="mb-8">
           <input
             type="search"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search by restaurant, cuisine, or dish..."
+            value={draftQuery}
+            onChange={(e) => setDraftQuery(e.target.value)}
+            placeholder="Search by restaurant, cuisine, or email..."
             className="h-12 w-full rounded-xl border bg-white px-4 outline-none focus:border-orange-500"
           />
-        </div>
+        </form>
 
         {loading && (
           <div className="rounded-2xl border bg-white p-10 text-center shadow-sm">
@@ -120,7 +119,7 @@ export default function RestaurantsClient() {
           </div>
         )}
 
-        {!loading && !error && filtered.length === 0 && (
+        {!loading && !error && restaurants.length === 0 && (
           <div className="rounded-2xl border bg-white px-6 py-16 text-center shadow-sm">
             <h2 className="text-2xl font-bold text-gray-900">
               No restaurants found
@@ -133,62 +132,74 @@ export default function RestaurantsClient() {
           </div>
         )}
 
-        {!loading && !error && filtered.length > 0 && (
-          <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-            {filtered.map((restaurant) => (
-              <div
-                key={restaurant._id}
-                className="overflow-hidden rounded-3xl border bg-white shadow-md transition hover:-translate-y-1 hover:shadow-xl"
-              >
-                <div className="relative h-52 bg-gray-100">
-                  {restaurant.image ? (
-                    <Image
-                      src={restaurant.image}
-                      alt={restaurant.name}
-                      fill
-                      className="object-cover"
-                      unoptimized={restaurant.image.startsWith("http")}
-                    />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-4xl">
-                      🍽️
-                    </div>
-                  )}
-                </div>
-
-                <div className="space-y-4 p-6">
-                  <div className="flex items-start justify-between gap-3">
-                    <h2 className="text-xl font-bold text-gray-900">
-                      {restaurant.name}
-                    </h2>
-                    <div className="flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-sm text-green-700">
-                      <Star className="h-4 w-4 fill-current" />
-                      {restaurant.rating ?? "—"}
-                    </div>
+        {!loading && !error && restaurants.length > 0 && (
+          <>
+            <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+              {restaurants.map((restaurant) => (
+                <div
+                  key={restaurant._id}
+                  className="overflow-hidden rounded-3xl border bg-white shadow-md transition hover:-translate-y-1 hover:shadow-xl"
+                >
+                  <div className="relative h-52 bg-gray-100">
+                    {restaurant.image ? (
+                      <Image
+                        src={restaurant.image}
+                        alt={restaurant.name}
+                        fill
+                        className="object-cover"
+                        unoptimized={restaurant.image.startsWith("http")}
+                      />
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-4xl">
+                        🍽️
+                      </div>
+                    )}
                   </div>
 
-                  <p className="text-gray-500">
-                    {restaurant.cuisine || "Restaurant"}
-                  </p>
+                  <div className="space-y-4 p-6">
+                    <div className="flex items-start justify-between gap-3">
+                      <h2 className="text-xl font-bold text-gray-900">
+                        {restaurant.name}
+                      </h2>
+                      <div className="flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-sm text-green-700">
+                        <Star className="h-4 w-4 fill-current" />
+                        {restaurant.rating ?? "—"}
+                      </div>
+                    </div>
 
-                  <div className="flex items-center justify-between text-sm text-gray-500">
-                    <div className="flex items-center gap-1">
-                      <Clock3 className="h-4 w-4" />
-                      {restaurant.delivery_time || "25-35 min"}
+                    <p className="text-gray-500">
+                      {restaurant.cuisine || "Restaurant"}
+                    </p>
+
+                    <div className="flex items-center justify-between text-sm text-gray-500">
+                      <div className="flex items-center gap-1">
+                        <Clock3 className="h-4 w-4" />
+                        {restaurant.delivery_time || "25-35 min"}
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <MapPin className="h-4 w-4" />
+                        {restaurant.distance || "Nearby"}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-4 w-4" />
-                      {restaurant.distance || "Nearby"}
-                    </div>
+
+                    <Link href={`/restaurants/${restaurant.slug}`}>
+                      <Button className="w-full">View Menu</Button>
+                    </Link>
                   </div>
-
-                  <Link href={`/restaurants/${restaurant.slug}`}>
-                    <Button className="w-full">View Menu</Button>
-                  </Link>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+
+            <div className="mt-8">
+              <PaginationControls
+                page={page}
+                pages={pages}
+                total={total}
+                disabled={loading}
+                onPageChange={setPage}
+              />
+            </div>
+          </>
         )}
       </div>
     </main>

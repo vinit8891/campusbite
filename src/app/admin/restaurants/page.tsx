@@ -9,29 +9,40 @@ import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminTableSkeleton from "@/components/admin/AdminTableSkeleton";
 import DeleteRestaurantButton from "@/components/admin/DeleteRestaurantButton";
+import PaginationControls from "@/components/ui/PaginationControls";
 import { Button } from "@/components/ui/button";
 import {
   ROUTES,
   adminEditRestaurantPath,
 } from "@/constants/routes";
+import { AuthHttpError } from "@/services/adminService";
 import {
-  AuthHttpError,
-  getRestaurants,
+  getRestaurantsPage,
   type BackendRestaurant,
-} from "@/services/adminService";
+} from "@/services/restaurantService";
 
 export default function AdminRestaurantsPage() {
   const [restaurants, setRestaurants] = useState<BackendRestaurant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
-  async function loadRestaurants() {
+  async function loadRestaurants(nextPage = page) {
     setLoading(true);
     setError("");
 
     try {
-      const data = await getRestaurants();
-      setRestaurants(data);
+      const data = await getRestaurantsPage({
+        page: nextPage,
+        limit: 20,
+        include_menu: false,
+      });
+      setRestaurants(data.items);
+      setPage(data.page);
+      setPages(data.pages);
+      setTotal(data.total);
     } catch (err) {
       if (err instanceof AuthHttpError && err.status === 401) {
         return;
@@ -53,9 +64,16 @@ export default function AdminRestaurantsPage() {
 
     async function initialLoad() {
       try {
-        const data = await getRestaurants();
+        const data = await getRestaurantsPage({
+          page: 1,
+          limit: 20,
+          include_menu: false,
+        });
         if (cancelled) return;
-        setRestaurants(data);
+        setRestaurants(data.items);
+        setPage(data.page);
+        setPages(data.pages);
+        setTotal(data.total);
         setError("");
       } catch (err) {
         if (cancelled) return;
@@ -92,7 +110,7 @@ export default function AdminRestaurantsPage() {
               type="button"
               variant="outline"
               className="h-10 gap-2"
-              onClick={() => void loadRestaurants()}
+              onClick={() => void loadRestaurants(page)}
               disabled={loading}
             >
               <RefreshCw
@@ -134,48 +152,61 @@ export default function AdminRestaurantsPage() {
           }
         />
       ) : (
-        <div className="overflow-x-auto rounded-2xl border bg-white">
-          <table className="min-w-full text-left text-sm">
-            <thead className="border-b bg-gray-50 text-gray-600">
-              <tr>
-                <th className="px-4 py-3 font-semibold">Name</th>
-                <th className="px-4 py-3 font-semibold">Cuisine</th>
-                <th className="px-4 py-3 font-semibold">Rating</th>
-                <th className="px-4 py-3 font-semibold">Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {restaurants.map((restaurant) => (
-                <tr key={restaurant._id} className="border-t">
-                  <td className="px-4 py-3 font-medium">
-                    {restaurant.name}
-                  </td>
-                  <td className="px-4 py-3">
-                    {restaurant.cuisine || "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    ⭐ {restaurant.rating ?? "—"}
-                  </td>
-                  <td className="px-4 py-3">
-                    <div className="flex flex-wrap gap-2">
-                      <Link
-                        href={adminEditRestaurantPath(restaurant._id)}
-                        className="inline-flex h-9 items-center rounded-lg bg-blue-500 px-4 text-sm text-white hover:bg-blue-600"
-                      >
-                        Edit
-                      </Link>
-                      <DeleteRestaurantButton
-                        id={restaurant._id}
-                        name={restaurant.name}
-                        onDeleted={() => void loadRestaurants()}
-                      />
-                    </div>
-                  </td>
+        <>
+          <div className="overflow-x-auto rounded-2xl border bg-white">
+            <table className="min-w-full text-left text-sm">
+              <thead className="border-b bg-gray-50 text-gray-600">
+                <tr>
+                  <th className="px-4 py-3 font-semibold">Name</th>
+                  <th className="px-4 py-3 font-semibold">Cuisine</th>
+                  <th className="px-4 py-3 font-semibold">Rating</th>
+                  <th className="px-4 py-3 font-semibold">Action</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody>
+                {restaurants.map((restaurant) => (
+                  <tr key={restaurant._id} className="border-t">
+                    <td className="px-4 py-3 font-medium">
+                      {restaurant.name}
+                    </td>
+                    <td className="px-4 py-3">
+                      {restaurant.cuisine || "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      ⭐ {restaurant.rating ?? "—"}
+                    </td>
+                    <td className="px-4 py-3">
+                      <div className="flex flex-wrap gap-2">
+                        <Link
+                          href={adminEditRestaurantPath(restaurant._id)}
+                          className="inline-flex h-9 items-center rounded-lg bg-blue-500 px-4 text-sm text-white hover:bg-blue-600"
+                        >
+                          Edit
+                        </Link>
+                        <DeleteRestaurantButton
+                          id={restaurant._id}
+                          name={restaurant.name}
+                          onDeleted={() => void loadRestaurants(page)}
+                        />
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+
+          <PaginationControls
+            page={page}
+            pages={pages}
+            total={total}
+            disabled={loading}
+            onPageChange={(next) => {
+              setPage(next);
+              void loadRestaurants(next);
+            }}
+          />
+        </>
       )}
     </div>
   );

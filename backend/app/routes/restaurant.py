@@ -1,6 +1,6 @@
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 
 from app.auth.auth import assert_same_identity, require_roles
 from app.auth.roles import ADMIN, RESTAURANT_OWNER
@@ -48,9 +48,23 @@ async def add_restaurant(
 
 
 @router.get("/")
-async def fetch_restaurants():
+async def fetch_restaurants(
+    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    q: Annotated[str | None, Query()] = None,
+    email: Annotated[str | None, Query()] = None,
+    slug: Annotated[str | None, Query()] = None,
+    include_menu: Annotated[bool, Query()] = True,
+):
     logger.info("restaurants.list request received")
-    result = await get_all_restaurants()
+    result = await get_all_restaurants(
+        page=page,
+        limit=limit,
+        q=q,
+        email=email,
+        slug=slug,
+        include_menu=include_menu,
+    )
     logger.info("restaurants.list completed successfully")
     return result
 

@@ -49,7 +49,7 @@ export default function DeliveryPage() {
   async function loadAvailableOrders() {
     try {
       const data = await getAvailableOrders();
-      setOrders(data);
+      setOrders(data.items);
     } catch (error) {
       console.error(
         "Available Orders Error:",

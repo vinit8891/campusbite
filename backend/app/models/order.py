@@ -99,9 +99,17 @@ async def get_orders(
     payment_status: str | None = None,
     payment_method: str | None = None,
     q: str | None = None,
-    limit: int = 50,
+    page: int = 1,
+    limit: int = 20,
 ):
     """List orders newest-first with optional admin filters. Read-only query."""
+    from app.core.pagination import (
+        normalize_limit,
+        normalize_page,
+        paginated_response,
+        skip_for,
+    )
+
     query: dict = {}
 
     if status:
@@ -128,18 +136,26 @@ async def get_orders(
 
         query["$or"] = or_clauses
 
-    safe_limit = max(1, min(int(limit or 50), 200))
+    safe_page = normalize_page(page)
+    safe_limit = normalize_limit(limit, default=20)
+    total = await order_collection.count_documents(query)
+    meta_page = min(safe_page, max(1, (total + safe_limit - 1) // safe_limit or 1))
 
     orders = []
     cursor = (
-        order_collection.find(query).sort("created_at", -1).limit(safe_limit)
+        order_collection.find(query)
+        .sort("created_at", -1)
+        .skip(skip_for(meta_page, safe_limit))
+        .limit(safe_limit)
     )
 
     async for order in cursor:
         order["_id"] = str(order["_id"])
         orders.append(order)
 
-    return orders
+    return paginated_response(
+        orders, total=total, page=meta_page, limit=safe_limit
+    )
 
 
 async def get_customer_orders(phone: str):
@@ -208,9 +224,17 @@ async def get_available_orders(
     q: str | None = None,
     restaurant: str | None = None,
     payment_method: str | None = None,
-    limit: int = 50,
+    page: int = 1,
+    limit: int = 20,
 ):
     """Unassigned Ready-for-Pickup orders, newest first, optional filters."""
+    from app.core.pagination import (
+        normalize_limit,
+        normalize_page,
+        paginated_response,
+        skip_for,
+    )
+
     query: dict = {
         "status": "Ready for Pickup",
         "$or": [
@@ -272,12 +296,17 @@ async def get_available_orders(
             ]
         }
 
-    safe_limit = max(1, min(int(limit or 50), 200))
+    safe_page = normalize_page(page)
+    safe_limit = normalize_limit(limit, default=20)
+    total = await order_collection.count_documents(query)
+    pages = max(1, (total + safe_limit - 1) // safe_limit) if total else 1
+    meta_page = min(safe_page, pages)
 
     orders = []
     cursor = (
         order_collection.find(query)
         .sort("created_at", -1)
+        .skip(skip_for(meta_page, safe_limit))
         .limit(safe_limit)
     )
 
@@ -285,7 +314,9 @@ async def get_available_orders(
         order["_id"] = str(order["_id"])
         orders.append(order)
 
-    return orders
+    return paginated_response(
+        orders, total=total, page=meta_page, limit=safe_limit
+    )
 
 
 async def get_my_customer_orders(
@@ -323,9 +354,17 @@ async def get_delivered_orders(
     from_date: str | None = None,
     to_date: str | None = None,
     q: str | None = None,
-    limit: int = 50,
+    page: int = 1,
+    limit: int = 20,
 ):
     """All delivered orders (admin history), newest first, optional filters."""
+    from app.core.pagination import (
+        normalize_limit,
+        normalize_page,
+        paginated_response,
+        skip_for,
+    )
+
     query: dict = {"status": "Delivered"}
     ands: list[dict] = []
 
@@ -352,12 +391,17 @@ async def get_delivered_orders(
     if ands:
         query["$and"] = ands
 
-    safe_limit = max(1, min(int(limit or 50), 200))
+    safe_page = normalize_page(page)
+    safe_limit = normalize_limit(limit, default=20)
+    total = await order_collection.count_documents(query)
+    pages = max(1, (total + safe_limit - 1) // safe_limit) if total else 1
+    meta_page = min(safe_page, pages)
 
     orders = []
     cursor = (
         order_collection.find(query)
         .sort([("delivered_at", -1), ("created_at", -1)])
+        .skip(skip_for(meta_page, safe_limit))
         .limit(safe_limit)
     )
 
@@ -365,7 +409,9 @@ async def get_delivered_orders(
         order["_id"] = str(order["_id"])
         orders.append(order)
 
-    return orders
+    return paginated_response(
+        orders, total=total, page=meta_page, limit=safe_limit
+    )
 
 
 async def get_delivery_orders(
@@ -376,8 +422,16 @@ async def get_delivery_orders(
     limit: int = 50,
     from_date: str | None = None,
     to_date: str | None = None,
+    page: int | None = None,
 ):
     """Partner-scoped delivery orders, newest first, with optional filters."""
+    from app.core.pagination import (
+        normalize_limit,
+        normalize_page,
+        paginated_response,
+        skip_for,
+    )
+
     query: dict = {"delivery_partner.phone": phone}
     ands: list[dict] = []
 
@@ -409,17 +463,36 @@ async def get_delivery_orders(
     if ands:
         query["$and"] = ands
 
-    safe_limit = max(1, min(int(limit or 50), 200))
-
     # History (Delivered) prefers delivered_at; active orders use accepted_at
     primary_sort = (
         "delivered_at" if status == "Delivered" else "delivery_partner.accepted_at"
     )
 
+    # Legacy list mode (My Orders) when page is omitted
+    if page is None:
+        safe_limit = max(1, min(int(limit or 50), 200))
+        orders = []
+        cursor = (
+            order_collection.find(query)
+            .sort([(primary_sort, -1), ("created_at", -1)])
+            .limit(safe_limit)
+        )
+        async for order in cursor:
+            order["_id"] = str(order["_id"])
+            orders.append(order)
+        return orders
+
+    safe_page = normalize_page(page)
+    safe_limit = normalize_limit(limit, default=20)
+    total = await order_collection.count_documents(query)
+    pages = max(1, (total + safe_limit - 1) // safe_limit) if total else 1
+    meta_page = min(safe_page, pages)
+
     orders = []
     cursor = (
         order_collection.find(query)
         .sort([(primary_sort, -1), ("created_at", -1)])
+        .skip(skip_for(meta_page, safe_limit))
         .limit(safe_limit)
     )
 
@@ -427,8 +500,9 @@ async def get_delivery_orders(
         order["_id"] = str(order["_id"])
         orders.append(order)
 
-    return orders
-
+    return paginated_response(
+        orders, total=total, page=meta_page, limit=safe_limit
+    )
 
 async def assign_delivery_partner(
     order_id: str,

@@ -48,13 +48,15 @@ async def fetch_menu(
     category: Annotated[str | None, Query()] = None,
     available: Annotated[bool | None, Query()] = None,
     q: Annotated[str | None, Query()] = None,
-    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ):
     return await get_menu(
         email,
         category=category,
         available=available,
         q=q,
+        page=page,
         limit=limit,
     )
 

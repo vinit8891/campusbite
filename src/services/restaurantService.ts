@@ -1,4 +1,5 @@
 import { publicFetch } from "@/services/authFetch";
+import { asPaginated, type Paginated } from "@/lib/pagination";
 
 export type BackendMenuItem = {
   _id: string;
@@ -31,32 +32,78 @@ export type BackendRestaurant = {
   menu?: BackendMenuItem[];
 };
 
-export async function getRestaurants(): Promise<BackendRestaurant[]> {
-  const res = await publicFetch("/restaurants/", {
-    cache: "no-store",
-  });
+export type RestaurantsQuery = {
+  page?: number;
+  limit?: number;
+  q?: string;
+  email?: string;
+  slug?: string;
+  include_menu?: boolean;
+};
+
+function withQuery(path: string, params: RestaurantsQuery) {
+  const search = new URLSearchParams();
+  if (params.page) search.set("page", String(params.page));
+  if (params.limit) search.set("limit", String(params.limit));
+  if (params.q?.trim()) search.set("q", params.q.trim());
+  if (params.email?.trim()) search.set("email", params.email.trim());
+  if (params.slug?.trim()) search.set("slug", params.slug.trim());
+  if (params.include_menu === false) search.set("include_menu", "false");
+  const query = search.toString();
+  return query ? `${path}?${query}` : path;
+}
+
+export async function getRestaurantsPage(
+  filters: RestaurantsQuery = {}
+): Promise<Paginated<BackendRestaurant>> {
+  const res = await publicFetch(
+    withQuery("/restaurants/", {
+      page: filters.page ?? 1,
+      limit: filters.limit ?? 20,
+      q: filters.q,
+      email: filters.email,
+      slug: filters.slug,
+      include_menu: filters.include_menu,
+    }),
+    { cache: "no-store" }
+  );
 
   if (!res.ok) {
     throw new Error("Failed to fetch restaurants");
   }
 
-  const data = await res.json();
-  return Array.isArray(data) ? data : [];
+  return asPaginated<BackendRestaurant>(await res.json());
+}
+
+/** Convenience: first page items (legacy callers). */
+export async function getRestaurants(
+  filters: RestaurantsQuery = {}
+): Promise<BackendRestaurant[]> {
+  const page = await getRestaurantsPage({
+    page: filters.page ?? 1,
+    limit: filters.limit ?? 50,
+    q: filters.q,
+    include_menu: filters.include_menu,
+  });
+  return page.items;
 }
 
 export async function getRestaurantBySlug(
   slug: string
 ): Promise<BackendRestaurant | null> {
-  const restaurants = await getRestaurants();
-  return (
-    restaurants.find((restaurant) => restaurant.slug === slug) || null
-  );
+  const page = await getRestaurantsPage({
+    slug,
+    page: 1,
+    limit: 1,
+    include_menu: true,
+  });
+  return page.items[0] || null;
 }
 
 export async function getRestaurantById(
   id: string
 ): Promise<BackendRestaurant | null> {
-  const restaurants = await getRestaurants();
+  const restaurants = await getRestaurants({ limit: 100, include_menu: true });
   return (
     restaurants.find((restaurant) => restaurant._id === id) || null
   );
@@ -65,12 +112,11 @@ export async function getRestaurantById(
 export async function getRestaurantByEmail(
   email: string
 ): Promise<BackendRestaurant | null> {
-  const restaurants = await getRestaurants();
-  const normalized = email.trim().toLowerCase();
-  return (
-    restaurants.find(
-      (restaurant) =>
-        (restaurant.email || "").trim().toLowerCase() === normalized
-    ) || null
-  );
+  const page = await getRestaurantsPage({
+    email,
+    page: 1,
+    limit: 1,
+    include_menu: true,
+  });
+  return page.items[0] || null;
 }

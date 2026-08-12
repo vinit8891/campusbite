@@ -6,6 +6,7 @@ import { Package, RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import PaginationControls from "@/components/ui/PaginationControls";
 import { getDeliveryPartnerSession } from "@/lib/authTokens";
 import { formatPaymentMethod } from "@/lib/paymentLabels";
 import { AuthHttpError } from "@/services/authFetch";
@@ -76,26 +77,30 @@ export default function DeliveryHistoryPage() {
   const [stats, setStats] = useState<DeliveryDashboardStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const [q, setQ] = useState("");
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
 
-  const filtersRef = useRef({ q, fromDate, toDate });
+  const filtersRef = useRef({ q, fromDate, toDate, page });
 
   useEffect(() => {
-    filtersRef.current = { q, fromDate, toDate };
-  }, [q, fromDate, toDate]);
+    filtersRef.current = { q, fromDate, toDate, page };
+  }, [q, fromDate, toDate, page]);
 
   function currentFilters(
-    overrides: Partial<DeliveryHistoryQuery & { fromDate?: string; toDate?: string }> = {}
+    overrides: Partial<DeliveryHistoryQuery & { fromDate?: string; toDate?: string; page?: number }> = {}
   ): DeliveryHistoryQuery {
     const latest = filtersRef.current;
     return {
       q: (overrides.q ?? latest.q).trim() || undefined,
       from_date: (overrides.from_date ?? overrides.fromDate ?? latest.fromDate) || undefined,
       to_date: (overrides.to_date ?? overrides.toDate ?? latest.toDate) || undefined,
-      limit: 50,
+      page: overrides.page ?? latest.page,
+      limit: 20,
     };
   }
 
@@ -121,7 +126,10 @@ export default function DeliveryHistoryPage() {
         statsPromise,
       ]);
 
-      setOrders(history);
+      setOrders(history.items);
+      setPage(history.page);
+      setPages(history.pages);
+      setTotal(history.total);
       if (nextStats) {
         setStats(nextStats);
       }
@@ -138,12 +146,13 @@ export default function DeliveryHistoryPage() {
   }
 
   useEffect(() => {
-    void loadPage(currentFilters(), { showLoading: true });
+    void loadPage(currentFilters({ page: 1 }), { showLoading: true });
   }, []);
 
   function handleSearchSubmit(e: React.FormEvent) {
     e.preventDefault();
-    void loadPage(currentFilters(), { showLoading: true });
+    setPage(1);
+    void loadPage(currentFilters({ page: 1 }), { showLoading: true });
   }
 
   const totalDeliveries = stats?.total_deliveries ?? stats?.completed ?? 0;
@@ -366,6 +375,19 @@ export default function DeliveryHistoryPage() {
               </div>
             </>
           )}
+
+          <PaginationControls
+            page={page}
+            pages={pages}
+            total={total}
+            disabled={loading}
+            onPageChange={(next) => {
+              setPage(next);
+              void loadPage(currentFilters({ page: next }), {
+                showLoading: true,
+              });
+            }}
+          />
         </>
       )}
     </div>

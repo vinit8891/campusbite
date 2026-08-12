@@ -130,6 +130,9 @@ app.include_router(admin_router)
 
 @app.on_event("startup")
 async def on_startup():
+    from app.db.indexes import ensure_app_indexes
+
+    await ensure_app_indexes()
     logger.info("CampusBite API startup complete")
 
 

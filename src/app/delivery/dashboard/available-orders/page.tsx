@@ -13,6 +13,7 @@ import {
   Search,
 } from "lucide-react";
 
+import PaginationControls from "@/components/ui/PaginationControls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -80,16 +81,19 @@ export default function AvailableOrdersPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [acceptingId, setAcceptingId] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const [q, setQ] = useState("");
   const [restaurant, setRestaurant] = useState("");
   const [paymentMethod, setPaymentMethod] = useState("");
 
-  const filtersRef = useRef({ q, restaurant, paymentMethod });
+  const filtersRef = useRef({ q, restaurant, paymentMethod, page });
 
   useEffect(() => {
-    filtersRef.current = { q, restaurant, paymentMethod };
-  }, [q, restaurant, paymentMethod]);
+    filtersRef.current = { q, restaurant, paymentMethod, page };
+  }, [q, restaurant, paymentMethod, page]);
 
   function currentFilters(
     overrides: Partial<AvailableOrdersQuery> = {}
@@ -101,7 +105,8 @@ export default function AvailableOrdersPage() {
         (overrides.restaurant ?? latest.restaurant).trim() || undefined,
       payment_method:
         (overrides.payment_method ?? latest.paymentMethod) || undefined,
-      limit: 50,
+      page: overrides.page ?? latest.page,
+      limit: 20,
     };
   }
 
@@ -115,10 +120,13 @@ export default function AvailableOrdersPage() {
 
     try {
       const data = await getAvailableOrders(filters);
-      setOrders(data);
+      setOrders(data.items);
+      setPage(data.page);
+      setPages(data.pages);
+      setTotal(data.total);
       setRestaurantOptions((prev) => {
         const next = new Set(prev);
-        for (const order of data) {
+        for (const order of data.items) {
           if (order.restaurant_email) next.add(order.restaurant_email);
         }
         return Array.from(next).sort();
@@ -183,7 +191,8 @@ export default function AvailableOrdersPage() {
 
   function handleSearchSubmit(e: React.FormEvent) {
     e.preventDefault();
-    void loadOrders(currentFilters(), { showLoading: true });
+    setPage(1);
+    void loadOrders(currentFilters({ page: 1 }), { showLoading: true });
   }
 
   return (
@@ -213,8 +222,9 @@ export default function AvailableOrdersPage() {
           value={restaurant}
           onChange={(e) => {
             setRestaurant(e.target.value);
+            setPage(1);
             void loadOrders(
-              currentFilters({ restaurant: e.target.value }),
+              currentFilters({ restaurant: e.target.value, page: 1 }),
               { showLoading: true }
             );
           }}
@@ -232,8 +242,9 @@ export default function AvailableOrdersPage() {
           value={paymentMethod}
           onChange={(e) => {
             setPaymentMethod(e.target.value);
+            setPage(1);
             void loadOrders(
-              currentFilters({ payment_method: e.target.value }),
+              currentFilters({ payment_method: e.target.value, page: 1 }),
               { showLoading: true }
             );
           }}
@@ -389,6 +400,19 @@ export default function AvailableOrdersPage() {
           ))}
         </div>
       )}
+
+      <PaginationControls
+        page={page}
+        pages={pages}
+        total={total}
+        disabled={loading}
+        onPageChange={(next) => {
+          setPage(next);
+          void loadOrders(currentFilters({ page: next }), {
+            showLoading: true,
+          });
+        }}
+      />
     </div>
   );
 }

@@ -9,6 +9,8 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import PaginationControls from "@/components/ui/PaginationControls";
+import { asPaginated } from "@/lib/pagination";
 import { getRestaurantOwnerEmail } from "@/lib/authTokens";
 import { AuthHttpError, authJson, publicFetch } from "@/services/authFetch";
 
@@ -30,6 +32,7 @@ type MenuQuery = {
   category?: string;
   available?: boolean;
   q?: string;
+  page?: number;
   limit?: number;
 };
 
@@ -58,16 +61,19 @@ export default function MenuPage() {
   const [loading, setLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const [q, setQ] = useState("");
   const [category, setCategory] = useState("");
   const [availability, setAvailability] = useState("");
 
-  const filtersRef = useRef({ q, category, availability });
+  const filtersRef = useRef({ q, category, availability, page });
 
   useEffect(() => {
-    filtersRef.current = { q, category, availability };
-  }, [q, category, availability]);
+    filtersRef.current = { q, category, availability, page };
+  }, [q, category, availability, page]);
 
   const categories = useMemo(() => {
     const fromFilter = allCategories.length
@@ -88,7 +94,8 @@ export default function MenuPage() {
       params.set("available", String(filters.available));
     }
     if (filters.q?.trim()) params.set("q", filters.q.trim());
-    params.set("limit", String(filters.limit ?? 100));
+    params.set("page", String(filters.page ?? 1));
+    params.set("limit", String(filters.limit ?? 20));
 
     return `/menu/${encodeURIComponent(email)}?${params.toString()}`;
   }
@@ -97,6 +104,7 @@ export default function MenuPage() {
     availability?: string;
     q?: string;
     category?: string;
+    page?: number;
   } = {}): MenuQuery {
     const latest = filtersRef.current;
     const nextAvailability =
@@ -112,8 +120,31 @@ export default function MenuPage() {
       q: (overrides.q ?? latest.q).trim() || undefined,
       category: (overrides.category ?? latest.category) || undefined,
       available,
-      limit: 100,
+      page: overrides.page ?? latest.page,
+      limit: 20,
     };
+  }
+
+  async function loadCategories(email: string) {
+    const cats = new Set<string>();
+    let nextPage = 1;
+    let totalPages = 1;
+
+    do {
+      const catsRes = await publicFetch(
+        `/menu/${encodeURIComponent(email)}?page=${nextPage}&limit=100`,
+        { cache: "no-store" }
+      );
+      if (!catsRes.ok) break;
+      const data = asPaginated<MenuItem>(await catsRes.json());
+      for (const item of data.items) {
+        if (item.category) cats.add(item.category);
+      }
+      totalPages = data.pages;
+      nextPage += 1;
+    } while (nextPage <= totalPages);
+
+    setAllCategories(Array.from(cats).sort());
   }
 
   async function fetchMenu(
@@ -131,18 +162,7 @@ export default function MenuPage() {
       }
 
       if (options.refreshCategories) {
-        const catsRes = await publicFetch(
-          `/menu/${encodeURIComponent(email)}?limit=200`,
-          { cache: "no-store" }
-        );
-        if (catsRes.ok) {
-          const all = (await catsRes.json()) as MenuItem[];
-          setAllCategories(
-            Array.from(
-              new Set(all.map((item) => item.category).filter(Boolean))
-            ).sort()
-          );
-        }
+        await loadCategories(email);
       }
 
       const path = buildPath(filters);
@@ -153,8 +173,11 @@ export default function MenuPage() {
         throw new Error("Unable to load menu.");
       }
 
-      const data = (await res.json()) as MenuItem[];
-      setMenu(Array.isArray(data) ? data : []);
+      const data = asPaginated<MenuItem>(await res.json());
+      setMenu(data.items);
+      setPage(data.page);
+      setPages(data.pages);
+      setTotal(data.total);
       setError("");
     } catch (err) {
       console.error("Failed to fetch menu:", err);
@@ -179,20 +202,20 @@ export default function MenuPage() {
           return;
         }
 
-        const catsRes = await publicFetch(
-          `/menu/${encodeURIComponent(email)}?limit=200`,
-          { cache: "no-store" }
-        );
-        if (!catsRes.ok) throw new Error("Unable to load menu.");
-        const all = (await catsRes.json()) as MenuItem[];
+        await loadCategories(email);
         if (cancelled) return;
 
-        setAllCategories(
-          Array.from(
-            new Set(all.map((item) => item.category).filter(Boolean))
-          ).sort()
-        );
-        setMenu(all);
+        const path = buildPath(currentFilters({ page: 1 }));
+        if (!path) return;
+        const res = await publicFetch(path, { cache: "no-store" });
+        if (!res.ok) throw new Error("Unable to load menu.");
+        const data = asPaginated<MenuItem>(await res.json());
+        if (cancelled) return;
+
+        setMenu(data.items);
+        setPage(data.page);
+        setPages(data.pages);
+        setTotal(data.total);
         setError("");
       } catch (err) {
         if (cancelled) return;
@@ -280,7 +303,8 @@ export default function MenuPage() {
 
   function handleSearchSubmit(e: React.FormEvent) {
     e.preventDefault();
-    void fetchMenu(currentFilters(), { showLoading: true });
+    setPage(1);
+    void fetchMenu(currentFilters({ page: 1 }), { showLoading: true });
   }
 
   function renderItem(item: MenuItem) {
@@ -413,7 +437,8 @@ export default function MenuPage() {
           onChange={(e) => {
             const next = e.target.value;
             setCategory(next);
-            void fetchMenu(currentFilters({ category: next }), {
+            setPage(1);
+            void fetchMenu(currentFilters({ category: next, page: 1 }), {
               showLoading: true,
             });
           }}
@@ -434,7 +459,8 @@ export default function MenuPage() {
             onChange={(e) => {
               const next = e.target.value;
               setAvailability(next);
-              void fetchMenu(currentFilters({ availability: next }), {
+              setPage(1);
+              void fetchMenu(currentFilters({ availability: next, page: 1 }), {
                 showLoading: true,
               });
             }}
@@ -585,6 +611,19 @@ export default function MenuPage() {
           <div className="grid gap-6 md:grid-cols-2 xl:hidden">
             {menu.map((item) => renderItem(item))}
           </div>
+
+          <PaginationControls
+            page={page}
+            pages={pages}
+            total={total}
+            disabled={loading}
+            onPageChange={(next) => {
+              setPage(next);
+              void fetchMenu(currentFilters({ page: next }), {
+                showLoading: true,
+              });
+            }}
+          />
         </>
       )}
     </main>

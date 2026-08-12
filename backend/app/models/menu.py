@@ -2,6 +2,12 @@ import re
 
 from bson import ObjectId
 
+from app.core.pagination import (
+    normalize_limit,
+    normalize_page,
+    paginated_response,
+    skip_for,
+)
 from app.db.database import database
 
 menu_collection = database["menu"]
@@ -18,9 +24,10 @@ async def get_menu(
     category: str | None = None,
     available: bool | None = None,
     q: str | None = None,
-    limit: int = 100,
+    page: int = 1,
+    limit: int = 20,
 ):
-    """Restaurant menu items with optional filters. Newest/insertion order preserved via _id desc."""
+    """Restaurant menu items with optional filters. Newest/insertion order via _id desc."""
     query: dict = {"restaurant_email": email}
 
     if category and category.strip():
@@ -38,16 +45,27 @@ async def get_menu(
             "$options": "i",
         }
 
-    safe_limit = max(1, min(int(limit or 100), 200))
+    safe_page = normalize_page(page)
+    safe_limit = normalize_limit(limit, default=20)
+    total = await menu_collection.count_documents(query)
+    pages = max(1, (total + safe_limit - 1) // safe_limit) if total else 1
+    meta_page = min(safe_page, pages)
 
     items = []
-    cursor = menu_collection.find(query).sort("_id", -1).limit(safe_limit)
+    cursor = (
+        menu_collection.find(query)
+        .sort("_id", -1)
+        .skip(skip_for(meta_page, safe_limit))
+        .limit(safe_limit)
+    )
 
     async for item in cursor:
         item["_id"] = str(item["_id"])
         items.append(item)
 
-    return items
+    return paginated_response(
+        items, total=total, page=meta_page, limit=safe_limit
+    )
 
 
 async def delete_menu_item(item_id: str):

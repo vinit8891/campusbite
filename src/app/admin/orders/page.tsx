@@ -6,6 +6,7 @@ import { RefreshCw, Search } from "lucide-react";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminTableSkeleton from "@/components/admin/AdminTableSkeleton";
+import PaginationControls from "@/components/ui/PaginationControls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatAdminDate } from "@/lib/adminFormat";
@@ -58,6 +59,9 @@ export default function AdminOrdersPage() {
   const [orders, setOrders] = useState<AdminOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const [q, setQ] = useState("");
   const [status, setStatus] = useState("");
@@ -71,9 +75,13 @@ export default function AdminOrdersPage() {
     try {
       const data = await getAdminOrders({
         ...filters,
-        limit: filters.limit ?? 50,
+        page: filters.page ?? 1,
+        limit: filters.limit ?? 20,
       });
-      setOrders(data);
+      setOrders(data.items);
+      setPage(data.page);
+      setPages(data.pages);
+      setTotal(data.total);
     } catch (err) {
       if (err instanceof AuthHttpError && err.status === 401) {
         return;
@@ -95,7 +103,8 @@ export default function AdminOrdersPage() {
         (overrides.payment_status ?? paymentStatus) || undefined,
       payment_method:
         (overrides.payment_method ?? paymentMethod) || undefined,
-      limit: 50,
+      page: overrides.page ?? page,
+      limit: 20,
     };
   }
 
@@ -104,9 +113,12 @@ export default function AdminOrdersPage() {
 
     async function initialLoad() {
       try {
-        const data = await getAdminOrders({ limit: 50 });
+        const data = await getAdminOrders({ page: 1, limit: 20 });
         if (cancelled) return;
-        setOrders(data);
+        setOrders(data.items);
+        setPage(data.page);
+        setPages(data.pages);
+        setTotal(data.total);
         setError("");
       } catch (err) {
         if (cancelled) return;
@@ -132,7 +144,8 @@ export default function AdminOrdersPage() {
 
   function handleSearchSubmit(e: React.FormEvent) {
     e.preventDefault();
-    void fetchOrders(currentFilters());
+    setPage(1);
+    void fetchOrders(currentFilters({ page: 1 }));
   }
 
   return (
@@ -304,6 +317,17 @@ export default function AdminOrdersPage() {
           </table>
         </div>
       )}
+
+      <PaginationControls
+        page={page}
+        pages={pages}
+        total={total}
+        disabled={loading}
+        onPageChange={(next) => {
+          setPage(next);
+          void fetchOrders(currentFilters({ page: next }));
+        }}
+      />
     </div>
   );
 }

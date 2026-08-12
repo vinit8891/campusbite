@@ -150,6 +150,17 @@ def _public_orders(orders: list) -> list:
     return [_public_order(order) for order in orders]
 
 
+def _public_paginated(result) -> dict | list:
+    """Serialize list or paginated order payloads."""
+    if isinstance(result, list):
+        return _public_orders(result)
+    items = result.get("items") or []
+    return {
+        **result,
+        "items": _public_orders(items),
+    }
+
+
 def _owner_email(user: dict) -> str | None:
     return user.get("email") or (
         user.get("sub") if user.get("role") == RESTAURANT_OWNER else None
@@ -310,15 +321,17 @@ async def fetch_orders(
     payment_status: Annotated[str | None, Query()] = None,
     payment_method: Annotated[str | None, Query()] = None,
     q: Annotated[str | None, Query()] = None,
-    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ):
     """Admin order list. Optional filters; newest first. Read-only."""
-    return _public_orders(
+    return _public_paginated(
         await get_orders(
             status=status,
             payment_status=payment_status,
             payment_method=payment_method,
             q=q,
+            page=page,
             limit=limit,
         )
     )
@@ -377,13 +390,15 @@ async def available_orders(
     q: Annotated[str | None, Query()] = None,
     restaurant: Annotated[str | None, Query()] = None,
     payment_method: Annotated[str | None, Query()] = None,
-    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ):
-    return _public_orders(
+    return _public_paginated(
         await get_available_orders(
             q=q,
             restaurant=restaurant,
             payment_method=payment_method,
+            page=page,
             limit=limit,
         )
     )
@@ -397,14 +412,16 @@ async def delivery_history(
     from_date: Annotated[str | None, Query()] = None,
     to_date: Annotated[str | None, Query()] = None,
     q: Annotated[str | None, Query()] = None,
-    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ):
     if current_user.get("role") == ADMIN:
-        return _public_orders(
+        return _public_paginated(
             await get_delivered_orders(
                 from_date=from_date,
                 to_date=to_date,
                 q=q,
+                page=page,
                 limit=limit,
             )
         )
@@ -416,13 +433,14 @@ async def delivery_history(
             detail="Delivery partner phone missing from token",
         )
 
-    return _public_orders(
+    return _public_paginated(
         await get_delivery_orders(
             phone,
             status="Delivered",
             from_date=from_date,
             to_date=to_date,
             q=q,
+            page=page,
             limit=limit,
         )
     )

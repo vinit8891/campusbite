@@ -1,15 +1,17 @@
 import { AuthHttpError, authFetch, authJson } from "@/services/authFetch";
+import { asPaginated, type Paginated } from "@/lib/pagination";
 
 export type AvailableOrdersQuery = {
   q?: string;
   restaurant?: string;
   payment_method?: string;
+  page?: number;
   limit?: number;
 };
 
 export async function getAvailableOrders(
   filters: AvailableOrdersQuery = {}
-) {
+): Promise<Paginated<any>> {
   const params = new URLSearchParams();
   if (filters.q?.trim()) params.set("q", filters.q.trim());
   if (filters.restaurant?.trim()) {
@@ -18,13 +20,18 @@ export async function getAvailableOrders(
   if (filters.payment_method) {
     params.set("payment_method", filters.payment_method);
   }
-  params.set("limit", String(filters.limit ?? 50));
+  params.set("page", String(filters.page ?? 1));
+  params.set("limit", String(filters.limit ?? 20));
 
   const query = params.toString();
-  return authJson<any[]>(`/orders/delivery/available?${query}`, {
-    role: "delivery_partner",
-    cache: "no-store",
-  });
+  const data = await authJson<unknown>(
+    `/orders/delivery/available?${query}`,
+    {
+      role: "delivery_partner",
+      cache: "no-store",
+    }
+  );
+  return asPaginated(data);
 }
 
 export async function acceptDelivery(
@@ -85,23 +92,26 @@ export type DeliveryHistoryQuery = {
   from_date?: string;
   to_date?: string;
   q?: string;
+  page?: number;
   limit?: number;
 };
 
 export async function getDeliveryHistory(
   filters: DeliveryHistoryQuery = {}
-) {
+): Promise<Paginated<any>> {
   const params = new URLSearchParams();
   if (filters.from_date) params.set("from_date", filters.from_date);
   if (filters.to_date) params.set("to_date", filters.to_date);
   if (filters.q?.trim()) params.set("q", filters.q.trim());
-  params.set("limit", String(filters.limit ?? 50));
+  params.set("page", String(filters.page ?? 1));
+  params.set("limit", String(filters.limit ?? 20));
 
   const query = params.toString();
-  return authJson<any[]>(`/orders/delivery/history?${query}`, {
+  const data = await authJson<unknown>(`/orders/delivery/history?${query}`, {
     role: "delivery_partner",
     cache: "no-store",
   });
+  return asPaginated(data);
 }
 
 export async function updateLiveLocation(

@@ -1,11 +1,12 @@
 import { AuthHttpError, authJson } from "@/services/authFetch";
+import { asPaginated, type Paginated } from "@/lib/pagination";
 import {
   type BackendRestaurant,
   getRestaurantById as getPublicRestaurantById,
   getRestaurants as getPublicRestaurants,
 } from "@/services/restaurantService";
 
-export type { BackendRestaurant };
+export type { BackendRestaurant, Paginated };
 export { AuthHttpError };
 
 export type AdminStats = {
@@ -34,6 +35,7 @@ export type AdminOrdersQuery = {
   payment_status?: string;
   payment_method?: string;
   q?: string;
+  page?: number;
   limit?: number;
 };
 
@@ -97,41 +99,62 @@ export async function getAdminStats() {
 }
 
 export async function getAdminOrders(filters: AdminOrdersQuery = {}) {
-  return authJson<AdminOrder[]>(
+  const data = await authJson<unknown>(
     withQuery("/orders/", {
       status: filters.status,
       payment_status: filters.payment_status,
       payment_method: filters.payment_method,
       q: filters.q?.trim() || undefined,
-      limit: filters.limit,
+      page: filters.page ?? 1,
+      limit: filters.limit ?? 20,
     }),
     ADMIN_JSON
   );
+  return asPaginated<AdminOrder>(data);
 }
 
-export async function getAdminCustomers(q?: string) {
-  return authJson<AdminCustomer[]>(
-    withQuery("/admin/users/customers", { q: q?.trim() || undefined }),
+export async function getAdminCustomers(q?: string, page = 1, limit = 20) {
+  const data = await authJson<unknown>(
+    withQuery("/admin/users/customers", {
+      q: q?.trim() || undefined,
+      page,
+      limit,
+    }),
     ADMIN_JSON
   );
+  return asPaginated<AdminCustomer>(data);
 }
 
-export async function getAdminRestaurantOwners(q?: string) {
-  return authJson<AdminRestaurantOwner[]>(
+export async function getAdminRestaurantOwners(
+  q?: string,
+  page = 1,
+  limit = 20
+) {
+  const data = await authJson<unknown>(
     withQuery("/admin/users/restaurant-owners", {
       q: q?.trim() || undefined,
+      page,
+      limit,
     }),
     ADMIN_JSON
   );
+  return asPaginated<AdminRestaurantOwner>(data);
 }
 
-export async function getAdminDeliveryPartners(q?: string) {
-  return authJson<AdminDeliveryPartner[]>(
+export async function getAdminDeliveryPartners(
+  q?: string,
+  page = 1,
+  limit = 20
+) {
+  const data = await authJson<unknown>(
     withQuery("/admin/users/delivery-partners", {
       q: q?.trim() || undefined,
+      page,
+      limit,
     }),
     ADMIN_JSON
   );
+  return asPaginated<AdminDeliveryPartner>(data);
 }
 
 /** Public browse — no JWT required. */

@@ -82,16 +82,39 @@ async def _list_safe(
     fields: list[str],
     serializer: Callable[[dict], dict],
     q: str | None,
-) -> list[dict]:
+    *,
+    page: int = 1,
+    limit: int = 20,
+) -> dict:
+    from app.core.pagination import (
+        normalize_limit,
+        normalize_page,
+        paginated_response,
+        skip_for,
+    )
+
     query = _text_search_filter(fields, q)
+    safe_page = normalize_page(page)
+    safe_limit = normalize_limit(limit, default=20)
+    total = await database[collection_name].count_documents(query)
+    pages = max(1, (total + safe_limit - 1) // safe_limit) if total else 1
+    meta_page = min(safe_page, pages)
+
     results: list[dict] = []
-    cursor = database[collection_name].find(query).sort("_id", -1)
+    cursor = (
+        database[collection_name]
+        .find(query)
+        .sort("_id", -1)
+        .skip(skip_for(meta_page, safe_limit))
+        .limit(safe_limit)
+    )
 
     async for doc in cursor:
         results.append(serializer(doc))
 
-    return results
-
+    return paginated_response(
+        results, total=total, page=meta_page, limit=safe_limit
+    )
 
 @router.get("/health")
 async def admin_health(
@@ -133,6 +156,8 @@ async def admin_stats(
 async def list_customers(
     _: Annotated[dict, Depends(require_roles(ADMIN))],
     q: Annotated[str | None, Query()] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ):
     """Safe read-only customer list for admin (no secrets)."""
     return await _list_safe(
@@ -140,6 +165,8 @@ async def list_customers(
         ["full_name", "name", "email", "phone"],
         _safe_customer,
         q,
+        page=page,
+        limit=limit,
     )
 
 
@@ -147,6 +174,8 @@ async def list_customers(
 async def list_restaurant_owners(
     _: Annotated[dict, Depends(require_roles(ADMIN))],
     q: Annotated[str | None, Query()] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ):
     """Safe read-only restaurant-owner list for admin (no secrets)."""
     return await _list_safe(
@@ -154,6 +183,8 @@ async def list_restaurant_owners(
         ["owner_name", "name", "email", "restaurant_name", "phone"],
         _safe_restaurant_owner,
         q,
+        page=page,
+        limit=limit,
     )
 
 
@@ -161,6 +192,8 @@ async def list_restaurant_owners(
 async def list_delivery_partners(
     _: Annotated[dict, Depends(require_roles(ADMIN))],
     q: Annotated[str | None, Query()] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ):
     """Safe read-only delivery-partner list for admin (no secrets)."""
     return await _list_safe(
@@ -168,4 +201,6 @@ async def list_delivery_partners(
         ["name", "email", "phone", "vehicle", "vehicle_number"],
         _safe_delivery_partner,
         q,
+        page=page,
+        limit=limit,
     )

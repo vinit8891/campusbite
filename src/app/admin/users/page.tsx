@@ -6,6 +6,7 @@ import { Search } from "lucide-react";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminTableSkeleton from "@/components/admin/AdminTableSkeleton";
+import PaginationControls from "@/components/ui/PaginationControls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatAdminDate } from "@/lib/adminFormat";
@@ -32,22 +33,41 @@ export default function AdminUsersPage() {
   const [q, setQ] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [pages, setPages] = useState(1);
+  const [total, setTotal] = useState(0);
 
   const [customers, setCustomers] = useState<AdminCustomer[]>([]);
   const [owners, setOwners] = useState<AdminRestaurantOwner[]>([]);
   const [partners, setPartners] = useState<AdminDeliveryPartner[]>([]);
 
-  async function loadUsers(activeTab: UserTab, search: string) {
+  async function loadUsers(
+    activeTab: UserTab,
+    search: string,
+    nextPage = 1
+  ) {
     setLoading(true);
     setError("");
 
     try {
       if (activeTab === "customers") {
-        setCustomers(await getAdminCustomers(search));
+        const data = await getAdminCustomers(search, nextPage, 20);
+        setCustomers(data.items);
+        setPage(data.page);
+        setPages(data.pages);
+        setTotal(data.total);
       } else if (activeTab === "restaurant-owners") {
-        setOwners(await getAdminRestaurantOwners(search));
+        const data = await getAdminRestaurantOwners(search, nextPage, 20);
+        setOwners(data.items);
+        setPage(data.page);
+        setPages(data.pages);
+        setTotal(data.total);
       } else {
-        setPartners(await getAdminDeliveryPartners(search));
+        const data = await getAdminDeliveryPartners(search, nextPage, 20);
+        setPartners(data.items);
+        setPage(data.page);
+        setPages(data.pages);
+        setTotal(data.total);
       }
     } catch (err) {
       if (err instanceof AuthHttpError && err.status === 401) {
@@ -65,44 +85,19 @@ export default function AdminUsersPage() {
   }
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function initialLoad() {
-      try {
-        const data = await getAdminCustomers();
-        if (cancelled) return;
-        setCustomers(data);
-        setError("");
-      } catch (err) {
-        if (cancelled) return;
-        if (err instanceof AuthHttpError && err.status === 401) {
-          return;
-        }
-        setError(
-          err instanceof Error ? err.message : "Unable to load users"
-        );
-      } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
-      }
-    }
-
-    void initialLoad();
-
-    return () => {
-      cancelled = true;
-    };
+    void loadUsers("customers", "", 1);
   }, []);
 
   function handleTabChange(next: UserTab) {
     setTab(next);
-    void loadUsers(next, q);
+    setPage(1);
+    void loadUsers(next, q, 1);
   }
 
   function handleSearchSubmit(e: React.FormEvent) {
     e.preventDefault();
-    void loadUsers(tab, q);
+    setPage(1);
+    void loadUsers(tab, q, 1);
   }
 
   const empty =
@@ -257,6 +252,17 @@ export default function AdminUsersPage() {
           )}
         </div>
       )}
+
+      <PaginationControls
+        page={page}
+        pages={pages}
+        total={total}
+        disabled={loading}
+        onPageChange={(next) => {
+          setPage(next);
+          void loadUsers(tab, q, next);
+        }}
+      />
     </div>
   );
 }
