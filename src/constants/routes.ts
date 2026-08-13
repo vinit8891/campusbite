@@ -29,6 +29,12 @@ export const ROUTES = {
   ADMIN_RESTAURANTS: "/admin/restaurants",
   ADMIN_ADD_RESTAURANT: "/admin/add-restaurant",
   ADMIN_USERS: "/admin/users",
+  ADMIN_SUBSCRIPTIONS: "/admin/subscriptions",
+
+  SUBSCRIPTIONS: "/subscriptions",
+  SUBSCRIPTIONS_CALENDAR: "/subscriptions/calendar",
+  RESTAURANT_SUBSCRIPTIONS: "/restaurant/dashboard/subscriptions",
+  RESTAURANT_SUBSCRIPTION_PLANS: "/restaurant/dashboard/subscription-plans",
 } as const;
 
 export function adminEditRestaurantPath(id: string) {

@@ -1,4 +1,4 @@
-import { AuthHttpError, authJson } from "@/services/authFetch";
+import { AuthHttpError, authJson, publicFetch } from "@/services/authFetch";
 import { asPaginated, type Paginated } from "@/lib/pagination";
 import {
   type BackendRestaurant,
@@ -15,6 +15,15 @@ export type AdminStats = {
   restaurants: number;
   delivery_partners: number;
   orders: number;
+};
+
+export type BackendHealth = {
+  status: string;
+  app_name?: string;
+  environment?: string;
+  database?: string;
+  version?: string;
+  uptime?: number;
 };
 
 export type AdminOrder = {
@@ -96,6 +105,15 @@ function withQuery(
 
 export async function getAdminStats() {
   return authJson<AdminStats>("/admin/stats", ADMIN_JSON);
+}
+
+/** Public liveness probe — no JWT required. */
+export async function getBackendHealth(): Promise<BackendHealth> {
+  const res = await publicFetch("/health", { cache: "no-store" });
+  if (!res.ok) {
+    throw new Error("Unable to load backend health");
+  }
+  return res.json() as Promise<BackendHealth>;
 }
 
 export async function getAdminOrders(filters: AdminOrdersQuery = {}) {

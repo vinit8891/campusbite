@@ -10,6 +10,7 @@ import {
   LogOut,
   Store,
   Users,
+  CalendarDays,
 } from "lucide-react";
 
 import { ROUTES } from "@/constants/routes";
@@ -138,6 +139,14 @@ export default function AdminLayout({
           >
             <Users size={20} />
             Users
+          </Link>
+
+          <Link
+            href={ROUTES.ADMIN_SUBSCRIPTIONS}
+            className={navClass(pathname === ROUTES.ADMIN_SUBSCRIPTIONS)}
+          >
+            <CalendarDays size={20} />
+            Subscriptions
           </Link>
 
           <button

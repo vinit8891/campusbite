@@ -10,6 +10,8 @@ import {
   ClipboardList,
   LogOut,
   UserRound,
+  CalendarDays,
+  NotebookPen,
 } from "lucide-react";
 
 export default function RestaurantDashboardLayout({
@@ -77,6 +79,22 @@ export default function RestaurantDashboardLayout({
           >
             <ClipboardList size={20} />
             Orders
+          </Link>
+
+          <Link
+            href="/restaurant/dashboard/subscriptions"
+            className="flex items-center gap-3 rounded-xl p-3 hover:bg-orange-500"
+          >
+            <CalendarDays size={20} />
+            Subscriptions
+          </Link>
+
+          <Link
+            href="/restaurant/dashboard/subscription-plans"
+            className="flex items-center gap-3 rounded-xl p-3 hover:bg-orange-500"
+          >
+            <NotebookPen size={20} />
+            Subscription Plans
           </Link>
 
           <Link

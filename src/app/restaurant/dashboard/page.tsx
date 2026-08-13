@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import {
@@ -17,6 +18,10 @@ import {
   formatPaymentStatus,
 } from "@/lib/paymentLabels";
 import { AuthHttpError, authJson } from "@/services/authFetch";
+import {
+  getRestaurantSubscriptionRevenueSummary,
+  type RestaurantSubscriptionRevenueSummary,
+} from "@/services/subscriptionService";
 
 type DashboardData = {
   orders: number;
@@ -29,6 +34,7 @@ type DashboardData = {
   cancelled_orders?: number;
   today_orders?: number;
   today_revenue?: number;
+  today_subscription_meals?: number;
   review_count?: number;
 };
 
@@ -112,8 +118,8 @@ function ProgressList({
 
   return (
     <div className="space-y-4">
-      {rows.map((row) => (
-        <div key={row.key}>
+      {rows.map((row, index) => (
+        <div key={`${row.key}-${index}`}>
           <div className="mb-1 flex justify-between gap-3 text-sm">
             <span className="font-medium">{labelFor(row.key)}</span>
             <span className="font-semibold">{row.count}</span>
@@ -141,6 +147,8 @@ export default function DashboardPage() {
   });
 
   const [analytics, setAnalytics] = useState<AnalyticsOverview | null>(null);
+  const [subscriptionRevenue, setSubscriptionRevenue] =
+    useState<RestaurantSubscriptionRevenueSummary | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -157,7 +165,8 @@ export default function DashboardPage() {
           return;
         }
 
-        const [dashboardData, analyticsData] = await Promise.all([
+        const [dashboardData, analyticsData, subscriptionRevenueData] =
+          await Promise.all([
           authJson<DashboardData>(`/dashboard/${encodeURIComponent(email)}`, {
             role: "restaurant_owner",
             cache: "no-store",
@@ -166,12 +175,14 @@ export default function DashboardPage() {
             `/analytics/overview/${encodeURIComponent(email)}`,
             { role: "restaurant_owner", cache: "no-store" }
           ),
+          getRestaurantSubscriptionRevenueSummary(email).catch(() => null),
         ]);
 
         if (cancelled) return;
 
         setDashboard(dashboardData);
         setAnalytics(analyticsData);
+        setSubscriptionRevenue(subscriptionRevenueData);
         setError("");
       } catch (err) {
         if (cancelled) return;
@@ -312,6 +323,63 @@ export default function DashboardPage() {
             </CardContent>
           </Card>
         ))}
+
+        <Link href="/restaurant/dashboard/orders" className="block">
+          <Card className="h-full bg-white shadow-sm transition hover:border-orange-300 hover:shadow-md">
+            <CardHeader className="pb-0">
+              <CardTitle className="text-gray-700">
+                Today&apos;s Subscription Meals
+              </CardTitle>
+              <CardDescription>
+                Auto-generated mess orders for today
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <p className="text-4xl font-bold text-orange-600">
+                {dashboard.today_subscription_meals ?? 0}
+              </p>
+              <p className="mt-2 text-sm text-orange-700">
+                View in Restaurant Orders →
+              </p>
+            </CardContent>
+          </Card>
+        </Link>
+
+        <Link href="/restaurant/dashboard/subscriptions" className="block">
+          <Card className="h-full bg-white shadow-sm transition hover:border-emerald-300 hover:shadow-md">
+            <CardHeader className="pb-0">
+              <CardTitle className="text-gray-700">
+                Subscription Revenue
+              </CardTitle>
+              <CardDescription>
+                Active plans and subscription billing (read-only)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-2 text-sm">
+              <div className="flex justify-between gap-3">
+                <span className="text-gray-500">Active subscriptions</span>
+                <span className="font-semibold">
+                  {subscriptionRevenue?.active_subscriptions ?? 0}
+                </span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-gray-500">Monthly revenue</span>
+                <span className="font-semibold text-emerald-700">
+                  ₹
+                  {Number(
+                    subscriptionRevenue?.monthly_subscription_revenue ?? 0
+                  ).toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between gap-3">
+                <span className="text-gray-500">Pending payments</span>
+                <span className="font-semibold text-amber-700">
+                  {subscriptionRevenue?.pending_subscription_payments ?? 0}
+                </span>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

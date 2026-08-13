@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { RefreshCw, Search } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -239,6 +240,10 @@ export default function OrdersPage() {
       await authJson(`/orders/${id}/${encodeURIComponent(nextStatus)}`, {
         role: "restaurant_owner",
         method: "PUT",
+      });
+
+      toast.success(`Order updated to ${nextStatus}`, {
+        description: "The customer will be notified.",
       });
 
       await fetchOrders(currentFilters());

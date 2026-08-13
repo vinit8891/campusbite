@@ -6,6 +6,10 @@ export type Paginated<T> = {
   pages: number;
 };
 
+export function paginatedItems<T>(data: unknown): T[] {
+  return asPaginated<T>(data).items;
+}
+
 export function asPaginated<T>(data: unknown): Paginated<T> {
   if (Array.isArray(data)) {
     return {

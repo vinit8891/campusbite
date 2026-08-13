@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { toast } from "sonner";
 
 import {
   acceptDelivery,
   getAvailableOrders,
 } from "@/services/deliveryService";
+import { paginatedItems } from "@/lib/pagination";
 import { getDeliveryPartnerSession } from "@/lib/authTokens";
 import { AuthHttpError } from "@/services/authFetch";
 
@@ -49,7 +51,7 @@ export default function DeliveryPage() {
   async function loadAvailableOrders() {
     try {
       const data = await getAvailableOrders();
-      setOrders(data.items);
+      setOrders(paginatedItems<Order>(data));
     } catch (error) {
       console.error(
         "Available Orders Error:",
@@ -109,7 +111,9 @@ export default function DeliveryPage() {
         vehicle,
       });
 
-      alert("Order accepted successfully");
+      toast.success("Delivery accepted", {
+        description: "The restaurant and customer have been notified.",
+      });
       await loadAvailableOrders();
     } catch (error) {
       console.error(error);

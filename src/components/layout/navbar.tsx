@@ -40,7 +40,7 @@ export function Navbar() {
         <nav className="hidden items-center gap-8 md:flex">
           <Link href="/">Home</Link>
           <Link href="/restaurants">Restaurants</Link>
-          <Link href="/mess">Mess</Link>
+          <Link href="/subscriptions">Mess</Link>
           <Link href="/about">About</Link>
           <Link href="/contact">Contact</Link>
         </nav>
@@ -123,7 +123,7 @@ export function Navbar() {
                   Restaurants
                 </Link>
 
-                <Link href="/mess">
+                <Link href="/subscriptions">
                   Mess
                 </Link>
 

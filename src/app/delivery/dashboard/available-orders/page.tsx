@@ -14,9 +14,11 @@ import {
 } from "lucide-react";
 
 import PaginationControls from "@/components/ui/PaginationControls";
+import { paginatedItems } from "@/lib/pagination";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
+import { toast } from "sonner";
 import { getDeliveryPartnerSession } from "@/lib/authTokens";
 import {
   formatPaymentMethod,
@@ -120,13 +122,14 @@ export default function AvailableOrdersPage() {
 
     try {
       const data = await getAvailableOrders(filters);
-      setOrders(data.items);
+      const items = paginatedItems<AvailableOrder>(data);
+      setOrders(items);
       setPage(data.page);
       setPages(data.pages);
       setTotal(data.total);
       setRestaurantOptions((prev) => {
         const next = new Set(prev);
-        for (const order of data.items) {
+        for (const order of items) {
           if (order.restaurant_email) next.add(order.restaurant_email);
         }
         return Array.from(next).sort();
@@ -163,6 +166,10 @@ export default function AvailableOrdersPage() {
         name: partner.name,
         phone: partner.phone,
         vehicle: partner.vehicle || "Bike",
+      });
+
+      toast.success("Delivery accepted", {
+        description: "The restaurant and customer have been notified.",
       });
 
       await loadOrders(currentFilters());

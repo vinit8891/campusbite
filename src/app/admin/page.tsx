@@ -10,7 +10,9 @@ import { ROUTES } from "@/constants/routes";
 import {
   AuthHttpError,
   getAdminStats,
+  getBackendHealth,
   type AdminStats,
+  type BackendHealth,
 } from "@/services/adminService";
 
 const STAT_CARDS: {
@@ -39,6 +41,7 @@ const STAT_CARDS: {
 
 export default function AdminPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [health, setHealth] = useState<BackendHealth | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -47,9 +50,13 @@ export default function AdminPage() {
 
     async function loadStats() {
       try {
-        const data = await getAdminStats();
+        const [data, healthData] = await Promise.all([
+          getAdminStats(),
+          getBackendHealth().catch(() => null),
+        ]);
         if (cancelled) return;
         setStats(data);
+        setHealth(healthData);
         setError("");
       } catch (err) {
         if (cancelled) return;
@@ -141,6 +148,17 @@ export default function AdminPage() {
           ))}
         </div>
       )}
+
+      <footer className="border-t pt-4 text-center text-xs text-gray-400">
+        {health?.version ? (
+          <p>
+            Backend v{health.version}
+            {health.environment ? ` · ${health.environment}` : ""}
+          </p>
+        ) : (
+          <p>Backend version unavailable</p>
+        )}
+      </footer>
     </div>
   );
 }

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import MockCheckoutModal from "@/components/checkout/MockCheckoutModal";
@@ -67,6 +68,9 @@ export default function OrderSummary() {
   function finishSuccess(orderId: string) {
     setPaymentState("success");
     setStatusMessage("Payment Successful");
+    toast.success("Order placed successfully", {
+      description: "We'll notify you as your order progresses.",
+    });
     clearCart();
     router.push(`/order-success?orderId=${orderId}`);
   }
