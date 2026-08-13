@@ -4,6 +4,7 @@ import { Toaster } from "sonner";
 
 import { appConfig } from "@/config/app";
 import AppProviders from "@/providers/AppProviders";
+import Footer from "@/components/layout/Footer";
 
 import "./globals.css";
 
@@ -35,6 +36,8 @@ export default function RootLayout({
       <body className="min-h-full flex flex-col">
         <AppProviders>
           {children}
+
+          <Footer />
 
           <Toaster
             position="top-right"
