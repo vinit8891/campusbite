@@ -36,6 +36,7 @@ export type RestaurantsQuery = {
   page?: number;
   limit?: number;
   q?: string;
+  category?: string;
   email?: string;
   slug?: string;
   include_menu?: boolean;
@@ -43,13 +44,37 @@ export type RestaurantsQuery = {
 
 function withQuery(path: string, params: RestaurantsQuery) {
   const search = new URLSearchParams();
-  if (params.page) search.set("page", String(params.page));
-  if (params.limit) search.set("limit", String(params.limit));
-  if (params.q?.trim()) search.set("q", params.q.trim());
-  if (params.email?.trim()) search.set("email", params.email.trim());
-  if (params.slug?.trim()) search.set("slug", params.slug.trim());
-  if (params.include_menu === false) search.set("include_menu", "false");
+
+  if (params.page) {
+    search.set("page", String(params.page));
+  }
+
+  if (params.limit) {
+    search.set("limit", String(params.limit));
+  }
+
+  if (params.q?.trim()) {
+    search.set("q", params.q.trim());
+  }
+
+  if (params.category?.trim()) {
+    search.set("category", params.category.trim());
+  }
+
+  if (params.email?.trim()) {
+    search.set("email", params.email.trim());
+  }
+
+  if (params.slug?.trim()) {
+    search.set("slug", params.slug.trim());
+  }
+
+  if (params.include_menu === false) {
+    search.set("include_menu", "false");
+  }
+
   const query = search.toString();
+
   return query ? `${path}?${query}` : path;
 }
 
@@ -61,6 +86,7 @@ export async function getRestaurantsPage(
       page: filters.page ?? 1,
       limit: filters.limit ?? 20,
       q: filters.q,
+      category: filters.category,
       email: filters.email,
       slug: filters.slug,
       include_menu: filters.include_menu,
@@ -75,7 +101,9 @@ export async function getRestaurantsPage(
   return asPaginated<BackendRestaurant>(await res.json());
 }
 
-/** Convenience: first page items (legacy callers). */
+/**
+ * Convenience: first page items (legacy callers).
+ */
 export async function getRestaurants(
   filters: RestaurantsQuery = {}
 ): Promise<BackendRestaurant[]> {
@@ -83,8 +111,12 @@ export async function getRestaurants(
     page: filters.page ?? 1,
     limit: filters.limit ?? 50,
     q: filters.q,
+    category: filters.category,
+    email: filters.email,
+    slug: filters.slug,
     include_menu: filters.include_menu,
   });
+
   return page.items;
 }
 
@@ -97,13 +129,18 @@ export async function getRestaurantBySlug(
     limit: 1,
     include_menu: true,
   });
+
   return page.items[0] || null;
 }
 
 export async function getRestaurantById(
   id: string
 ): Promise<BackendRestaurant | null> {
-  const restaurants = await getRestaurants({ limit: 100, include_menu: true });
+  const restaurants = await getRestaurants({
+    limit: 100,
+    include_menu: true,
+  });
+
   return (
     restaurants.find((restaurant) => restaurant._id === id) || null
   );
@@ -118,5 +155,6 @@ export async function getRestaurantByEmail(
     limit: 1,
     include_menu: true,
   });
+
   return page.items[0] || null;
 }

@@ -13,13 +13,29 @@ import {
   getRestaurantsPage,
 } from "@/services/restaurantService";
 
+const categories = [
+  "All",
+  "Pizza",
+  "Burger",
+  "Biryani",
+  "Healthy",
+  "Desserts",
+  "Drinks",
+];
+
 export default function RestaurantsClient() {
   const searchParams = useSearchParams();
+
   const initialQuery = searchParams.get("q") || "";
+  const initialCategory = searchParams.get("category") || "All";
 
   const [restaurants, setRestaurants] = useState<BackendRestaurant[]>([]);
   const [query, setQuery] = useState(initialQuery);
   const [draftQuery, setDraftQuery] = useState(initialQuery);
+
+  const [selectedCategory, setSelectedCategory] =
+    useState(initialCategory);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [page, setPage] = useState(1);
@@ -29,8 +45,9 @@ export default function RestaurantsClient() {
   useEffect(() => {
     setQuery(initialQuery);
     setDraftQuery(initialQuery);
+    setSelectedCategory(initialCategory);
     setPage(1);
-  }, [initialQuery]);
+  }, [initialQuery, initialCategory]);
 
   useEffect(() => {
     let cancelled = false;
@@ -39,12 +56,18 @@ export default function RestaurantsClient() {
       try {
         setLoading(true);
         setError("");
+
         const data = await getRestaurantsPage({
           page,
           limit: 20,
           q: query.trim() || undefined,
+          category:
+            selectedCategory !== "All"
+              ? selectedCategory
+              : undefined,
           include_menu: false,
         });
+
         if (!cancelled) {
           setRestaurants(data.items);
           setPages(data.pages);
@@ -53,6 +76,7 @@ export default function RestaurantsClient() {
         }
       } catch (err) {
         console.error(err);
+
         if (!cancelled) {
           setError(
             err instanceof Error
@@ -61,15 +85,18 @@ export default function RestaurantsClient() {
           );
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
     void load();
+
     return () => {
       cancelled = true;
     };
-  }, [page, query]);
+  }, [page, query, selectedCategory]);
 
   function handleSearchSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -97,7 +124,8 @@ export default function RestaurantsClient() {
           </p>
         </div>
 
-        <form onSubmit={handleSearchSubmit} className="mb-8">
+        {/* Search */}
+        <form onSubmit={handleSearchSubmit} className="mb-5">
           <input
             type="search"
             value={draftQuery}
@@ -106,6 +134,27 @@ export default function RestaurantsClient() {
             className="h-12 w-full rounded-xl border bg-white px-4 outline-none focus:border-orange-500"
           />
         </form>
+
+        {/* Category filters */}
+        <div className="mb-8 flex flex-wrap gap-3">
+          {categories.map((category) => (
+            <button
+              key={category}
+              type="button"
+              onClick={() => {
+                setSelectedCategory(category);
+                setPage(1);
+              }}
+              className={`rounded-full px-5 py-2 text-sm font-medium transition ${
+                selectedCategory === category
+                  ? "bg-orange-500 text-white"
+                  : "border bg-white hover:bg-orange-50"
+              }`}
+            >
+              {category}
+            </button>
+          ))}
+        </div>
 
         {loading && (
           <div className="rounded-2xl border bg-white p-10 text-center shadow-sm">
@@ -124,9 +173,10 @@ export default function RestaurantsClient() {
             <h2 className="text-2xl font-bold text-gray-900">
               No restaurants found
             </h2>
+
             <p className="mt-2 text-gray-500">
-              {query
-                ? "Try a different search term."
+              {query || selectedCategory !== "All"
+                ? "Try a different search or category."
                 : "No restaurants are available yet."}
             </p>
           </div>
@@ -161,6 +211,7 @@ export default function RestaurantsClient() {
                       <h2 className="text-xl font-bold text-gray-900">
                         {restaurant.name}
                       </h2>
+
                       <div className="flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-sm text-green-700">
                         <Star className="h-4 w-4 fill-current" />
                         {restaurant.rating ?? "—"}
@@ -176,6 +227,7 @@ export default function RestaurantsClient() {
                         <Clock3 className="h-4 w-4" />
                         {restaurant.delivery_time || "25-35 min"}
                       </div>
+
                       <div className="flex items-center gap-1">
                         <MapPin className="h-4 w-4" />
                         {restaurant.distance || "Nearby"}
@@ -183,7 +235,9 @@ export default function RestaurantsClient() {
                     </div>
 
                     <Link href={`/restaurants/${restaurant.slug}`}>
-                      <Button className="w-full">View Menu</Button>
+                      <Button className="w-full">
+                        View Menu
+                      </Button>
                     </Link>
                   </div>
                 </div>

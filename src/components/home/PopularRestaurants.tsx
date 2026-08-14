@@ -22,34 +22,44 @@ export function PopularRestaurants() {
     async function load() {
       try {
         const data = await getRestaurants();
+
         if (!cancelled) {
           // Show a few top-rated live restaurants on the home page.
           const sorted = [...data].sort(
             (a, b) => Number(b.rating || 0) - Number(a.rating || 0)
           );
+
           setRestaurants(sorted.slice(0, 6));
         }
       } catch (err) {
         console.error(err);
+
         if (!cancelled) {
           setError("Unable to load popular restaurants.");
         }
       } finally {
-        if (!cancelled) setLoading(false);
+        if (!cancelled) {
+          setLoading(false);
+        }
       }
     }
 
-    load();
+    void load();
+
     return () => {
       cancelled = true;
     };
   }, []);
 
   return (
-    <section className="mx-auto max-w-7xl px-6 py-20">
+    <section
+      id="popular-restaurants"
+      className="mx-auto max-w-7xl px-6 py-20"
+    >
       <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-3xl font-bold">Popular Restaurants</h2>
+
           <p className="mt-2 text-gray-500">
             Discover restaurants near your campus — live from CampusBite.
           </p>
@@ -84,9 +94,10 @@ export function PopularRestaurants() {
       {!loading && !error && restaurants.length > 0 && (
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
           {restaurants.map((restaurant) => (
-            <div
+            <Link
               key={restaurant._id}
-              className="overflow-hidden rounded-3xl border bg-white shadow-md transition duration-300 hover:-translate-y-2 hover:shadow-2xl"
+              href={`/restaurants/${restaurant.slug}`}
+              className="group block overflow-hidden rounded-3xl border bg-white shadow-md transition duration-300 hover:-translate-y-2 hover:shadow-2xl"
             >
               <div className="relative h-56 bg-gray-100">
                 {restaurant.image ? (
@@ -107,6 +118,7 @@ export function PopularRestaurants() {
               <div className="space-y-4 p-6">
                 <div className="flex items-center justify-between gap-3">
                   <h3 className="text-xl font-bold">{restaurant.name}</h3>
+
                   <div className="flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-sm text-green-700">
                     <Star className="h-4 w-4 fill-current" />
                     {restaurant.rating ?? "—"}
@@ -122,19 +134,18 @@ export function PopularRestaurants() {
                     <Clock3 className="h-4 w-4" />
                     {restaurant.delivery_time || "25-35 min"}
                   </div>
+
                   <div className="flex items-center gap-1">
                     <MapPin className="h-4 w-4" />
                     {restaurant.distance || "Nearby"}
                   </div>
                 </div>
 
-                <div className="flex justify-end">
-                  <Link href={`/restaurants/${restaurant.slug}`}>
-                    <Button>View Menu</Button>
-                  </Link>
-                </div>
+                <Button className="w-full group-hover:bg-orange-600">
+                  View Menu
+                </Button>
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       )}

@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
 
@@ -23,11 +24,22 @@ type MenuCardProps = {
 export default function MenuCard({ item, restaurant }: MenuCardProps) {
   const { cart, addToCart, clearCart } = useCart();
 
+  const available = item.available !== false;
+
+  // Find this item's current quantity in the cart
+  const cartItem = cart.find(
+    (cartItem) =>
+      cartItem.id === item._id &&
+      cartItem.restaurant_email === restaurant.email?.trim()
+  );
+
+  const quantity = cartItem?.quantity ?? 0;
+
   function handleAddToCart() {
     const email = restaurant.email?.trim();
 
     if (!email) {
-      alert(
+      toast.error(
         "Restaurant identity is missing. Please reopen this restaurant and try again."
       );
       return;
@@ -43,7 +55,9 @@ export default function MenuCard({ item, restaurant }: MenuCardProps) {
       const proceed = window.confirm(
         "Your cart has items from another restaurant. Clear the cart and add this item?"
       );
+
       if (!proceed) return;
+
       clearCart();
     }
 
@@ -58,14 +72,44 @@ export default function MenuCard({ item, restaurant }: MenuCardProps) {
       quantity: 1,
     });
 
-    alert(`${item.name} added to cart!`);
+    toast.success(`${item.name} added to cart`);
   }
 
-  const available = item.available !== false;
+  function handleIncrease() {
+    const email = restaurant.email?.trim();
+
+    if (!email) {
+      toast.error("Restaurant identity is missing.");
+      return;
+    }
+
+    addToCart({
+      id: item._id,
+      restaurant_id: restaurant.id,
+      restaurant_email: email,
+      restaurant_name: restaurant.name,
+      name: item.name,
+      image: item.image,
+      price: item.price,
+      quantity: 1,
+    });
+  }
+
+  function handleDecrease() {
+    // The current CartContext API only exposes addToCart/clearCart.
+    // If quantity becomes 0, the cart reducer/context should handle removal.
+    // For now, don't allow the quantity to go below 1.
+    if (quantity <= 1) {
+      return;
+    }
+
+    toast.info("Quantity decrease requires a remove/update function in CartContext.");
+  }
 
   return (
-    <div className="group overflow-hidden rounded-2xl bg-white transition-all duration-300 hover:-translate-y-1 hover:shadow-lg">
-      <div className="relative h-56 w-full overflow-hidden bg-gray-100">
+    <div className="group overflow-hidden rounded-3xl border border-gray-100 bg-white shadow-md transition-all duration-300 hover:-translate-y-1 hover:shadow-2xl">
+      {/* Food Image */}
+      <div className="relative h-64 w-full overflow-hidden rounded-t-3xl bg-gray-100">
         {item.image ? (
           <Image
             src={item.image}
@@ -75,53 +119,81 @@ export default function MenuCard({ item, restaurant }: MenuCardProps) {
             unoptimized={item.image.startsWith("http")}
           />
         ) : (
-          <div className="flex h-full items-center justify-center text-4xl">
+          <div className="flex h-full items-center justify-center bg-gradient-to-br from-orange-100 to-orange-50 text-5xl">
             🍽️
           </div>
         )}
 
-        <div className="absolute left-3 top-3">
-          {available ? (
-            <span className="rounded-full bg-green-100 px-3 py-1 text-xs font-semibold text-green-700 shadow-sm">
-              ● Available
-            </span>
-          ) : (
+        {/* Sold Out Badge */}
+        {!available && (
+          <div className="absolute left-3 top-3">
             <span className="rounded-full bg-red-100 px-3 py-1 text-xs font-semibold text-red-700 shadow-sm">
-              ● Unavailable
+              Sold Out
             </span>
-          )}
-        </div>
+          </div>
+        )}
       </div>
 
-      <div className="p-5">
-        <div className="min-h-[90px]">
-          <h3 className="text-xl font-bold text-gray-900">
+      {/* Content */}
+      <div className="flex min-h-[170px] flex-col justify-between p-6">
+        <div>
+          {/* Title */}
+          <h3 className="text-xl font-bold tracking-tight text-gray-900">
             {item.name}
           </h3>
 
+          {/* Description */}
           <p className="mt-2 line-clamp-2 text-sm leading-6 text-gray-500">
-            {item.description || "Delicious food prepared fresh for you."}
+            {item.description ||
+              "Freshly prepared with premium ingredients."}
           </p>
         </div>
 
-        <div className="mt-5 flex items-center justify-between border-t pt-4">
-          <div>
-            <p className="text-xs text-gray-400">Price</p>
-            <span className="text-2xl font-bold text-orange-600">
-              ₹{item.price}
-            </span>
-          </div>
+        {/* Bottom Row */}
+        <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-5">
+          {/* Price */}
+          <span className="text-3xl font-extrabold tracking-tight text-orange-600">
+            ₹{item.price}
+          </span>
 
+          {/* Cart Controls */}
           {available ? (
-            <Button
-              onClick={handleAddToCart}
-              className="rounded-xl bg-orange-500 px-5 py-2 font-semibold text-white hover:bg-orange-600"
-            >
-              + Add
-            </Button>
+            quantity === 0 ? (
+              <Button
+                onClick={handleAddToCart}
+                className="rounded-full bg-orange-500 px-6 py-2 font-semibold text-white shadow-md transition-all duration-200 hover:scale-105 hover:bg-orange-600 active:scale-95"
+              >
+                + Add
+              </Button>
+            ) : (
+              <div className="flex items-center gap-1 rounded-full bg-orange-500 p-1 shadow-md">
+                <Button
+                  type="button"
+                  onClick={handleDecrease}
+                  className="h-9 w-9 rounded-full bg-white px-0 text-lg font-bold text-orange-600 hover:bg-orange-50"
+                >
+                  −
+                </Button>
+
+                <span className="min-w-8 text-center font-bold text-white">
+                  {quantity}
+                </span>
+
+                <Button
+                  type="button"
+                  onClick={handleIncrease}
+                  className="h-9 w-9 rounded-full bg-white px-0 text-lg font-bold text-orange-600 hover:bg-orange-50"
+                >
+                  +
+                </Button>
+              </div>
+            )
           ) : (
-            <Button disabled className="rounded-xl">
-              Unavailable
+            <Button
+              disabled
+              className="cursor-not-allowed rounded-full bg-gray-200 px-6 py-2 text-gray-500 opacity-60"
+            >
+              Sold Out
             </Button>
           )}
         </div>

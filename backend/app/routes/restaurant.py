@@ -61,19 +61,21 @@ async def fetch_restaurants(
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     q: Annotated[str | None, Query()] = None,
+    category: Annotated[str | None, Query()] = None,
     email: Annotated[str | None, Query()] = None,
     slug: Annotated[str | None, Query()] = None,
     include_menu: Annotated[bool, Query()] = True,
 ):
     logger.info("restaurants.list request received")
     result = await get_all_restaurants(
-        page=page,
-        limit=limit,
-        q=sanitize_search_query(q),
-        email=sanitize_email(email),
-        slug=(slug.strip() if slug else None),
-        include_menu=include_menu,
-    )
+    page=page,
+    limit=limit,
+    q=sanitize_search_query(q),
+    category=(category.strip().lower() if category else None),
+    email=sanitize_email(email),
+    slug=(slug.strip() if slug else None),
+    include_menu=include_menu,
+)
     logger.info("restaurants.list completed successfully")
     return result
 

@@ -40,7 +40,7 @@ export default function RootLayout({
           <Footer />
 
           <Toaster
-            position="top-right"
+            position="bottom-right"
             richColors
             closeButton
             duration={3000}

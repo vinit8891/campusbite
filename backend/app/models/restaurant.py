@@ -50,6 +50,7 @@ async def get_all_restaurants(
     page: int = 1,
     limit: int = 20,
     q: str | None = None,
+    category: str | None = None,
     email: str | None = None,
     slug: str | None = None,
     include_menu: bool = True,
@@ -63,15 +64,50 @@ async def get_all_restaurants(
 
     query: dict = {}
 
-    if email and email.strip():
-        query["email"] = {
-            "$regex": f"^{re.escape(email.strip())}$",
-            "$options": "i",
-        }
+    # Filter restaurants by menu category
+    if category and category.strip():
+        emails = await menu_collection.distinct(
+            "restaurant_email",
+            {
+                "category": {
+                    "$regex": f"^{re.escape(category.strip())}$",
+                    "$options": "i",
+                }
+            },
+        )
 
+        if not emails:
+            return paginated_response(
+                [],
+                total=0,
+                page=1,
+                limit=limit,
+            )
+
+        query["email"] = {"$in": emails}
+
+    # Filter by specific restaurant email
+    if email and email.strip():
+        if "email" in query:
+            # Combine category + email filter
+            query["email"] = {
+                "$in": [
+                    e
+                    for e in query["email"]["$in"]
+                    if e.lower() == email.strip().lower()
+                ]
+            }
+        else:
+            query["email"] = {
+                "$regex": f"^{re.escape(email.strip())}$",
+                "$options": "i",
+            }
+
+    # Filter by slug
     if slug and slug.strip():
         query["slug"] = slug.strip()
 
+    # Search
     if q and q.strip():
         term = re.escape(q.strip())
         query["$or"] = [
@@ -82,11 +118,14 @@ async def get_all_restaurants(
 
     safe_page = normalize_page(page)
     safe_limit = normalize_limit(limit, default=20)
+
     total = await restaurant_collection.count_documents(query)
+
     pages = max(1, (total + safe_limit - 1) // safe_limit) if total else 1
     meta_page = min(safe_page, pages)
 
     restaurants = []
+
     cursor = (
         restaurant_collection.find(query)
         .sort("_id", -1)
@@ -100,18 +139,23 @@ async def get_all_restaurants(
         if include_menu:
             email_value = restaurant.get("email")
             menu_items = []
+
             if email_value:
                 async for item in menu_collection.find(
                     {"restaurant_email": email_value}
                 ):
                     item["_id"] = str(item["_id"])
                     menu_items.append(item)
+
             restaurant["menu"] = menu_items
 
         restaurants.append(restaurant)
 
     return paginated_response(
-        restaurants, total=total, page=meta_page, limit=safe_limit
+        restaurants,
+        total=total,
+        page=meta_page,
+        limit=safe_limit,
     )
 
 
@@ -125,12 +169,8 @@ async def update_restaurant(
         return 0
 
     result = await restaurant_collection.update_one(
-        {
-            "_id": oid
-        },
-        {
-            "$set": data
-        }
+        {"_id": oid},
+        {"$set": data}
     )
 
     return result.modified_count
@@ -145,9 +185,7 @@ async def delete_restaurant(
         return 0
 
     result = await restaurant_collection.delete_one(
-        {
-            "_id": oid
-        }
+        {"_id": oid}
     )
 
-    return result.deleted_count 
+    return result.deleted_count

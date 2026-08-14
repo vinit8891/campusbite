@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
@@ -9,6 +10,7 @@ const foods = [
     price: "₹99",
     rating: "4.7",
     image: "/images/food/burger.png",
+    category: "Burger",
   },
   {
     name: "Veg Pizza",
@@ -16,6 +18,7 @@ const foods = [
     price: "₹149",
     rating: "4.8",
     image: "/images/food/pizza.png",
+    category: "Pizza",
   },
   {
     name: "Chicken Biryani",
@@ -23,8 +26,10 @@ const foods = [
     price: "₹179",
     rating: "4.9",
     image: "/images/food/biryani.png",
+    category: "Biryani",
   },
 ];
+
 export function StudentSpecials() {
   return (
     <section className="mx-auto max-w-7xl px-6 py-20">
@@ -74,9 +79,15 @@ export function StudentSpecials() {
                   {food.price}
                 </span>
 
-                <Button>
-                  Order Now
-                </Button>
+                <Link
+                  href={`/restaurants?category=${encodeURIComponent(
+                    food.category
+                  )}`}
+                >
+                  <Button>
+                    Order Now
+                  </Button>
+                </Link>
               </div>
             </div>
           </div>

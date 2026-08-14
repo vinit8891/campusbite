@@ -1,4 +1,5 @@
 import Image from "next/image";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 
 export default function Hero() {
@@ -25,18 +26,22 @@ export default function Hero() {
             mess and home kitchens at student-friendly prices.
           </p>
 
-          <div className="mt-8 flex gap-4">
+          <div className="mt-8 flex flex-wrap gap-4">
 
-            <Button size="lg">
-              Order Now
-            </Button>
+            <Link href="/restaurants">
+              <Button size="lg">
+                Order Now
+              </Button>
+            </Link>
 
-            <Button
-              variant="outline"
-              size="lg"
-            >
-              Explore Menu
-            </Button>
+            <Link href="/#popular-restaurants">
+              <Button
+                variant="outline"
+                size="lg"
+              >
+                Explore Menu
+              </Button>
+            </Link>
 
           </div>
 
@@ -46,15 +51,15 @@ export default function Hero() {
 
         <div className="flex h-[420px] w-[420px] items-center justify-center rounded-full bg-orange-100 shadow-2xl">
 
-        <Image
-  src="/images/hero/burger.png"
-  alt="CampusBite Burger"
-  width={500}
-  height={500}
-  className="object-contain w-full h-full p-6"
-/>
+          <Image
+            src="/images/hero/burger.png"
+            alt="CampusBite Burger"
+            width={500}
+            height={500}
+            className="h-full w-full object-contain p-6"
+          />
 
-</div>
+        </div>
 
       </div>
     </section>

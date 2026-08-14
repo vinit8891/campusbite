@@ -1,5 +1,6 @@
-import MenuCard from "@/components/menu/MenuCard";
 import RestaurantCheckoutSetup from "@/components/restaurant/RestaurantCheckoutSetup";
+import RestaurantMenu from "@/components/restaurant/RestaurantMenu";
+import FloatingCart from "@/components/cart/FloatingCart";
 import Image from "next/image";
 import { notFound } from "next/navigation";
 
@@ -11,9 +12,7 @@ type Props = {
   }>;
 };
 
-export default async function RestaurantPage({
-  params,
-}: Props) {
+export default async function RestaurantPage({ params }: Props) {
   const { slug } = await params;
 
   const restaurant = await getRestaurantBySlug(slug);
@@ -24,186 +23,106 @@ export default async function RestaurantPage({
 
   const menu = restaurant.menu || [];
 
+  const groupedMenu = menu.reduce<Record<string, typeof menu>>(
+    (groups, item) => {
+      const category = item.category?.trim() || "Other";
+
+      if (!groups[category]) {
+        groups[category] = [];
+      }
+
+      groups[category].push(item);
+
+      return groups;
+    },
+    {}
+  );
+
   return (
     <main className="min-h-screen bg-gray-50">
-
-      {/* Save restaurant information for checkout */}
       <RestaurantCheckoutSetup
         restaurantEmail={restaurant.email}
         latitude={restaurant.latitude}
         longitude={restaurant.longitude}
       />
 
-      <section className="border-b bg-white">
+      {/* Restaurant Hero */}
+      <section className="relative">
+        <div className="relative h-[420px] w-full overflow-hidden rounded-b-[40px]">
+          {restaurant.image ? (
+            <Image
+              src={restaurant.image}
+              alt={restaurant.name}
+              fill
+              priority
+              className="object-cover"
+              unoptimized={restaurant.image.startsWith("http")}
+            />
+          ) : (
+            <div className="flex h-full items-center justify-center bg-gray-200 text-7xl">
+              🍽️
+            </div>
+          )}
 
-        <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+          {/* Dark Overlay */}
+          <div className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/40 to-black/10" />
 
-          <div className="mb-6">
+          {/* Back Button */}
+          <div className="absolute left-6 top-6 z-20">
             <a
               href="/restaurants"
-              className="text-sm font-medium text-gray-500 transition hover:text-orange-600"
+              className="rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-gray-800 shadow transition hover:bg-white"
             >
-              ← Back to Restaurants
+              ← Back
             </a>
           </div>
 
-          <div className="grid items-center gap-8 lg:grid-cols-[420px_1fr]">
+          {/* Restaurant Info */}
+          <div className="absolute bottom-0 left-0 right-0 z-10">
+            <div className="mx-auto max-w-7xl px-6 pb-10">
+              <span className="inline-flex rounded-full bg-orange-500 px-4 py-1.5 text-sm font-semibold text-white shadow">
+                {restaurant.cuisine || "Restaurant"}
+              </span>
 
-            <div className="relative h-[280px] overflow-hidden rounded-3xl bg-gray-100 shadow-md sm:h-[320px]">
-
-              {restaurant.image ? (
-                <Image
-                  src={restaurant.image}
-                  alt={restaurant.name}
-                  fill
-                  priority
-                  className="object-cover"
-                  unoptimized={restaurant.image.startsWith("http")}
-                />
-              ) : (
-                <div className="flex h-full items-center justify-center text-6xl">
-                  🍽️
-                </div>
-              )}
-
-            </div>
-
-            <div>
-
-              <div className="mb-3">
-                <span className="rounded-full bg-orange-100 px-3 py-1 text-sm font-semibold text-orange-700">
-                  {restaurant.cuisine || "Restaurant"}
-                </span>
-              </div>
-
-              <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
+              <h1 className="mt-4 text-4xl font-extrabold tracking-tight text-white sm:text-5xl">
                 {restaurant.name}
               </h1>
 
-              <p className="mt-4 max-w-2xl text-base leading-7 text-gray-600">
+              <div className="mt-4 flex flex-wrap items-center gap-6 text-sm font-medium text-white/90">
+                <span>⭐ {restaurant.rating ?? "—"}</span>
+
+                <span>
+                  🚚 {restaurant.delivery_time || "25–35 min"}
+                </span>
+
+                <span>
+                  📍 {restaurant.address || "Campus Area"}
+                </span>
+
+                <span>
+                  🕒 {restaurant.opening_hours || "10:00 AM"} –{" "}
+                  {restaurant.closing_hours || "10:00 PM"}
+                </span>
+              </div>
+
+              <p className="mt-5 max-w-2xl text-base leading-7 text-white/90">
                 {restaurant.description ||
-                  "Delicious food made fresh for you."}
+                  "Fresh handmade meals prepared with quality ingredients and delivered hot to your campus."}
               </p>
-
-              <div className="mt-6 flex flex-wrap gap-3">
-
-                <div className="flex items-center gap-2 rounded-xl bg-green-50 px-4 py-3">
-                  <span className="text-lg">⭐</span>
-                  <div>
-                    <p className="text-sm font-bold text-gray-900">
-                      {restaurant.rating ?? "—"}
-                    </p>
-                    <p className="text-xs text-gray-500">Rating</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 rounded-xl bg-orange-50 px-4 py-3">
-                  <span className="text-lg">🚚</span>
-                  <div>
-                    <p className="text-sm font-bold text-gray-900">
-                      {restaurant.delivery_time || "25-35 min"}
-                    </p>
-                    <p className="text-xs text-gray-500">Delivery</p>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 rounded-xl bg-blue-50 px-4 py-3">
-                  <span className="text-lg">📍</span>
-                  <div>
-                    <p className="text-sm font-bold text-gray-900">
-                      {restaurant.distance || "Nearby"}
-                    </p>
-                    <p className="text-xs text-gray-500">Distance</p>
-                  </div>
-                </div>
-
-              </div>
-
             </div>
-
           </div>
-
         </div>
-
       </section>
 
-      <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
+      {/* Menu */}
+      <RestaurantMenu
+        restaurant={restaurant}
+        groupedMenu={groupedMenu}
+        totalItems={menu.length}
+      />
 
-        <div className="mb-8 flex items-end justify-between gap-4">
-
-          <div>
-            <h2 className="text-3xl font-extrabold text-gray-900">
-              Menu
-            </h2>
-            <p className="mt-2 text-gray-500">
-              Choose your favorite dishes
-            </p>
-          </div>
-
-          {menu.length > 0 && (
-            <span className="hidden rounded-full bg-white px-4 py-2 text-sm font-medium text-gray-600 shadow-sm sm:block">
-              {menu.length} items
-            </span>
-          )}
-
-        </div>
-
-        {menu.length > 0 ? (
-
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-
-            {menu.map((item) => (
-
-              <div
-                key={item._id}
-                className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm transition duration-200 hover:-translate-y-1 hover:shadow-lg"
-              >
-
-                <MenuCard
-                  item={{
-                    _id: item._id,
-                    name: item.name,
-                    description: item.description,
-                    image: item.image,
-                    price: item.price,
-                    available: item.available,
-                  }}
-                  restaurant={{
-                    id: restaurant._id,
-                    email: restaurant.email,
-                    name: restaurant.name,
-                  }}
-                />
-
-              </div>
-
-            ))}
-
-          </div>
-
-        ) : (
-
-          <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center shadow-sm">
-
-            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 text-3xl">
-              🍽️
-            </div>
-
-            <h3 className="mt-5 text-xl font-bold text-gray-900">
-              Menu Coming Soon
-            </h3>
-
-            <p className="mx-auto mt-2 max-w-md text-gray-500">
-              This restaurant has not added any menu items yet.
-              Please check back soon.
-            </p>
-
-          </div>
-
-        )}
-
-      </section>
-
+      {/* Floating Cart */}
+      <FloatingCart />
     </main>
   );
 }
