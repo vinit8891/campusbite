@@ -83,7 +83,7 @@ export function CartProvider({
         item.id === id
           ? {
               ...item,
-              quantity: item.quantity + 1,
+              quantity: Math.max(1, item.quantity + 1),
             }
           : item
       )
@@ -92,16 +92,20 @@ export function CartProvider({
 
   function decreaseQuantity(id: string) {
     setCart((prev) =>
-      prev
-        .map((item) =>
-          item.id === id
-            ? {
-                ...item,
-                quantity: item.quantity - 1,
-              }
-            : item
-        )
-        .filter((item) => item.quantity > 0)
+      prev.flatMap((item) => {
+        if (item.id !== id) {
+          return item;
+        }
+
+        if (item.quantity <= 1) {
+          return [];
+        }
+
+        return {
+          ...item,
+          quantity: item.quantity - 1,
+        };
+      })
     );
   }
 

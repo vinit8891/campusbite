@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
@@ -28,6 +28,8 @@ type Order = {
   restaurant_email: string;
   restaurant_image?: string;
   restaurant_cuisine?: string;
+  restaurant_phone?: string;
+  restaurant_slug?: string;
 
   customer_name: string;
   phone: string;
@@ -83,22 +85,26 @@ export default function OrderDetailsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
-  async function loadOrder() {
+  const currentStatusRef = useRef<HTMLDivElement | null>(null);
+
+  async function loadOrder(): Promise<Order | null> {
     try {
       const data = await getOrderById(orderId);
 
       setOrder(data);
       setError("");
+
+      return data;
     } catch (err) {
       console.error(err);
 
       if (err instanceof AuthHttpError && err.status === 401) {
-        return;
+        return null;
       }
 
       if (err instanceof AuthHttpError && err.status === 404) {
         setError("Order not found.");
-        return;
+        return null;
       }
 
       setError(
@@ -106,18 +112,63 @@ export default function OrderDetailsPage() {
           ? err.message
           : "Unable to load order details."
       );
+
+      return null;
     } finally {
       setLoading(false);
     }
   }
 
+  // Poll only while the order is active.
   useEffect(() => {
-    loadOrder();
+    let cancelled = false;
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
 
-    const interval = setInterval(loadOrder, 5000);
+    async function pollOrder() {
+      if (cancelled) return;
 
-    return () => clearInterval(interval);
+      const data = await loadOrder();
+
+      if (cancelled) return;
+
+      if (
+        data &&
+        data.status !== "Delivered" &&
+        data.status !== "Cancelled"
+      ) {
+        timeoutId = setTimeout(pollOrder, 5000);
+      }
+    }
+
+    pollOrder();
+
+    return () => {
+      cancelled = true;
+
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+      }
+    };
   }, [orderId]);
+
+  useEffect(() => {
+    if (!order) return;
+
+    const currentIndex = statuses.indexOf(order.status);
+
+    if (currentIndex === -1 || order.status === "Cancelled") {
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      currentStatusRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    }, 100);
+
+    return () => clearTimeout(timeout);
+  }, [order?.status]);
 
   if (loading) {
     return (
@@ -160,8 +211,17 @@ export default function OrderDetailsPage() {
 
   const currentIndex = statuses.indexOf(order.status);
 
+  const isPending = order.status === "Pending";
   const isDelivered = order.status === "Delivered";
   const isCancelled = order.status === "Cancelled";
+
+  const restaurantPickupStatuses = [
+    "Accepted",
+    "Preparing",
+    "Ready for Pickup",
+  ];
+
+  const showRestaurantMap = restaurantPickupStatuses.includes(order.status);
 
   const estimatedDelivery =
     order.estimated_delivery ||
@@ -191,6 +251,18 @@ export default function OrderDetailsPage() {
     : order.payment_method?.toLowerCase().includes("cash")
     ? "bg-blue-100 text-blue-700"
     : "bg-gray-100 text-gray-600";
+
+  const hasDeliveryLocation =
+    order.delivery_partner?.latitude !== null &&
+    order.delivery_partner?.latitude !== undefined &&
+    order.delivery_partner?.longitude !== null &&
+    order.delivery_partner?.longitude !== undefined;
+
+  const hasRestaurantLocation =
+    order.restaurant_latitude !== null &&
+    order.restaurant_latitude !== undefined &&
+    order.restaurant_longitude !== null &&
+    order.restaurant_longitude !== undefined;
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -283,6 +355,7 @@ export default function OrderDetailsPage() {
                 return (
                   <div
                     key={status}
+                    ref={current ? currentStatusRef : undefined}
                     className="flex items-start gap-4"
                   >
                     {/* Timeline indicator */}
@@ -404,6 +477,54 @@ export default function OrderDetailsPage() {
               </p>
             </div>
           </div>
+
+          {order.restaurant_phone && (
+            <a
+              href={`tel:${order.restaurant_phone}`}
+              className="mt-4 inline-block rounded-full bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600"
+            >
+              📞 Call Restaurant
+            </a>
+          )}
+
+          {/* Restaurant location before pickup */}
+          {showRestaurantMap && (
+            <div className="mt-6">
+              <h3 className="text-sm font-bold text-gray-900">
+                Restaurant Location
+              </h3>
+
+              {hasRestaurantLocation ? (
+                <>
+                  <div className="mt-3 overflow-hidden rounded-2xl border">
+                    <iframe
+                      title="Restaurant Location"
+                      width="100%"
+                      height="320"
+                      loading="lazy"
+                      className="border-0"
+                      src={`https://maps.google.com/maps?q=${order.restaurant_latitude},${order.restaurant_longitude}&z=15&output=embed`}
+                    />
+                  </div>
+
+                  <a
+                    href={`https://www.google.com/maps?q=${order.restaurant_latitude},${order.restaurant_longitude}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-4 inline-block rounded-full bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600"
+                  >
+                    Open in Google Maps
+                  </a>
+                </>
+              ) : (
+                <div className="mt-3 rounded-2xl bg-orange-50 p-5">
+                  <p className="font-semibold text-orange-800">
+                    Restaurant location is not available yet.
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
         </section>
 
         {/* ========================================================= */}
@@ -472,6 +593,15 @@ export default function OrderDetailsPage() {
                 </p>
               </div>
             </div>
+
+            {order.delivery_partner.phone && (
+              <a
+                href={`tel:${order.delivery_partner.phone}`}
+                className="mt-5 inline-block rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+              >
+                📞 Call Partner
+              </a>
+            )}
           </section>
         )}
 
@@ -498,22 +628,18 @@ export default function OrderDetailsPage() {
                 </div>
               </div>
 
-              {order.delivery_partner.latitude !== null &&
-              order.delivery_partner.latitude !== undefined &&
-              order.delivery_partner.longitude !== null &&
-              order.delivery_partner.longitude !== undefined ? (
-                <div className="mt-5 rounded-2xl bg-green-50 p-5">
-                  <p className="font-semibold text-green-800">
-                    Delivery partner location available
-                  </p>
-
-                  <p className="mt-2 text-sm text-green-700">
-                    Latitude: {order.delivery_partner.latitude}
-                  </p>
-
-                  <p className="text-sm text-green-700">
-                    Longitude: {order.delivery_partner.longitude}
-                  </p>
+              {hasDeliveryLocation ? (
+                <div className="mt-5">
+                  <div className="overflow-hidden rounded-2xl border">
+                    <iframe
+                      title="Delivery Partner Location"
+                      width="100%"
+                      height="320"
+                      loading="lazy"
+                      className="border-0"
+                      src={`https://maps.google.com/maps?q=${order.delivery_partner.latitude},${order.delivery_partner.longitude}&z=15&output=embed`}
+                    />
+                  </div>
 
                   <a
                     href={`https://www.google.com/maps?q=${order.delivery_partner.latitude},${order.delivery_partner.longitude}`}
@@ -521,7 +647,7 @@ export default function OrderDetailsPage() {
                     rel="noopener noreferrer"
                     className="mt-4 inline-block rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700"
                   >
-                    Open Live Location
+                    Open in Google Maps
                   </a>
                 </div>
               ) : (
@@ -549,7 +675,7 @@ export default function OrderDetailsPage() {
                 🔐
               </div>
 
-              <div>
+              <div className="flex-1">
                 <h2 className="text-xl font-bold text-orange-900">
                   Delivery OTP
                 </h2>
@@ -559,9 +685,23 @@ export default function OrderDetailsPage() {
                 </p>
 
                 {order.otp_verified ? (
-                  <p className="mt-4 font-semibold text-green-700">
-                    ✓ OTP Verified
-                  </p>
+                  <div className="mt-5">
+                    <p className="font-semibold text-green-700">
+                      ✓ OTP Verified
+                    </p>
+                  </div>
+                ) : order.delivery_otp !== undefined ? (
+                  <div className="mt-5">
+                    <div className="flex items-center gap-4">
+                      <div className="rounded-2xl bg-white px-8 py-5 text-4xl font-black tracking-[10px] text-orange-600 shadow-sm">
+                        {order.delivery_otp}
+                      </div>
+                    </div>
+
+                    <p className="mt-4 text-sm font-medium text-orange-800">
+                      Share this OTP only after receiving your order.
+                    </p>
+                  </div>
                 ) : (
                   <p className="mt-4 font-semibold text-orange-700">
                     OTP verification pending
@@ -745,6 +885,15 @@ export default function OrderDetailsPage() {
         {/* ========================================================= */}
 
         <section className="mt-10 flex flex-col gap-3 pb-10 sm:flex-row sm:justify-center">
+          {isPending && (
+            <button
+              type="button"
+              className="rounded-full bg-red-600 px-7 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-red-700"
+            >
+              Cancel Order
+            </button>
+          )}
+
           {!isDelivered && !isCancelled && (
             <Link
               href={`/orders/${order._id}`}
@@ -755,12 +904,25 @@ export default function OrderDetailsPage() {
           )}
 
           {isDelivered && (
-            <Link
-              href="/restaurants"
-              className="rounded-full bg-orange-500 px-7 py-3 text-center text-sm font-semibold text-white shadow-md transition hover:bg-orange-600"
-            >
-              Order Again
-            </Link>
+            <>
+              <Link
+                href={
+                  order.restaurant_slug
+                    ? `/restaurants/${order.restaurant_slug}`
+                    : "/restaurants"
+                }
+                className="rounded-full bg-orange-500 px-7 py-3 text-center text-sm font-semibold text-white shadow-md transition hover:bg-orange-600"
+              >
+                Order Again
+              </Link>
+
+              <Link
+                href={`/orders/${order._id}/review`}
+                className="rounded-full bg-yellow-500 px-7 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-yellow-600"
+              >
+                ⭐ Leave Review
+              </Link>
+            </>
           )}
 
           <Link

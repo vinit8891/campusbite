@@ -84,7 +84,8 @@ export default function CartPage() {
           </h1>
 
           <p className="mt-2 text-gray-500">
-            {itemCount} {itemCount === 1 ? "Item" : "Items"}
+            {itemCount} {itemCount === 1 ? "item" : "items"} from{" "}
+            {cart.length} {cart.length === 1 ? "dish" : "dishes"}
           </p>
         </header>
 
@@ -116,7 +117,9 @@ export default function CartPage() {
 
                   {/* Remove */}
                   <button
-                    onClick={() => removeFromCart(item.id)}
+                    onClick={() => {
+                      removeFromCart(item.id);
+                    }}
                     aria-label={`Remove ${item.name}`}
                     className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-gray-400 transition-all duration-200 hover:bg-red-50 hover:text-red-500"
                   >
@@ -141,6 +144,7 @@ export default function CartPage() {
                       {/* Quantity Stepper */}
                       <div className="flex items-center rounded-full border border-gray-200 bg-gray-50 p-1">
                         <button
+                          type="button"
                           onClick={() => decreaseQuantity(item.id)}
                           aria-label={`Decrease ${item.name} quantity`}
                           className="flex h-8 w-8 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-orange-100 hover:text-orange-600"
@@ -153,6 +157,7 @@ export default function CartPage() {
                         </span>
 
                         <button
+                          type="button"
                           onClick={() => increaseQuantity(item.id)}
                           aria-label={`Increase ${item.name} quantity`}
                           className="flex h-8 w-8 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-orange-100 hover:text-orange-600"
@@ -214,7 +219,8 @@ export default function CartPage() {
               </div>
 
               <Button
-                className="mt-6 w-full rounded-2xl bg-orange-500 py-6 text-base font-bold shadow-md transition-all duration-200 hover:scale-[1.02] hover:bg-orange-600 active:scale-[0.98]"
+                disabled={cart.length === 0}
+                className="mt-6 w-full rounded-2xl bg-orange-500 py-6 text-base font-bold shadow-md transition-all duration-200 hover:scale-[1.02] hover:bg-orange-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
                 onClick={() => router.push("/checkout")}
               >
                 Proceed to Checkout →

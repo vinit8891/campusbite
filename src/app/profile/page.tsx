@@ -89,6 +89,51 @@ export default function ProfilePage() {
           </div>
         </section>
 
+        {/* Stats */}
+        <section className="mt-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+
+          <div className="rounded-2xl border bg-white p-6 shadow-sm">
+            <p className="text-sm text-gray-500">
+              Orders
+            </p>
+
+            <h2 className="mt-2 text-3xl font-bold">
+              0
+            </h2>
+          </div>
+
+          <div className="rounded-2xl border bg-white p-6 shadow-sm">
+            <p className="text-sm text-gray-500">
+              Favorites
+            </p>
+
+            <h2 className="mt-2 text-3xl font-bold">
+              0
+            </h2>
+          </div>
+
+          <div className="rounded-2xl border bg-white p-6 shadow-sm">
+            <p className="text-sm text-gray-500">
+              Reviews
+            </p>
+
+            <h2 className="mt-2 text-3xl font-bold">
+              0
+            </h2>
+          </div>
+
+          <div className="rounded-2xl border bg-white p-6 shadow-sm">
+            <p className="text-sm text-gray-500">
+              Member
+            </p>
+
+            <h2 className="mt-2 text-xl font-bold">
+              CampusBite
+            </h2>
+          </div>
+
+        </section>
+
         {/* Main Grid */}
         <div className="mt-6 grid gap-6 lg:grid-cols-2">
 
@@ -147,9 +192,37 @@ export default function ProfilePage() {
               <Button
                 variant="outline"
                 className="w-full justify-start"
-                onClick={() => router.push("/orders")}
+                onClick={() => router.push("/my-orders")}
               >
                 📦 My Orders
+              </Button>
+
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+              >
+                ❤️ Favorite Restaurants
+              </Button>
+
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+              >
+                📍 Saved Addresses
+              </Button>
+
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+              >
+                💳 Payment Methods
+              </Button>
+
+              <Button
+                variant="outline"
+                className="w-full justify-start"
+              >
+                🎁 Coupons
               </Button>
 
               <Button

@@ -14,6 +14,14 @@ export default function AddressForm() {
   const [locationError, setLocationError] =
     useState("");
 
+  const [errors, setErrors] = useState({
+    customer_name: "",
+    phone: "",
+    address: "",
+    city: "",
+    pincode: "",
+  });
+
   // -----------------------------
   // Get Customer GPS Location
   // -----------------------------
@@ -32,22 +40,15 @@ export default function AddressForm() {
       (position) => {
         setCheckout((prev) => ({
           ...prev,
-
-          latitude:
-            position.coords.latitude,
-
-          longitude:
-            position.coords.longitude,
+          latitude: position.coords.latitude,
+          longitude: position.coords.longitude,
         }));
 
         setLocationLoading(false);
         setLocationError("");
       },
       (error) => {
-        console.error(
-          "Location Error:",
-          error
-        );
+        console.error("Location Error:", error);
 
         setLocationLoading(false);
 
@@ -78,9 +79,7 @@ export default function AddressForm() {
   // only when ordering for self
   // -----------------------------
   useEffect(() => {
-    if (
-      checkout.delivery_for !== "self"
-    ) {
+    if (checkout.delivery_for !== "self") {
       return;
     }
 
@@ -106,11 +105,8 @@ export default function AddressForm() {
   ) {
     setCheckout((prev) => ({
       ...prev,
-
       delivery_for: value,
 
-      // If ordering for someone else,
-      // don't use the current user's GPS.
       ...(value === "someone_else"
         ? {
             latitude: null,
@@ -124,7 +120,6 @@ export default function AddressForm() {
 
   return (
     <section className="rounded-2xl border bg-white p-6 shadow-sm">
-
       {/* Header */}
 
       <div className="mb-6">
@@ -142,20 +137,16 @@ export default function AddressForm() {
       ========================== */}
 
       <div className="mb-7">
-
         <label className="mb-3 block text-sm font-semibold text-gray-700">
           Who are you ordering for?
         </label>
 
         <div className="grid gap-3 sm:grid-cols-2">
-
           {/* Myself */}
 
           <button
             type="button"
-            onClick={() =>
-              changeDeliveryFor("self")
-            }
+            onClick={() => changeDeliveryFor("self")}
             className={`rounded-xl border-2 p-4 text-left transition ${
               checkout.delivery_for === "self"
                 ? "border-orange-500 bg-orange-50"
@@ -163,10 +154,7 @@ export default function AddressForm() {
             }`}
           >
             <div className="flex items-center gap-3">
-
-              <div className="text-2xl">
-                🧑
-              </div>
+              <div className="text-2xl">🧑</div>
 
               <div>
                 <p className="font-semibold text-gray-900">
@@ -177,7 +165,6 @@ export default function AddressForm() {
                   Deliver to my location
                 </p>
               </div>
-
             </div>
           </button>
 
@@ -186,22 +173,16 @@ export default function AddressForm() {
           <button
             type="button"
             onClick={() =>
-              changeDeliveryFor(
-                "someone_else"
-              )
+              changeDeliveryFor("someone_else")
             }
             className={`rounded-xl border-2 p-4 text-left transition ${
-              checkout.delivery_for ===
-              "someone_else"
+              checkout.delivery_for === "someone_else"
                 ? "border-orange-500 bg-orange-50"
                 : "border-gray-200 bg-white hover:border-orange-300"
             }`}
           >
             <div className="flex items-center gap-3">
-
-              <div className="text-2xl">
-                👤
-              </div>
+              <div className="text-2xl">👤</div>
 
               <div>
                 <p className="font-semibold text-gray-900">
@@ -212,12 +193,9 @@ export default function AddressForm() {
                   Deliver to another person
                 </p>
               </div>
-
             </div>
           </button>
-
         </div>
-
       </div>
 
       {/* =========================
@@ -225,7 +203,6 @@ export default function AddressForm() {
       ========================== */}
 
       <div className="grid gap-5">
-
         {/* Full Name */}
 
         <div>
@@ -235,15 +212,31 @@ export default function AddressForm() {
 
           <Input
             placeholder="Enter recipient's full name"
+            autoCapitalize="words"
             value={checkout.customer_name}
-            onChange={(e) =>
+            onChange={(e) => {
+              const value = e.target.value;
+
               setCheckout((prev) => ({
                 ...prev,
+                customer_name: value,
+              }));
+
+              setErrors((prev) => ({
+                ...prev,
                 customer_name:
-                  e.target.value,
-              }))
-            }
+                  value.trim().length >= 3
+                    ? ""
+                    : "Name must be at least 3 characters.",
+              }));
+            }}
           />
+
+          {errors.customer_name && (
+            <p className="mt-1 text-sm text-red-500">
+              {errors.customer_name}
+            </p>
+          )}
         </div>
 
         {/* Mobile */}
@@ -256,19 +249,35 @@ export default function AddressForm() {
           <Input
             type="tel"
             inputMode="numeric"
+            pattern="[0-9]*"
             placeholder="9876543210"
             maxLength={10}
             value={checkout.phone}
-            onChange={(e) =>
+            onChange={(e) => {
+              const value = e.target.value.replace(
+                /\D/g,
+                ""
+              );
+
               setCheckout((prev) => ({
                 ...prev,
-                phone: e.target.value.replace(
-                  /\D/g,
-                  ""
-                ),
-              }))
-            }
+                phone: value,
+              }));
+
+              setErrors((prev) => ({
+                ...prev,
+                phone: /^[6-9]\d{9}$/.test(value)
+                  ? ""
+                  : "Enter a valid 10-digit mobile number.",
+              }));
+            }}
           />
+
+          {errors.phone && (
+            <p className="mt-1 text-sm text-red-500">
+              {errors.phone}
+            </p>
+          )}
         </div>
 
         {/* Address */}
@@ -278,22 +287,39 @@ export default function AddressForm() {
             Delivery Address
           </label>
 
-          <Input
+          <textarea
+            rows={3}
             placeholder="Flat, Building, Street"
             value={checkout.address}
-            onChange={(e) =>
+            onChange={(e) => {
+              const value = e.target.value;
+
               setCheckout((prev) => ({
                 ...prev,
-                address: e.target.value,
-              }))
-            }
+                address: value,
+              }));
+
+              setErrors((prev) => ({
+                ...prev,
+                address:
+                  value.trim().length >= 10
+                    ? ""
+                    : "Address should be at least 10 characters.",
+              }));
+            }}
+            className="w-full rounded-xl border border-gray-300 px-4 py-3 outline-none focus:border-orange-500"
           />
+
+          {errors.address && (
+            <p className="mt-1 text-sm text-red-500">
+              {errors.address}
+            </p>
+          )}
         </div>
 
         {/* City + PIN */}
 
         <div className="grid gap-5 md:grid-cols-2">
-
           <div>
             <label className="mb-2 block text-sm font-semibold text-gray-700">
               City
@@ -301,14 +327,31 @@ export default function AddressForm() {
 
             <Input
               placeholder="Pune"
+              autoCapitalize="words"
               value={checkout.city}
-              onChange={(e) =>
+              onChange={(e) => {
+                const value = e.target.value;
+
                 setCheckout((prev) => ({
                   ...prev,
-                  city: e.target.value,
-                }))
-              }
+                  city: value,
+                }));
+
+                setErrors((prev) => ({
+                  ...prev,
+                  city:
+                    value.trim().length >= 2
+                      ? ""
+                      : "Enter a valid city.",
+                }));
+              }}
             />
+
+            {errors.city && (
+              <p className="mt-1 text-sm text-red-500">
+                {errors.city}
+              </p>
+            )}
           </div>
 
           <div>
@@ -321,19 +364,33 @@ export default function AddressForm() {
               maxLength={6}
               placeholder="411041"
               value={checkout.pincode}
-              onChange={(e) =>
+              onChange={(e) => {
+                const value = e.target.value.replace(
+                  /\D/g,
+                  ""
+                );
+
                 setCheckout((prev) => ({
                   ...prev,
-                  pincode:
-                    e.target.value.replace(
-                      /\D/g,
-                      ""
-                    ),
-                }))
-              }
-            />
-          </div>
+                  pincode: value,
+                }));
 
+                setErrors((prev) => ({
+                  ...prev,
+                  pincode:
+                    /^\d{6}$/.test(value)
+                      ? ""
+                      : "PIN code must contain 6 digits.",
+                }));
+              }}
+            />
+
+            {errors.pincode && (
+              <p className="mt-1 text-sm text-red-500">
+                {errors.pincode}
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Landmark */}
@@ -347,26 +404,23 @@ export default function AddressForm() {
           </label>
 
           <Input
-            placeholder="Near Zeal College"
+            placeholder="Apartment, Gate No., Nearby Shop etc."
             value={checkout.landmark}
             onChange={(e) =>
               setCheckout((prev) => ({
                 ...prev,
-                landmark:
-                  e.target.value,
+                landmark: e.target.value,
               }))
             }
           />
         </div>
-
       </div>
 
       {/* =========================
           GPS LOCATION
       ========================== */}
 
-      {checkout.delivery_for ===
-        "self" && (
+      {checkout.delivery_for === "self" && (
         <div
           className={`mt-6 rounded-2xl border p-4 ${
             hasLocation
@@ -374,9 +428,7 @@ export default function AddressForm() {
               : "border-orange-200 bg-orange-50"
           }`}
         >
-
           <div className="flex items-start gap-3">
-
             <div
               className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
                 hasLocation
@@ -384,17 +436,14 @@ export default function AddressForm() {
                   : "bg-orange-100"
               }`}
             >
-              {hasLocation
-                ? "📍"
-                : "🧭"}
+              {hasLocation ? "📍" : "🧭"}
             </div>
 
             <div className="flex-1">
-
               {hasLocation ? (
                 <>
                   <p className="font-semibold text-green-800">
-                    Live location captured
+                    ✓ Location captured successfully
                   </p>
 
                   <p className="mt-1 text-xs text-green-700">
@@ -414,15 +463,12 @@ export default function AddressForm() {
                   </p>
                 </>
               )}
-
             </div>
 
             {!hasLocation && (
               <button
                 type="button"
-                onClick={
-                  getCustomerLocation
-                }
+                onClick={getCustomerLocation}
                 disabled={locationLoading}
                 className="rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
               >
@@ -431,7 +477,6 @@ export default function AddressForm() {
                   : "Allow Location"}
               </button>
             )}
-
           </div>
 
           {/* Error */}
@@ -441,21 +486,15 @@ export default function AddressForm() {
               {locationError}
             </div>
           )}
-
         </div>
       )}
 
       {/* Someone Else Info */}
 
-      {checkout.delivery_for ===
-        "someone_else" && (
+      {checkout.delivery_for === "someone_else" && (
         <div className="mt-6 rounded-2xl border border-blue-200 bg-blue-50 p-4">
-
           <div className="flex gap-3">
-
-            <div className="text-xl">
-              👤
-            </div>
+            <div className="text-xl">👤</div>
 
             <div>
               <p className="font-semibold text-blue-900">
@@ -468,12 +507,9 @@ export default function AddressForm() {
                 not be used for this order.
               </p>
             </div>
-
           </div>
-
         </div>
       )}
-
     </section>
   );
 }

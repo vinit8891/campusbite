@@ -51,22 +51,30 @@ export default function PaymentMethods() {
     <div>
       <h2 className="mb-2 text-2xl font-bold">Payment Method</h2>
       <p className="mb-6 text-sm text-gray-500">
-        Choose Cash on Delivery or Online Payment (Razorpay test mode).
+        Choose how you'd like to pay for your order.
         {config?.mode === "mock" && onlineEnabled
           ? " Mock mode is active for local testing."
           : null}
       </p>
 
       {configError ? (
-        <p className="mb-4 text-sm text-amber-700">{configError}</p>
+        <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+          {configError}
+        </div>
       ) : null}
 
       <div className="space-y-4">
-        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-orange-200 bg-orange-50/60 p-4">
+        <label
+          className={`flex cursor-pointer items-start gap-4 rounded-2xl border-2 p-5 transition ${
+            isCod
+              ? "border-orange-500 bg-orange-50"
+              : "border-gray-200 bg-white hover:border-orange-300"
+          }`}
+        >
           <input
             type="radio"
             name="payment"
-            className="mt-1"
+            className="sr-only"
             checked={isCod}
             onChange={() =>
               setCheckout((prev) => ({
@@ -77,28 +85,32 @@ export default function PaymentMethods() {
             }
           />
 
+          <div className="text-3xl">💵</div>
+
           <div>
             <h3 className="font-semibold text-gray-900">
               Cash on Delivery (COD)
             </h3>
             <p className="mt-1 text-sm text-gray-600">
-              Pay the delivery partner in cash when your order arrives.
-              Payment stays pending until delivery.
+              Pay in cash directly to the delivery partner when your order is
+              delivered. Payment stays pending until delivery.
             </p>
           </div>
         </label>
 
         <label
-          className={`flex items-start gap-3 rounded-xl border p-4 ${
-            onlineEnabled
-              ? "cursor-pointer border-orange-200 bg-white hover:bg-orange-50/40"
-              : "cursor-not-allowed border-dashed border-gray-200 bg-gray-50 opacity-70"
+          className={`flex items-start gap-4 rounded-2xl border-2 p-5 transition ${
+            !onlineEnabled
+              ? "cursor-not-allowed border-dashed border-gray-200 bg-gray-50 opacity-70"
+              : isOnline
+                ? "cursor-pointer border-orange-500 bg-orange-50"
+                : "cursor-pointer border-gray-200 bg-white hover:border-orange-300"
           }`}
         >
           <input
             type="radio"
             name="payment"
-            className="mt-1"
+            className="sr-only"
             disabled={!onlineEnabled}
             checked={isOnline}
             onChange={() =>
@@ -110,6 +122,8 @@ export default function PaymentMethods() {
             }
           />
 
+          <div className="text-3xl">💳</div>
+
           <div>
             <h3
               className={`font-semibold ${
@@ -117,10 +131,15 @@ export default function PaymentMethods() {
               }`}
             >
               Online Payment (UPI / Card / Net Banking)
+              {onlineEnabled ? (
+                <span className="ml-2 rounded-full bg-green-100 px-2 py-1 text-[10px] font-bold text-green-700">
+                  Recommended
+                </span>
+              ) : null}
             </h3>
             <p className="mt-1 text-sm text-gray-600">
               {onlineEnabled
-                ? "Pay securely via Razorpay. Your order is confirmed only after payment is verified by CampusBite."
+                ? "Pay securely using UPI, Cards, Wallets, or Net Banking via Razorpay. Your order will be confirmed after successful payment verification."
                 : "Online payment is not configured yet. Set Razorpay test keys on the server."}
             </p>
             {onlineEnabled && config?.mode === "test" ? (
@@ -136,7 +155,7 @@ export default function PaymentMethods() {
         </label>
 
         {isCod ? (
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 p-4">
+          <label className="flex cursor-pointer items-start gap-3 rounded-2xl bg-gray-50 p-4">
             <input
               type="checkbox"
               className="mt-1"
@@ -157,7 +176,7 @@ export default function PaymentMethods() {
         ) : null}
 
         {isOnline && onlineEnabled ? (
-          <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-gray-200 p-4">
+          <label className="flex cursor-pointer items-start gap-3 rounded-2xl bg-gray-50 p-4">
             <input
               type="checkbox"
               className="mt-1"
