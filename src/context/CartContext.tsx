@@ -21,6 +21,8 @@ type CartItem = {
 
 type CartContextType = {
   cart: CartItem[];
+  restaurantEmail: string | null;
+  restaurantName: string | null;
   addToCart: (item: CartItem) => void;
   increaseQuantity: (id: string) => void;
   decreaseQuantity: (id: string) => void;
@@ -36,6 +38,12 @@ export function CartProvider({
   children: ReactNode;
 }) {
   const [cart, setCart] = useState<CartItem[]>([]);
+
+  const restaurantEmail =
+    cart.length > 0 ? cart[0].restaurant_email : null;
+
+  const restaurantName =
+    cart.length > 0 ? cart[0].restaurant_name ?? null : null;
 
   // Load cart
   useEffect(() => {
@@ -58,6 +66,24 @@ export function CartProvider({
 
   function addToCart(item: CartItem) {
     setCart((prev) => {
+      // First item
+      if (prev.length === 0) {
+        return [item];
+      }
+
+      // Different restaurant
+      if (prev[0].restaurant_email !== item.restaurant_email) {
+        const replace = window.confirm(
+          "Your cart contains items from another restaurant. Clear the cart and add this item?"
+        );
+
+        if (!replace) {
+          return prev;
+        }
+
+        return [item];
+      }
+
       const existing = prev.find(
         (i) => i.id === item.id
       );
@@ -123,6 +149,8 @@ export function CartProvider({
     <CartContext.Provider
       value={{
         cart,
+        restaurantEmail,
+        restaurantName,
         addToCart,
         increaseQuantity,
         decreaseQuantity,

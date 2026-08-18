@@ -394,7 +394,9 @@ export default function OrderSummary() {
           {checkout.customer_name || "Recipient"}
         </p>
         <p className="text-sm text-gray-500">
-          {checkout.phone || "Mobile number"}
+          {checkout.delivery_for === "self"
+            ? user?.phone
+            : checkout.phone}
         </p>
         <p className="mt-2 text-sm text-gray-500">
           {checkout.address

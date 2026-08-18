@@ -1,18 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { useCheckout } from "@/context/CheckoutContext";
 
 export default function AddressForm() {
   const { checkout, setCheckout } = useCheckout();
-
-  const [locationLoading, setLocationLoading] =
-    useState(false);
-
-  const [locationError, setLocationError] =
-    useState("");
 
   const [errors, setErrors] = useState({
     customer_name: "",
@@ -23,81 +17,6 @@ export default function AddressForm() {
   });
 
   // -----------------------------
-  // Get Customer GPS Location
-  // -----------------------------
-  function getCustomerLocation() {
-    if (!navigator.geolocation) {
-      setLocationError(
-        "Location is not supported by your browser."
-      );
-      return;
-    }
-
-    setLocationLoading(true);
-    setLocationError("");
-
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setCheckout((prev) => ({
-          ...prev,
-          latitude: position.coords.latitude,
-          longitude: position.coords.longitude,
-        }));
-
-        setLocationLoading(false);
-        setLocationError("");
-      },
-      (error) => {
-        console.error("Location Error:", error);
-
-        setLocationLoading(false);
-
-        if (error.code === 1) {
-          setLocationError(
-            "Location permission was denied. Please allow location access in your browser."
-          );
-        } else if (error.code === 2) {
-          setLocationError(
-            "Your location could not be detected. Please try again."
-          );
-        } else {
-          setLocationError(
-            "Unable to get your location. Please try again."
-          );
-        }
-      },
-      {
-        enableHighAccuracy: true,
-        timeout: 10000,
-        maximumAge: 0,
-      }
-    );
-  }
-
-  // -----------------------------
-  // Automatically get location
-  // only when ordering for self
-  // -----------------------------
-  useEffect(() => {
-    if (checkout.delivery_for !== "self") {
-      return;
-    }
-
-    if (
-      checkout.latitude !== null &&
-      checkout.longitude !== null
-    ) {
-      return;
-    }
-
-    getCustomerLocation();
-  }, []);
-
-  const hasLocation =
-    checkout.latitude !== null &&
-    checkout.longitude !== null;
-
-  // -----------------------------
   // Change delivery recipient
   // -----------------------------
   function changeDeliveryFor(
@@ -106,16 +25,7 @@ export default function AddressForm() {
     setCheckout((prev) => ({
       ...prev,
       delivery_for: value,
-
-      ...(value === "someone_else"
-        ? {
-            latitude: null,
-            longitude: null,
-          }
-        : {}),
     }));
-
-    setLocationError("");
   }
 
   return (
@@ -162,7 +72,7 @@ export default function AddressForm() {
                 </p>
 
                 <p className="text-xs text-gray-500">
-                  Deliver to my location
+                  Deliver to my address
                 </p>
               </div>
             </div>
@@ -416,79 +326,6 @@ export default function AddressForm() {
         </div>
       </div>
 
-      {/* =========================
-          GPS LOCATION
-      ========================== */}
-
-      {checkout.delivery_for === "self" && (
-        <div
-          className={`mt-6 rounded-2xl border p-4 ${
-            hasLocation
-              ? "border-green-200 bg-green-50"
-              : "border-orange-200 bg-orange-50"
-          }`}
-        >
-          <div className="flex items-start gap-3">
-            <div
-              className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-full ${
-                hasLocation
-                  ? "bg-green-100"
-                  : "bg-orange-100"
-              }`}
-            >
-              {hasLocation ? "📍" : "🧭"}
-            </div>
-
-            <div className="flex-1">
-              {hasLocation ? (
-                <>
-                  <p className="font-semibold text-green-800">
-                    ✓ Location captured successfully
-                  </p>
-
-                  <p className="mt-1 text-xs text-green-700">
-                    Your location will help the
-                    delivery partner find you.
-                  </p>
-                </>
-              ) : (
-                <>
-                  <p className="font-semibold text-orange-800">
-                    Location permission required
-                  </p>
-
-                  <p className="mt-1 text-xs text-orange-700">
-                    Allow location access to help
-                    the delivery partner find you.
-                  </p>
-                </>
-              )}
-            </div>
-
-            {!hasLocation && (
-              <button
-                type="button"
-                onClick={getCustomerLocation}
-                disabled={locationLoading}
-                className="rounded-lg bg-orange-500 px-3 py-2 text-xs font-semibold text-white transition hover:bg-orange-600 disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                {locationLoading
-                  ? "Getting..."
-                  : "Allow Location"}
-              </button>
-            )}
-          </div>
-
-          {/* Error */}
-
-          {locationError && (
-            <div className="mt-3 rounded-lg bg-red-50 p-3 text-xs text-red-600">
-              {locationError}
-            </div>
-          )}
-        </div>
-      )}
-
       {/* Someone Else Info */}
 
       {checkout.delivery_for === "someone_else" && (
@@ -502,9 +339,7 @@ export default function AddressForm() {
               </p>
 
               <p className="mt-1 text-sm text-blue-700">
-                Enter the recipient's address above.
-                GPS from your current location will
-                not be used for this order.
+                Enter the recipient's delivery details above.
               </p>
             </div>
           </div>
