@@ -1,0 +1,47 @@
+name: CI Quality Gate
+
+on:
+  push:
+    branches: [main, master, develop]
+  pull_request:
+    branches: [main, master, develop]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  quality-gate:
+    name: Build, Lint & Test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run unit & a11y tests
+        run: npm test
+
+      - name: Run test coverage
+        run: npm run test:coverage
+
+      - name: TypeScript typecheck
+        run: npx tsc --noEmit
+
+      - name: Build Next.js application
+        run: npm run build
+        env:
+          NEXT_PUBLIC_API_URL: "https://api.campusbite.example.com"
+          NEXT_PUBLIC_GOOGLE_MAPS_API_KEY: "AIzaSyMockKeyForCIValidation123456789"

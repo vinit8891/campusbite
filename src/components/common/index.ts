@@ -22,3 +22,8 @@ export {
   DeliveryPartnerCard,
   type DeliveryPartnerCardProps,
 } from "./DeliveryPartnerCard";
+export {
+  ErrorBoundary,
+  type ErrorBoundaryProps,
+} from "./ErrorBoundary";
+

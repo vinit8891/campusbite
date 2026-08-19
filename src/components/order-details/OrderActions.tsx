@@ -1,8 +1,13 @@
 import React from "react";
 import Link from "next/link";
+import dynamic from "next/dynamic";
 import type { Order } from "@/types/orders";
-import ReviewModal from "@/components/reviews/ReviewModal";
 import { ROUTES, orderDetailsPath, restaurantDetailsPath } from "@/lib/routes";
+
+const ReviewModal = dynamic(
+  () => import("@/components/reviews/ReviewModal"),
+  { ssr: false }
+);
 
 export type OrderActionsProps = {
   order: Order;

@@ -28,6 +28,8 @@ export default function RatingStars({
             key={star}
             type="button"
             disabled={disabled}
+            aria-label={`${star} star${star === 1 ? "" : "s"}`}
+            aria-pressed={value >= star}
             onClick={() => onChange(star)}
             onMouseEnter={() =>
               !disabled && setHover(star)

@@ -37,6 +37,7 @@ export type PlaceOrderPayload = {
 
 export type Order = {
   _id: string;
+  id?: string;
   restaurant_id?: string;
   restaurant_email: string;
   restaurant_name?: string;

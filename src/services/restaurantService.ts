@@ -69,7 +69,7 @@ export async function getRestaurantById(
       `/restaurants/${encodeURIComponent(id.trim())}?include_menu=true`,
       { cache: "no-store" }
     );
-  } catch (err) {
+  } catch {
     return null;
   }
 }

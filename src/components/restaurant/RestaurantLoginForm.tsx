@@ -78,10 +78,11 @@ export default function RestaurantLoginForm() {
 
       <form onSubmit={handleLogin} className="space-y-5">
         <div>
-          <label className="mb-2 block font-medium">Email</label>
-
+          <label htmlFor="restaurant-login-email" className="mb-2 block font-medium">Email</label>
           <Input
+            id="restaurant-login-email"
             type="email"
+            autoComplete="email"
             placeholder="owner@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -90,10 +91,11 @@ export default function RestaurantLoginForm() {
         </div>
 
         <div>
-          <label className="mb-2 block font-medium">Password</label>
-
+          <label htmlFor="restaurant-login-password" className="mb-2 block font-medium">Password</label>
           <Input
+            id="restaurant-login-password"
             type="password"
+            autoComplete="current-password"
             placeholder="********"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -101,7 +103,7 @@ export default function RestaurantLoginForm() {
           />
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
 
         <Button type="submit" className="w-full" disabled={loading}>
           {loading ? "Logging in..." : "Login"}

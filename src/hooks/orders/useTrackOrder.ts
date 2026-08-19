@@ -7,29 +7,9 @@ import { getDeliveryLocation } from "@/services/orderService";
 import { AuthHttpError } from "@/services/authFetch";
 import { usePolling } from "@/hooks/usePolling";
 import { hasValidCoordinates, isTerminalStatus } from "@/lib/orderDomain";
+import type { TrackingLocation, OrderOtp } from "@/types";
 
-export type TrackingLocation = {
-  customer_latitude: number;
-  customer_longitude: number;
-  partner_latitude?: number | null;
-  partner_longitude?: number | null;
-  restaurant_latitude: number;
-  restaurant_longitude: number;
-  status: string;
-  restaurant_name?: string;
-  restaurant_cuisine?: string;
-  delivery_partner_name?: string;
-  delivery_partner_phone?: string;
-  delivery_partner_vehicle?: string;
-  customer_name?: string;
-  customer_address?: string;
-};
-
-export type OrderOTP = {
-  otp: number | null;
-  verified: boolean;
-  status: string;
-};
+export type { TrackingLocation, OrderOtp };
 
 const STATUS_CONFIG: Record<
   string,
@@ -108,7 +88,7 @@ export function useTrackOrder() {
   const [location, setLocation] = useState<TrackingLocation | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [orderOtp, setOrderOtp] = useState<OrderOTP | null>(null);
+  const [orderOtp, setOrderOtp] = useState<OrderOtp | null>(null);
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const loadLocation = useCallback(async () => {

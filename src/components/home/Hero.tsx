@@ -50,6 +50,8 @@ export default function Hero() {
             alt="CampusBite Burger"
             width={500}
             height={500}
+            priority
+            sizes="(max-width: 768px) 100vw, 420px"
             className="h-full w-full object-contain p-6"
           />
         </div>

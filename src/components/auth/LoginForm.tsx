@@ -58,10 +58,11 @@ export default function LoginForm() {
 
       <form onSubmit={handleLogin} className="space-y-5">
         <div>
-          <label className="mb-2 block font-medium">Email</label>
-
+          <label htmlFor="login-email" className="mb-2 block font-medium">Email</label>
           <Input
+            id="login-email"
             type="email"
+            autoComplete="email"
             placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -70,10 +71,11 @@ export default function LoginForm() {
         </div>
 
         <div>
-          <label className="mb-2 block font-medium">Password</label>
-
+          <label htmlFor="login-password" className="mb-2 block font-medium">Password</label>
           <Input
+            id="login-password"
             type="password"
+            autoComplete="current-password"
             placeholder="********"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -81,7 +83,7 @@ export default function LoginForm() {
           />
         </div>
 
-        {error && <p className="text-sm text-red-600">{error}</p>}
+        {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
 
         <Button type="submit" className="w-full" disabled={loading}>
           {loading ? "Logging in..." : "Login"}
@@ -89,7 +91,7 @@ export default function LoginForm() {
       </form>
 
       <p className="mt-6 text-center text-sm text-gray-500">
-        Don't have an account?{" "}
+        Don&apos;t have an account?{" "}
         <Link
           href={ROUTES.REGISTER}
           className="font-semibold text-orange-600 hover:underline"

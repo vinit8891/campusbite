@@ -1,11 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-import MockCheckoutModal from "@/components/checkout/MockCheckoutModal";
+
+const MockCheckoutModal = dynamic(
+  () => import("@/components/checkout/MockCheckoutModal"),
+  { ssr: false }
+);
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useCheckout } from "@/context/CheckoutContext";
@@ -228,7 +233,7 @@ export default function OrderSummary() {
       };
 
       const response = await placeOrder(orderData);
-      const orderId = response.id as string;
+      const orderId = response._id || response.id || "";
 
       if (isCod) {
         clearCart();

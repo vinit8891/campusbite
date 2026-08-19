@@ -1,11 +1,12 @@
 "use client";
 
+import React, { memo } from "react";
 import Image from "next/image";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
 
-type MenuCardProps = {
+export type MenuCardProps = {
   item: {
     _id: string;
     name: string;
@@ -21,12 +22,10 @@ type MenuCardProps = {
   };
 };
 
-export default function MenuCard({ item, restaurant }: MenuCardProps) {
+function MenuCard({ item, restaurant }: MenuCardProps) {
   const { cart, addToCart, clearCart } = useCart();
-
   const available = item.available !== false;
 
-  // Find this item's current quantity in the cart
   const cartItem = cart.find(
     (cartItem) =>
       cartItem.id === item._id &&
@@ -37,7 +36,6 @@ export default function MenuCard({ item, restaurant }: MenuCardProps) {
 
   function handleAddToCart() {
     const email = restaurant.email?.trim();
-
     if (!email) {
       toast.error(
         "Restaurant identity is missing. Please reopen this restaurant and try again."
@@ -55,9 +53,7 @@ export default function MenuCard({ item, restaurant }: MenuCardProps) {
       const proceed = window.confirm(
         "Your cart has items from another restaurant. Clear the cart and add this item?"
       );
-
       if (!proceed) return;
-
       clearCart();
     }
 
@@ -77,7 +73,6 @@ export default function MenuCard({ item, restaurant }: MenuCardProps) {
 
   function handleIncrease() {
     const email = restaurant.email?.trim();
-
     if (!email) {
       toast.error("Restaurant identity is missing.");
       return;
@@ -96,13 +91,7 @@ export default function MenuCard({ item, restaurant }: MenuCardProps) {
   }
 
   function handleDecrease() {
-    // The current CartContext API only exposes addToCart/clearCart.
-    // If quantity becomes 0, the cart reducer/context should handle removal.
-    // For now, don't allow the quantity to go below 1.
-    if (quantity <= 1) {
-      return;
-    }
-
+    if (quantity <= 1) return;
     toast.info("Quantity decrease requires a remove/update function in CartContext.");
   }
 
@@ -115,6 +104,7 @@ export default function MenuCard({ item, restaurant }: MenuCardProps) {
             src={item.image}
             alt={item.name}
             fill
+            sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             className="object-cover transition-transform duration-300 group-hover:scale-105"
             unoptimized={item.image.startsWith("http")}
           />
@@ -201,3 +191,5 @@ export default function MenuCard({ item, restaurant }: MenuCardProps) {
     </div>
   );
 }
+
+export default memo(MenuCard);

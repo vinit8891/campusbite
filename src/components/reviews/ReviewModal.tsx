@@ -91,26 +91,31 @@ export default function ReviewModal({
       </button>
 
       {open && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="review-modal-title"
+          onKeyDown={(e) => {
+            if (e.key === "Escape") setOpen(false);
+          }}
+        >
           <div className="w-full max-w-lg rounded-3xl bg-white p-8 shadow-2xl">
-
-            <h2 className="mb-6 text-3xl font-bold">
+            <h2 id="review-modal-title" className="mb-6 text-3xl font-bold">
               Rate Your Experience
             </h2>
 
             <div className="mb-6">
-
               <RatingStars
                 value={rating}
                 onChange={setRating}
               />
-
             </div>
 
             <textarea
               rows={5}
               value={review}
+              aria-label="Write your review"
               onChange={(e) =>
                 setReview(
                   e.target.value
@@ -121,8 +126,8 @@ export default function ReviewModal({
             />
 
             <div className="mt-8 flex justify-end gap-3">
-
               <button
+                type="button"
                 onClick={() =>
                   setOpen(false)
                 }
@@ -132,6 +137,7 @@ export default function ReviewModal({
               </button>
 
               <button
+                type="button"
                 disabled={loading}
                 onClick={submitReview}
                 className="rounded-xl bg-orange-600 px-6 py-2 font-semibold text-white disabled:opacity-50"
@@ -140,11 +146,8 @@ export default function ReviewModal({
                   ? "Submitting..."
                   : "Submit Review"}
               </button>
-
             </div>
-
           </div>
-
         </div>
       )}
     </>

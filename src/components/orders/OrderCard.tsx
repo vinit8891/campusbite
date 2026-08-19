@@ -10,16 +10,21 @@ import { formatPaymentMethod } from "@/lib/paymentLabels";
 import { ROUTES, orderDetailsPath, trackOrderPath } from "@/lib/routes";
 
 
+import dynamic from "next/dynamic";
 import OrderNotification from "@/components/notifications/OrderNotification";
 import LiveDeliveryNotification from "@/components/notifications/LiveDeliveryNotification";
 import OrderTimeline from "@/components/orders/OrderTimeline";
-import ReviewModal from "@/components/reviews/ReviewModal";
 import {
   OrderStatusBadge,
   PaymentStatusBadge,
   CustomerOtpCard,
   DeliveryPartnerCard,
 } from "@/components/common";
+
+const ReviewModal = dynamic(
+  () => import("@/components/reviews/ReviewModal"),
+  { ssr: false }
+);
 
 export type OrderCardProps = {
   order: Order;

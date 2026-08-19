@@ -1,6 +1,15 @@
-import LiveTrackingMap from "@/components/maps/LiveTrackingMap";
+import dynamic from "next/dynamic";
 import { formatUpdatedTime } from "@/lib/formatters";
 import type { TrackingLocation } from "@/hooks/orders/useTrackOrder";
+import { MapSkeleton } from "@/components/maps/MapSkeleton";
+
+const LiveTrackingMap = dynamic(
+  () => import("@/components/maps/LiveTrackingMap"),
+  {
+    ssr: false,
+    loading: () => <MapSkeleton />,
+  }
+);
 
 type TrackOrderMapSectionProps = {
   location: TrackingLocation;

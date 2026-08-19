@@ -31,9 +31,13 @@ export function CustomerOtpCard({
     return (
       <section
         className={`rounded-3xl border border-orange-200 bg-orange-50 p-6 shadow-sm ${className}`}
+        aria-label="Delivery OTP verification"
       >
         <div className="flex items-start gap-4">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-orange-100 text-2xl">
+          <div
+            className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-orange-100 text-2xl"
+            aria-hidden="true"
+          >
             🔐
           </div>
 
@@ -46,7 +50,10 @@ export function CustomerOtpCard({
 
             <div className="mt-5">
               <div className="flex items-center gap-4">
-                <div className="rounded-2xl bg-white px-8 py-5 text-4xl font-black tracking-[10px] text-orange-600 shadow-sm">
+                <div
+                  className="rounded-2xl bg-white px-8 py-5 text-4xl font-black tracking-[10px] text-orange-600 shadow-sm"
+                  aria-label={`Delivery OTP code: ${otp}`}
+                >
                   {otp}
                 </div>
               </div>
@@ -65,10 +72,15 @@ export function CustomerOtpCard({
   return (
     <div
       className={`rounded-xl border-2 border-orange-300 bg-orange-100 p-4 text-center ${className}`}
+      role="region"
+      aria-label="Delivery OTP verification"
     >
-      <h4 className="text-sm font-bold text-orange-900">🔐 Delivery OTP</h4>
+      <h3 className="text-sm font-bold text-orange-900">🔐 Delivery OTP</h3>
 
-      <p className="mt-1 text-4xl font-extrabold tracking-[8px] text-orange-700">
+      <p
+        className="mt-1 text-4xl font-extrabold tracking-[8px] text-orange-700"
+        aria-label={`Delivery OTP code: ${otp}`}
+      >
         {otp}
       </p>
 

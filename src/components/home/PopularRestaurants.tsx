@@ -2,18 +2,18 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import React, { memo, useEffect, useState } from "react";
 import { Clock3, MapPin, Star } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { CardSkeleton, EmptyState } from "@/components/common";
 import {
   BackendRestaurant,
   getRestaurants,
 } from "@/services/restaurantService";
-
 import { ROUTES, restaurantDetailsPath } from "@/lib/routes";
 
-export function PopularRestaurants() {
+function PopularRestaurantsComponent() {
   const [restaurants, setRestaurants] = useState<BackendRestaurant[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -70,21 +70,29 @@ export function PopularRestaurants() {
       </div>
 
       {loading && (
-        <div className="rounded-2xl border bg-white p-10 text-center text-gray-500">
-          Loading restaurants...
+        <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
+          {[1, 2, 3].map((i) => (
+            <CardSkeleton key={i} className="h-80 w-full" />
+          ))}
         </div>
       )}
 
       {!loading && error && (
-        <div className="rounded-2xl border border-red-100 bg-red-50 p-10 text-center text-red-600">
-          {error}
-        </div>
+        <EmptyState
+          icon="⚠️"
+          title="Unable to load restaurants"
+          description={error}
+        />
       )}
 
       {!loading && !error && restaurants.length === 0 && (
-        <div className="rounded-2xl border bg-white p-10 text-center text-gray-500">
-          No restaurants available yet.
-        </div>
+        <EmptyState
+          icon="🍽️"
+          title="No restaurants available yet"
+          description="Check back soon as new campus eateries are joining."
+          actionHref={ROUTES.RESTAURANTS}
+          actionLabel="Explore all eateries"
+        />
       )}
 
       {!loading && !error && restaurants.length > 0 && (
@@ -101,6 +109,7 @@ export function PopularRestaurants() {
                     src={restaurant.image}
                     alt={restaurant.name}
                     fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                     className="object-cover"
                     unoptimized={restaurant.image.startsWith("http")}
                   />
@@ -148,3 +157,6 @@ export function PopularRestaurants() {
     </section>
   );
 }
+
+export const PopularRestaurants = memo(PopularRestaurantsComponent);
+export default PopularRestaurants;

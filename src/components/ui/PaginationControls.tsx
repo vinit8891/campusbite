@@ -21,8 +21,11 @@ export default function PaginationControls({
   const safePage = Math.min(Math.max(1, page || 1), safePages);
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white px-4 py-3">
-      <p className="text-sm text-gray-500">
+    <nav
+      className="flex flex-wrap items-center justify-between gap-3 rounded-xl border bg-white px-4 py-3"
+      aria-label="Pagination"
+    >
+      <p className="text-sm text-gray-500" aria-live="polite">
         Page {safePage} of {safePages}
         {typeof total === "number" ? ` · ${total} total` : ""}
       </p>
@@ -30,23 +33,29 @@ export default function PaginationControls({
         <Button
           type="button"
           variant="outline"
+          aria-label="Go to previous page"
           disabled={disabled || safePage <= 1}
           onClick={() => onPageChange(safePage - 1)}
         >
           Previous
         </Button>
-        <span className="min-w-10 text-center text-sm font-medium">
+        <span
+          className="min-w-10 text-center text-sm font-medium"
+          aria-current="page"
+          aria-label={`Current page, page ${safePage}`}
+        >
           {safePage}
         </span>
         <Button
           type="button"
           variant="outline"
+          aria-label="Go to next page"
           disabled={disabled || safePage >= safePages}
           onClick={() => onPageChange(safePage + 1)}
         >
           Next
         </Button>
       </div>
-    </div>
+    </nav>
   );
 }

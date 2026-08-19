@@ -36,7 +36,7 @@ export function Navbar() {
         </Link>
 
         {/* Desktop Navigation */}
-        <nav className="hidden items-center gap-8 md:flex">
+        <nav className="hidden items-center gap-8 md:flex" aria-label="Main navigation">
           <Link href={ROUTES.HOME}>Home</Link>
           <Link href={ROUTES.RESTAURANTS}>Restaurants</Link>
           <Link href={ROUTES.SUBSCRIPTIONS}>Mess</Link>
@@ -46,9 +46,9 @@ export function Navbar() {
 
         {/* Desktop Right */}
         <div className="hidden items-center gap-3 md:flex">
-          <Link href={ROUTES.CART}>
+          <Link href={ROUTES.CART} aria-label={`Shopping cart with ${totalItems} items`}>
             <Button variant="outline">
-              <ShoppingCart className="mr-2 h-4 w-4" />
+              <ShoppingCart className="mr-2 h-4 w-4" aria-hidden="true" />
               {totalItems}
             </Button>
           </Link>
@@ -63,7 +63,7 @@ export function Navbar() {
 
               <Link href={ROUTES.PROFILE}>
                 <Button variant="outline">
-                  <User className="mr-2 h-4 w-4" />
+                  <User className="mr-2 h-4 w-4" aria-hidden="true" />
                   {user?.name}
                 </Button>
               </Link>
@@ -100,14 +100,15 @@ export function Navbar() {
                 <Button
                   size="icon"
                   variant="outline"
+                  aria-label="Open navigation menu"
                 >
-                  <Menu className="h-5 w-5" />
+                  <Menu className="h-5 w-5" aria-hidden="true" />
                 </Button>
               }
             />
 
             <SheetContent side="right">
-              <div className="mt-8 flex flex-col gap-5">
+              <nav className="mt-8 flex flex-col gap-5" aria-label="Mobile navigation">
                 <Link href={ROUTES.HOME}>Home</Link>
                 <Link href={ROUTES.RESTAURANTS}>
                   Restaurants
@@ -182,7 +183,7 @@ export function Navbar() {
                     </Link>
                   </>
                 )}
-              </div>
+              </nav>
             </SheetContent>
           </Sheet>
         </div>

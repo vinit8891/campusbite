@@ -97,16 +97,32 @@ export function usePolling(
       return;
     }
 
-    if (runImmediately) {
+    if (runImmediately && (typeof document === "undefined" || !document.hidden)) {
       void execute();
     }
 
     const intervalId = window.setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) {
+        return;
+      }
       void execute();
     }, intervalMs);
 
+    const handleVisibilityChange = () => {
+      if (typeof document !== "undefined" && !document.hidden) {
+        void execute();
+      }
+    };
+
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+    }
+
     return () => {
       window.clearInterval(intervalId);
+      if (typeof document !== "undefined") {
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+      }
     };
   }, [enabled, intervalMs, runImmediately, execute]);
 

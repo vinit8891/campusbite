@@ -126,4 +126,21 @@ export type AdminDeliveryPartner = {
   status: string;
 };
 
+export type TrackingLocation = {
+  customer_latitude: number;
+  customer_longitude: number;
+  partner_latitude?: number | null;
+  partner_longitude?: number | null;
+  restaurant_latitude: number;
+  restaurant_longitude: number;
+  status: string;
+  restaurant_name?: string;
+  restaurant_cuisine?: string;
+  delivery_partner_name?: string;
+  delivery_partner_phone?: string;
+  delivery_partner_vehicle?: string;
+  customer_name?: string;
+  customer_address?: string;
+};
+
 

@@ -1,10 +1,6 @@
 import { AuthHttpError, authJson, publicJson } from "@/services/authFetch";
 import { asPaginated, type Paginated } from "@/lib/pagination";
 import { withQuery } from "@/lib/formatters";
-import {
-  getRestaurantById as getPublicRestaurantById,
-  getRestaurants as getPublicRestaurants,
-} from "@/services/restaurantService";
 import type {
   BackendRestaurant,
   AdminStats,

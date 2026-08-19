@@ -51,7 +51,7 @@ export default function PaymentMethods() {
     <div>
       <h2 className="mb-2 text-2xl font-bold">Payment Method</h2>
       <p className="mb-6 text-sm text-gray-500">
-        Choose how you'd like to pay for your order.
+        Choose how you&apos;d like to pay for your order.
         {config?.mode === "mock" && onlineEnabled
           ? " Mock mode is active for local testing."
           : null}

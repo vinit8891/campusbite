@@ -1,7 +1,8 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import MenuCard from "@/components/menu/MenuCard";
+import { EmptyState } from "@/components/common";
 import type { MenuItem, Restaurant } from "@/types";
 
 
@@ -103,12 +104,15 @@ export default function RestaurantMenu({
     Meals: "🍽️",
   };
 
-  const filterButtonClass = (value: FilterType) =>
-    `rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 ${
-      filter === value
-        ? "border-orange-500 bg-orange-500 text-white shadow-md"
-        : "border-gray-200 bg-white text-gray-700 hover:border-orange-400 hover:bg-orange-50 hover:text-orange-600"
-    }`;
+  const filterButtonClass = useCallback(
+    (value: FilterType) =>
+      `rounded-full border px-4 py-2 text-sm font-medium transition-all duration-200 ${
+        filter === value
+          ? "border-orange-500 bg-orange-500 text-white shadow-md"
+          : "border-gray-200 bg-white text-gray-700 hover:border-orange-400 hover:bg-orange-50 hover:text-orange-600"
+      }`,
+    [filter]
+  );
 
   return (
     <section className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
@@ -246,7 +250,7 @@ export default function RestaurantMenu({
             <p className="mb-6 text-sm text-gray-500">
               {resultCount}{" "}
               {resultCount === 1 ? "result" : "results"}
-              {search && <> for "{search}"</>}
+              {search && <> for &quot;{search}&quot;</>}
             </p>
           )}
 
@@ -306,50 +310,25 @@ export default function RestaurantMenu({
               ))}
             </div>
           ) : (
-            /* No Search / Filter Results */
-            <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center shadow-sm">
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 text-3xl">
-                🍽️
-              </div>
-
-              <h3 className="mt-5 text-xl font-bold text-gray-900">
-                No dishes found
-              </h3>
-
-              <p className="mx-auto mt-2 max-w-md text-gray-500">
-                Try another search term or change your filters.
-              </p>
-
-              <button
-                type="button"
-                onClick={() => {
-                  setSearch("");
-                  setFilter("all");
-                  setSort("default");
-                }}
-                className="mt-5 rounded-full bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white shadow-md transition hover:bg-orange-600"
-              >
-                Clear Filters
-              </button>
-            </div>
+            <EmptyState
+              icon="🍽️"
+              title="No dishes found"
+              description="Try another search term or change your filters."
+              actionLabel="Reset filters"
+              onAction={() => {
+                setSearch("");
+                setFilter("all");
+                setSort("default");
+              }}
+            />
           )}
         </>
       ) : (
-        /* Empty Menu */
-        <div className="rounded-3xl border border-dashed border-gray-300 bg-white px-6 py-16 text-center shadow-sm">
-          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-orange-100 text-3xl">
-            🍽️
-          </div>
-
-          <h3 className="mt-5 text-xl font-bold text-gray-900">
-            Menu Coming Soon
-          </h3>
-
-          <p className="mx-auto mt-2 max-w-md text-gray-500">
-            This restaurant has not added any menu items yet. Please check
-            back soon.
-          </p>
-        </div>
+        <EmptyState
+          icon="🍽️"
+          title="Menu Coming Soon"
+          description="This restaurant has not added any menu items yet. Please check back soon."
+        />
       )}
     </section>
   );

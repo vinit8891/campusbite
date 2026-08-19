@@ -2,7 +2,6 @@ import { RefreshCw, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { selectClassName } from "@/lib/formatters";
-import type { MenuQuery } from "@/types";
 
 type MenuFilterBarProps = {
   q: string;

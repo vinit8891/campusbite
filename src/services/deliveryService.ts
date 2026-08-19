@@ -1,13 +1,17 @@
 import { authJson } from "@/services/authFetch";
 import { asPaginated, type Paginated } from "@/lib/pagination";
 import { withQuery } from "@/lib/formatters";
-import type { AvailableOrdersQuery, MyDeliveriesQuery } from "@/types";
+import type {
+  AvailableOrdersQuery,
+  DeliveryOrder,
+  MyDeliveriesQuery,
+} from "@/types";
 
-export type { AvailableOrdersQuery, MyDeliveriesQuery };
+export type { AvailableOrdersQuery, MyDeliveriesQuery, DeliveryOrder };
 
 export async function getAvailableOrders(
   filters: AvailableOrdersQuery = {}
-): Promise<Paginated<any>> {
+): Promise<Paginated<DeliveryOrder>> {
   const path = withQuery("/orders/delivery/available", {
     q: filters.q,
     restaurant: filters.restaurant,
@@ -20,7 +24,7 @@ export async function getAvailableOrders(
     role: "delivery_partner",
     cache: "no-store",
   });
-  return asPaginated(data);
+  return asPaginated<DeliveryOrder>(data);
 }
 
 export async function acceptDelivery(
@@ -38,11 +42,10 @@ export async function acceptDelivery(
   });
 }
 
-
 export async function getMyDeliveries(
   phone: string,
   filters: MyDeliveriesQuery = {}
-) {
+): Promise<DeliveryOrder[]> {
   const path = withQuery(
     `/orders/delivery/my/${encodeURIComponent(phone)}`,
     {
@@ -52,7 +55,7 @@ export async function getMyDeliveries(
     }
   );
 
-  return authJson<any[]>(path, {
+  return authJson<DeliveryOrder[]>(path, {
     role: "delivery_partner",
     cache: "no-store",
   });
@@ -68,7 +71,7 @@ export type DeliveryHistoryQuery = {
 
 export async function getDeliveryHistory(
   filters: DeliveryHistoryQuery = {}
-): Promise<Paginated<any>> {
+): Promise<Paginated<DeliveryOrder>> {
   const path = withQuery("/orders/delivery/history", {
     from_date: filters.from_date,
     to_date: filters.to_date,
@@ -81,7 +84,7 @@ export async function getDeliveryHistory(
     role: "delivery_partner",
     cache: "no-store",
   });
-  return asPaginated(data);
+  return asPaginated<DeliveryOrder>(data);
 }
 
 export async function updateLiveLocation(

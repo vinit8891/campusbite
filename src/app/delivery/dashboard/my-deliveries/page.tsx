@@ -3,6 +3,8 @@
 import { useDeliveryOrders } from "@/hooks/delivery/useDeliveryOrders";
 import { MyDeliveryCard } from "@/components/delivery/MyDeliveryCard";
 import { DeliveryOtpModal } from "@/components/delivery/DeliveryOtpModal";
+import { EmptyState } from "@/components/common";
+import { Skeleton } from "@/components/ui/skeleton";
 
 export default function MyDeliveriesPage() {
   const {
@@ -21,9 +23,14 @@ export default function MyDeliveriesPage() {
 
   if (loading) {
     return (
-      <div className="p-8 text-center text-xl">
-        Loading...
-      </div>
+      <main className="p-8 space-y-6">
+        <Skeleton className="h-10 w-64 rounded-xl" />
+        <div className="space-y-4">
+          {[1, 2, 3].map((i) => (
+            <Skeleton key={i} className="h-44 w-full rounded-2xl" />
+          ))}
+        </div>
+      </main>
     );
   }
 
@@ -35,14 +42,11 @@ export default function MyDeliveriesPage() {
         </h1>
 
         {orders.length === 0 ? (
-          <div className="rounded-xl border bg-white p-10 text-center shadow">
-            <h2 className="text-2xl font-semibold">
-              No Active Deliveries
-            </h2>
-            <p className="mt-2 text-gray-500">
-              Accepted deliveries will appear here.
-            </p>
-          </div>
+          <EmptyState
+            icon="🛵"
+            title="No Active Deliveries"
+            description="Accepted deliveries will appear here."
+          />
         ) : (
           <div className="space-y-6">
             {orders.map((order) => (

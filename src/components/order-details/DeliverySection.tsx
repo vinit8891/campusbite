@@ -64,7 +64,7 @@ export function DeliverySection({
                 <a
                   href={`https://www.google.com/maps?q=${order.delivery_partner?.latitude},${order.delivery_partner?.longitude}`}
                   target="_blank"
-                  rel="noreferrer"
+                  rel="noopener noreferrer"
                   className="inline-block rounded-full bg-green-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-green-700"
                 >
                   Open in Google Maps

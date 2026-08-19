@@ -1,10 +1,14 @@
 import { authJson } from "@/services/authFetch";
-import type { OrderItemPayload, PlaceOrderPayload } from "@/types";
+import type {
+  Order,
+  OrderItemPayload,
+  PlaceOrderPayload,
+  TrackingLocation,
+} from "@/types";
 
-export type { OrderItemPayload, PlaceOrderPayload };
+export type { OrderItemPayload, PlaceOrderPayload, TrackingLocation };
 
-
-export async function placeOrder(data: PlaceOrderPayload) {
+export async function placeOrder(data: PlaceOrderPayload): Promise<Order> {
   const payload = {
     restaurant_email: data.restaurant_email,
     customer_name: data.customer_name,
@@ -26,7 +30,7 @@ export async function placeOrder(data: PlaceOrderPayload) {
     })),
   };
 
-  return authJson<any>("/orders/", {
+  return authJson<Order>("/orders/", {
     role: "customer",
     method: "POST",
     body: JSON.stringify(payload),
@@ -34,15 +38,15 @@ export async function placeOrder(data: PlaceOrderPayload) {
 }
 
 /** Preferred: load orders for the authenticated customer from JWT. */
-export async function getMyOrders() {
-  return authJson<any[]>("/orders/my", {
+export async function getMyOrders(): Promise<Order[]> {
+  return authJson<Order[]>("/orders/my", {
     role: "customer",
     cache: "no-store",
   });
 }
 
-export async function getCustomerOrders(phone: string) {
-  return authJson<any[]>(
+export async function getCustomerOrders(phone: string): Promise<Order[]> {
+  return authJson<Order[]>(
     `/orders/customer/${encodeURIComponent(phone)}`,
     {
       role: "customer",
@@ -51,15 +55,15 @@ export async function getCustomerOrders(phone: string) {
   );
 }
 
-export async function getOrderById(orderId: string) {
-  return authJson<any>(`/orders/${encodeURIComponent(orderId)}`, {
+export async function getOrderById(orderId: string): Promise<Order> {
+  return authJson<Order>(`/orders/${encodeURIComponent(orderId)}`, {
     role: "customer",
     cache: "no-store",
   });
 }
 
-export async function getDeliveryLocation(orderId: string) {
-  return authJson<any>(
+export async function getDeliveryLocation(orderId: string): Promise<TrackingLocation> {
+  return authJson<TrackingLocation>(
     `/orders/delivery/location/${encodeURIComponent(orderId)}`,
     {
       role: "customer",

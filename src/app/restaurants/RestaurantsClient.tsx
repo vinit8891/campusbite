@@ -8,6 +8,7 @@ import { useSearchParams } from "next/navigation";
 
 import PaginationControls from "@/components/ui/PaginationControls";
 import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/common";
 import {
   BackendRestaurant,
   getRestaurantsPage,
@@ -172,17 +173,15 @@ export default function RestaurantsClient() {
         )}
 
         {!loading && !error && restaurants.length === 0 && (
-          <div className="rounded-2xl border bg-white px-6 py-16 text-center shadow-sm">
-            <h2 className="text-2xl font-bold text-gray-900">
-              No restaurants found
-            </h2>
-
-            <p className="mt-2 text-gray-500">
-              {query || selectedCategory !== "All"
+          <EmptyState
+            icon="🍽️"
+            title="No restaurants found"
+            description={
+              query || selectedCategory !== "All"
                 ? "Try a different search or category."
-                : "No restaurants are available yet."}
-            </p>
-          </div>
+                : "No restaurants are available yet."
+            }
+          />
         )}
 
         {!loading && !error && restaurants.length > 0 && (
@@ -199,6 +198,7 @@ export default function RestaurantsClient() {
                         src={restaurant.image}
                         alt={restaurant.name}
                         fill
+                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
                         className="object-cover"
                         unoptimized={restaurant.image.startsWith("http")}
                       />

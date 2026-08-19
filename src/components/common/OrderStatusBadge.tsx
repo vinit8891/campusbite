@@ -98,7 +98,7 @@ export function getOrderStatusStyles(status?: string | null) {
   );
 }
 
-export function OrderStatusBadge({
+function OrderStatusBadgeComponent({
   status,
   variant = "pill",
   size = "md",
@@ -131,3 +131,6 @@ export function OrderStatusBadge({
     </span>
   );
 }
+
+export const OrderStatusBadge = React.memo(OrderStatusBadgeComponent);
+export default OrderStatusBadge;

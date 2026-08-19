@@ -106,9 +106,11 @@ export default function RegisterForm() {
 
       <form onSubmit={handleRegister} className="space-y-5">
         <div>
-          <label className="mb-2 block font-medium">Full Name</label>
+          <label htmlFor="reg-fullname" className="mb-2 block font-medium">Full Name</label>
           <Input
+            id="reg-fullname"
             type="text"
+            autoComplete="name"
             placeholder="Your name"
             value={fullName}
             onChange={(e) => setFullName(e.target.value)}
@@ -117,9 +119,11 @@ export default function RegisterForm() {
         </div>
 
         <div>
-          <label className="mb-2 block font-medium">Email</label>
+          <label htmlFor="reg-email" className="mb-2 block font-medium">Email</label>
           <Input
+            id="reg-email"
             type="email"
+            autoComplete="email"
             placeholder="you@example.com"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
@@ -128,9 +132,12 @@ export default function RegisterForm() {
         </div>
 
         <div>
-          <label className="mb-2 block font-medium">Phone</label>
+          <label htmlFor="reg-phone" className="mb-2 block font-medium">Phone</label>
           <Input
+            id="reg-phone"
             type="tel"
+            inputMode="numeric"
+            autoComplete="tel"
             placeholder="10-digit mobile number"
             value={phone}
             onChange={(e) => setPhone(e.target.value)}
@@ -140,9 +147,11 @@ export default function RegisterForm() {
         </div>
 
         <div>
-          <label className="mb-2 block font-medium">Password</label>
+          <label htmlFor="reg-password" className="mb-2 block font-medium">Password</label>
           <Input
+            id="reg-password"
             type="password"
+            autoComplete="new-password"
             placeholder="********"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
@@ -152,11 +161,13 @@ export default function RegisterForm() {
         </div>
 
         <div>
-          <label className="mb-2 block font-medium">
+          <label htmlFor="reg-confirm-password" className="mb-2 block font-medium">
             Confirm Password
           </label>
           <Input
+            id="reg-confirm-password"
             type="password"
+            autoComplete="new-password"
             placeholder="********"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
@@ -166,7 +177,7 @@ export default function RegisterForm() {
         </div>
 
         {error && (
-          <p className="text-sm text-red-600">{error}</p>
+          <p className="text-sm text-red-600" role="alert">{error}</p>
         )}
 
         <Button type="submit" className="w-full" disabled={loading}>

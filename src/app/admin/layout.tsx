@@ -18,8 +18,6 @@ import {
   clearAuthForRole,
 } from "@/lib/authTokens";
 import { ROUTES } from "@/lib/routes";
-
-import { AuthHttpError } from "@/services/authFetch";
 import { getAdminHealth } from "@/services/adminService";
 
 const NAV_LINK =

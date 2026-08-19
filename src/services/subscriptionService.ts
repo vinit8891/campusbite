@@ -1,4 +1,4 @@
-import { AuthHttpError, authFetch, authJson } from "@/services/authFetch";
+import { authJson } from "@/services/authFetch";
 import type {
   SubscriptionType,
   MealType,
@@ -38,14 +38,6 @@ export type {
   RestaurantSubscriptionRevenueSummary,
   AdminSubscriptionsQuery,
 };
-
-
-function extractError(data: unknown, fallback: string) {
-  if (!data || typeof data !== "object") return fallback;
-  const detail = (data as { detail?: unknown }).detail;
-  if (typeof detail === "string") return detail;
-  return fallback;
-}
 
 export async function createSubscription(
   input: SubscriptionCreateInput

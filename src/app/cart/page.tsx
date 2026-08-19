@@ -51,7 +51,7 @@ export default function CartPage() {
             </h1>
 
             <p className="mx-auto mt-3 max-w-md text-gray-500">
-              Looks like you haven't added anything yet.
+              Looks like you haven&apos;t added anything yet.
               Discover delicious dishes and add your favorites.
             </p>
 
@@ -107,6 +107,7 @@ export default function CartPage() {
                         src={item.image}
                         alt={item.name}
                         fill
+                        sizes="(max-width: 640px) 112px, 128px"
                         className="object-cover transition-transform duration-300 group-hover:scale-105"
                         unoptimized={item.image.startsWith("http")}
                       />

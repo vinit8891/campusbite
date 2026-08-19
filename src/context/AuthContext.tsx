@@ -3,8 +3,10 @@
 import {
   createContext,
   ReactNode,
+  useCallback,
   useContext,
   useEffect,
+  useMemo,
   useState,
 } from "react";
 
@@ -16,7 +18,6 @@ import {
 import type { User } from "@/types";
 
 export type { User };
-
 
 interface AuthContextType {
   user: User | null;
@@ -60,7 +61,6 @@ export function AuthProvider({
   children: ReactNode;
 }) {
   const [user, setUser] = useState<User | null>(null);
-
   const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
@@ -88,7 +88,7 @@ export function AuthProvider({
     );
   }, []);
 
-  function login(userData: User, jwtToken: string) {
+  const login = useCallback((userData: User, jwtToken: string) => {
     const hydrated = userFromToken(jwtToken, userData);
 
     setUser(hydrated);
@@ -103,24 +103,27 @@ export function AuthProvider({
       AUTH_STORAGE_KEYS.customerToken,
       jwtToken
     );
-  }
+  }, []);
 
-  function logout() {
+  const logout = useCallback(() => {
     setUser(null);
     setToken(null);
     clearAuthForRole("customer");
-  }
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      user,
+      token,
+      login,
+      logout,
+      isLoggedIn: !!token,
+    }),
+    [user, token, login, logout]
+  );
 
   return (
-    <AuthContext.Provider
-      value={{
-        user,
-        token,
-        login,
-        logout,
-        isLoggedIn: !!token,
-      }}
-    >
+    <AuthContext.Provider value={value}>
       {children}
     </AuthContext.Provider>
   );

@@ -12,7 +12,7 @@ type Props = {
   
         <div className="rounded-2xl bg-white p-6 shadow">
           <h2 className="font-semibold">
-            Today's Deliveries
+            Today&apos;s Deliveries
           </h2>
   
           <p className="mt-4 text-5xl font-bold text-orange-600">
@@ -22,7 +22,7 @@ type Props = {
   
         <div className="rounded-2xl bg-white p-6 shadow">
           <h2 className="font-semibold">
-            Today's Earnings
+            Today&apos;s Earnings
           </h2>
   
           <p className="mt-4 text-5xl font-bold text-green-600">

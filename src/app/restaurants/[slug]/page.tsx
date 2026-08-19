@@ -58,6 +58,7 @@ export default async function RestaurantPage({ params }: Props) {
               alt={restaurant.name}
               fill
               priority
+              sizes="100vw"
               className="object-cover"
               unoptimized={restaurant.image.startsWith("http")}
             />

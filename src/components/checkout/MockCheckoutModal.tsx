@@ -18,12 +18,20 @@ export default function MockCheckoutModal({
   onDismiss,
 }: MockCheckoutModalProps) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="mock-checkout-title"
+      onKeyDown={(e) => {
+        if (e.key === "Escape" && !busy) onDismiss();
+      }}
+    >
       <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
         <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
           Razorpay Mock Checkout
         </p>
-        <h2 className="mt-2 text-xl font-bold text-gray-900">
+        <h2 id="mock-checkout-title" className="mt-2 text-xl font-bold text-gray-900">
           Simulate Test Payment
         </h2>
         <p className="mt-2 text-sm text-gray-600">

@@ -73,8 +73,7 @@ export default function LiveTrackingMap({
       lng: partnerLng ?? customerLng ?? 0,
     });
 
-  const [heading, setHeading] =
-    useState(0);
+  const [_heading, setHeading] = useState(0);
 
   // -----------------------------
   // Marker Icons

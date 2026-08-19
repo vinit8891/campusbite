@@ -27,7 +27,10 @@ export function EmptyState({
       className={`rounded-2xl border border-gray-100 bg-white p-10 text-center shadow-sm ${className}`}
     >
       {icon && (
-        <div className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-orange-50 text-4xl">
+        <div
+          className="mx-auto flex h-20 w-20 items-center justify-center rounded-full bg-orange-50 text-4xl"
+          aria-hidden="true"
+        >
           {icon}
         </div>
       )}
@@ -53,6 +56,7 @@ export function EmptyState({
         </Link>
       ) : onAction && actionLabel ? (
         <button
+          type="button"
           onClick={onAction}
           className="mt-5 rounded-xl border border-gray-200 px-5 py-2 text-sm font-semibold text-gray-700 transition hover:border-orange-300 hover:text-orange-600"
         >

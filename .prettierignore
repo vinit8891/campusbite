@@ -1,0 +1,11 @@
+.next
+out
+build
+dist
+coverage
+node_modules
+backend
+*.txt
+*.log
+package-lock.json
+tsconfig.tsbuildinfo

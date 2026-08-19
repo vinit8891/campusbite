@@ -2,7 +2,6 @@ import { useMemo } from "react";
 import type { Order } from "@/types/orders";
 import {
   ORDER_STATUS_FLOW,
-  ORDER_STATUSES as ALL_ORDER_STATUSES,
   RESTAURANT_PICKUP_STATUSES,
   isActiveStatus,
   isPickupStatus,

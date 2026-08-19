@@ -41,6 +41,8 @@ export default function LiveDeliveryNotification({
 
   return (
     <div
+      role="status"
+      aria-live="polite"
       className={`mb-5 rounded-xl p-4 font-semibold ${color}`}
     >
       {message}

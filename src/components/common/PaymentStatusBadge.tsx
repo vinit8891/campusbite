@@ -38,7 +38,7 @@ export function getPaymentStatusClass(
   return "bg-gray-100 text-gray-700";
 }
 
-export function PaymentStatusBadge({
+function PaymentStatusBadgeComponent({
   status,
   method,
   className = "",
@@ -61,3 +61,6 @@ export function PaymentStatusBadge({
     </span>
   );
 }
+
+export const PaymentStatusBadge = React.memo(PaymentStatusBadgeComponent);
+export default PaymentStatusBadge;

@@ -67,32 +67,49 @@ export default function DeliveryLoginForm() {
         Delivery Partner Login
       </h1>
 
-      <input
-        className="mb-5 w-full rounded-lg border p-3"
-        placeholder="Email"
-        value={email}
-        onChange={(e) =>
-          setEmail(e.target.value)
-        }
-      />
+      <div className="mb-5">
+        <label htmlFor="delivery-login-email" className="mb-2 block text-sm font-medium text-gray-700">
+          Email
+        </label>
+        <input
+          id="delivery-login-email"
+          type="email"
+          autoComplete="email"
+          required
+          className="w-full rounded-lg border p-3"
+          placeholder="Email"
+          value={email}
+          onChange={(e) =>
+            setEmail(e.target.value)
+          }
+        />
+      </div>
 
-      <input
-        type="password"
-        className="mb-6 w-full rounded-lg border p-3"
-        placeholder="Password"
-        value={password}
-        onChange={(e) =>
-          setPassword(e.target.value)
-        }
-      />
+      <div className="mb-6">
+        <label htmlFor="delivery-login-password" className="mb-2 block text-sm font-medium text-gray-700">
+          Password
+        </label>
+        <input
+          id="delivery-login-password"
+          type="password"
+          autoComplete="current-password"
+          required
+          className="w-full rounded-lg border p-3"
+          placeholder="Password"
+          value={password}
+          onChange={(e) =>
+            setPassword(e.target.value)
+          }
+        />
+      </div>
 
       {error && (
-        <p className="mb-4 text-sm text-red-600">
+        <p className="mb-4 text-sm text-red-600" role="alert">
           {error}
         </p>
       )}
 
-      <button className="w-full rounded-xl bg-orange-600 py-3 font-semibold text-white">
+      <button type="submit" className="w-full rounded-xl bg-orange-600 py-3 font-semibold text-white">
         Login
       </button>
     </form>
