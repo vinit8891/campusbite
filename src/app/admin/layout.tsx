@@ -13,12 +13,14 @@ import {
   CalendarDays,
 } from "lucide-react";
 
-import { ROUTES } from "@/constants/routes";
 import {
   AUTH_STORAGE_KEYS,
   clearAuthForRole,
 } from "@/lib/authTokens";
-import { authFetch } from "@/services/authFetch";
+import { ROUTES } from "@/lib/routes";
+
+import { AuthHttpError } from "@/services/authFetch";
+import { getAdminHealth } from "@/services/adminService";
 
 const NAV_LINK =
   "flex items-center gap-3 rounded-xl p-3 transition hover:bg-slate-800";
@@ -53,14 +55,7 @@ export default function AdminLayout({
       }
 
       try {
-        const res = await authFetch("/admin/health", {
-          role: "admin",
-          redirectOnAuthError: false,
-        });
-
-        if (!res.ok) {
-          throw new Error("Admin health check failed");
-        }
+        await getAdminHealth();
 
         if (!cancelled) {
           setReady(true);
@@ -69,6 +64,7 @@ export default function AdminLayout({
         clearAuthForRole("admin");
         router.replace(ROUTES.ADMIN_LOGIN);
       }
+
     }
 
     void verifyAdminSession();

@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { Search, MapPin } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
+import { ROUTES } from "@/lib/routes";
 
 export function SearchBar() {
   const router = useRouter();
@@ -14,11 +15,12 @@ export function SearchBar() {
     e?.preventDefault();
     const q = query.trim();
     if (q) {
-      router.push(`/restaurants?q=${encodeURIComponent(q)}`);
+      router.push(`${ROUTES.RESTAURANTS}?q=${encodeURIComponent(q)}`);
       return;
     }
-    router.push("/restaurants");
+    router.push(ROUTES.RESTAURANTS);
   }
+
 
   return (
     <section className="relative z-20 mx-auto -mt-12 max-w-6xl px-6">

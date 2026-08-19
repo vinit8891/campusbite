@@ -1,7 +1,8 @@
-/** Shared date formatting for admin tables. */
-export function formatAdminDate(value?: string | null) {
-  if (!value) return "—";
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return value;
-  return date.toLocaleString();
+import { formatDateTime } from "@/lib/formatters";
+
+/**
+ * Shared date formatting for admin tables (delegates to centralized formatDateTime).
+ */
+export function formatAdminDate(value?: string | null): string {
+  return formatDateTime(value, "—");
 }

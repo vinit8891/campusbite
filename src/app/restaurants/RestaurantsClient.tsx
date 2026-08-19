@@ -12,6 +12,8 @@ import {
   BackendRestaurant,
   getRestaurantsPage,
 } from "@/services/restaurantService";
+import { ROUTES, restaurantDetailsPath } from "@/lib/routes";
+
 
 const categories = [
   "All",
@@ -109,11 +111,12 @@ export default function RestaurantsClient() {
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
         <div className="mb-8">
           <Link
-            href="/"
+            href={ROUTES.HOME}
             className="text-sm font-medium text-gray-500 hover:text-orange-600"
           >
             ← Back to Home
           </Link>
+
 
           <h1 className="mt-4 text-3xl font-extrabold text-gray-900 sm:text-4xl">
             Restaurants
@@ -234,11 +237,12 @@ export default function RestaurantsClient() {
                       </div>
                     </div>
 
-                    <Link href={`/restaurants/${restaurant.slug}`}>
+                    <Link href={restaurantDetailsPath(restaurant.slug)}>
                       <Button className="w-full">
                         View Menu
                       </Button>
                     </Link>
+
                   </div>
                 </div>
               ))}

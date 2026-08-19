@@ -5,6 +5,7 @@ import { ShoppingCart } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
+import { ROUTES } from "@/lib/routes";
 
 export default function FloatingCart() {
   const { cart } = useCart();
@@ -39,7 +40,7 @@ export default function FloatingCart() {
         </p>
 
         {/* View Cart */}
-        <Link href="/cart" className="shrink-0">
+        <Link href={ROUTES.CART} className="shrink-0">
           <Button
             variant="ghost"
             className="font-semibold text-white transition-all duration-200 hover:translate-x-1 hover:bg-transparent hover:text-white"
@@ -50,4 +51,4 @@ export default function FloatingCart() {
       </div>
     </div>
   );
-}
+}

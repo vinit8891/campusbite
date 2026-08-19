@@ -8,45 +8,23 @@ import { Navbar } from "@/components/layout/navbar";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/context/AuthContext";
-import { ROUTES } from "@/constants/routes";
+import { ROUTES } from "@/lib/routes";
 import { AuthHttpError } from "@/services/authFetch";
+
 import {
   getSubscriptionCalendar,
   type SubscriptionCalendar,
 } from "@/services/subscriptionService";
+import {
+  monthKey,
+  formatMonthTitle,
+  buildCalendarDays,
+} from "@/lib/subscriptionDomain";
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 
-function monthKey(date: Date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-}
-
-function formatMonthTitle(month: string) {
-  const [year, monthNum] = month.split("-").map(Number);
-  return new Date(year, monthNum - 1, 1).toLocaleDateString(undefined, {
-    month: "long",
-    year: "numeric",
-  });
-}
-
-function buildCalendarDays(month: string) {
-  const [year, monthNum] = month.split("-").map(Number);
-  const firstDay = new Date(year, monthNum - 1, 1);
-  const daysInMonth = new Date(year, monthNum, 0).getDate();
-  const startOffset = (firstDay.getDay() + 6) % 7;
-
-  const cells: Array<{ date: string | null; day: number | null }> = [];
-  for (let i = 0; i < startOffset; i += 1) {
-    cells.push({ date: null, day: null });
-  }
-  for (let day = 1; day <= daysInMonth; day += 1) {
-    const iso = `${year}-${String(monthNum).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
-    cells.push({ date: iso, day });
-  }
-  return cells;
-}
-
 export default function SubscriptionCalendarPage() {
+
   const { isLoggedIn } = useAuth();
   const [month, setMonth] = useState(monthKey(new Date()));
   const [calendar, setCalendar] = useState<SubscriptionCalendar | null>(null);

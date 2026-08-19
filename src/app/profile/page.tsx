@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
+import { ROUTES } from "@/lib/routes";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -15,7 +16,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (!isLoggedIn) {
-      router.replace("/login");
+      router.replace(ROUTES.LOGIN);
       return;
     }
 
@@ -23,6 +24,7 @@ export default function ProfilePage() {
       setLoading(false);
     }
   }, [isLoggedIn, user, router]);
+
 
   if (loading) {
     return (
@@ -192,7 +194,7 @@ export default function ProfilePage() {
               <Button
                 variant="outline"
                 className="w-full justify-start"
-                onClick={() => router.push("/my-orders")}
+                onClick={() => router.push(ROUTES.MY_ORDERS)}
               >
                 📦 My Orders
               </Button>
@@ -228,7 +230,7 @@ export default function ProfilePage() {
               <Button
                 variant="outline"
                 className="w-full justify-start"
-                onClick={() => router.push("/restaurants")}
+                onClick={() => router.push(ROUTES.RESTAURANTS)}
               >
                 🍽 Browse Restaurants
               </Button>
@@ -259,17 +261,14 @@ export default function ProfilePage() {
               className="border-red-300 bg-white text-red-600 hover:bg-red-100"
               onClick={() => {
                 logout();
-                router.replace("/");
+                router.replace(ROUTES.HOME);
               }}
             >
               Logout
             </Button>
-
           </div>
-
         </section>
-
       </div>
     </main>
   );
-}
+}

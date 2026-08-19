@@ -14,7 +14,8 @@ import { Button } from "@/components/ui/button";
 import {
   ROUTES,
   adminEditRestaurantPath,
-} from "@/constants/routes";
+} from "@/lib/routes";
+
 import { AuthHttpError } from "@/services/adminService";
 import {
   getRestaurantsPage,

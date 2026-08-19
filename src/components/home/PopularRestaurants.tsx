@@ -11,6 +11,8 @@ import {
   getRestaurants,
 } from "@/services/restaurantService";
 
+import { ROUTES, restaurantDetailsPath } from "@/lib/routes";
+
 export function PopularRestaurants() {
   const [restaurants, setRestaurants] = useState<BackendRestaurant[]>([]);
   const [loading, setLoading] = useState(true);
@@ -21,30 +23,24 @@ export function PopularRestaurants() {
 
     async function load() {
       try {
-        const data = await getRestaurants();
-
+        setLoading(true);
+        const data = await getRestaurants({ limit: 6 });
         if (!cancelled) {
-          // Show a few top-rated live restaurants on the home page.
-          const sorted = [...data].sort(
-            (a, b) => Number(b.rating || 0) - Number(a.rating || 0)
-          );
-
-          setRestaurants(sorted.slice(0, 6));
+          setRestaurants(data);
+          setError("");
         }
       } catch (err) {
-        console.error(err);
-
         if (!cancelled) {
-          setError("Unable to load popular restaurants.");
+          setError(
+            err instanceof Error ? err.message : "Failed to load restaurants"
+          );
         }
       } finally {
-        if (!cancelled) {
-          setLoading(false);
-        }
+        if (!cancelled) setLoading(false);
       }
     }
 
-    void load();
+    load();
 
     return () => {
       cancelled = true;
@@ -56,7 +52,7 @@ export function PopularRestaurants() {
       id="popular-restaurants"
       className="mx-auto max-w-7xl px-6 py-20"
     >
-      <div className="mb-10 flex flex-wrap items-end justify-between gap-4">
+      <div className="mb-12 flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>
           <h2 className="text-3xl font-bold">Popular Restaurants</h2>
 
@@ -66,7 +62,7 @@ export function PopularRestaurants() {
         </div>
 
         <Link
-          href="/restaurants"
+          href={ROUTES.RESTAURANTS}
           className="text-sm font-semibold text-orange-600 hover:underline"
         >
           View all →
@@ -96,7 +92,7 @@ export function PopularRestaurants() {
           {restaurants.map((restaurant) => (
             <Link
               key={restaurant._id}
-              href={`/restaurants/${restaurant.slug}`}
+              href={restaurantDetailsPath(restaurant.slug)}
               className="group block overflow-hidden rounded-3xl border bg-white shadow-md transition duration-300 hover:-translate-y-2 hover:shadow-2xl"
             >
               <div className="relative h-56 bg-gray-100">

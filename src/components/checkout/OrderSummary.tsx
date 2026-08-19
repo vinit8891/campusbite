@@ -11,6 +11,8 @@ import { useCart } from "@/context/CartContext";
 import { useCheckout } from "@/context/CheckoutContext";
 import { placeOrder } from "@/services/orderService";
 import { AuthHttpError } from "@/services/authFetch";
+import { ROUTES } from "@/lib/routes";
+
 import {
   COD_PAYMENT_METHOD,
   ONLINE_PAYMENT_METHOD,
@@ -72,8 +74,9 @@ export default function OrderSummary() {
       description: "We'll notify you as your order progresses.",
     });
     clearCart();
-    router.push(`/order-success?orderId=${orderId}`);
+    router.push(`${ROUTES.ORDER_SUCCESS}?orderId=${orderId}`);
   }
+
 
   async function handleVerifiedOnline(orderId: string) {
     setMockOpen(false);
@@ -128,9 +131,10 @@ export default function OrderSummary() {
 
     if (!isLoggedIn) {
       alert("Please log in to place an order.");
-      router.push("/login");
+      router.push(ROUTES.LOGIN);
       return;
     }
+
 
     if (!user?.phone) {
       alert(
@@ -228,9 +232,10 @@ export default function OrderSummary() {
 
       if (isCod) {
         clearCart();
-        router.push(`/order-success?orderId=${orderId}`);
+        router.push(`${ROUTES.ORDER_SUCCESS}?orderId=${orderId}`);
         return;
       }
+
 
       const config = await getRazorpayConfig();
       if (!config.enabled || !config.key_id) {

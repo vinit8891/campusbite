@@ -2,6 +2,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Star } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { ROUTES } from "@/lib/routes";
 
 const foods = [
   {
@@ -80,7 +81,7 @@ export function StudentSpecials() {
                 </span>
 
                 <Link
-                  href={`/restaurants?category=${encodeURIComponent(
+                  href={`${ROUTES.RESTAURANTS}?category=${encodeURIComponent(
                     food.category
                   )}`}
                 >
@@ -88,6 +89,7 @@ export function StudentSpecials() {
                     Order Now
                   </Button>
                 </Link>
+
               </div>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ROUTES } from "@/lib/routes";
 import {
   Pizza,
   Beef,
@@ -31,9 +32,10 @@ export function Categories() {
           return (
             <Link
               key={category.name}
-              href={`/restaurants?category=${category.slug}`}
+              href={`${ROUTES.RESTAURANTS}?category=${encodeURIComponent(category.slug)}`}
               className="block"
             >
+
               <div className="cursor-pointer rounded-2xl border bg-white p-6 text-center shadow-sm transition hover:-translate-y-2 hover:shadow-xl">
                 <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-orange-100">
                   <Icon className="h-8 w-8 text-orange-500" />

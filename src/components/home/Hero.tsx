@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { ROUTES } from "@/lib/routes";
 
 export default function Hero() {
   return (
@@ -8,9 +9,7 @@ export default function Hero() {
       <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-12 px-6 py-24 lg:flex-row">
 
         {/* Left */}
-
         <div className="max-w-xl">
-
           <span className="rounded-full bg-orange-100 px-4 py-2 text-sm font-semibold text-orange-600">
             🍽 Student Food Network
           </span>
@@ -27,8 +26,7 @@ export default function Hero() {
           </p>
 
           <div className="mt-8 flex flex-wrap gap-4">
-
-            <Link href="/restaurants">
+            <Link href={ROUTES.RESTAURANTS}>
               <Button size="lg">
                 Order Now
               </Button>
@@ -42,15 +40,11 @@ export default function Hero() {
                 Explore Menu
               </Button>
             </Link>
-
           </div>
-
         </div>
 
         {/* Right */}
-
         <div className="flex h-[420px] w-[420px] items-center justify-center rounded-full bg-orange-100 shadow-2xl">
-
           <Image
             src="/images/hero/burger.png"
             alt="CampusBite Burger"
@@ -58,7 +52,6 @@ export default function Hero() {
             height={500}
             className="h-full w-full object-contain p-6"
           />
-
         </div>
 
       </div>

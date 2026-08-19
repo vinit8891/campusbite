@@ -8,16 +8,8 @@ import {
   ReactNode,
 } from "react";
 
-type CartItem = {
-  id: string;
-  restaurant_id?: string;
-  restaurant_email: string;
-  restaurant_name?: string;
-  name: string;
-  price: number;
-  image: string;
-  quantity: number;
-};
+import type { CartItem } from "@/types";
+
 
 type CartContextType = {
   cart: CartItem[];

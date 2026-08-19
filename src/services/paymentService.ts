@@ -1,42 +1,16 @@
-import { AuthHttpError, authFetch, authJson } from "@/services/authFetch";
+import { authJson } from "@/services/authFetch";
+import type {
+  RazorpayPublicConfig,
+  CreatePaymentResponse,
+  VerifyPaymentResponse,
+} from "@/types";
 
-export type RazorpayPublicConfig = {
-  provider: string;
-  enabled: boolean;
-  key_id: string | null;
-  mode: "mock" | "test" | "disabled" | string;
-  mock_checkout_available?: boolean;
-  webhook_configured?: boolean;
+export type {
+  RazorpayPublicConfig,
+  CreatePaymentResponse,
+  VerifyPaymentResponse,
 };
 
-export type CreatePaymentResponse = {
-  order_id: string;
-  payment_id: string;
-  razorpay_order_id: string;
-  amount: number;
-  amount_paise: number;
-  currency: string;
-  key_id: string | null;
-  payment_status: string;
-  idempotent?: boolean;
-};
-
-export type VerifyPaymentResponse = {
-  success: boolean;
-  order_id: string;
-  payment_status: string;
-  razorpay_payment_id?: string;
-  idempotent?: boolean;
-  order_status?: string;
-};
-
-async function readError(res: Response, fallback: string) {
-  const body = await res.json().catch(() => null);
-  throw new AuthHttpError(
-    res.status,
-    typeof body?.detail === "string" ? body.detail : fallback
-  );
-}
 
 export async function getRazorpayConfig() {
   return authJson<RazorpayPublicConfig>("/payments/razorpay/config", {
@@ -46,7 +20,7 @@ export async function getRazorpayConfig() {
 }
 
 export async function createRazorpayPayment(orderId: string, amount?: number) {
-  const res = await authFetch("/payments/razorpay/create", {
+  return authJson<CreatePaymentResponse>("/payments/razorpay/create", {
     role: "customer",
     method: "POST",
     body: JSON.stringify({
@@ -54,12 +28,6 @@ export async function createRazorpayPayment(orderId: string, amount?: number) {
       amount: amount ?? null,
     }),
   });
-
-  if (!res.ok) {
-    await readError(res, "Failed to create payment");
-  }
-
-  return (await res.json()) as CreatePaymentResponse;
 }
 
 export async function verifyRazorpayPayment(payload: {
@@ -68,21 +36,28 @@ export async function verifyRazorpayPayment(payload: {
   razorpay_payment_id: string;
   razorpay_signature: string;
 }) {
-  const res = await authFetch("/payments/razorpay/verify", {
+  return authJson<VerifyPaymentResponse>("/payments/razorpay/verify", {
     role: "customer",
     method: "POST",
     body: JSON.stringify(payload),
   });
-
-  if (!res.ok) {
-    await readError(res, "Payment verification failed");
-  }
-
-  return (await res.json()) as VerifyPaymentResponse;
 }
 
+export type MockCompletePaymentResponse = {
+  payment_status: string;
+  order_status?: string;
+  message?: string;
+  success?: boolean;
+};
+
+export type CancelPaymentResponse = {
+  message?: string;
+  order_id?: string;
+  payment_status?: string;
+};
+
 export async function cancelRazorpayPayment(orderId: string, reason?: string) {
-  const res = await authFetch("/payments/razorpay/cancel", {
+  return authJson<CancelPaymentResponse>("/payments/razorpay/cancel", {
     role: "customer",
     method: "POST",
     body: JSON.stringify({
@@ -90,12 +65,6 @@ export async function cancelRazorpayPayment(orderId: string, reason?: string) {
       reason: reason || "user_cancelled",
     }),
   });
-
-  if (!res.ok) {
-    await readError(res, "Failed to cancel payment");
-  }
-
-  return res.json();
 }
 
 /** Mock-mode only — server simulates Checkout and verifies signature itself. */
@@ -103,7 +72,7 @@ export async function mockCompleteRazorpayCheckout(
   orderId: string,
   outcome: "success" | "failure" | "dismiss"
 ) {
-  const res = await authFetch("/payments/razorpay/mock-complete", {
+  return authJson<MockCompletePaymentResponse>("/payments/razorpay/mock-complete", {
     role: "customer",
     method: "POST",
     body: JSON.stringify({
@@ -111,10 +80,5 @@ export async function mockCompleteRazorpayCheckout(
       outcome,
     }),
   });
-
-  if (!res.ok) {
-    await readError(res, "Mock checkout failed");
-  }
-
-  return res.json();
 }
+

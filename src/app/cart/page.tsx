@@ -6,6 +6,7 @@ import { ArrowLeft, Minus, Plus, Trash2 } from "lucide-react";
 
 import { useCart } from "@/context/CartContext";
 import { Button } from "@/components/ui/button";
+import { ROUTES } from "@/lib/routes";
 
 export default function CartPage() {
   const router = useRouter();
@@ -56,10 +57,11 @@ export default function CartPage() {
 
             <Button
               className="mt-8 rounded-full bg-orange-500 px-8 py-6 text-base font-semibold shadow-md transition-all duration-200 hover:scale-105 hover:bg-orange-600"
-              onClick={() => router.push("/restaurants")}
+              onClick={() => router.push(ROUTES.RESTAURANTS)}
             >
               Browse Restaurants
             </Button>
+
           </div>
         </div>
       </main>
@@ -221,10 +223,11 @@ export default function CartPage() {
               <Button
                 disabled={cart.length === 0}
                 className="mt-6 w-full rounded-2xl bg-orange-500 py-6 text-base font-bold shadow-md transition-all duration-200 hover:scale-[1.02] hover:bg-orange-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={() => router.push("/checkout")}
+                onClick={() => router.push(ROUTES.CHECKOUT)}
               >
                 Proceed to Checkout →
               </Button>
+
 
               <p className="mt-4 text-center text-xs text-gray-400">
                 Secure checkout • COD & Razorpay Test Mode

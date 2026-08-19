@@ -2,7 +2,10 @@ import RestaurantCheckoutSetup from "@/components/restaurant/RestaurantCheckoutS
 import RestaurantMenu from "@/components/restaurant/RestaurantMenu";
 import FloatingCart from "@/components/cart/FloatingCart";
 import Image from "next/image";
+import Link from "next/link";
 import { notFound } from "next/navigation";
+import { ROUTES } from "@/lib/routes";
+
 
 import { getRestaurantBySlug } from "@/services/restaurantService";
 
@@ -69,13 +72,14 @@ export default async function RestaurantPage({ params }: Props) {
 
           {/* Back Button */}
           <div className="absolute left-6 top-6 z-20">
-            <a
-              href="/restaurants"
+            <Link
+              href={ROUTES.RESTAURANTS}
               className="rounded-full bg-white/90 px-4 py-2 text-sm font-medium text-gray-800 shadow transition hover:bg-white"
             >
               ← Back
-            </a>
+            </Link>
           </div>
+
 
           {/* Restaurant Info */}
           <div className="absolute bottom-0 left-0 right-0 z-10">

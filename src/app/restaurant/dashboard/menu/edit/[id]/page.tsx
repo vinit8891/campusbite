@@ -8,7 +8,9 @@ import MenuItemForm, {
   type MenuFormValues,
 } from "@/components/restaurant/MenuItemForm";
 import { Skeleton } from "@/components/ui/skeleton";
-import { publicFetch } from "@/services/authFetch";
+import { getMenuItemById } from "@/services/menuService";
+import { ROUTES } from "@/lib/routes";
+
 
 export default function EditFoodPage() {
   const router = useRouter();
@@ -26,15 +28,7 @@ export default function EditFoodPage() {
 
     async function fetchFood() {
       try {
-        const res = await publicFetch(`/menu/item/${id}`, {
-          cache: "no-store",
-        });
-
-        if (!res.ok) {
-          throw new Error("Menu item not found.");
-        }
-
-        const data = await res.json();
+        const data = await getMenuItemById(id);
         if (cancelled) return;
 
         setInitialValues({
@@ -58,6 +52,7 @@ export default function EditFoodPage() {
     }
 
     void fetchFood();
+
     return () => {
       cancelled = true;
     };
@@ -80,7 +75,7 @@ export default function EditFoodPage() {
         </p>
         <button
           type="button"
-          onClick={() => router.push("/restaurant/dashboard/menu")}
+          onClick={() => router.push(ROUTES.RESTAURANT_MENU)}
           className="text-sm font-medium text-orange-600 hover:underline"
         >
           Back to Menu
@@ -93,11 +88,12 @@ export default function EditFoodPage() {
     <main className="mx-auto max-w-3xl space-y-6">
       <div>
         <Link
-          href="/restaurant/dashboard/menu"
+          href={ROUTES.RESTAURANT_MENU}
           className="text-sm text-gray-500 hover:text-gray-800"
         >
           ← Back to Menu
         </Link>
+
         <h1 className="mt-3 text-4xl font-bold">Edit Food</h1>
         <p className="mt-2 text-gray-500">
           Update details for {initialValues.name}

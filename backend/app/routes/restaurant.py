@@ -80,6 +80,26 @@ async def fetch_restaurants(
     return result
 
 
+@router.get("/{restaurant_id}")
+async def fetch_restaurant_by_id(
+    restaurant_id: str,
+    include_menu: Annotated[bool, Query()] = True,
+):
+    logger.info("restaurants.get_by_id request received")
+    restaurant = await get_restaurant_by_id(
+        restaurant_id, include_menu=include_menu
+    )
+
+    if not restaurant:
+        raise HTTPException(
+            status_code=404,
+            detail="Restaurant not found",
+        )
+
+    logger.info("restaurants.get_by_id completed successfully")
+    return restaurant
+
+
 @router.put("/{restaurant_id}")
 async def edit_restaurant(
     restaurant_id: str,

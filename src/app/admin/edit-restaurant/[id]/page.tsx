@@ -2,7 +2,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 
 import RestaurantForm from "@/components/admin/RestaurantForm";
-import { ROUTES } from "@/constants/routes";
+import { ROUTES } from "@/lib/routes";
+
 import { getRestaurantById } from "@/services/adminService";
 
 type Props = {

@@ -176,3 +176,21 @@ export async function authJson<T = unknown>(
 
   return data as T;
 }
+
+export async function publicJson<T = unknown>(
+  path: string,
+  options: RequestInit = {}
+): Promise<T> {
+  const res = await publicFetch(path, options);
+  const data = await parseBody(res);
+
+  if (!res.ok) {
+    throw new AuthHttpError(
+      res.status,
+      extractErrorMessage(data, `Request failed (${res.status})`)
+    );
+  }
+
+  return data as T;
+}
+

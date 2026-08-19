@@ -7,7 +7,8 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { publicFetch } from "@/services/authFetch";
+import { ROUTES } from "@/lib/routes";
+import { loginCustomer } from "@/services/authService";
 
 export default function LoginForm() {
   const router = useRouter();
@@ -15,37 +16,17 @@ export default function LoginForm() {
 
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-
   const [loading, setLoading] = useState(false);
-
   const [error, setError] = useState("");
 
-  async function handleLogin(
-    e: React.FormEvent
-  ) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
 
     setLoading(true);
     setError("");
 
     try {
-      const response = await publicFetch("/auth/login", {
-        method: "POST",
-        body: JSON.stringify({
-          email,
-          password,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(
-          data.detail || "Login failed"
-        );
-        setLoading(false);
-        return;
-      }
+      const data = await loginCustomer({ email, password });
 
       login(
         {
@@ -55,20 +36,18 @@ export default function LoginForm() {
         data.access_token
       );
 
-      router.push("/");
-
-    } catch {
+      router.push(ROUTES.HOME);
+    } catch (err) {
       setError(
-        "Unable to connect to server."
+        err instanceof Error ? err.message : "Unable to connect to server."
       );
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   return (
     <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-xl">
-
       <h1 className="mb-2 text-center text-3xl font-bold">
         Welcome Back 👋
       </h1>
@@ -77,75 +56,47 @@ export default function LoginForm() {
         Login to your CampusBite account
       </p>
 
-      <form
-        onSubmit={handleLogin}
-        className="space-y-5"
-      >
-
+      <form onSubmit={handleLogin} className="space-y-5">
         <div>
-
-          <label className="mb-2 block font-medium">
-            Email
-          </label>
+          <label className="mb-2 block font-medium">Email</label>
 
           <Input
             type="email"
             placeholder="you@example.com"
             value={email}
-            onChange={(e) =>
-              setEmail(e.target.value)
-            }
+            onChange={(e) => setEmail(e.target.value)}
             required
           />
-
         </div>
 
         <div>
-
-          <label className="mb-2 block font-medium">
-            Password
-          </label>
+          <label className="mb-2 block font-medium">Password</label>
 
           <Input
             type="password"
             placeholder="********"
             value={password}
-            onChange={(e) =>
-              setPassword(e.target.value)
-            }
+            onChange={(e) => setPassword(e.target.value)}
             required
           />
-
         </div>
 
-        {error && (
-          <p className="text-sm text-red-600">
-            {error}
-          </p>
-        )}
+        {error && <p className="text-sm text-red-600">{error}</p>}
 
-        <Button
-          type="submit"
-          className="w-full"
-          disabled={loading}
-        >
-          {loading
-            ? "Logging in..."
-            : "Login"}
+        <Button type="submit" className="w-full" disabled={loading}>
+          {loading ? "Logging in..." : "Login"}
         </Button>
-
       </form>
 
       <p className="mt-6 text-center text-sm text-gray-500">
         Don't have an account?{" "}
         <Link
-          href="/register"
+          href={ROUTES.REGISTER}
           className="font-semibold text-orange-600 hover:underline"
         >
           Register
         </Link>
       </p>
-
     </div>
   );
 }

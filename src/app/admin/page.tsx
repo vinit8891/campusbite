@@ -6,7 +6,7 @@ import { useEffect, useState } from "react";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminTableSkeleton from "@/components/admin/AdminTableSkeleton";
-import { ROUTES } from "@/constants/routes";
+import { ROUTES } from "@/lib/routes";
 import {
   AuthHttpError,
   getAdminStats,

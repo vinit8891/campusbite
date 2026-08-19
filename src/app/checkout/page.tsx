@@ -1,6 +1,7 @@
 "use client";
 
 import { useRouter } from "next/navigation";
+import { ROUTES } from "@/lib/routes";
 
 import AddressForm from "@/components/checkout/AddressForm";
 import PaymentMethods from "@/components/checkout/PaymentMethods";
@@ -26,7 +27,7 @@ export default function CheckoutPage() {
           </p>
 
           <button
-            onClick={() => router.push("/restaurants")}
+            onClick={() => router.push(ROUTES.RESTAURANTS)}
             className="mt-6 rounded-full bg-orange-500 px-6 py-3 font-semibold text-white"
           >
             Browse Restaurants
@@ -35,6 +36,7 @@ export default function CheckoutPage() {
       </main>
     );
   }
+
 
   return (
     <main className="min-h-screen bg-[#fffaf3] px-4 py-10 sm:px-6 lg:px-8">

@@ -11,11 +11,12 @@ import {
   getRestaurantSubscriptions,
   todayIsoDate,
 } from "@/services/subscriptionService";
-
-function formatDate(value?: string | null) {
-  if (!value) return "—";
-  return new Date(`${value}T00:00:00`).toLocaleDateString();
-}
+import { formatDate, formatCurrencyINR } from "@/lib/formatters";
+import {
+  isSubscriptionActive,
+  isSubscriptionPaused,
+  isSubscriptionCancelled,
+} from "@/lib/subscriptionDomain";
 
 function SubscriptionRow({ subscription }: { subscription: Subscription }) {
   return (
@@ -29,10 +30,11 @@ function SubscriptionRow({ subscription }: { subscription: Subscription }) {
         {formatDate(subscription.end_date)}
       </td>
       <td className="px-4 py-3 text-sm capitalize">{subscription.status}</td>
-      <td className="px-4 py-3 text-sm">₹{subscription.price.toFixed(2)}</td>
+      <td className="px-4 py-3 text-sm">{formatCurrencyINR(subscription.price)}</td>
     </tr>
   );
 }
+
 
 function SectionTable({
   title,
@@ -92,11 +94,11 @@ export default function RestaurantSubscriptionsPage() {
     const cancelled: Subscription[] = [];
 
     for (const item of items) {
-      if (item.status === "cancelled") {
+      if (isSubscriptionCancelled(item.status)) {
         cancelled.push(item);
         continue;
       }
-      if (item.status === "paused") {
+      if (isSubscriptionPaused(item.status)) {
         paused.push(item);
         continue;
       }
@@ -105,13 +107,14 @@ export default function RestaurantSubscriptionsPage() {
         continue;
       }
       if (
-        item.status === "active" &&
+        isSubscriptionActive(item.status) &&
         item.start_date <= today &&
         item.end_date >= today
       ) {
         active.push(item);
       }
     }
+
 
     return { active, upcoming, paused, cancelled };
   }, [items, today]);

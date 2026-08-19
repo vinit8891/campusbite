@@ -2,24 +2,8 @@
 
 import { useMemo, useState } from "react";
 import MenuCard from "@/components/menu/MenuCard";
+import type { MenuItem, Restaurant } from "@/types";
 
-type MenuItem = {
-  _id: string;
-  name: string;
-  description?: string;
-  image: string;
-  price: number;
-  available?: boolean;
-  category?: string;
-  isVeg?: boolean;
-  type?: string;
-};
-
-type Restaurant = {
-  _id?: string;
-  email: string;
-  name: string;
-};
 
 type RestaurantMenuProps = {
   restaurant: Restaurant;
@@ -300,19 +284,21 @@ export default function RestaurantMenu({
                       >
                         <MenuCard
                           item={{
-                            _id: item._id,
+                            _id: item._id || String(item.id || ""),
                             name: item.name,
                             description: item.description,
-                            image: item.image,
+                            image: item.image ?? "",
                             price: item.price,
                             available: item.available,
                           }}
+
                           restaurant={{
                             id: restaurant._id,
-                            email: restaurant.email,
+                            email: restaurant.email ?? "",
                             name: restaurant.name,
                           }}
                         />
+
                       </div>
                     ))}
                   </div>

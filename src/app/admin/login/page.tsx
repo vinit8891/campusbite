@@ -5,9 +5,9 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ROUTES } from "@/constants/routes";
+import { ROUTES } from "@/lib/routes";
 import { AUTH_STORAGE_KEYS } from "@/lib/authTokens";
-import { publicFetch } from "@/services/authFetch";
+import { loginAdmin } from "@/services/authService";
 
 export default function AdminLoginPage() {
   const router = useRouter();
@@ -23,18 +23,7 @@ export default function AdminLoginPage() {
     setError("");
 
     try {
-      const response = await publicFetch("/auth/admin/login", {
-        method: "POST",
-        body: JSON.stringify({ email, password }),
-      });
-
-      const data = await response.json();
-
-      if (!response.ok) {
-        setError(data.detail || "Login failed");
-        setLoading(false);
-        return;
-      }
+      const data = await loginAdmin({ email, password });
 
       localStorage.setItem(
         AUTH_STORAGE_KEYS.adminToken,
@@ -47,12 +36,15 @@ export default function AdminLoginPage() {
       );
 
       router.push(ROUTES.ADMIN);
-    } catch {
-      setError("Unable to connect to server.");
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Unable to connect to server."
+      );
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
+
 
   return (
     <main className="flex min-h-screen items-center justify-center bg-gray-50 p-6">

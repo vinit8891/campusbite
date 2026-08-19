@@ -1,7 +1,7 @@
 import Link from "next/link";
 
 import RestaurantForm from "@/components/admin/RestaurantForm";
-import { ROUTES } from "@/constants/routes";
+import { ROUTES } from "@/lib/routes";
 
 export default function AddRestaurantPage() {
   return (

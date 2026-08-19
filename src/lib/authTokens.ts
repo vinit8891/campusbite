@@ -1,3 +1,5 @@
+import { ROUTES } from "@/lib/routes";
+
 export type AuthRole =
   | "customer"
   | "restaurant_owner"
@@ -16,11 +18,12 @@ export const AUTH_STORAGE_KEYS = {
 } as const;
 
 const LOGIN_PATHS: Record<AuthRole, string> = {
-  customer: "/login",
-  restaurant_owner: "/restaurant/login",
-  delivery_partner: "/delivery/login",
-  admin: "/admin/login",
+  customer: ROUTES.LOGIN,
+  restaurant_owner: ROUTES.RESTAURANT_LOGIN,
+  delivery_partner: ROUTES.DELIVERY_LOGIN,
+  admin: ROUTES.ADMIN_LOGIN,
 };
+
 
 export function decodeJwtPayload(
   token: string

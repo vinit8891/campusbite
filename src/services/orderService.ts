@@ -1,6 +1,10 @@
-import { AuthHttpError, authFetch, authJson } from "@/services/authFetch";
+import { authJson } from "@/services/authFetch";
+import type { OrderItemPayload, PlaceOrderPayload } from "@/types";
 
-export async function placeOrder(data: any) {
+export type { OrderItemPayload, PlaceOrderPayload };
+
+
+export async function placeOrder(data: PlaceOrderPayload) {
   const payload = {
     restaurant_email: data.restaurant_email,
     customer_name: data.customer_name,
@@ -14,7 +18,7 @@ export async function placeOrder(data: any) {
     restaurant_longitude: data.restaurant_longitude ?? 73.856743,
     latitude: data.latitude ?? null,
     longitude: data.longitude ?? null,
-    items: (data.items || []).map((item: any) => ({
+    items: (data.items || []).map((item) => ({
       id: String(item.id),
       name: item.name,
       price: Number(item.price),
@@ -22,24 +26,11 @@ export async function placeOrder(data: any) {
     })),
   };
 
-  const res = await authFetch("/orders/", {
+  return authJson<any>("/orders/", {
     role: "customer",
     method: "POST",
     body: JSON.stringify(payload),
   });
-
-  const body = await res.json().catch(() => null);
-
-  if (!res.ok) {
-    throw new AuthHttpError(
-      res.status,
-      typeof body?.detail === "string"
-        ? body.detail
-        : "Failed to place order"
-    );
-  }
-
-  return body;
 }
 
 /** Preferred: load orders for the authenticated customer from JWT. */
@@ -61,15 +52,18 @@ export async function getCustomerOrders(phone: string) {
 }
 
 export async function getOrderById(orderId: string) {
-  return authJson<any>(`/orders/${orderId}`, {
+  return authJson<any>(`/orders/${encodeURIComponent(orderId)}`, {
     role: "customer",
     cache: "no-store",
   });
 }
 
 export async function getDeliveryLocation(orderId: string) {
-  return authJson<any>(`/orders/delivery/location/${orderId}`, {
-    role: "customer",
-    cache: "no-store",
-  });
+  return authJson<any>(
+    `/orders/delivery/location/${encodeURIComponent(orderId)}`,
+    {
+      role: "customer",
+      cache: "no-store",
+    }
+  );
 }

@@ -22,7 +22,7 @@ async def create_restaurant(data):
     return str(result.inserted_id)
 
 
-async def get_restaurant_by_id(restaurant_id: str):
+async def get_restaurant_by_id(restaurant_id: str, include_menu: bool = False):
     oid = _object_id(restaurant_id)
     if not oid:
         return None
@@ -32,6 +32,18 @@ async def get_restaurant_by_id(restaurant_id: str):
         return None
 
     restaurant["_id"] = str(restaurant["_id"])
+
+    if include_menu:
+        email_value = restaurant.get("email")
+        menu_items = []
+        if email_value:
+            async for item in menu_collection.find(
+                {"restaurant_email": email_value}
+            ):
+                item["_id"] = str(item["_id"])
+                menu_items.append(item)
+        restaurant["menu"] = menu_items
+
     return restaurant
 
 

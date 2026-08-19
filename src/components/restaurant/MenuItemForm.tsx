@@ -8,7 +8,10 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { getRestaurantOwnerEmail } from "@/lib/authTokens";
-import { AuthHttpError, authJson } from "@/services/authFetch";
+import { AuthHttpError } from "@/services/authFetch";
+import { addMenuItem, updateMenuItem } from "@/services/menuService";
+import { ROUTES } from "@/lib/routes";
+
 
 export type MenuFormValues = {
   name: string;
@@ -75,9 +78,10 @@ export default function MenuItemForm({
     const email = getRestaurantOwnerEmail();
     if (!email) {
       toast.error("Please log in again.");
-      router.replace("/restaurant/login");
+      router.replace(ROUTES.RESTAURANT_LOGIN);
       return;
     }
+
 
     setLoading(true);
 
@@ -94,24 +98,18 @@ export default function MenuItemForm({
     try {
       if (mode === "edit") {
         if (!itemId) throw new Error("Missing menu item id.");
-        await authJson(`/menu/${itemId}`, {
-          role: "restaurant_owner",
-          method: "PUT",
-          body: JSON.stringify(payload),
-        });
+        await updateMenuItem(itemId, payload);
         toast.success("Food updated successfully");
       } else {
-        await authJson("/menu/", {
-          role: "restaurant_owner",
-          method: "POST",
-          body: JSON.stringify({ ...payload, available: true }),
-        });
+        await addMenuItem({ ...payload, available: true });
         toast.success("Food added successfully");
       }
 
-      router.push("/restaurant/dashboard/menu");
+      router.push(ROUTES.RESTAURANT_MENU);
       router.refresh();
+
     } catch (err) {
+
       if (err instanceof AuthHttpError && err.status === 401) return;
       const message =
         err instanceof Error ? err.message : "Unable to save menu item.";
@@ -246,7 +244,7 @@ export default function MenuItemForm({
         </Button>
 
         <Link
-          href="/restaurant/dashboard/menu"
+          href={ROUTES.RESTAURANT_MENU}
           className="inline-flex h-10 items-center rounded-lg border px-4 text-sm font-medium hover:bg-gray-50"
         >
           Cancel
@@ -255,3 +253,4 @@ export default function MenuItemForm({
     </form>
   );
 }
+

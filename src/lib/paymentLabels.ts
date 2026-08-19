@@ -66,3 +66,13 @@ export function formatPaymentStatus(
       return status || "pending";
   }
 }
+
+export function isPaymentPaid(status?: string | null): boolean {
+  return status?.trim().toLowerCase() === "paid";
+}
+
+export function isPaymentFailed(status?: string | null): boolean {
+  const normalized = status?.trim().toLowerCase() ?? "";
+  return normalized.includes("fail") || normalized === "cancelled";
+}
+

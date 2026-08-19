@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { ROUTES } from "@/lib/routes";
 
 export default function SuccessCard() {
   return (
@@ -23,11 +24,12 @@ export default function SuccessCard() {
         Your food is being prepared 🍔
       </p>
 
-      <Link href="/">
+      <Link href={ROUTES.HOME}>
         <Button className="mt-8 w-full">
           Back to Home
         </Button>
       </Link>
+
 
     </div>
   );

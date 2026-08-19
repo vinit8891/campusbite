@@ -7,21 +7,9 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { publicFetch } from "@/services/authFetch";
+import { ROUTES } from "@/lib/routes";
+import { loginCustomer, registerCustomer } from "@/services/authService";
 
-function extractError(detail: unknown, fallback: string) {
-  if (typeof detail === "string") return detail;
-  if (Array.isArray(detail)) {
-    return detail
-      .map((item) =>
-        typeof item === "object" && item && "msg" in item
-          ? String((item as { msg: unknown }).msg)
-          : String(item)
-      )
-      .join(", ");
-  }
-  return fallback;
-}
 
 export default function RegisterForm() {
   const router = useRouter();
@@ -67,67 +55,46 @@ export default function RegisterForm() {
     setLoading(true);
 
     try {
-      const registerRes = await publicFetch("/auth/register", {
-        method: "POST",
-        body: JSON.stringify({
-          full_name: trimmedName,
-          email: trimmedEmail,
-          phone: trimmedPhone,
-          password,
-        }),
+      await registerCustomer({
+        full_name: trimmedName,
+        email: trimmedEmail,
+        phone: trimmedPhone,
+        password,
       });
-
-      const registerData = await registerRes.json().catch(() => null);
-
-      if (!registerRes.ok) {
-        setError(
-          extractError(
-            registerData?.detail,
-            "Registration failed. Please try again."
-          )
-        );
-        setLoading(false);
-        return;
-      }
 
       // Existing Phase 2 flow: register → login → AuthContext JWT
-      const loginRes = await publicFetch("/auth/login", {
-        method: "POST",
-        body: JSON.stringify({
+      try {
+        const loginData = await loginCustomer({
           email: trimmedEmail,
           password,
-        }),
-      });
+        });
 
-      const loginData = await loginRes.json().catch(() => null);
-
-      if (!loginRes.ok || !loginData?.access_token) {
-        setError(
-          "Account created. Please log in with your credentials."
+        login(
+          {
+            name: trimmedName,
+            email: trimmedEmail,
+            phone: trimmedPhone,
+          },
+          loginData.access_token
         );
-        setLoading(false);
-        router.push("/login");
-        return;
+
+        router.push(ROUTES.HOME);
+      } catch {
+        setError("Account created. Please log in with your credentials.");
+        router.push(ROUTES.LOGIN);
       }
 
-      login(
-        {
-          name: trimmedName,
-          email: trimmedEmail,
-          phone: trimmedPhone,
-        },
-        loginData.access_token
+    } catch (err) {
+      setError(
+        err instanceof Error ? err.message : "Registration failed. Please try again."
       );
-
-      router.push("/");
-    } catch {
-      setError("Unable to connect to server.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   }
 
   return (
+
     <div className="w-full max-w-md rounded-3xl bg-white p-8 shadow-xl">
       <h1 className="mb-2 text-center text-3xl font-bold">
         Create Account
@@ -210,7 +177,7 @@ export default function RegisterForm() {
       <p className="mt-6 text-center text-sm text-gray-500">
         Already have an account?{" "}
         <Link
-          href="/login"
+          href={ROUTES.LOGIN}
           className="font-semibold text-orange-600 hover:underline"
         >
           Login
@@ -219,3 +186,4 @@ export default function RegisterForm() {
     </div>
   );
 }
+

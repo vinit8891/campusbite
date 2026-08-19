@@ -1,38 +1,19 @@
 import { AuthHttpError, authFetch, authJson } from "@/services/authFetch";
-import type { MealType, SubscriptionType, Weekday } from "@/services/subscriptionService";
+import type {
+  MealType,
+  SubscriptionType,
+  Weekday,
+  SubscriptionPlan,
+  SubscriptionPlanInput,
+  SubscriptionPlanUpdateInput,
+} from "@/types";
 
-export type SubscriptionPlan = {
-  plan_id: string;
-  restaurant_email: string;
-  name: string;
-  description: string;
-  subscription_type: SubscriptionType;
-  meal_type: MealType;
-  price: number;
-  delivery_days: Weekday[];
-  start_time: string;
-  end_time: string;
-  active: boolean;
-  created_at?: string;
-  updated_at?: string;
+export type {
+  SubscriptionPlan,
+  SubscriptionPlanInput,
+  SubscriptionPlanUpdateInput,
 };
 
-export type SubscriptionPlanInput = {
-  restaurant_email: string;
-  name: string;
-  description?: string;
-  subscription_type: SubscriptionType;
-  meal_type: MealType;
-  price: number;
-  delivery_days: Weekday[];
-  start_time: string;
-  end_time: string;
-  active?: boolean;
-};
-
-export type SubscriptionPlanUpdateInput = Partial<
-  Omit<SubscriptionPlanInput, "restaurant_email">
->;
 
 function extractError(data: unknown, fallback: string) {
   if (!data || typeof data !== "object") return fallback;
@@ -75,31 +56,25 @@ export async function getPublicPlans(
 export async function createSubscriptionPlan(
   input: SubscriptionPlanInput
 ): Promise<SubscriptionPlan> {
-  const res = await authFetch("/subscription-plans/", {
-    role: "restaurant_owner",
-    method: "POST",
-    body: JSON.stringify({
-      ...input,
-      active: input.active ?? true,
-    }),
-  });
-
-  const body = await res.json().catch(() => null);
-  if (!res.ok) {
-    throw new AuthHttpError(
-      res.status,
-      extractError(body, "Failed to create plan")
-    );
-  }
-
-  return body.plan as SubscriptionPlan;
+  const body = await authJson<{ plan: SubscriptionPlan }>(
+    "/subscription-plans/",
+    {
+      role: "restaurant_owner",
+      method: "POST",
+      body: JSON.stringify({
+        ...input,
+        active: input.active ?? true,
+      }),
+    }
+  );
+  return body.plan;
 }
 
 export async function updateSubscriptionPlan(
   planId: string,
   input: SubscriptionPlanUpdateInput
 ): Promise<SubscriptionPlan> {
-  const res = await authFetch(
+  const body = await authJson<{ plan: SubscriptionPlan }>(
     `/subscription-plans/${encodeURIComponent(planId)}`,
     {
       role: "restaurant_owner",
@@ -107,35 +82,19 @@ export async function updateSubscriptionPlan(
       body: JSON.stringify(input),
     }
   );
-
-  const body = await res.json().catch(() => null);
-  if (!res.ok) {
-    throw new AuthHttpError(
-      res.status,
-      extractError(body, "Failed to update plan")
-    );
-  }
-
-  return body.plan as SubscriptionPlan;
+  return body.plan;
 }
 
 export async function deleteSubscriptionPlan(planId: string): Promise<void> {
-  const res = await authFetch(
+  await authJson<{ message?: string }>(
     `/subscription-plans/${encodeURIComponent(planId)}`,
     {
       role: "restaurant_owner",
       method: "DELETE",
     }
   );
-
-  if (!res.ok) {
-    const body = await res.json().catch(() => null);
-    throw new AuthHttpError(
-      res.status,
-      extractError(body, "Failed to delete plan")
-    );
-  }
 }
+
 
 export async function getAdminSubscriptionPlans(query?: {
   q?: string;

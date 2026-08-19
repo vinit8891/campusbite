@@ -1,166 +1,44 @@
 import { AuthHttpError, authFetch, authJson } from "@/services/authFetch";
+import type {
+  SubscriptionType,
+  MealType,
+  SubscriptionStatus,
+  Weekday,
+  Subscription,
+  SubscriptionCreateInput,
+  SubscriptionCalendarMeal,
+  SubscriptionCalendar,
+  SubscriptionSummary,
+  SubscriptionGenerationStatus,
+  SubscriptionPauseInput,
+  SubscriptionPayment,
+  SubscriptionRenewalResponse,
+  PaginatedSubscriptionPayments,
+  AdminSubscriptionPaymentSummary,
+  RestaurantSubscriptionRevenueSummary,
+  AdminSubscriptionsQuery,
+} from "@/types";
 
-export type SubscriptionType = "weekly" | "monthly";
-export type MealType = "breakfast" | "lunch" | "dinner" | "combo";
-export type SubscriptionStatus =
-  | "active"
-  | "paused"
-  | "expired"
-  | "cancelled";
-
-export type Weekday =
-  | "monday"
-  | "tuesday"
-  | "wednesday"
-  | "thursday"
-  | "friday"
-  | "saturday"
-  | "sunday";
-
-export type Subscription = {
-  subscription_id: string;
-  plan_id?: string | null;
-  plan_name?: string | null;
-  customer_email: string;
-  restaurant_email: string;
-  subscription_type: SubscriptionType;
-  meal_type: MealType;
-  start_date: string;
-  end_date: string;
-  status: SubscriptionStatus;
-  delivery_days: Weekday[];
-  price: number;
-  payment_status: string;
-  auto_renew: boolean;
-  skipped_dates: string[];
-  pause_from: string | null;
-  pause_to: string | null;
-  start_time?: string | null;
-  end_time?: string | null;
-  created_at?: string;
-  updated_at?: string;
+export type {
+  SubscriptionType,
+  MealType,
+  SubscriptionStatus,
+  Weekday,
+  Subscription,
+  SubscriptionCreateInput,
+  SubscriptionCalendarMeal,
+  SubscriptionCalendar,
+  SubscriptionSummary,
+  SubscriptionGenerationStatus,
+  SubscriptionPauseInput,
+  SubscriptionPayment,
+  SubscriptionRenewalResponse,
+  PaginatedSubscriptionPayments,
+  AdminSubscriptionPaymentSummary,
+  RestaurantSubscriptionRevenueSummary,
+  AdminSubscriptionsQuery,
 };
 
-export type SubscriptionCreateInput = {
-  plan_id?: string;
-  restaurant_email?: string;
-  subscription_type?: SubscriptionType;
-  meal_type?: MealType;
-  start_date: string;
-  end_date?: string;
-  delivery_days?: Weekday[];
-  price?: number;
-  payment_status?: string;
-  auto_renew?: boolean;
-};
-
-export type SubscriptionCalendarMeal = {
-  date: string;
-  kind: string;
-  subscription_id?: string;
-  plan_id?: string | null;
-  restaurant_email?: string;
-  meal_type?: MealType;
-  start_time?: string | null;
-  end_time?: string | null;
-  plan_name?: string | null;
-};
-
-export type SubscriptionCalendar = {
-  today_meals: SubscriptionCalendarMeal[];
-  upcoming_meals: SubscriptionCalendarMeal[];
-  skipped_dates: string[];
-  paused_dates: string[];
-  range_start: string;
-  range_end: string;
-};
-
-export type SubscriptionSummary = {
-  today_meal: SubscriptionCalendarMeal | null;
-  upcoming_meal: SubscriptionCalendarMeal | null;
-  last_generated_order: {
-    order_id: string;
-    status: string;
-    payment_status?: string;
-    subscription_order_date?: string;
-    meal_name?: string | null;
-    restaurant_email?: string;
-    total?: number;
-  } | null;
-  subscription_status: SubscriptionStatus | null;
-};
-
-export type SubscriptionGenerationStatus = {
-  last_generation_time: string | null;
-  last_target_date: string | null;
-  last_generated_count: number;
-  last_skipped_count: number;
-  last_trigger: string | null;
-  scheduler: {
-    enabled: boolean;
-    running: boolean;
-    status: string;
-    daily_time: string | null;
-    next_execution: string | null;
-  };
-};
-
-export type SubscriptionPauseInput = {
-  pause_from: string;
-  pause_to: string;
-};
-
-export type SubscriptionPayment = {
-  payment_id: string;
-  subscription_id?: string;
-  amount: number;
-  billing_period: string;
-  payment_method: string;
-  payment_status: string;
-  paid_at?: string | null;
-  renewal_due?: string | null;
-  transaction_reference?: string | null;
-};
-
-export type SubscriptionRenewalResponse = {
-  subscription_id: string;
-  payment_id: string;
-  razorpay_order_id: string;
-  amount: number;
-  amount_paise: number;
-  currency: string;
-  key_id: string | null;
-  payment_status: string;
-  idempotent?: boolean;
-};
-
-export type PaginatedSubscriptionPayments = {
-  items: SubscriptionPayment[];
-  page: number;
-  limit: number;
-  total: number;
-  pages: number;
-};
-
-export type AdminSubscriptionPaymentSummary = {
-  total_subscription_revenue: number;
-  paid_payments: number;
-  pending_payments: number;
-  failed_payments: number;
-};
-
-export type RestaurantSubscriptionRevenueSummary = {
-  active_subscriptions: number;
-  monthly_subscription_revenue: number;
-  pending_subscription_payments: number;
-};
-
-export type AdminSubscriptionsQuery = {
-  q?: string;
-  status?: SubscriptionStatus | "";
-  restaurant_email?: string;
-  customer_email?: string;
-};
 
 function extractError(data: unknown, fallback: string) {
   if (!data || typeof data !== "object") return fallback;
@@ -172,25 +50,19 @@ function extractError(data: unknown, fallback: string) {
 export async function createSubscription(
   input: SubscriptionCreateInput
 ): Promise<Subscription> {
-  const res = await authFetch("/subscriptions/", {
-    role: "customer",
-    method: "POST",
-    body: JSON.stringify({
-      ...input,
-      payment_status: input.payment_status ?? "pending",
-      auto_renew: input.auto_renew ?? false,
-    }),
-  });
-
-  const body = await res.json().catch(() => null);
-  if (!res.ok) {
-    throw new AuthHttpError(
-      res.status,
-      extractError(body, "Failed to create subscription")
-    );
-  }
-
-  return body.subscription as Subscription;
+  const body = await authJson<{ subscription: Subscription }>(
+    "/subscriptions/",
+    {
+      role: "customer",
+      method: "POST",
+      body: JSON.stringify({
+        ...input,
+        payment_status: input.payment_status ?? "pending",
+        auto_renew: input.auto_renew ?? false,
+      }),
+    }
+  );
+  return body.subscription;
 }
 
 export async function getMySubscriptions(): Promise<Subscription[]> {
@@ -217,7 +89,7 @@ export async function pauseSubscription(
   subscriptionId: string,
   input: SubscriptionPauseInput
 ): Promise<Subscription> {
-  const res = await authFetch(
+  const body = await authJson<{ subscription: Subscription }>(
     `/subscriptions/${encodeURIComponent(subscriptionId)}/pause`,
     {
       role: "customer",
@@ -225,61 +97,35 @@ export async function pauseSubscription(
       body: JSON.stringify(input),
     }
   );
-
-  const body = await res.json().catch(() => null);
-  if (!res.ok) {
-    throw new AuthHttpError(
-      res.status,
-      extractError(body, "Failed to pause subscription")
-    );
-  }
-
-  return body.subscription as Subscription;
+  return body.subscription;
 }
 
 export async function resumeSubscription(
   subscriptionId: string
 ): Promise<Subscription> {
-  const res = await authFetch(
+  const body = await authJson<{ subscription: Subscription }>(
     `/subscriptions/${encodeURIComponent(subscriptionId)}/resume`,
     {
       role: "customer",
       method: "PUT",
     }
   );
-
-  const body = await res.json().catch(() => null);
-  if (!res.ok) {
-    throw new AuthHttpError(
-      res.status,
-      extractError(body, "Failed to resume subscription")
-    );
-  }
-
-  return body.subscription as Subscription;
+  return body.subscription;
 }
 
 export async function cancelSubscription(
   subscriptionId: string
 ): Promise<Subscription> {
-  const res = await authFetch(
+  const body = await authJson<{ subscription: Subscription }>(
     `/subscriptions/${encodeURIComponent(subscriptionId)}/cancel`,
     {
       role: "customer",
       method: "PUT",
     }
   );
-
-  const body = await res.json().catch(() => null);
-  if (!res.ok) {
-    throw new AuthHttpError(
-      res.status,
-      extractError(body, "Failed to cancel subscription")
-    );
-  }
-
-  return body.subscription as Subscription;
+  return body.subscription;
 }
+
 
 export async function getRestaurantSubscriptions(
   restaurantEmail: string
@@ -405,7 +251,7 @@ export async function renewSubscription(
   subscriptionId: string,
   confirmExpired = false
 ): Promise<SubscriptionRenewalResponse> {
-  const res = await authFetch(
+  return authJson<SubscriptionRenewalResponse>(
     `/subscriptions/${encodeURIComponent(subscriptionId)}/renew`,
     {
       role: "customer",
@@ -413,21 +259,13 @@ export async function renewSubscription(
       body: JSON.stringify({ confirm_expired: confirmExpired }),
     }
   );
-  const body = await res.json().catch(() => null);
-  if (!res.ok) {
-    throw new AuthHttpError(
-      res.status,
-      extractError(body, "Failed to start renewal payment")
-    );
-  }
-  return body as SubscriptionRenewalResponse;
 }
 
 export async function retrySubscriptionPayment(
   subscriptionId: string,
   confirmExpired = false
 ): Promise<SubscriptionRenewalResponse> {
-  const res = await authFetch(
+  return authJson<SubscriptionRenewalResponse>(
     `/subscriptions/${encodeURIComponent(subscriptionId)}/retry`,
     {
       role: "customer",
@@ -435,14 +273,6 @@ export async function retrySubscriptionPayment(
       body: JSON.stringify({ confirm_expired: confirmExpired }),
     }
   );
-  const body = await res.json().catch(() => null);
-  if (!res.ok) {
-    throw new AuthHttpError(
-      res.status,
-      extractError(body, "Failed to retry payment")
-    );
-  }
-  return body as SubscriptionRenewalResponse;
 }
 
 export async function verifySubscriptionRenewal(
@@ -454,7 +284,7 @@ export async function verifySubscriptionRenewal(
     payment_id?: string;
   }
 ) {
-  const res = await authFetch(
+  return authJson<{ success: boolean; message?: string }>(
     `/subscriptions/${encodeURIComponent(subscriptionId)}/verify-renewal`,
     {
       role: "customer",
@@ -462,21 +292,13 @@ export async function verifySubscriptionRenewal(
       body: JSON.stringify(payload),
     }
   );
-  const body = await res.json().catch(() => null);
-  if (!res.ok) {
-    throw new AuthHttpError(
-      res.status,
-      extractError(body, "Renewal verification failed")
-    );
-  }
-  return body;
 }
 
 export async function mockCompleteSubscriptionRenewal(
   subscriptionId: string,
   outcome: "success" | "failure" | "dismiss"
 ) {
-  const res = await authFetch(
+  return authJson<{ payment_status: string; subscription?: Subscription }>(
     `/subscriptions/${encodeURIComponent(subscriptionId)}/mock-complete-renewal`,
     {
       role: "customer",
@@ -484,15 +306,8 @@ export async function mockCompleteSubscriptionRenewal(
       body: JSON.stringify({ outcome }),
     }
   );
-  const body = await res.json().catch(() => null);
-  if (!res.ok) {
-    throw new AuthHttpError(
-      res.status,
-      extractError(body, "Mock renewal failed")
-    );
-  }
-  return body;
 }
+
 
 export async function getAdminSubscriptionPaymentSummary(): Promise<AdminSubscriptionPaymentSummary> {
   return authJson<AdminSubscriptionPaymentSummary>(

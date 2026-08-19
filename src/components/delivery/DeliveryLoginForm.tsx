@@ -4,7 +4,8 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import { AUTH_STORAGE_KEYS } from "@/lib/authTokens";
-import { publicFetch } from "@/services/authFetch";
+import { ROUTES } from "@/lib/routes";
+import { loginDeliveryPartner } from "@/services/authService";
 
 export default function DeliveryLoginForm() {
   const router = useRouter();
@@ -20,18 +21,13 @@ export default function DeliveryLoginForm() {
     setError("");
 
     try {
-      const res = await publicFetch("/delivery/login", {
-        method: "POST",
-        body: JSON.stringify({
-          email,
-          password,
-        }),
+      const data = await loginDeliveryPartner({
+        email,
+        password,
       });
 
-      const data = await res.json();
-
-      if (!res.ok || !data.success) {
-        setError(data.detail || "Invalid Login");
+      if (!data.success) {
+        setError(data.message || "Invalid Login");
         return;
       }
 
@@ -52,11 +48,15 @@ export default function DeliveryLoginForm() {
         JSON.stringify(data.partner)
       );
 
-      router.push("/delivery/dashboard");
-    } catch {
-      setError("Unable to connect to server.");
+      router.push(ROUTES.DELIVERY_DASHBOARD);
+    } catch (err) {
+
+      setError(
+        err instanceof Error ? err.message : "Unable to connect to server."
+      );
     }
   }
+
 
   return (
     <form

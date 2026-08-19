@@ -13,12 +13,10 @@ import {
   clearAuthForRole,
   decodeJwtPayload,
 } from "@/lib/authTokens";
+import type { User } from "@/types";
 
-export interface User {
-  name: string;
-  email: string;
-  phone?: string;
-}
+export type { User };
+
 
 interface AuthContextType {
   user: User | null;

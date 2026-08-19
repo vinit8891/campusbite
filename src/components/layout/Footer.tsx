@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { ROUTES } from "@/lib/routes";
 
 export default function Footer() {
   return (
@@ -23,10 +24,10 @@ export default function Footer() {
             <h3 className="font-semibold mb-3">Quick Links</h3>
 
             <div className="flex flex-col gap-2 text-sm">
-              <Link href="/about">About Us</Link>
-              <Link href="/contact">Contact Us</Link>
-              <Link href="/privacy-policy">Privacy Policy</Link>
-              <Link href="/terms">Terms & Conditions</Link>
+              <Link href={ROUTES.ABOUT}>About Us</Link>
+              <Link href={ROUTES.CONTACT}>Contact Us</Link>
+              <Link href={ROUTES.PRIVACY_POLICY}>Privacy Policy</Link>
+              <Link href={ROUTES.TERMS}>Terms & Conditions</Link>
             </div>
           </div>
 

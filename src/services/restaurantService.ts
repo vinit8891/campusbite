@@ -1,104 +1,30 @@
-import { publicFetch } from "@/services/authFetch";
+import { publicJson } from "@/services/authFetch";
 import { asPaginated, type Paginated } from "@/lib/pagination";
+import { withQuery } from "@/lib/formatters";
+import type {
+  BackendMenuItem,
+  BackendRestaurant,
+  RestaurantsQuery,
+} from "@/types";
 
-export type BackendMenuItem = {
-  _id: string;
-  restaurant_email?: string;
-  name: string;
-  description?: string;
-  image: string;
-  price: number;
-  category?: string;
-  available?: boolean;
-};
+export type { BackendMenuItem, BackendRestaurant, RestaurantsQuery };
 
-export type BackendRestaurant = {
-  _id: string;
-  slug: string;
-  name: string;
-  email: string;
-  cuisine?: string;
-  rating?: number;
-  delivery_time?: string;
-  distance?: string;
-  image: string;
-  description?: string;
-  address?: string;
-  phone?: string;
-  opening_hours?: string;
-  closing_hours?: string;
-  latitude?: number;
-  longitude?: number;
-  menu?: BackendMenuItem[];
-};
-
-export type RestaurantsQuery = {
-  page?: number;
-  limit?: number;
-  q?: string;
-  category?: string;
-  email?: string;
-  slug?: string;
-  include_menu?: boolean;
-};
-
-function withQuery(path: string, params: RestaurantsQuery) {
-  const search = new URLSearchParams();
-
-  if (params.page) {
-    search.set("page", String(params.page));
-  }
-
-  if (params.limit) {
-    search.set("limit", String(params.limit));
-  }
-
-  if (params.q?.trim()) {
-    search.set("q", params.q.trim());
-  }
-
-  if (params.category?.trim()) {
-    search.set("category", params.category.trim());
-  }
-
-  if (params.email?.trim()) {
-    search.set("email", params.email.trim());
-  }
-
-  if (params.slug?.trim()) {
-    search.set("slug", params.slug.trim());
-  }
-
-  if (params.include_menu === false) {
-    search.set("include_menu", "false");
-  }
-
-  const query = search.toString();
-
-  return query ? `${path}?${query}` : path;
-}
 
 export async function getRestaurantsPage(
   filters: RestaurantsQuery = {}
 ): Promise<Paginated<BackendRestaurant>> {
-  const res = await publicFetch(
-    withQuery("/restaurants/", {
-      page: filters.page ?? 1,
-      limit: filters.limit ?? 20,
-      q: filters.q,
-      category: filters.category,
-      email: filters.email,
-      slug: filters.slug,
-      include_menu: filters.include_menu,
-    }),
-    { cache: "no-store" }
-  );
+  const path = withQuery("/restaurants/", {
+    page: filters.page ?? 1,
+    limit: filters.limit ?? 20,
+    q: filters.q,
+    category: filters.category,
+    email: filters.email,
+    slug: filters.slug,
+    include_menu: filters.include_menu,
+  });
 
-  if (!res.ok) {
-    throw new Error("Failed to fetch restaurants");
-  }
-
-  return asPaginated<BackendRestaurant>(await res.json());
+  const data = await publicJson<unknown>(path, { cache: "no-store" });
+  return asPaginated<BackendRestaurant>(data);
 }
 
 /**
@@ -136,14 +62,16 @@ export async function getRestaurantBySlug(
 export async function getRestaurantById(
   id: string
 ): Promise<BackendRestaurant | null> {
-  const restaurants = await getRestaurants({
-    limit: 100,
-    include_menu: true,
-  });
+  if (!id?.trim()) return null;
 
-  return (
-    restaurants.find((restaurant) => restaurant._id === id) || null
-  );
+  try {
+    return await publicJson<BackendRestaurant>(
+      `/restaurants/${encodeURIComponent(id.trim())}?include_menu=true`,
+      { cache: "no-store" }
+    );
+  } catch (err) {
+    return null;
+  }
 }
 
 export async function getRestaurantByEmail(
@@ -157,4 +85,28 @@ export async function getRestaurantByEmail(
   });
 
   return page.items[0] || null;
+}
+
+export type RegisterRestaurantOwnerInput = {
+  owner_name: string;
+  restaurant_name: string;
+  email: string;
+  phone: string;
+  password: string;
+  restaurant_type: string;
+  address: string;
+  city: string;
+  pincode: string;
+};
+
+export async function registerRestaurantOwner(
+  data: RegisterRestaurantOwnerInput
+) {
+  return publicJson<{ message?: string; restaurant_owner?: unknown }>(
+    "/restaurant-owner/register",
+    {
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
 }
