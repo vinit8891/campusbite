@@ -28,6 +28,15 @@ const nextConfig: NextConfig = {
       },
     ],
   },
+  async redirects() {
+    return [
+      {
+        source: "/restaurant-owner/:path*",
+        destination: "/restaurant/:path*",
+        permanent: true,
+      },
+    ];
+  },
   async headers() {
     return [
       {
