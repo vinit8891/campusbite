@@ -37,7 +37,7 @@ from app.services.notification_service import (
     notify_order_placed,
     schedule_notification,
 )
-from app.core.database import database
+from app.db.database import database
 from app.core.logging import get_logger
 from app.core.sanitize import sanitize_email, sanitize_search_query
 from app.models.delivery_partner import get_delivery_partner_by_phone

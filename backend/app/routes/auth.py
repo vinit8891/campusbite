@@ -11,7 +11,7 @@ from app.auth.security import (
     verify_password,
 )
 from app.core.brute_force import login_guard
-from app.core.database import database
+from app.db.database import database
 from app.core.logging import get_logger
 from app.core.rate_limit import client_ip
 from app.core.sanitize import sanitize_email
