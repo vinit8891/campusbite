@@ -18,6 +18,9 @@ export async function placeOrder(data: PlaceOrderPayload): Promise<Order> {
     payment_status: "pending",
     total: data.total,
     delivery_for: data.delivery_for || "self",
+    delivery_type: data.delivery_type || "HOSTEL_BATCH",
+    hostel_block: data.hostel_block || null,
+    tip_amount: data.tip_amount ?? 0,
     restaurant_latitude: data.restaurant_latitude ?? 18.52043,
     restaurant_longitude: data.restaurant_longitude ?? 73.856743,
     latitude: data.latitude ?? null,
@@ -27,6 +30,7 @@ export async function placeOrder(data: PlaceOrderPayload): Promise<Order> {
       name: item.name,
       price: Number(item.price),
       quantity: Number(item.quantity),
+      is_budget_meal: Boolean(item.is_budget_meal),
     })),
   };
 

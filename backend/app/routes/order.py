@@ -37,10 +37,14 @@ from app.services.notification_service import (
     notify_order_placed,
     schedule_notification,
 )
+from app.core.database import database
 from app.core.logging import get_logger
 from app.core.sanitize import sanitize_email, sanitize_search_query
+from app.models.delivery_partner import get_delivery_partner_by_phone
 from app.payments.amounts import (
+    RIDER_COD_BALANCE_CEILING,
     assert_client_total_matches,
+    calculate_order_amounts,
     calculate_payable_amount,
     to_paise,
 )
@@ -286,14 +290,29 @@ async def add_order(
             detail="restaurant_email is required",
         )
 
-    # Authoritative total from items — never trust client amount alone
-    server_total = calculate_payable_amount(data.get("items") or [])
+    raw_method = data.get("payment_method")
+    is_online = _is_online_method(raw_method)
+    method_for_calc = "ONLINE" if is_online else "COD"
+    delivery_type = data.get("delivery_type") or "HOSTEL_BATCH"
+    tip_amount = float(data.get("tip_amount") or 0.0)
+
+    # Authoritative statutory pricing from items & parameters — never trust client amount alone
+    pricing = calculate_order_amounts(
+        items=data.get("items") or [],
+        delivery_type=delivery_type,
+        tip_amount=tip_amount,
+        payment_method=method_for_calc,
+    )
+    server_total = pricing["total_payable"]
     assert_client_total_matches(data.get("total"), server_total)
     data["total"] = server_total
     data["amount_paise"] = to_paise(server_total)
+    data["pricing_breakdown"] = pricing
+    data["delivery_type"] = delivery_type
+    data["hostel_block"] = data.get("hostel_block")
+    data["tip_amount"] = tip_amount
 
-    raw_method = data.get("payment_method")
-    if _is_online_method(raw_method):
+    if is_online:
         data["payment_method"] = ONLINE_METHOD
         data["payment_status"] = "pending"
         data["razorpay_order_id"] = None
@@ -507,6 +526,29 @@ async def accept_delivery(
             status_code=400,
             detail="Delivery partner identity is incomplete. Please log in again.",
         )
+
+    target_order = await get_order_by_id(order_id)
+    if not target_order:
+        raise HTTPException(
+            status_code=404,
+            detail="Order not found",
+        )
+
+    # Rider COD floating balance guard: ceiling at ₹1,000
+    is_cod_order = (
+        _is_cod_method(target_order.get("payment_method"))
+        or str(target_order.get("payment_method", "")).lower() == "cod"
+    )
+    if is_cod_order:
+        partner_doc = await get_delivery_partner_by_phone(partner_phone)
+        unremitted_balance = float(
+            (partner_doc or {}).get("unremitted_cod_balance") or 0.0
+        )
+        if unremitted_balance >= RIDER_COD_BALANCE_CEILING:
+            raise HTTPException(
+                status_code=400,
+                detail="COD collection limit reached (₹1,000). Please deposit unremitted cash to continue accepting COD orders.",
+            )
 
     success = await assign_delivery_partner(
         order_id=order_id,
@@ -743,6 +785,23 @@ async def verify_otp(
             status_code=400,
             detail="Invalid OTP",
         )
+
+    # When a COD order is delivered, increment rider's unremitted COD balance
+    is_cod_order = (
+        _is_cod_method(order.get("payment_method"))
+        or str(order.get("payment_method", "")).lower() == "cod"
+    )
+    if is_cod_order:
+        partner_phone = (
+            order.get("delivery_partner", {}).get("phone")
+            or current_user.get("phone")
+        )
+        if partner_phone:
+            order_total = float(order.get("total") or 0.0)
+            await database["delivery_partners"].update_one(
+                {"phone": partner_phone},
+                {"$inc": {"unremitted_cod_balance": order_total}},
+            )
 
     schedule_notification(
         background_tasks,

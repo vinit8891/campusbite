@@ -77,11 +77,10 @@ export default function DeliverySidebar() {
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 rounded-xl px-4 py-3 transition ${
-                  active
+                className={`flex items-center gap-3 rounded-xl px-4 py-3 transition ${active
                     ? "bg-white text-orange-600"
                     : "hover:bg-orange-500"
-                }`}
+                  }`}
               >
                 <Icon size={20} />
                 <span>{item.name}</span>

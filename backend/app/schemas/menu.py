@@ -9,3 +9,4 @@ class MenuItem(BaseModel):
     category: str
     image: str
     available: bool = True
+    is_budget_meal: bool = False

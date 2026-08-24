@@ -22,14 +22,26 @@ def _send_smtp_sync(
     settings: dict,
 ) -> None:
     message = EmailMessage()
-    message["From"] = settings["from_address"]
+    message["From"] = str(settings.get("from_address") or "noreply@campusbite.com")
     message["To"] = recipient
     message["Subject"] = subject
-    message.set_content(body)
 
-    with smtplib.SMTP(settings["host"], settings["port"], timeout=30) as server:
-        server.starttls()
-        server.login(settings["username"], settings["password"])
+    if body.strip().startswith("<") and ("</html>" in body.lower() or "</div>" in body.lower()):
+        message.add_alternative(body, subtype="html")
+    else:
+        message.set_content(body)
+
+    host = str(settings.get("host") or "")
+    port = int(settings.get("port") or 587)
+    username = str(settings.get("username") or "")
+    password = str(settings.get("password") or "")
+    use_tls = bool(settings.get("tls", True))
+
+    with smtplib.SMTP(host, port, timeout=30) as server:
+        if use_tls:
+            server.starttls()
+        if username and password:
+            server.login(username, password)
         server.send_message(message)
 
 

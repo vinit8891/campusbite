@@ -136,6 +136,11 @@ async def delivery_stats(
         if status in PICKED_UP_STATUSES:
             picked_up_orders += 1
 
+    partner_doc = await database["delivery_partners"].find_one({"phone": phone})
+    unremitted_cod_balance = float(
+        (partner_doc or {}).get("unremitted_cod_balance") or 0.0
+    )
+
     result = {
         # Legacy fields (unchanged)
         "phone": phone,
@@ -143,6 +148,7 @@ async def delivery_stats(
         "completed": completed,
         "earnings": earnings,
         "rating": 4.9,
+        "unremitted_cod_balance": unremitted_cod_balance,
         # Extended read-only dashboard fields
         "assigned_orders": assigned_orders,
         "picked_up_orders": picked_up_orders,
@@ -155,3 +161,4 @@ async def delivery_stats(
     }
     logger.info("delivery_dashboard.stats completed successfully")
     return result
+

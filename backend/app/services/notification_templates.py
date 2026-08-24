@@ -109,12 +109,15 @@ def render_template(notification_type: str, context: dict[str, Any]) -> tuple[st
         )
 
     if notification_type == TEMPLATE_PASSWORD_RESET:
+        reset_link = context.get("reset_link") or "https://campusbite.in/reset-password"
         return (
-            "CampusBite password reset",
+            "CampusBite Password Reset Request",
             (
-                "Hi,\n\n"
-                "We received a request to reset your CampusBite password.\n"
-                "If you did not request this, you can ignore this email."
+                f"Hi {customer},\n\n"
+                "We received a request to reset your CampusBite account password.\n\n"
+                f"Click the link below to set a new password:\n{reset_link}\n\n"
+                "This recovery link will expire in 15 minutes.\n"
+                "If you did not request this, you can safely ignore this email.\n"
             ),
         )
 

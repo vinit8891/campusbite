@@ -1,8 +1,7 @@
-/**
- * Canonical Order domain models.
- */
-
 import type { DeliveryPartner } from "./delivery";
+import type { OrderPricingBreakdown } from "@/lib/orderPricing";
+
+export type { OrderPricingBreakdown };
 
 export type OrderItem = {
   id: string | number;
@@ -10,6 +9,7 @@ export type OrderItem = {
   price: number;
   quantity: number;
   image?: string;
+  is_budget_meal?: boolean;
 };
 
 export type OrderItemPayload = {
@@ -17,6 +17,7 @@ export type OrderItemPayload = {
   name: string;
   price: number;
   quantity: number;
+  is_budget_meal?: boolean;
 };
 
 export type PlaceOrderPayload = {
@@ -28,6 +29,10 @@ export type PlaceOrderPayload = {
   payment_status?: string;
   total: number;
   delivery_for?: string;
+  delivery_type?: "HOSTEL_BATCH" | "STANDARD";
+  hostel_block?: string | null;
+  tip_amount?: number;
+  pricing_breakdown?: OrderPricingBreakdown;
   restaurant_latitude?: number | null;
   restaurant_longitude?: number | null;
   latitude?: number | null;
@@ -53,6 +58,10 @@ export type Order = {
   payment_method: string;
   payment_status?: string;
   total: number;
+  delivery_type?: "HOSTEL_BATCH" | "STANDARD";
+  hostel_block?: string | null;
+  tip_amount?: number;
+  pricing_breakdown?: OrderPricingBreakdown;
   status: string;
   items: OrderItem[];
   created_at?: string;

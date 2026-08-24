@@ -23,6 +23,7 @@ from app.services.notification_templates import (
     TEMPLATE_CUSTOMER_ORDER_PLACED,
     TEMPLATE_DELIVERY_PARTNER_ASSIGNED,
     TEMPLATE_ORDER_DELIVERED,
+    TEMPLATE_PASSWORD_RESET,
     TEMPLATE_REFUND_INITIATED,
     TEMPLATE_RESTAURANT_NEW_ORDER,
     TEMPLATE_SUBSCRIPTION_ORDER_GENERATED_CUSTOMER,
@@ -47,10 +48,13 @@ class NotificationService:
     async def send(
         self,
         notification_type: str,
-        recipient: str | None,
+        recipient: str | None = None,
         context: dict[str, Any] | None = None,
+        customer_id: str | None = None,
+        recipient_email: str | None = None,
     ) -> None:
-        email = sanitize_email(recipient)
+        raw_email = recipient or recipient_email
+        email = sanitize_email(raw_email)
         if not email:
             logger.warning(
                 "notification skipped type=%s reason=missing_recipient",
@@ -70,6 +74,7 @@ class NotificationService:
             notification_type=notification_type,
             provider=self.provider_name,
             status=status,
+            customer_id=customer_id,
         )
 
 
@@ -79,7 +84,7 @@ def get_notification_service() -> NotificationService:
         return NotificationService(SmtpNotificationProvider())
     if selected == PROVIDER_SMTP and not smtp_configured():
         logger.warning(
-            "NOTIFICATION_PROVIDER=smtp but SMTP settings incomplete; using mock"
+            "NOTIFICATION_PROVIDER=smtp but SMTP settings incomplete; using mock logger"
         )
     return NotificationService(MockNotificationProvider())
 
@@ -94,6 +99,56 @@ def _order_context(order: dict[str, Any]) -> dict[str, Any]:
         "status": order.get("status"),
         "delivery_partner": order.get("delivery_partner") or {},
     }
+
+
+# ---------------------------------------------------------------------------
+# Canonical Notification Helper Functions
+# ---------------------------------------------------------------------------
+
+async def send_order_confirmation(order_id: str) -> None:
+    """Send order confirmation email to the customer and alert restaurant."""
+    await notify_order_placed(order_id)
+
+
+async def send_password_reset_email(
+    email: str,
+    reset_link: str,
+    customer_name: str = "User",
+) -> None:
+    """Dispatch password reset recovery email with 15-minute token link."""
+    service = get_notification_service()
+    await service.send(
+        notification_type=TEMPLATE_PASSWORD_RESET,
+        recipient=email,
+        context={
+            "customer_name": customer_name,
+            "reset_link": reset_link,
+        },
+    )
+
+
+async def send_restaurant_status_update(order_id: str, status: str) -> None:
+    """Dispatch status update notification to the customer for an order."""
+    order = await get_order_by_id(order_id)
+    if not order:
+        return
+
+    service = get_notification_service()
+    context = _order_context(order)
+    context["status"] = status
+
+    if status.lower() == "delivered":
+        await service.send(
+            TEMPLATE_ORDER_DELIVERED,
+            order.get("customer_email"),
+            context,
+        )
+    else:
+        await service.send(
+            TEMPLATE_CUSTOMER_ORDER_PLACED,
+            order.get("customer_email"),
+            context,
+        )
 
 
 async def notify_order_placed(order_id: str) -> None:

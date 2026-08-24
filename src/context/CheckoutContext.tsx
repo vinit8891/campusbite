@@ -7,6 +7,7 @@ import {
   useEffect,
   ReactNode,
 } from "react";
+import type { DeliveryType } from "@/lib/orderPricing";
 
 type CheckoutData = {
   customer_name: string;
@@ -24,6 +25,11 @@ type CheckoutData = {
 
   // Delivery for
   delivery_for: "self" | "someone_else";
+
+  // Delivery Type & Hostel Details
+  delivery_type: DeliveryType;
+  hostel_block: string;
+  tip_amount: number;
 
   // Google Maps GPS
   latitude: number | null;
@@ -53,6 +59,10 @@ const defaultCheckout: CheckoutData = {
   online_confirmed: false,
 
   delivery_for: "self",
+
+  delivery_type: "HOSTEL_BATCH",
+  hostel_block: "Hostel Block A",
+  tip_amount: 0,
 
   latitude: null,
   longitude: null,
@@ -102,6 +112,10 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
           cod_confirmed: false,
           online_confirmed: false,
           delivery_for: parsed.delivery_for || "self",
+          delivery_type:
+            parsed.delivery_type === "STANDARD" ? "STANDARD" : "HOSTEL_BATCH",
+          hostel_block: parsed.hostel_block || "Hostel Block A",
+          tip_amount: Number(parsed.tip_amount || 0),
           latitude: parsed.latitude ?? null,
           longitude: parsed.longitude ?? null,
           restaurant_email: parsed.restaurant_email || "",

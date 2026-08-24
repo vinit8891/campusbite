@@ -16,3 +16,14 @@ class UserLogin(BaseModel):
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+    role: str = "customer"  # "customer", "restaurant_owner", "delivery_partner"
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+    role: str = "customer"

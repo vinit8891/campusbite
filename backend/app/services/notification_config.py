@@ -6,6 +6,8 @@ import os
 
 from dotenv import load_dotenv
 
+from app.core.config import get_settings
+
 load_dotenv()
 
 PROVIDER_MOCK = "mock"
@@ -13,25 +15,24 @@ PROVIDER_SMTP = "smtp"
 
 
 def notification_provider() -> str:
-    value = (os.getenv("NOTIFICATION_PROVIDER") or PROVIDER_MOCK).strip().lower()
-    if value not in {PROVIDER_MOCK, PROVIDER_SMTP}:
-        return PROVIDER_MOCK
-    return value
+    value = (os.getenv("NOTIFICATION_PROVIDER") or "").strip().lower()
+    if value in {PROVIDER_MOCK, PROVIDER_SMTP}:
+        return value
+    # If SMTP is configured, default to SMTP in production; otherwise mock
+    if smtp_configured():
+        return PROVIDER_SMTP
+    return PROVIDER_MOCK
 
 
-def smtp_settings() -> dict[str, str | int]:
-    port_raw = (os.getenv("SMTP_PORT") or "587").strip()
-    try:
-        port = int(port_raw)
-    except ValueError:
-        port = 587
-
+def smtp_settings() -> dict[str, str | int | bool]:
+    s = get_settings()
     return {
-        "host": (os.getenv("SMTP_HOST") or "").strip(),
-        "port": port,
-        "username": (os.getenv("SMTP_USERNAME") or "").strip(),
-        "password": (os.getenv("SMTP_PASSWORD") or "").strip(),
-        "from_address": (os.getenv("SMTP_FROM") or "").strip(),
+        "host": s.SMTP_HOST,
+        "port": s.SMTP_PORT,
+        "username": s.SMTP_USER,
+        "password": s.SMTP_PASSWORD,
+        "from_address": s.SMTP_FROM_EMAIL,
+        "tls": s.SMTP_TLS,
     }
 
 

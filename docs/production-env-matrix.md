@@ -1,6 +1,6 @@
 # CampusBite Production Environment Variables Matrix
 
-This document provides the definitive configuration matrix for staging and production deployments.
+This document provides the definitive configuration matrix for staging and production deployments on **Render/Railway** (Backend) and **Vercel** (Frontend).
 
 > **CRITICAL SECURITY RULE**: Never commit real secrets to Git or share them in public channels.
 
@@ -13,6 +13,7 @@ This document provides the definitive configuration matrix for staging and produ
 | `NEXT_PUBLIC_API_URL` | **Yes** | Public | `https://api.yourdomain.com` (no trailing slash) | Vercel Project Settings → Environment Variables | Frontend defaults to `http://localhost:8000`, causing CORS/network failure on live domain |
 | `NEXT_PUBLIC_GOOGLE_MAPS_API_KEY` | Optional | Public (Key) | `AIzaSyD-xxxxxxxxxxxxxxxxxxxxx` | Vercel Project Settings → Environment Variables | Live delivery driver map tracking falls back to static milestone progress cards |
 | `NEXT_PUBLIC_RAZORPAY_KEY_ID` | Optional | Public (Key) | `rzp_test_xxxxxx` / `rzp_live_xxxxxx` | Vercel Project Settings → Environment Variables | Falls back to dynamic key retrieval from backend `/payments/razorpay/config` |
+| `NEXT_PUBLIC_SENTRY_DSN` | Optional | Public (DSN) | `https://xxxxxxxx@o450.ingest.sentry.io/xxxx` | Vercel Project Settings → Environment Variables | Client exceptions log to browser console using structured JSON diagnostics |
 
 ---
 
@@ -32,4 +33,13 @@ This document provides the definitive configuration matrix for staging and produ
 | `RAZORPAY_KEY_ID` | Conditional | Public (Key) | `rzp_test_xxxxxx` or `rzp_live_xxxxxx` | Render / Railway Dashboard → Environment | Required if `RAZORPAY_MOCK=0`; boot fails if omitted |
 | `RAZORPAY_KEY_SECRET` | Conditional | **Secret** | `RazorpaySecretKeyString` | Render / Railway Dashboard → Environment | Required if `RAZORPAY_MOCK=0`; payment capture fails |
 | `RAZORPAY_WEBHOOK_SECRET` | Optional | **Secret** | `WebhookSecretStringFromDashboard` | Render / Railway Dashboard → Environment | Incoming webhook signatures will fail verification |
+| `NOTIFICATION_PROVIDER` | Optional | Public | `smtp` or `mock` | Render / Railway Dashboard → Environment | Auto-detects `smtp` if credentials are set; falls back to `mock` log audit |
+| `SMTP_HOST` | Conditional | Public | `smtp.sendgrid.net` / `smtp.mailgun.org` / `smtp.gmail.com` | Render / Railway Dashboard → Environment | Required for live email delivery; falls back to mock logging |
+| `SMTP_PORT` | Optional | Public | `587` (TLS) or `465` (SSL) | Render / Railway Dashboard → Environment | Defaults to `587` |
+| `SMTP_USER` | Conditional | Public/User | `apikey` / `postmaster@yourdomain.com` | Render / Railway Dashboard → Environment | Required for authenticated SMTP transmission |
+| `SMTP_PASSWORD` | Conditional | **Secret** | `SG.xxxxxxxx` / `app_password` | Render / Railway Dashboard → Environment | Required for authenticated SMTP transmission |
+| `SMTP_FROM_EMAIL` | Optional | Public | `noreply@campusbite.com` | Render / Railway Dashboard → Environment | Defaults to `noreply@campusbite.com` |
+| `SMTP_TLS` | Optional | Public | `true` or `false` | Render / Railway Dashboard → Environment | Defaults to `true` |
+| `SENTRY_DSN` | Optional | Public (DSN) | `https://xxxxxxxx@o450.ingest.sentry.io/xxxx` | Render / Railway Dashboard → Environment | Sentry runtime observability is disabled |
+| `FRONTEND_URL` | Optional | Public | `https://campusbite.vercel.app` | Render / Railway Dashboard → Environment | Defaults to `http://localhost:3000` for password reset link generation |
 | `PORT` | Optional | Public | `8000` (auto-injected by Render/Railway) | Runtime injected | Defaults to `8000` |

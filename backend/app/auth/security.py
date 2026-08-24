@@ -70,3 +70,40 @@ def decode_access_token(token: str):
 
     except JWTError:
         return None
+
+
+RESET_TOKEN_EXPIRE_MINUTES = int(
+    os.getenv("RESET_TOKEN_EXPIRE_MINUTES", "15")
+)
+
+
+def get_password_hash(password: str) -> str:
+    return hash_password(password)
+
+
+def create_password_reset_token(email: str, role: str) -> str:
+    """
+    Generate a short-lived signed JWT specifically for password recovery.
+    """
+    expire = datetime.utcnow() + timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES)
+    to_encode = {
+        "sub": email,
+        "role": role,
+        "type": "password_reset",
+        "exp": expire,
+    }
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def decode_password_reset_token(token: str) -> dict | None:
+    """
+    Validate and decode a password reset token. Returns payload dict or None if invalid/expired/wrong type.
+    """
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        if payload.get("type") != "password_reset":
+            return None
+        return payload
+    except JWTError:
+        return None
+

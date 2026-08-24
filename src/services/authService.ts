@@ -8,6 +8,10 @@ import type {
   DeliveryPartnerInfo,
   DeliveryLoginResponse,
   AdminLoginResponse,
+  ForgotPasswordPayload,
+  ForgotPasswordResponse,
+  ResetPasswordPayload,
+  ResetPasswordResponse,
 } from "@/types";
 
 export type {
@@ -19,6 +23,10 @@ export type {
   DeliveryPartnerInfo,
   DeliveryLoginResponse,
   AdminLoginResponse,
+  ForgotPasswordPayload,
+  ForgotPasswordResponse,
+  ResetPasswordPayload,
+  ResetPasswordResponse,
 };
 
 
@@ -56,3 +64,18 @@ export async function loginAdmin(credentials: LoginCredentials) {
     body: JSON.stringify(credentials),
   });
 }
+
+export async function requestPasswordReset(payload: ForgotPasswordPayload) {
+  return publicJson<ForgotPasswordResponse>("/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function resetPassword(payload: ResetPasswordPayload) {
+  return publicJson<ResetPasswordResponse>("/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+

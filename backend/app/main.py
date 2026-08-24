@@ -16,12 +16,27 @@ from starlette.exceptions import HTTPException as StarletteHTTPException
 
 from app.auth.auth import require_roles
 from app.auth.roles import ADMIN
-from app.core.config import app_name, app_version
+from app.core.config import app_name, app_version, settings
 from app.core.errors import (
     http_exception_handler,
     unhandled_exception_handler,
     validation_exception_handler,
 )
+
+logger = get_logger(__name__)
+
+if settings.SENTRY_DSN:
+    try:
+        import sentry_sdk
+        sentry_sdk.init(
+            dsn=settings.SENTRY_DSN,
+            traces_sample_rate=0.2,
+            environment=settings.ENVIRONMENT,
+            release=f"{settings.APP_NAME}@{settings.APP_VERSION}",
+        )
+        logger.info("sentry observability initialized dsn_present=true")
+    except Exception as exc:
+        logger.warning("sentry initialization failed error=%s", exc)
 from app.core.middleware import RequestLoggingMiddleware
 from app.core.request_id import RequestIdMiddleware
 from app.core.security_middleware import (
@@ -70,8 +85,6 @@ from app.routes.subscription_payment import (
 )
 
 from app.db.database import database
-
-logger = get_logger(__name__)
 
 
 @asynccontextmanager

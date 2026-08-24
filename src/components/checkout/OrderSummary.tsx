@@ -6,18 +6,13 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
-
-const MockCheckoutModal = dynamic(
-  () => import("@/components/checkout/MockCheckoutModal"),
-  { ssr: false }
-);
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useCheckout } from "@/context/CheckoutContext";
 import { placeOrder } from "@/services/orderService";
 import { AuthHttpError } from "@/services/authFetch";
 import { ROUTES } from "@/lib/routes";
-
+import { calculateOrderPricing } from "@/lib/orderPricing";
 import {
   COD_PAYMENT_METHOD,
   ONLINE_PAYMENT_METHOD,
@@ -33,6 +28,11 @@ import {
   type CreatePaymentResponse,
 } from "@/services/paymentService";
 
+const MockCheckoutModal = dynamic(
+  () => import("@/components/checkout/MockCheckoutModal"),
+  { ssr: false }
+);
+
 type PaymentUiState =
   | "idle"
   | "processing"
@@ -40,11 +40,13 @@ type PaymentUiState =
   | "failed"
   | "cancelled";
 
+const TIP_OPTIONS = [0, 10, 20, 30];
+
 export default function OrderSummary() {
   const router = useRouter();
 
   const { cart, clearCart } = useCart();
-  const { checkout } = useCheckout();
+  const { checkout, setCheckout } = useCheckout();
   const { isLoggedIn, user } = useAuth();
 
   const [loading, setLoading] = useState(false);
@@ -55,12 +57,12 @@ export default function OrderSummary() {
   const [pendingPayment, setPendingPayment] =
     useState<CreatePaymentResponse | null>(null);
 
-  const subtotal = cart.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
+  const pricing = calculateOrderPricing(
+    cart,
+    checkout.delivery_type,
+    checkout.tip_amount,
+    checkout.payment_method
   );
-  const deliveryFee = cart.length > 0 ? 40 : 0;
-  const total = subtotal + deliveryFee;
 
   const isCod = checkout.payment_method === COD_PAYMENT_METHOD;
   const isOnline = checkout.payment_method === ONLINE_PAYMENT_METHOD;
@@ -81,7 +83,6 @@ export default function OrderSummary() {
     clearCart();
     router.push(`${ROUTES.ORDER_SUCCESS}?orderId=${orderId}`);
   }
-
 
   async function handleVerifiedOnline(orderId: string) {
     setMockOpen(false);
@@ -140,11 +141,8 @@ export default function OrderSummary() {
       return;
     }
 
-
     if (!user?.phone) {
-      alert(
-        "Your account is missing a phone number. Please log out and log in again."
-      );
+      alert("Your account is missing a phone number. Please log in again.");
       return;
     }
 
@@ -187,9 +185,7 @@ export default function OrderSummary() {
       "";
 
     if (!restaurantEmail) {
-      alert(
-        "Restaurant information is missing. Please go back to the restaurant and try again."
-      );
+      alert("Restaurant information is missing. Please select items from a restaurant.");
       return;
     }
 
@@ -224,12 +220,17 @@ export default function OrderSummary() {
         address: fullAddress,
         payment_method: isOnline ? ONLINE_PAYMENT_METHOD : COD_PAYMENT_METHOD,
         items: cart,
-        total,
+        total: pricing.total_payable,
+        delivery_for: checkout.delivery_for,
+        delivery_type: checkout.delivery_type,
+        hostel_block:
+          checkout.delivery_type === "HOSTEL_BATCH" ? checkout.hostel_block : null,
+        tip_amount: checkout.tip_amount,
+        pricing_breakdown: pricing,
         latitude: checkout.latitude,
         longitude: checkout.longitude,
         restaurant_latitude: checkout.restaurant_latitude,
         restaurant_longitude: checkout.restaurant_longitude,
-        delivery_for: checkout.delivery_for,
       };
 
       const response = await placeOrder(orderData);
@@ -241,7 +242,6 @@ export default function OrderSummary() {
         return;
       }
 
-
       const config = await getRazorpayConfig();
       if (!config.enabled || !config.key_id) {
         throw new Error(
@@ -249,7 +249,7 @@ export default function OrderSummary() {
         );
       }
 
-      const payment = await createRazorpayPayment(orderId, total);
+      const payment = await createRazorpayPayment(orderId, pricing.total_payable);
       setPendingPayment(payment);
 
       if (
@@ -297,12 +297,9 @@ export default function OrderSummary() {
         },
         onFailure: async (reason) => {
           try {
-            await cancelRazorpayPayment(
-              orderId,
-              reason || "payment_failed"
-            );
+            await cancelRazorpayPayment(orderId, reason || "payment_failed");
           } catch {
-            // Best-effort; webhook may still update status.
+            // Best effort
           }
           setPaymentState("failed");
           setStatusMessage("Payment Failed");
@@ -313,7 +310,7 @@ export default function OrderSummary() {
           try {
             await cancelRazorpayPayment(orderId, "checkout_dismissed");
           } catch {
-            // Best-effort cancel; order remains unpaid.
+            // Best effort
           }
           setPaymentState("cancelled");
           setStatusMessage("Payment Cancelled");
@@ -322,8 +319,6 @@ export default function OrderSummary() {
         },
       });
     } catch (error) {
-      console.error("Place Order Error:", error);
-
       if (error instanceof AuthHttpError && error.status === 401) {
         return;
       }
@@ -352,23 +347,24 @@ export default function OrderSummary() {
     if (paymentState === "success") return "Payment Successful";
     if (paymentState === "failed") {
       return isOnline
-        ? `Retry Pay Online • ₹${total.toFixed(2)}`
-        : `Place COD Order • ₹${total.toFixed(2)}`;
+        ? `Retry Pay Online • ₹${pricing.total_payable.toFixed(2)}`
+        : `Place COD Order • ₹${pricing.total_payable.toFixed(2)}`;
     }
     if (paymentState === "cancelled") {
-      return `Pay Online • ₹${total.toFixed(2)}`;
+      return `Pay Online • ₹${pricing.total_payable.toFixed(2)}`;
     }
-    if (isOnline) return `Pay Online • ₹${total.toFixed(2)}`;
-    return `Place COD Order • ₹${total.toFixed(2)}`;
+    if (isOnline) return `Pay Online • ₹${pricing.total_payable.toFixed(2)}`;
+    return `Place COD Order • ₹${pricing.total_payable.toFixed(2)}`;
   })();
 
   return (
     <section className="rounded-2xl border bg-white p-6 shadow-sm">
-      <h2 className="mb-6 text-2xl font-bold">Order Summary</h2>
+      <h2 className="mb-5 text-2xl font-bold">Order Summary</h2>
 
-      <div className="space-y-4">
+      {/* Cart Items List */}
+      <div className="space-y-3">
         {cart.map((item) => (
-          <div key={item.id} className="flex justify-between gap-4">
+          <div key={item.id} className="flex justify-between gap-4 text-sm">
             <span className="text-gray-700">
               {item.name} × {item.quantity}
             </span>
@@ -379,98 +375,110 @@ export default function OrderSummary() {
         ))}
       </div>
 
-      <hr className="my-5" />
+      <hr className="my-4" />
 
-      <div className="flex justify-between">
-        <span className="text-gray-600">Subtotal</span>
-        <span>₹{subtotal.toFixed(2)}</span>
+      {/* Bill Breakdown with Statutory GST & Platform Fee */}
+      <div className="space-y-2.5 text-sm">
+        <div className="flex justify-between">
+          <span className="text-gray-600">Items Total</span>
+          <span className="font-medium">₹{pricing.food_subtotal.toFixed(2)}</span>
+        </div>
+
+        <div className="flex justify-between">
+          <span className="text-gray-600">Restaurant GST (5%)</span>
+          <span className="font-medium">₹{pricing.restaurant_gst.toFixed(2)}</span>
+        </div>
+
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-1.5">
+            <span className="text-gray-600">Delivery Fee</span>
+            {checkout.delivery_type === "HOSTEL_BATCH" && (
+              <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
+                Saved ₹25
+              </span>
+            )}
+          </div>
+          <span className="font-medium">₹{pricing.delivery_fee.toFixed(2)}</span>
+        </div>
+
+        <div className="flex justify-between">
+          <span className="text-gray-600">Platform Tech Fee</span>
+          <span className="font-medium">₹{pricing.platform_fee.toFixed(2)}</span>
+        </div>
+
+        {pricing.tip_amount > 0 && (
+          <div className="flex justify-between text-orange-600 font-medium">
+            <span>Rider Tip</span>
+            <span>+₹{pricing.tip_amount.toFixed(2)}</span>
+          </div>
+        )}
       </div>
 
-      <div className="mt-3 flex justify-between">
-        <span className="text-gray-600">Delivery Fee</span>
-        <span>₹{deliveryFee.toFixed(2)}</span>
+      {/* Rider Tip Selector */}
+      <div className="my-4 rounded-xl border border-orange-100 bg-orange-50/60 p-3.5">
+        <div className="flex items-center justify-between">
+          <p className="text-xs font-bold text-gray-800">Support Student Courier</p>
+          <span className="text-[10px] font-semibold text-orange-700">100% tip to rider</span>
+        </div>
+        <div className="mt-2 grid grid-cols-4 gap-2">
+          {TIP_OPTIONS.map((tip) => (
+            <button
+              key={tip}
+              type="button"
+              onClick={() => setCheckout((prev) => ({ ...prev, tip_amount: tip }))}
+              className={`rounded-lg py-1.5 text-xs font-semibold transition ${
+                checkout.tip_amount === tip
+                  ? "bg-orange-600 text-white shadow-sm"
+                  : "bg-white text-gray-700 border border-gray-200 hover:border-orange-300"
+              }`}
+            >
+              {tip === 0 ? "None" : `₹${tip}`}
+            </button>
+          ))}
+        </div>
       </div>
 
-      <hr className="my-5" />
+      <hr className="my-4" />
 
+      {/* Grand Total */}
       <div className="flex justify-between text-xl font-bold">
-        <span>Total</span>
-        <span className="text-orange-600">₹{total.toFixed(2)}</span>
+        <span>To Pay</span>
+        <span className="text-orange-600">₹{pricing.total_payable.toFixed(2)}</span>
       </div>
 
-      <div className="mt-6 rounded-xl bg-gray-50 p-4">
-        <p className="text-sm font-semibold text-gray-700">Delivering to</p>
-        <p className="mt-1 text-sm font-medium text-gray-900">
-          {checkout.customer_name || "Recipient"}
-        </p>
-        <p className="text-sm text-gray-500">
-          {checkout.delivery_for === "self"
-            ? user?.phone
-            : checkout.phone}
-        </p>
-        <p className="mt-2 text-sm text-gray-500">
-          {checkout.address
-            ? `${checkout.address}, ${checkout.city} - ${checkout.pincode}`
-            : "Delivery address not entered"}
-        </p>
-
-        {checkout.delivery_for === "someone_else" && (
-          <p className="mt-3 text-xs font-semibold text-orange-600">
-            Order for someone else
+      {/* Delivering to Box */}
+      <div className="mt-5 rounded-xl bg-gray-50 p-3.5 text-xs">
+        <div className="flex items-center justify-between">
+          <p className="font-semibold text-gray-800">
+            Delivering via {checkout.delivery_type === "HOSTEL_BATCH" ? "Hostel Batch Drop" : "Standard Express"}
           </p>
-        )}
-
-        {checkout.latitude !== null && checkout.longitude !== null ? (
-          <p className="mt-2 text-xs font-semibold text-green-600">
-            GPS location available
-          </p>
-        ) : (
-          <p className="mt-2 text-xs text-gray-400">GPS location not available</p>
-        )}
+          {checkout.delivery_type === "HOSTEL_BATCH" && (
+            <span className="font-bold text-orange-600">{checkout.hostel_block}</span>
+          )}
+        </div>
+        <p className="mt-1 text-gray-600">
+          {checkout.customer_name || "Recipient"} • {checkout.delivery_for === "self" ? user?.phone : checkout.phone}
+        </p>
+        <p className="mt-1 text-gray-500 truncate">
+          {checkout.address ? `${checkout.address}, ${checkout.city} - ${checkout.pincode}` : "Address pending"}
+        </p>
       </div>
 
-      <div className="mt-4 rounded-xl bg-orange-50 p-4">
-        <p className="text-xs font-medium text-orange-700">Payment Method</p>
-        <p className="mt-1 font-semibold text-gray-900">
-          {formatPaymentMethod(checkout.payment_method)}
-        </p>
-        <p className="mt-1 text-xs text-gray-600">
+      {/* Payment Notice */}
+      <div className="mt-3 rounded-xl bg-orange-50 p-3.5 text-xs">
+        <p className="font-semibold text-gray-900">{formatPaymentMethod(checkout.payment_method)}</p>
+        <p className="mt-0.5 text-gray-600">
           {isOnline
-            ? "Pay online via Razorpay. CampusBite confirms payment only after signature verification."
-            : "Pay cash to the delivery partner. Payment stays pending until delivery."}
+            ? "Pay securely online via Razorpay."
+            : "Pay cash to student courier upon arrival."}
         </p>
-
-        {isCod && !checkout.cod_confirmed ? (
-          <p className="mt-2 text-xs font-medium text-red-600">
-            Confirm COD in the payment section to place this order.
-          </p>
-        ) : null}
-
-        {isOnline && !checkout.online_confirmed ? (
-          <p className="mt-2 text-xs font-medium text-red-600">
-            Confirm online payment in the payment section to continue.
-          </p>
-        ) : null}
-
-        {statusMessage ? (
-          <p
-            className={`mt-3 text-sm font-semibold ${
-              paymentState === "success"
-                ? "text-green-700"
-                : paymentState === "failed"
-                  ? "text-red-700"
-                  : paymentState === "cancelled"
-                    ? "text-amber-700"
-                    : "text-orange-700"
-            }`}
-          >
-            {statusMessage}
-          </p>
-        ) : null}
+        {statusMessage && (
+          <p className="mt-2 font-semibold text-orange-700">{statusMessage}</p>
+        )}
       </div>
 
       <Button
-        className="mt-6 w-full bg-orange-500 hover:bg-orange-600"
+        className="mt-5 w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2.5"
         disabled={!canSubmit}
         onClick={handlePlaceOrder}
       >

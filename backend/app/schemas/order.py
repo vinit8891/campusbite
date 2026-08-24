@@ -1,3 +1,4 @@
+from typing import Any
 from pydantic import BaseModel, Field
 
 
@@ -6,15 +7,13 @@ class OrderItem(BaseModel):
     name: str
     price: float
     quantity: int
+    is_budget_meal: bool = False
 
 
 class Order(BaseModel):
     restaurant_email: str
-
     customer_name: str
-
     phone: str
-
     address: str
 
     # "cod" | "online"
@@ -28,6 +27,14 @@ class Order(BaseModel):
 
     # Delivery recipient type
     delivery_for: str = "self"
+
+    # Delivery Type: "HOSTEL_BATCH" | "STANDARD"
+    delivery_type: str = "HOSTEL_BATCH"
+    hostel_block: str | None = None
+    tip_amount: float = 0.0
+
+    # Pricing breakdown (statutory GST, platform fee, commission, partner earning)
+    pricing_breakdown: dict[str, Any] | None = None
 
     # Customer GPS - optional
     latitude: float | None = None

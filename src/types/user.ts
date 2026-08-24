@@ -46,6 +46,25 @@ export type AdminLoginResponse = {
   token_type: string;
 };
 
+export type ForgotPasswordPayload = {
+  email: string;
+  role: "customer" | "restaurant_owner" | "delivery_partner";
+};
+
+export type ForgotPasswordResponse = {
+  message: string;
+};
+
+export type ResetPasswordPayload = {
+  token: string;
+  new_password: string;
+  role: string;
+};
+
+export type ResetPasswordResponse = {
+  message: string;
+};
+
 export type AdminCustomer = {
   id: string;
   name: string;
