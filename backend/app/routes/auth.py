@@ -29,6 +29,7 @@ from app.schemas.user import (
 from app.services.notification_service import (
     get_notification_service,
     schedule_notification,
+    send_password_reset_email,
 )
 from app.services.notification_templates import TEMPLATE_PASSWORD_RESET
 
@@ -196,17 +197,14 @@ async def forgot_password(
         reset_link = f"{frontend_base}/reset-password?token={token}&role={role}"
 
         customer_name = account.get(name_field) or "User"
-        notification_service = get_notification_service()
+        customer_id = str(account.get("_id"))
         schedule_notification(
             background_tasks,
-            notification_service.send,
-            customer_id=str(account.get("_id")),
-            notification_type=TEMPLATE_PASSWORD_RESET,
-            context={
-                "customer_name": customer_name,
-                "reset_link": reset_link,
-            },
-            recipient_email=normalized_email,
+            send_password_reset_email,
+            email=normalized_email,
+            reset_link=reset_link,
+            customer_name=customer_name,
+            customer_id=customer_id,
         )
         logger.info(f"auth.forgot_password reset link scheduled for {normalized_email}")
 

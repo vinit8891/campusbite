@@ -22,7 +22,8 @@ def _send_smtp_sync(
     settings: dict,
 ) -> None:
     message = EmailMessage()
-    message["From"] = str(settings.get("from_address") or "noreply@campusbite.com")
+    from_addr = str(settings.get("from_address") or "noreply@campusbite.com")
+    message["From"] = from_addr
     message["To"] = recipient
     message["Subject"] = subject
 
@@ -37,12 +38,18 @@ def _send_smtp_sync(
     password = str(settings.get("password") or "")
     use_tls = bool(settings.get("tls", True))
 
-    with smtplib.SMTP(host, port, timeout=30) as server:
-        if use_tls:
-            server.starttls()
-        if username and password:
-            server.login(username, password)
-        server.send_message(message)
+    if port == 465:
+        with smtplib.SMTP_SSL(host, port, timeout=30) as server:
+            if username and password:
+                server.login(username, password)
+            server.send_message(message)
+    else:
+        with smtplib.SMTP(host, port, timeout=30) as server:
+            if use_tls:
+                server.starttls()
+            if username and password:
+                server.login(username, password)
+            server.send_message(message)
 
 
 class SmtpNotificationProvider(NotificationProvider):
@@ -71,10 +78,17 @@ class SmtpNotificationProvider(NotificationProvider):
                 recipient,
             )
             return STATUS_SENT
-        except Exception:
+        except Exception as exc:
             logger.exception(
-                "notification.smtp failed type=%s recipient=%s",
+                "notification.smtp failed type=%s recipient=%s error=%s",
                 notification_type,
                 recipient,
+                exc,
             )
+            try:
+                import sentry_sdk
+                sentry_sdk.capture_exception(exc)
+            except Exception:
+                pass
             return STATUS_FAILED
+

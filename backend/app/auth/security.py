@@ -1,5 +1,5 @@
 import os
-from datetime import datetime, timedelta
+from datetime import UTC, datetime, timedelta
 
 from dotenv import load_dotenv
 from jose import JWTError, jwt
@@ -26,7 +26,7 @@ pwd_context = CryptContext(
 )
 
 
-def hash_password(password: str):
+def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
 
@@ -43,7 +43,7 @@ def verify_password(
 def create_access_token(data: dict):
     to_encode = data.copy()
 
-    expire = datetime.utcnow() + timedelta(
+    expire = datetime.now(UTC) + timedelta(
         minutes=ACCESS_TOKEN_EXPIRE_MINUTES
     )
 
@@ -85,7 +85,7 @@ def create_password_reset_token(email: str, role: str) -> str:
     """
     Generate a short-lived signed JWT specifically for password recovery.
     """
-    expire = datetime.utcnow() + timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES)
+    expire = datetime.now(UTC) + timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES)
     to_encode = {
         "sub": email,
         "role": role,

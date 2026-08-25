@@ -115,6 +115,7 @@ async def ensure_app_indexes() -> None:
     await _safe_create_index(notification_logs, "recipient")
     await _safe_create_index(notification_logs, "type")
     await _safe_create_index(notification_logs, "status")
+    await _safe_create_index(notification_logs, "customer_id", sparse=True)
 
     # subscriptions
     await _safe_create_index(subscriptions, "customer_email")
