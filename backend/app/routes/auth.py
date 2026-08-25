@@ -165,6 +165,7 @@ async def admin_login(user: UserLogin, request: Request):
 async def forgot_password(
     payload: ForgotPasswordRequest,
     background_tasks: BackgroundTasks,
+    request: Request,
 ):
     """
     Initiate password recovery.
@@ -193,8 +194,21 @@ async def forgot_password(
     if account:
         token = create_password_reset_token(email=normalized_email, role=role)
         # Determine frontend URL
-        frontend_base = os.getenv("FRONTEND_URL", "http://localhost:3000")
-        reset_link = f"{frontend_base}/reset-password?token={token}&role={role}"
+        frontend_base = (os.getenv("FRONTEND_URL") or "").strip()
+        if not frontend_base:
+            header_url = (request.headers.get("origin") or "").strip()
+            if not header_url:
+                referer = (request.headers.get("referer") or "").strip()
+                if referer:
+                    from urllib.parse import urlsplit
+                    parsed = urlsplit(referer)
+                    if parsed.scheme and parsed.netloc:
+                        header_url = f"{parsed.scheme}://{parsed.netloc}"
+                    else:
+                        header_url = referer
+            frontend_base = header_url or "https://campusbite-beta.vercel.app"
+
+        reset_link = f"{frontend_base.rstrip('/')}/reset-password?token={token}&role={role}"
 
         customer_name = account.get(name_field) or "User"
         customer_id = str(account.get("_id"))
