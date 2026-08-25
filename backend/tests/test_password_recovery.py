@@ -26,7 +26,7 @@ def test_decode_expired_password_reset_token():
     from jose import jwt
     from app.auth.security import SECRET_KEY, ALGORITHM
 
-    expire = datetime.utcnow() - timedelta(minutes=5)
+    expire = datetime.now(timezone.utc) - timedelta(minutes=5)
     to_encode = {
         "sub": "expired@example.com",
         "role": "customer",
