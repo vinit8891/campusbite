@@ -20,20 +20,14 @@ class Settings:
     APP_VERSION: str = os.getenv("APP_VERSION", "1.0.0").strip() or "1.0.0"
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development").strip() or "development"
 
-    # Transactional Email Transport (SMTP / Resend)
-    SMTP_HOST: str = (
-        os.getenv("SMTP_HOST")
-        or ("smtp.resend.com" if os.getenv("RESEND_API_KEY") else "")
-    ).strip()
+    # Resend REST API Email Transport
+    RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "").strip()
+
+    # Transactional Email Transport (SMTP / Resend Fallback)
+    SMTP_HOST: str = os.getenv("SMTP_HOST", "").strip()
     SMTP_PORT: int = int(os.getenv("SMTP_PORT", "587").strip() or "587")
-    SMTP_USER: str = (
-        os.getenv("SMTP_USER")
-        or os.getenv("SMTP_USERNAME")
-        or ("resend" if os.getenv("RESEND_API_KEY") else "")
-    ).strip()
-    SMTP_PASSWORD: str = (
-        os.getenv("SMTP_PASSWORD") or os.getenv("RESEND_API_KEY") or ""
-    ).strip()
+    SMTP_USER: str = (os.getenv("SMTP_USER") or os.getenv("SMTP_USERNAME") or "").strip()
+    SMTP_PASSWORD: str = os.getenv("SMTP_PASSWORD", "").strip()
     SMTP_FROM_EMAIL: str = (
         os.getenv("SMTP_FROM_EMAIL")
         or os.getenv("SMTP_FROM")

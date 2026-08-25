@@ -12,13 +12,21 @@ load_dotenv()
 
 PROVIDER_MOCK = "mock"
 PROVIDER_SMTP = "smtp"
+PROVIDER_RESEND = "resend"
+
+
+def resend_configured() -> bool:
+    s = get_settings()
+    return bool(s.RESEND_API_KEY)
 
 
 def notification_provider() -> str:
     value = (os.getenv("NOTIFICATION_PROVIDER") or "").strip().lower()
-    if value in {PROVIDER_MOCK, PROVIDER_SMTP}:
+    if value in {PROVIDER_MOCK, PROVIDER_SMTP, PROVIDER_RESEND}:
         return value
-    # If SMTP is configured, default to SMTP in production; otherwise mock
+    # Priority: Resend REST API (bypasses blocked SMTP ports) > SMTP > Mock
+    if resend_configured():
+        return PROVIDER_RESEND
     if smtp_configured():
         return PROVIDER_SMTP
     return PROVIDER_MOCK

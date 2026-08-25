@@ -301,3 +301,155 @@ async def test_notification_log_database_exception_graceful():
         )
         mock_sentry.assert_called_once()
 
+
+@pytest.mark.asyncio
+async def test_resend_api_notification_provider_success():
+    """Verify ResendApiNotificationProvider sends HTTPS request with proper headers and payload."""
+    from app.services.notification_providers.resend_api import ResendApiNotificationProvider
+    import httpx
+
+    provider = ResendApiNotificationProvider(
+        api_key="re_live_test_api_key_123",
+        from_email="onboarding@resend.dev",
+    )
+
+    mock_resp = MagicMock(spec=httpx.Response)
+    mock_resp.status_code = 200
+    mock_resp.text = '{"id": "re_email_98765"}'
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp
+
+        status = await provider.send(
+            recipient="user@campusbite.com",
+            subject="Reset Your Password",
+            body="Click here to reset: https://campusbite.com/reset",
+            notification_type=TEMPLATE_PASSWORD_RESET,
+        )
+
+        assert status == STATUS_SENT
+        assert mock_post.called
+        call_url = mock_post.call_args[0][0]
+        call_headers = mock_post.call_args.kwargs["headers"]
+        call_payload = mock_post.call_args.kwargs["json"]
+
+        assert call_url == "https://api.resend.com/emails"
+        assert call_headers["Authorization"] == "Bearer re_live_test_api_key_123"
+        assert call_headers["Content-Type"] == "application/json"
+        assert call_payload["from"] == "onboarding@resend.dev"
+        assert call_payload["to"] == ["user@campusbite.com"]
+        assert call_payload["subject"] == "Reset Your Password"
+        assert "https://campusbite.com/reset" in call_payload["html"]
+
+
+@pytest.mark.asyncio
+async def test_resend_api_notification_provider_http_error():
+    """Verify ResendApiNotificationProvider handles HTTP 4xx/5xx responses gracefully."""
+    from app.services.notification_providers.resend_api import ResendApiNotificationProvider
+    from app.services.notification_log import STATUS_FAILED
+    import httpx
+
+    provider = ResendApiNotificationProvider(
+        api_key="re_invalid_api_key",
+        from_email="onboarding@resend.dev",
+    )
+
+    mock_resp = MagicMock(spec=httpx.Response)
+    mock_resp.status_code = 401
+    mock_resp.text = '{"name": "validation_error", "message": "Invalid API Key"}'
+
+    with patch("httpx.AsyncClient.post", new_callable=AsyncMock) as mock_post:
+        mock_post.return_value = mock_resp
+
+        status = await provider.send(
+            recipient="user@campusbite.com",
+            subject="Welcome",
+            body="Hello world",
+            notification_type=TEMPLATE_CUSTOMER_ORDER_PLACED,
+        )
+
+        assert status == STATUS_FAILED
+
+
+@pytest.mark.asyncio
+async def test_resend_api_notification_provider_network_exception():
+    """Verify ResendApiNotificationProvider catches network timeouts and logs to sentry."""
+    from app.services.notification_providers.resend_api import ResendApiNotificationProvider
+    from app.services.notification_log import STATUS_FAILED
+    import httpx
+
+    provider = ResendApiNotificationProvider(
+        api_key="re_api_key_test",
+        from_email="noreply@campusbite.com",
+    )
+
+    with patch("httpx.AsyncClient.post", side_effect=httpx.ConnectTimeout("Connection timed out")), \
+         patch("sentry_sdk.capture_exception") as mock_sentry:
+        status = await provider.send(
+            recipient="user@campusbite.com",
+            subject="Timeout test",
+            body="Body text",
+            notification_type=TEMPLATE_PASSWORD_RESET,
+        )
+
+        assert status == STATUS_FAILED
+        mock_sentry.assert_called_once()
+
+
+@pytest.mark.asyncio
+async def test_resend_api_notification_provider_missing_key():
+    """Verify provider returns STATUS_FAILED immediately if API key is missing."""
+    from app.services.notification_providers.resend_api import ResendApiNotificationProvider
+    from app.services.notification_log import STATUS_FAILED
+
+    provider = ResendApiNotificationProvider(api_key="")
+    status = await provider.send(
+        recipient="user@campusbite.com",
+        subject="No key",
+        body="Body",
+        notification_type=TEMPLATE_PASSWORD_RESET,
+    )
+    assert status == STATUS_FAILED
+
+
+def test_provider_selection_priority():
+    """Verify provider selection priority: Resend API > SMTP > Mock."""
+    from app.core.config import Settings
+
+    # 1. Resend API Key present -> Resend Provider
+    with patch("app.services.notification_config.get_settings") as mock_settings:
+        mock_settings.return_value = Settings(
+            RESEND_API_KEY="re_test_key_123",
+            SMTP_HOST="smtp.example.com",
+            SMTP_USER="smtp_user",
+            SMTP_PASSWORD="smtp_pass",
+            SMTP_FROM_EMAIL="orders@campusbite.com",
+        )
+        svc = get_notification_service()
+        assert svc.provider_name == "resend"
+
+    # 2. Resend API Key empty, but SMTP configured -> SMTP Provider
+    with patch("app.services.notification_config.get_settings") as mock_settings:
+        mock_settings.return_value = Settings(
+            RESEND_API_KEY="",
+            SMTP_HOST="smtp.example.com",
+            SMTP_USER="smtp_user",
+            SMTP_PASSWORD="smtp_pass",
+            SMTP_FROM_EMAIL="orders@campusbite.com",
+        )
+        svc = get_notification_service()
+        assert svc.provider_name == "smtp"
+
+    # 3. Neither configured -> Mock Provider
+    with patch("app.services.notification_config.get_settings") as mock_settings:
+        mock_settings.return_value = Settings(
+            RESEND_API_KEY="",
+            SMTP_HOST="",
+            SMTP_USER="",
+            SMTP_PASSWORD="",
+            SMTP_FROM_EMAIL="",
+        )
+        svc = get_notification_service()
+        assert svc.provider_name == "mock"
+
+

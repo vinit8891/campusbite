@@ -11,13 +11,16 @@ from app.core.sanitize import sanitize_email
 from app.models.delivery_partner import get_delivery_partner_by_phone
 from app.models.order import get_order_by_id
 from app.services.notification_config import (
+    PROVIDER_RESEND,
     PROVIDER_SMTP,
     notification_provider,
+    resend_configured,
     smtp_configured,
 )
 from app.services.notification_log import STATUS_FAILED, log_notification
 from app.services.notification_providers.base import NotificationProvider
 from app.services.notification_providers.mock import MockNotificationProvider
+from app.services.notification_providers.resend_api import ResendApiNotificationProvider
 from app.services.notification_providers.smtp import SmtpNotificationProvider
 from app.services.notification_templates import (
     TEMPLATE_CUSTOMER_ORDER_PLACED,
@@ -111,6 +114,12 @@ class NotificationService:
 
 def get_notification_service() -> NotificationService:
     selected = notification_provider()
+    if selected == PROVIDER_RESEND and resend_configured():
+        return NotificationService(ResendApiNotificationProvider())
+    if selected == PROVIDER_RESEND and not resend_configured():
+        logger.warning(
+            "NOTIFICATION_PROVIDER=resend but RESEND_API_KEY is missing; falling back"
+        )
     if selected == PROVIDER_SMTP and smtp_configured():
         return NotificationService(SmtpNotificationProvider())
     if selected == PROVIDER_SMTP and not smtp_configured():
