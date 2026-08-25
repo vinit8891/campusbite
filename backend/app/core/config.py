@@ -14,6 +14,39 @@ def _is_truthy(val: str | None) -> bool:
     return str(val or "").strip().lower() in ("true", "1", "yes", "on")
 
 
+def resolve_resend_api_key(
+    resend_api_key: str | None = None,
+    smtp_host: str | None = None,
+    smtp_password: str | None = None,
+) -> str:
+    """Resolve Resend API key from RESEND_API_KEY, SMTP_PASSWORD (re_ prefix), or smtp.resend.com host."""
+    direct_key = (
+        resend_api_key
+        if resend_api_key is not None
+        else os.getenv("RESEND_API_KEY", "")
+    ).strip()
+    if direct_key:
+        return direct_key
+
+    password = (
+        smtp_password
+        if smtp_password is not None
+        else os.getenv("SMTP_PASSWORD", "")
+    ).strip()
+    if password.startswith("re_"):
+        return password
+
+    host = (
+        smtp_host
+        if smtp_host is not None
+        else os.getenv("SMTP_HOST", "")
+    ).strip().lower()
+    if host == "smtp.resend.com" and password:
+        return password
+
+    return ""
+
+
 @dataclass(frozen=True)
 class Settings:
     APP_NAME: str = os.getenv("APP_NAME", "CampusBite API").strip() or "CampusBite API"
@@ -21,7 +54,7 @@ class Settings:
     ENVIRONMENT: str = os.getenv("ENVIRONMENT", "development").strip() or "development"
 
     # Resend REST API Email Transport
-    RESEND_API_KEY: str = os.getenv("RESEND_API_KEY", "").strip()
+    RESEND_API_KEY: str = ""
 
     # Transactional Email Transport (SMTP / Resend Fallback)
     SMTP_HOST: str = os.getenv("SMTP_HOST", "").strip()
@@ -32,12 +65,20 @@ class Settings:
         os.getenv("SMTP_FROM_EMAIL")
         or os.getenv("SMTP_FROM")
         or os.getenv("RESEND_FROM_EMAIL")
-        or "noreply@campusbite.com"
+        or "onboarding@resend.dev"
     ).strip()
     SMTP_TLS: bool = _is_truthy(os.getenv("SMTP_TLS", "true"))
 
     # Sentry Observability
     SENTRY_DSN: str = os.getenv("SENTRY_DSN", "").strip()
+
+    def __post_init__(self) -> None:
+        resolved = resolve_resend_api_key(
+            resend_api_key=self.RESEND_API_KEY,
+            smtp_host=self.SMTP_HOST,
+            smtp_password=self.SMTP_PASSWORD,
+        )
+        object.__setattr__(self, "RESEND_API_KEY", resolved)
 
 
 def get_settings() -> Settings:

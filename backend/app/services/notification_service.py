@@ -6,6 +6,7 @@ from typing import Any
 
 from fastapi import BackgroundTasks
 
+from app.core.config import get_settings
 from app.core.logging import get_logger
 from app.core.sanitize import sanitize_email
 from app.models.delivery_partner import get_delivery_partner_by_phone
@@ -15,6 +16,7 @@ from app.services.notification_config import (
     PROVIDER_SMTP,
     notification_provider,
     resend_configured,
+    resolve_resend_key,
     smtp_configured,
 )
 from app.services.notification_log import STATUS_FAILED, log_notification
@@ -115,7 +117,18 @@ class NotificationService:
 def get_notification_service() -> NotificationService:
     selected = notification_provider()
     if selected == PROVIDER_RESEND and resend_configured():
-        return NotificationService(ResendApiNotificationProvider())
+        settings = get_settings()
+        resolved_key = resolve_resend_key()
+        from_email = (
+            settings.SMTP_FROM_EMAIL
+            or "onboarding@resend.dev"
+        ).strip()
+        return NotificationService(
+            ResendApiNotificationProvider(
+                api_key=resolved_key,
+                from_email=from_email,
+            )
+        )
     if selected == PROVIDER_RESEND and not resend_configured():
         logger.warning(
             "NOTIFICATION_PROVIDER=resend but RESEND_API_KEY is missing; falling back"

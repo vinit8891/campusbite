@@ -27,7 +27,7 @@ class ResendApiNotificationProvider(NotificationProvider):
         self._from_email = (
             from_email
             or settings.SMTP_FROM_EMAIL
-            or "noreply@campusbite.com"
+            or "onboarding@resend.dev"
         ).strip()
 
     async def send(

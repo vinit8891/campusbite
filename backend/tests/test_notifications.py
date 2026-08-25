@@ -417,39 +417,170 @@ def test_provider_selection_priority():
     from app.core.config import Settings
 
     # 1. Resend API Key present -> Resend Provider
-    with patch("app.services.notification_config.get_settings") as mock_settings:
-        mock_settings.return_value = Settings(
+    with patch("app.services.notification_config.get_settings") as mock_cfg_settings, \
+         patch("app.services.notification_service.get_settings") as mock_svc_settings:
+        fake_settings = Settings(
             RESEND_API_KEY="re_test_key_123",
             SMTP_HOST="smtp.example.com",
             SMTP_USER="smtp_user",
             SMTP_PASSWORD="smtp_pass",
             SMTP_FROM_EMAIL="orders@campusbite.com",
         )
+        mock_cfg_settings.return_value = fake_settings
+        mock_svc_settings.return_value = fake_settings
         svc = get_notification_service()
         assert svc.provider_name == "resend"
 
     # 2. Resend API Key empty, but SMTP configured -> SMTP Provider
-    with patch("app.services.notification_config.get_settings") as mock_settings:
-        mock_settings.return_value = Settings(
+    with patch("app.services.notification_config.get_settings") as mock_cfg_settings, \
+         patch("app.services.notification_service.get_settings") as mock_svc_settings:
+        fake_settings = Settings(
             RESEND_API_KEY="",
             SMTP_HOST="smtp.example.com",
             SMTP_USER="smtp_user",
             SMTP_PASSWORD="smtp_pass",
             SMTP_FROM_EMAIL="orders@campusbite.com",
         )
+        mock_cfg_settings.return_value = fake_settings
+        mock_svc_settings.return_value = fake_settings
         svc = get_notification_service()
         assert svc.provider_name == "smtp"
 
     # 3. Neither configured -> Mock Provider
-    with patch("app.services.notification_config.get_settings") as mock_settings:
-        mock_settings.return_value = Settings(
+    with patch("app.services.notification_config.get_settings") as mock_cfg_settings, \
+         patch("app.services.notification_service.get_settings") as mock_svc_settings:
+        fake_settings = Settings(
             RESEND_API_KEY="",
             SMTP_HOST="",
             SMTP_USER="",
             SMTP_PASSWORD="",
             SMTP_FROM_EMAIL="",
         )
+        mock_cfg_settings.return_value = fake_settings
+        mock_svc_settings.return_value = fake_settings
         svc = get_notification_service()
         assert svc.provider_name == "mock"
+
+
+def test_auto_detect_resend_key_from_smtp_password():
+    """Verify auto-detection of RESEND_API_KEY when passed via SMTP_PASSWORD starting with 're_'."""
+    from app.core.config import Settings, resolve_resend_api_key
+    from app.services.notification_config import resend_configured, resolve_resend_key
+
+    # Direct resolution test
+    resolved = resolve_resend_api_key(
+        resend_api_key="",
+        smtp_host="smtp.example.com",
+        smtp_password="re_123456789_autoDetected",
+    )
+    assert resolved == "re_123456789_autoDetected"
+
+    # Settings resolution test
+    s = Settings(
+        RESEND_API_KEY="",
+        SMTP_PASSWORD="re_123456789_autoDetected",
+    )
+    assert s.RESEND_API_KEY == "re_123456789_autoDetected"
+
+    # notification_config resolution test
+    with patch("app.services.notification_config.get_settings") as mock_settings:
+        mock_settings.return_value = s
+        assert resolve_resend_key() == "re_123456789_autoDetected"
+        assert resend_configured() is True
+
+
+def test_auto_detect_resend_key_from_smtp_host():
+    """Verify auto-detection of RESEND_API_KEY when SMTP_HOST is smtp.resend.com."""
+    from app.core.config import Settings, resolve_resend_api_key
+    from app.services.notification_config import resend_configured, resolve_resend_key
+
+    # Direct resolution test
+    resolved = resolve_resend_api_key(
+        resend_api_key="",
+        smtp_host="smtp.resend.com",
+        smtp_password="custom_resend_token_xyz",
+    )
+    assert resolved == "custom_resend_token_xyz"
+
+    # Settings resolution test
+    s = Settings(
+        RESEND_API_KEY="",
+        SMTP_HOST="smtp.resend.com",
+        SMTP_PASSWORD="custom_resend_token_xyz",
+    )
+    assert s.RESEND_API_KEY == "custom_resend_token_xyz"
+
+    # notification_config resolution test
+    with patch("app.services.notification_config.get_settings") as mock_settings:
+        mock_settings.return_value = s
+        assert resolve_resend_key() == "custom_resend_token_xyz"
+        assert resend_configured() is True
+
+
+def test_force_resend_https_over_blocked_smtp():
+    """Verify Resend HTTPS provider is forced over SMTP when Resend credentials are present."""
+    from app.core.config import Settings
+    from app.services.notification_config import notification_provider, smtp_configured
+
+    # Case 1: NOTIFICATION_PROVIDER="smtp" in env, but SMTP_PASSWORD starts with "re_"
+    with patch.dict("os.environ", {"NOTIFICATION_PROVIDER": "smtp"}), \
+         patch("app.services.notification_config.get_settings") as mock_settings, \
+         patch("app.services.notification_service.get_settings") as mock_svc_settings:
+        fake_settings = Settings(
+            RESEND_API_KEY="",
+            SMTP_HOST="smtp.resend.com",
+            SMTP_USER="resend",
+            SMTP_PASSWORD="re_render_deploy_key",
+            SMTP_FROM_EMAIL="orders@campusbite.com",
+        )
+        mock_settings.return_value = fake_settings
+        mock_svc_settings.return_value = fake_settings
+
+        assert notification_provider() == "resend"
+        assert smtp_configured() is False
+
+        svc = get_notification_service()
+        assert svc.provider_name == "resend"
+        assert svc._provider._api_key == "re_render_deploy_key"
+        assert svc._provider._from_email == "orders@campusbite.com"
+
+
+def test_mock_provider_override_even_if_resend_configured():
+    """Verify explicit NOTIFICATION_PROVIDER=mock is respected even when Resend credentials exist."""
+    from app.core.config import Settings
+    from app.services.notification_config import notification_provider
+
+    with patch.dict("os.environ", {"NOTIFICATION_PROVIDER": "mock"}), \
+         patch("app.services.notification_config.get_settings") as mock_settings, \
+         patch("app.services.notification_service.get_settings") as mock_svc_settings:
+        fake_settings = Settings(
+            RESEND_API_KEY="re_active_key",
+            SMTP_PASSWORD="re_active_key",
+        )
+        mock_settings.return_value = fake_settings
+        mock_svc_settings.return_value = fake_settings
+
+        assert notification_provider() == "mock"
+        svc = get_notification_service()
+        assert svc.provider_name == "mock"
+
+
+def test_resend_api_provider_default_from_email():
+    """Verify ResendApiNotificationProvider defaults to onboarding@resend.dev when unverified/unset."""
+    from app.core.config import Settings
+
+    with patch("app.services.notification_config.get_settings") as mock_settings, \
+         patch("app.services.notification_service.get_settings") as mock_svc_settings:
+        fake_settings = Settings(
+            RESEND_API_KEY="re_test_key_abc",
+            SMTP_FROM_EMAIL="",
+        )
+        mock_settings.return_value = fake_settings
+        mock_svc_settings.return_value = fake_settings
+
+        svc = get_notification_service()
+        assert svc.provider_name == "resend"
+        assert svc._provider._from_email == "onboarding@resend.dev"
+
 
 
