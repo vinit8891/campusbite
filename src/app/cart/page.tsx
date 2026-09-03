@@ -5,8 +5,10 @@ import { useRouter } from "next/navigation";
 import { ArrowLeft, Minus, Plus, Trash2 } from "lucide-react";
 
 import { useCart } from "@/context/CartContext";
+import { useCheckout } from "@/context/CheckoutContext";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
+import type { DeliveryType } from "@/lib/orderPricing";
 
 export default function CartPage() {
   const router = useRouter();
@@ -16,7 +18,11 @@ export default function CartPage() {
     increaseQuantity,
     decreaseQuantity,
     removeFromCart,
+    deliveryType,
+    setDeliveryType,
   } = useCart();
+
+  const { setCheckout } = useCheckout();
 
   const itemCount = cart.reduce(
     (sum, item) => sum + item.quantity,
@@ -28,11 +34,20 @@ export default function CartPage() {
     0
   );
 
-  const deliveryFee = cart.length > 0 ? 40 : 0;
+  const gst = Math.round(subtotal * 0.05 * 100) / 100;
+  const deliveryFee =
+    cart.length > 0 ? (deliveryType === "HOSTEL_BATCH" ? 15 : 40) : 0;
+  const platformFee = subtotal > 0 ? 3 : 0;
+  const grandTotal =
+    Math.round((subtotal + gst + deliveryFee + platformFee) * 100) / 100;
 
-  const platformFee = cart.length > 0 ? 0 : 0;
-
-  const total = subtotal + deliveryFee + platformFee;
+  function handleDeliveryModeChange(type: DeliveryType) {
+    setDeliveryType(type);
+    setCheckout((prev) => ({
+      ...prev,
+      delivery_type: type,
+    }));
+  }
 
   /*
    * Empty Cart
@@ -61,7 +76,6 @@ export default function CartPage() {
             >
               Browse Restaurants
             </Button>
-
           </div>
         </div>
       </main>
@@ -91,7 +105,7 @@ export default function CartPage() {
           </p>
         </header>
 
-        <div className="grid gap-8 lg:grid-cols-[1fr_360px]">
+        <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
           {/* Cart Items */}
           <section>
             <div className="space-y-4">
@@ -171,7 +185,7 @@ export default function CartPage() {
 
                       {/* Item Total */}
                       <span className="text-lg font-extrabold text-gray-900">
-                        ₹{item.price * item.quantity}
+                        ₹{(item.price * item.quantity).toFixed(2)}
                       </span>
                     </div>
                   </div>
@@ -187,35 +201,114 @@ export default function CartPage() {
                 Order Summary
               </h2>
 
-              <div className="mt-6 space-y-4">
-                <div className="flex items-center justify-between text-sm text-gray-600">
+              {/* Delivery Mode Selection */}
+              <div className="mt-5">
+                <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-gray-500">
+                  Select Delivery Mode
+                </label>
+                <div
+                  className="grid grid-cols-2 gap-2"
+                  role="radiogroup"
+                  aria-label="Select Delivery Mode"
+                >
+                  {/* Hostel Batch Drop */}
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={deliveryType === "HOSTEL_BATCH"}
+                    onClick={() => handleDeliveryModeChange("HOSTEL_BATCH")}
+                    className={`relative rounded-2xl border-2 p-3 text-left transition ${
+                      deliveryType === "HOSTEL_BATCH"
+                        ? "border-orange-500 bg-orange-50/70 shadow-sm"
+                        : "border-gray-200 bg-white hover:border-orange-200"
+                    }`}
+                  >
+                    <span className="inline-block rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
+                      Save ₹25
+                    </span>
+                    <p className="mt-1 text-xs font-bold text-gray-900">
+                      Hostel Batch Drop
+                    </p>
+                    <p className="text-sm font-extrabold text-orange-600">
+                      ₹15
+                    </p>
+                  </button>
+
+                  {/* Direct Room Delivery */}
+                  <button
+                    type="button"
+                    role="radio"
+                    aria-checked={deliveryType === "STANDARD"}
+                    onClick={() => handleDeliveryModeChange("STANDARD")}
+                    className={`relative rounded-2xl border-2 p-3 text-left transition ${
+                      deliveryType === "STANDARD"
+                        ? "border-orange-500 bg-orange-50/70 shadow-sm"
+                        : "border-gray-200 bg-white hover:border-orange-200"
+                    }`}
+                  >
+                    <span className="inline-block rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">
+                      Direct
+                    </span>
+                    <p className="mt-1 text-xs font-bold text-gray-900">
+                      Direct Room Delivery
+                    </p>
+                    <p className="text-sm font-extrabold text-gray-900">
+                      ₹40
+                    </p>
+                  </button>
+                </div>
+              </div>
+
+              {/* Price Breakdown */}
+              <div className="mt-6 space-y-3.5 text-sm">
+                <div className="flex items-center justify-between text-gray-600">
                   <span>Items</span>
-                  <span>{itemCount}</span>
+                  <span className="font-medium text-gray-900">{itemCount}</span>
                 </div>
 
-                <div className="flex items-center justify-between text-sm text-gray-600">
+                <div className="flex items-center justify-between text-gray-600">
                   <span>Subtotal</span>
-                  <span>₹{subtotal}</span>
+                  <span className="font-medium text-gray-900">
+                    ₹{subtotal.toFixed(2)}
+                  </span>
                 </div>
 
-                <div className="flex items-center justify-between text-sm text-gray-600">
-                  <span>Delivery Fee</span>
-                  <span>₹{deliveryFee}</span>
+                <div className="flex items-center justify-between text-gray-600">
+                  <span>Restaurant GST (5%)</span>
+                  <span className="font-medium text-gray-900">
+                    ₹{gst.toFixed(2)}
+                  </span>
                 </div>
 
-                <div className="flex items-center justify-between text-sm text-gray-600">
+                <div className="flex items-center justify-between text-gray-600">
+                  <div className="flex items-center gap-1.5">
+                    <span>Delivery Fee</span>
+                    {deliveryType === "HOSTEL_BATCH" && (
+                      <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
+                        Hostel Batch
+                      </span>
+                    )}
+                  </div>
+                  <span className="font-medium text-gray-900">
+                    ₹{deliveryFee.toFixed(2)}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between text-gray-600">
                   <span>Platform Fee</span>
-                  <span>₹{platformFee}</span>
+                  <span className="font-medium text-gray-900">
+                    ₹{platformFee.toFixed(2)}
+                  </span>
                 </div>
 
-                <div className="border-t border-gray-200 pt-5">
+                <div className="border-t border-gray-200 pt-4">
                   <div className="flex items-center justify-between">
                     <span className="text-lg font-bold text-gray-900">
                       Grand Total
                     </span>
 
                     <span className="text-2xl font-extrabold text-orange-600">
-                      ₹{total}
+                      ₹{grandTotal.toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -228,7 +321,6 @@ export default function CartPage() {
               >
                 Proceed to Checkout →
               </Button>
-
 
               <p className="mt-4 text-center text-xs text-gray-400">
                 Secure checkout • COD & Razorpay Test Mode
