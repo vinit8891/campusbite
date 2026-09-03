@@ -1,17 +1,20 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminTableSkeleton from "@/components/admin/AdminTableSkeleton";
+import DeleteUserModal from "@/components/admin/DeleteUserModal";
 import PaginationControls from "@/components/ui/PaginationControls";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { formatAdminDate } from "@/lib/adminFormat";
 import {
   AuthHttpError,
+  deleteUser,
   getAdminCustomers,
   getAdminDeliveryPartners,
   getAdminRestaurantOwners,
@@ -40,6 +43,14 @@ export default function AdminUsersPage() {
   const [customers, setCustomers] = useState<AdminCustomer[]>([]);
   const [owners, setOwners] = useState<AdminRestaurantOwner[]>([]);
   const [partners, setPartners] = useState<AdminDeliveryPartner[]>([]);
+
+  const [userToDelete, setUserToDelete] = useState<{
+    id: string;
+    name: string;
+    email: string;
+    role: UserTab;
+  } | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
 
   async function loadUsers(
     activeTab: UserTab,
@@ -100,6 +111,30 @@ export default function AdminUsersPage() {
     void loadUsers(tab, q, 1);
   }
 
+  async function handleConfirmDelete() {
+    if (!userToDelete) return;
+    setDeleteLoading(true);
+    try {
+      await deleteUser(userToDelete.id, userToDelete.role);
+      toast.success("User deleted successfully");
+      if (userToDelete.role === "customers") {
+        setCustomers((prev) => prev.filter((u) => u.id !== userToDelete.id));
+      } else if (userToDelete.role === "restaurant-owners") {
+        setOwners((prev) => prev.filter((u) => u.id !== userToDelete.id));
+      } else {
+        setPartners((prev) => prev.filter((u) => u.id !== userToDelete.id));
+      }
+      setTotal((prev) => Math.max(0, prev - 1));
+      setUserToDelete(null);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to delete user"
+      );
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
   const empty =
     !loading &&
     ((tab === "customers" && customers.length === 0) ||
@@ -110,7 +145,7 @@ export default function AdminUsersPage() {
     <div className="mx-auto max-w-6xl space-y-6 sm:space-y-8">
       <AdminPageHeader
         title="Users"
-        description="Read-only directory of customers, owners, and delivery partners"
+        description="Manage customers, restaurant owners, and delivery partners"
       />
 
       <div className="flex flex-wrap gap-2">
@@ -158,7 +193,7 @@ export default function AdminUsersPage() {
       )}
 
       {loading ? (
-        <AdminTableSkeleton rows={6} columns={4} />
+        <AdminTableSkeleton rows={6} columns={5} />
       ) : empty ? (
         <AdminEmptyState
           title="No users found"
@@ -174,11 +209,12 @@ export default function AdminUsersPage() {
                   <th className="px-4 py-3 font-semibold">Email</th>
                   <th className="px-4 py-3 font-semibold">Phone</th>
                   <th className="px-4 py-3 font-semibold">Created At</th>
+                  <th className="px-4 py-3 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {customers.map((user) => (
-                  <tr key={user.id} className="border-t">
+                  <tr key={user.id} className="border-t hover:bg-gray-50/50">
                     <td className="px-4 py-3 font-medium">
                       {user.name || "—"}
                     </td>
@@ -186,6 +222,26 @@ export default function AdminUsersPage() {
                     <td className="px-4 py-3">{user.phone || "—"}</td>
                     <td className="px-4 py-3 text-gray-600">
                       {formatAdminDate(user.created_at)}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setUserToDelete({
+                            id: user.id,
+                            name: user.name,
+                            email: user.email,
+                            role: "customers",
+                          })
+                        }
+                        className="h-8 px-2.5 text-red-600 hover:bg-red-50 hover:text-red-700"
+                        aria-label={`Delete ${user.name || user.email || "user"}`}
+                      >
+                        <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                        Delete
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -200,17 +256,38 @@ export default function AdminUsersPage() {
                   <th className="px-4 py-3 font-semibold">Name</th>
                   <th className="px-4 py-3 font-semibold">Email</th>
                   <th className="px-4 py-3 font-semibold">Restaurant</th>
+                  <th className="px-4 py-3 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {owners.map((owner) => (
-                  <tr key={owner.id} className="border-t">
+                  <tr key={owner.id} className="border-t hover:bg-gray-50/50">
                     <td className="px-4 py-3 font-medium">
                       {owner.name || "—"}
                     </td>
                     <td className="px-4 py-3">{owner.email || "—"}</td>
                     <td className="px-4 py-3">
                       {owner.restaurant || "—"}
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setUserToDelete({
+                            id: owner.id,
+                            name: owner.name,
+                            email: owner.email,
+                            role: "restaurant-owners",
+                          })
+                        }
+                        className="h-8 px-2.5 text-red-600 hover:bg-red-50 hover:text-red-700"
+                        aria-label={`Delete ${owner.name || owner.email || "owner"}`}
+                      >
+                        <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                        Delete
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -225,11 +302,12 @@ export default function AdminUsersPage() {
                   <th className="px-4 py-3 font-semibold">Name</th>
                   <th className="px-4 py-3 font-semibold">Email</th>
                   <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold text-right">Actions</th>
                 </tr>
               </thead>
               <tbody>
                 {partners.map((partner) => (
-                  <tr key={partner.id} className="border-t">
+                  <tr key={partner.id} className="border-t hover:bg-gray-50/50">
                     <td className="px-4 py-3 font-medium">
                       {partner.name || "—"}
                     </td>
@@ -244,6 +322,26 @@ export default function AdminUsersPage() {
                       >
                         {partner.status}
                       </span>
+                    </td>
+                    <td className="px-4 py-3 text-right">
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        onClick={() =>
+                          setUserToDelete({
+                            id: partner.id,
+                            name: partner.name,
+                            email: partner.email,
+                            role: "delivery-partners",
+                          })
+                        }
+                        className="h-8 px-2.5 text-red-600 hover:bg-red-50 hover:text-red-700"
+                        aria-label={`Delete ${partner.name || partner.email || "partner"}`}
+                      >
+                        <Trash2 className="mr-1.5 h-3.5 w-3.5" />
+                        Delete
+                      </Button>
                     </td>
                   </tr>
                 ))}
@@ -262,6 +360,15 @@ export default function AdminUsersPage() {
           setPage(next);
           void loadUsers(tab, q, next);
         }}
+      />
+
+      <DeleteUserModal
+        isOpen={Boolean(userToDelete)}
+        userName={userToDelete?.name || ""}
+        userEmail={userToDelete?.email || ""}
+        loading={deleteLoading}
+        onConfirm={() => void handleConfirmDelete()}
+        onCancel={() => setUserToDelete(null)}
       />
     </div>
   );

@@ -2,6 +2,7 @@ import { describe, it, expect } from "vitest";
 import {
   getAdminStats,
   getAdminAnalytics,
+  deleteUser,
   getBackendHealth,
 } from "@/services/adminService";
 
@@ -22,6 +23,12 @@ describe("adminService", () => {
     expect(analytics.courier_payouts).toBe(8100.0);
     expect(analytics.gst_pool).toBe(3500.0);
     expect(analytics.average_order_value).toBe(121.11);
+  });
+
+  it("deleteUser sends delete request with user id and optional role", async () => {
+    const res = await deleteUser("user_123", "customers");
+    expect(res.success).toBe(true);
+    expect(res.message).toBe("User deleted successfully");
   });
 
   it("getBackendHealth performs unauthenticated health check", async () => {

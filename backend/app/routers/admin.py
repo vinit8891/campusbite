@@ -239,3 +239,182 @@ async def list_subscription_plans(
         active=active,
     )
     return {"items": items}
+
+
+from bson import ObjectId
+from bson.errors import InvalidId
+from fastapi import HTTPException, status
+from app.core.audit import log_admin_action
+
+ACTIVE_ORDER_STATUSES = [
+    "Pending",
+    "Accepted",
+    "Preparing",
+    "Ready for Pickup",
+    "Assigned",
+    "Picked Up",
+    "Out for Delivery",
+]
+
+
+def _to_object_id(id_str: str):
+    try:
+        return ObjectId(id_str)
+    except (InvalidId, TypeError, ValueError):
+        return None
+
+
+def _id_filter(user_id: str) -> dict:
+    oid = _to_object_id(user_id)
+    if oid:
+        return {"$or": [{"_id": oid}, {"_id": user_id}]}
+    return {"_id": user_id}
+
+
+@router.delete("/users/{role}/{user_id}")
+@router.delete("/users/{user_id}")
+async def delete_user(
+    user_id: str,
+    current_user: Annotated[dict, Depends(require_roles(ADMIN))],
+    role: str | None = None,
+):
+    """
+    Deletes a customer, restaurant owner, or delivery partner.
+    Guarded with admin authorization, prevents self-deletion, and verifies active order constraints.
+    """
+    admin_email = (
+        current_user.get("email") or current_user.get("sub") or ""
+    ).strip().lower()
+
+    # 1. Determine target collection
+    role_normalized = (role or "").strip().lower().replace("-", "_").replace(" ", "_")
+    target_collection_name = None
+    if role_normalized in ["customers", "customer", "user", "users"]:
+        target_collection_name = "users"
+    elif role_normalized in [
+        "restaurant_owners",
+        "restaurant_owner",
+        "owner",
+        "owners",
+        "restaurant",
+    ]:
+        target_collection_name = "restaurant_owners"
+    elif role_normalized in [
+        "delivery_partners",
+        "delivery_partner",
+        "driver",
+        "drivers",
+    ]:
+        target_collection_name = "delivery_partners"
+
+    query = _id_filter(user_id)
+    user_doc = None
+    collection_name = None
+
+    if target_collection_name:
+        user_doc = await database[target_collection_name].find_one(query)
+        if user_doc:
+            collection_name = target_collection_name
+    else:
+        # Search collections in order
+        for col_name in ["users", "restaurant_owners", "delivery_partners"]:
+            found = await database[col_name].find_one(query)
+            if found:
+                user_doc = found
+                collection_name = col_name
+                break
+
+    if not user_doc or not collection_name:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    # 2. Prevent self-deletion
+    user_email = (user_doc.get("email") or "").strip().lower()
+    user_doc_id = str(user_doc.get("_id", ""))
+    if (
+        user_email == admin_email
+        or user_id == str(current_user.get("id"))
+        or user_doc_id == str(current_user.get("id"))
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Cannot delete the currently logged-in admin account.",
+        )
+
+    # 3. Active dependency checks
+    if collection_name == "restaurant_owners":
+        if user_email:
+            active_order = await database["orders"].find_one(
+                {
+                    "restaurant_email": user_email,
+                    "status": {"$in": ACTIVE_ORDER_STATUSES},
+                }
+            )
+            if active_order:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot delete restaurant owner with active unfulfilled orders.",
+                )
+            # Clean up associated restaurant and menu documents
+            await database["restaurants"].delete_many({"email": user_email})
+            await database["menu"].delete_many({"restaurant_email": user_email})
+
+    elif collection_name == "delivery_partners":
+        partner_phone = user_doc.get("phone")
+        filter_clause = []
+        if partner_phone:
+            filter_clause.append({"delivery_partner_phone": partner_phone})
+        if user_email:
+            filter_clause.append({"delivery_partner_email": user_email})
+
+        if filter_clause:
+            active_delivery = await database["orders"].find_one(
+                {
+                    "$or": filter_clause,
+                    "status": {
+                        "$in": ["Assigned", "Picked Up", "Out for Delivery"]
+                    },
+                }
+            )
+            if active_delivery:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot delete delivery partner with active delivery assignments.",
+                )
+
+    elif collection_name == "users":
+        customer_phone = user_doc.get("phone")
+        filter_clause = []
+        if customer_phone:
+            filter_clause.append({"phone": customer_phone})
+        if user_email:
+            filter_clause.append({"customer_email": user_email})
+
+        if filter_clause:
+            active_order = await database["orders"].find_one(
+                {
+                    "$or": filter_clause,
+                    "status": {"$in": ACTIVE_ORDER_STATUSES},
+                }
+            )
+            if active_order:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="Cannot delete customer with active unfulfilled orders.",
+                )
+
+    # 4. Perform deletion
+    await database[collection_name].delete_one({"_id": user_doc["_id"]})
+
+    # 5. Audit log
+    await log_admin_action(
+        admin_email=admin_email,
+        action="delete_user",
+        resource=collection_name,
+        resource_id=user_id,
+        metadata={"deleted_email": user_email, "role": collection_name},
+    )
+
+    return {"success": True, "message": "User deleted successfully"}

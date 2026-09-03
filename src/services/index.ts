@@ -29,4 +29,5 @@ export {
   addRestaurant,
   updateRestaurant,
   deleteRestaurant,
+  deleteUser,
 } from "./adminService";

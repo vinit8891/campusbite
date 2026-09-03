@@ -139,3 +139,17 @@ export async function deleteRestaurant(id: string) {
     method: "DELETE",
   });
 }
+
+export async function deleteUser(
+  userId: string,
+  role?: string
+): Promise<{ success: boolean; message: string }> {
+  const path = role
+    ? `/admin/users/${encodeURIComponent(role)}/${encodeURIComponent(userId)}`
+    : `/admin/users/${encodeURIComponent(userId)}`;
+
+  return authJson<{ success: boolean; message: string }>(path, {
+    ...ADMIN_JSON,
+    method: "DELETE",
+  });
+}

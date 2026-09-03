@@ -31,4 +31,16 @@ export const adminHandlers = [
       average_order_value: 121.11,
     });
   }),
+  http.delete(url("/admin/users/:role/:user_id"), () => {
+    return HttpResponse.json({
+      success: true,
+      message: "User deleted successfully",
+    });
+  }),
+  http.delete(url("/admin/users/:user_id"), () => {
+    return HttpResponse.json({
+      success: true,
+      message: "User deleted successfully",
+    });
+  }),
 ];
