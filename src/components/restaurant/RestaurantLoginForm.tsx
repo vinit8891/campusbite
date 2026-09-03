@@ -40,6 +40,7 @@ export default function RestaurantLoginForm() {
 
       const token = data.access_token;
       const role = "restaurant_owner";
+      const ownerEmail = data.email || email;
 
       // Set cookies with path=/ for Edge middleware authentication
       document.cookie = `cb_token=${token}; path=/; max-age=86400; SameSite=Lax`;
