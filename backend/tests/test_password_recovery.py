@@ -54,3 +54,107 @@ def test_password_hash_and_verify():
     assert hashed != password
     assert verify_password(password, hashed) is True
     assert verify_password("WrongPassword123!", hashed) is False
+
+
+import pytest
+from unittest.mock import AsyncMock, MagicMock, patch
+from fastapi import BackgroundTasks
+from app.routes.auth import forgot_password
+from app.schemas.user import ForgotPasswordRequest
+
+
+@pytest.mark.asyncio
+async def test_forgot_password_frontend_url_from_env():
+    """Verify forgot-password uses FRONTEND_URL env var when set."""
+    payload = ForgotPasswordRequest(email="alice@example.com", role="customer")
+    bg_tasks = BackgroundTasks()
+    request = MagicMock()
+    request.headers = {"origin": "https://ignored-origin.com"}
+
+    mock_db = {
+        "users": MagicMock()
+    }
+    mock_db["users"].find_one = AsyncMock(return_value={"_id": "usr_123", "name": "Alice", "email": "alice@example.com"})
+
+    with patch.dict("os.environ", {"FRONTEND_URL": "https://custom-campusbite.in/"}), \
+         patch("app.routes.auth.database", mock_db), \
+         patch("app.routes.auth.schedule_notification") as mock_schedule:
+        resp = await forgot_password(payload, bg_tasks, request)
+        assert "message" in resp
+        assert mock_schedule.called
+        kwargs = mock_schedule.call_args.kwargs
+        assert kwargs["reset_link"].startswith("https://custom-campusbite.in/reset-password?token=")
+        assert "role=customer" in kwargs["reset_link"]
+
+
+@pytest.mark.asyncio
+async def test_forgot_password_frontend_url_from_origin_header():
+    """Verify forgot-password extracts frontend URL from request origin header when FRONTEND_URL is unset."""
+    payload = ForgotPasswordRequest(email="alice@example.com", role="customer")
+    bg_tasks = BackgroundTasks()
+    request = MagicMock()
+    request.headers = {"origin": "https://deploy-preview-12.campusbite.app"}
+
+    mock_db = {
+        "users": MagicMock()
+    }
+    mock_db["users"].find_one = AsyncMock(return_value={"_id": "usr_123", "name": "Alice", "email": "alice@example.com"})
+
+    with patch.dict("os.environ", {"FRONTEND_URL": ""}), \
+         patch("app.routes.auth.database", mock_db), \
+         patch("app.routes.auth.schedule_notification") as mock_schedule:
+        resp = await forgot_password(payload, bg_tasks, request)
+        assert "message" in resp
+        assert mock_schedule.called
+        kwargs = mock_schedule.call_args.kwargs
+        assert kwargs["reset_link"].startswith("https://deploy-preview-12.campusbite.app/reset-password?token=")
+        assert "role=customer" in kwargs["reset_link"]
+
+
+@pytest.mark.asyncio
+async def test_forgot_password_frontend_url_from_referer_header():
+    """Verify forgot-password extracts base origin from referer header when origin and env are unset."""
+    payload = ForgotPasswordRequest(email="alice@example.com", role="customer")
+    bg_tasks = BackgroundTasks()
+    request = MagicMock()
+    request.headers = {"referer": "https://campusbite.org/auth/forgot-password?ref=login"}
+
+    mock_db = {
+        "users": MagicMock()
+    }
+    mock_db["users"].find_one = AsyncMock(return_value={"_id": "usr_123", "name": "Alice", "email": "alice@example.com"})
+
+    with patch.dict("os.environ", {"FRONTEND_URL": ""}), \
+         patch("app.routes.auth.database", mock_db), \
+         patch("app.routes.auth.schedule_notification") as mock_schedule:
+        resp = await forgot_password(payload, bg_tasks, request)
+        assert "message" in resp
+        assert mock_schedule.called
+        kwargs = mock_schedule.call_args.kwargs
+        assert kwargs["reset_link"].startswith("https://campusbite.org/reset-password?token=")
+        assert "role=customer" in kwargs["reset_link"]
+
+
+@pytest.mark.asyncio
+async def test_forgot_password_frontend_url_fallback_default():
+    """Verify forgot-password defaults to https://campusbite-beta.vercel.app when env and headers are empty."""
+    payload = ForgotPasswordRequest(email="alice@example.com", role="customer")
+    bg_tasks = BackgroundTasks()
+    request = MagicMock()
+    request.headers = {}
+
+    mock_db = {
+        "users": MagicMock()
+    }
+    mock_db["users"].find_one = AsyncMock(return_value={"_id": "usr_123", "name": "Alice", "email": "alice@example.com"})
+
+    with patch.dict("os.environ", {"FRONTEND_URL": ""}), \
+         patch("app.routes.auth.database", mock_db), \
+         patch("app.routes.auth.schedule_notification") as mock_schedule:
+        resp = await forgot_password(payload, bg_tasks, request)
+        assert "message" in resp
+        assert mock_schedule.called
+        kwargs = mock_schedule.call_args.kwargs
+        assert kwargs["reset_link"].startswith("https://campusbite-beta.vercel.app/reset-password?token=")
+        assert "role=customer" in kwargs["reset_link"]
+

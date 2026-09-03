@@ -38,11 +38,17 @@ export default function RestaurantLoginForm() {
         password,
       });
 
-      const ownerEmail = data.email || email;
+      const token = data.access_token;
+      const role = "restaurant_owner";
+
+      // Set cookies with path=/ for Edge middleware authentication
+      document.cookie = `cb_token=${token}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `cb_role=${role}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `restaurantToken=${token}; path=/; max-age=86400; SameSite=Lax`;
 
       localStorage.setItem(
         AUTH_STORAGE_KEYS.restaurantToken,
-        data.access_token
+        token
       );
 
       localStorage.setItem(
@@ -54,7 +60,7 @@ export default function RestaurantLoginForm() {
         })
       );
 
-      router.push(ROUTES.RESTAURANT_DASHBOARD);
+      window.location.href = ROUTES.RESTAURANT_DASHBOARD;
     } catch (err) {
 
       setError(

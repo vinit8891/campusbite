@@ -38,6 +38,13 @@ export default function DeliveryLoginForm() {
         return;
       }
 
+      const role = "delivery_partner";
+
+      // Set cookies with path=/ for Edge middleware authentication
+      document.cookie = `cb_token=${token}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `cb_role=${role}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `deliveryToken=${token}; path=/; max-age=86400; SameSite=Lax`;
+
       localStorage.setItem(
         AUTH_STORAGE_KEYS.deliveryToken,
         token
@@ -48,7 +55,7 @@ export default function DeliveryLoginForm() {
         JSON.stringify(data.partner)
       );
 
-      router.push(ROUTES.DELIVERY_DASHBOARD);
+      window.location.href = ROUTES.DELIVERY_DASHBOARD;
     } catch (err) {
 
       setError(

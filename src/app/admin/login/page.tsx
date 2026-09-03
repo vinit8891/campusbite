@@ -24,10 +24,17 @@ export default function AdminLoginPage() {
 
     try {
       const data = await loginAdmin({ email, password });
+      const token = data.access_token;
+      const role = "admin";
+
+      // Set cookies with path=/ for Edge middleware authentication
+      document.cookie = `cb_token=${token}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `cb_role=${role}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `adminToken=${token}; path=/; max-age=86400; SameSite=Lax`;
 
       localStorage.setItem(
         AUTH_STORAGE_KEYS.adminToken,
-        data.access_token
+        token
       );
 
       localStorage.setItem(
@@ -35,7 +42,7 @@ export default function AdminLoginPage() {
         JSON.stringify({ email })
       );
 
-      router.push(ROUTES.ADMIN);
+      window.location.href = ROUTES.ADMIN_ORDERS;
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Unable to connect to server."

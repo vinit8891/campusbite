@@ -211,4 +211,143 @@ describe("Next.js Edge Route Protection Middleware", () => {
       expect(res.headers.get("location")).toBeNull();
     });
   });
+
+  describe("Unified cb_token & cb_role Cookie Handling", () => {
+    const restaurantJwt =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJvd25lckBjYW1wdXMuZWR1Iiwicm9sZSI6InJlc3RhdXJhbnRfb3duZXIifQ.mock-signature";
+    const deliveryJwt =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJwYXJ0bmVyQGNhbXB1cy5lZHUiLCJyb2xlIjoiZGVsaXZlcnlfcGFydG5lciJ9.mock-signature";
+    const adminJwt =
+      "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiJhZG1pbkBjYW1wdXMuZWR1Iiwicm9sZSI6ImFkbWluIn0.mock-signature";
+
+    it("authenticates restaurant access with cb_token and cb_role=restaurant_owner", () => {
+      const req = createMockRequest("http://localhost:3000/restaurant/dashboard/orders", {
+        cookies: {
+          cb_token: "opaque-or-jwt-token",
+          cb_role: "restaurant_owner",
+        },
+      });
+      const res = middleware(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("location")).toBeNull();
+    });
+
+    it("authenticates restaurant access with cb_token and cb_role=restaurant (alias)", () => {
+      const req = createMockRequest("http://localhost:3000/restaurant/dashboard", {
+        cookies: {
+          cb_token: "opaque-or-jwt-token",
+          cb_role: "restaurant",
+        },
+      });
+      const res = middleware(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("location")).toBeNull();
+    });
+
+    it("authenticates restaurant access via JWT decoding when cb_role cookie is omitted", () => {
+      const req = createMockRequest("http://localhost:3000/restaurant/dashboard/menu", {
+        cookies: {
+          cb_token: restaurantJwt,
+        },
+      });
+      const res = middleware(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("location")).toBeNull();
+    });
+
+    it("authenticates delivery access with cb_token and cb_role=delivery_partner", () => {
+      const req = createMockRequest("http://localhost:3000/delivery/dashboard/available-orders", {
+        cookies: {
+          cb_token: "opaque-or-jwt-token",
+          cb_role: "delivery_partner",
+        },
+      });
+      const res = middleware(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("location")).toBeNull();
+    });
+
+    it("authenticates delivery access with cb_token and cb_role=delivery (alias)", () => {
+      const req = createMockRequest("http://localhost:3000/delivery/dashboard", {
+        cookies: {
+          cb_token: "opaque-or-jwt-token",
+          cb_role: "delivery",
+        },
+      });
+      const res = middleware(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("location")).toBeNull();
+    });
+
+    it("authenticates delivery access via JWT decoding when cb_role cookie is omitted", () => {
+      const req = createMockRequest("http://localhost:3000/delivery/dashboard/history", {
+        cookies: {
+          cb_token: deliveryJwt,
+        },
+      });
+      const res = middleware(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("location")).toBeNull();
+    });
+
+    it("authenticates admin access with cb_token and cb_role=admin", () => {
+      const req = createMockRequest("http://localhost:3000/admin/restaurants", {
+        cookies: {
+          cb_token: "opaque-or-jwt-token",
+          cb_role: "admin",
+        },
+      });
+      const res = middleware(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("location")).toBeNull();
+    });
+
+    it("authenticates admin access via JWT decoding when cb_role cookie is omitted", () => {
+      const req = createMockRequest("http://localhost:3000/admin/users", {
+        cookies: {
+          cb_token: adminJwt,
+        },
+      });
+      const res = middleware(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("location")).toBeNull();
+    });
+
+    it("redirects authenticated restaurant user on /restaurant/login away using cb_token/cb_role", () => {
+      const req = createMockRequest("http://localhost:3000/restaurant/login", {
+        cookies: {
+          cb_token: "valid-token",
+          cb_role: "restaurant_owner",
+        },
+      });
+      const res = middleware(req);
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toBe("http://localhost:3000/restaurant/dashboard");
+    });
+
+    it("redirects authenticated delivery user on /delivery/login away using cb_token/cb_role", () => {
+      const req = createMockRequest("http://localhost:3000/delivery/login", {
+        cookies: {
+          cb_token: "valid-token",
+          cb_role: "delivery_partner",
+        },
+      });
+      const res = middleware(req);
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toBe("http://localhost:3000/delivery/dashboard");
+    });
+
+    it("redirects authenticated admin on /admin/login away using cb_token/cb_role", () => {
+      const req = createMockRequest("http://localhost:3000/admin/login", {
+        cookies: {
+          cb_token: "valid-token",
+          cb_role: "admin",
+        },
+      });
+      const res = middleware(req);
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toBe("http://localhost:3000/admin/orders");
+    });
+  });
 });
+
