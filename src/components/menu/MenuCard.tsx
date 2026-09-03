@@ -23,7 +23,14 @@ export type MenuCardProps = {
 };
 
 function MenuCard({ item, restaurant }: MenuCardProps) {
-  const { cart, addToCart, clearCart } = useCart();
+  const {
+    cart,
+    addToCart,
+    increaseQuantity,
+    decreaseQuantity,
+    removeFromCart,
+    clearCart,
+  } = useCart();
   const available = item.available !== false;
 
   const cartItem = cart.find(
@@ -34,7 +41,8 @@ function MenuCard({ item, restaurant }: MenuCardProps) {
 
   const quantity = cartItem?.quantity ?? 0;
 
-  function handleAddToCart() {
+  function handleAddToCart(e?: React.MouseEvent) {
+    e?.stopPropagation();
     const email = restaurant.email?.trim();
     if (!email) {
       toast.error(
@@ -71,28 +79,26 @@ function MenuCard({ item, restaurant }: MenuCardProps) {
     toast.success(`${item.name} added to cart`);
   }
 
-  function handleIncrease() {
+  function handleIncrease(e?: React.MouseEvent) {
+    e?.stopPropagation();
     const email = restaurant.email?.trim();
     if (!email) {
       toast.error("Restaurant identity is missing.");
       return;
     }
 
-    addToCart({
-      id: item._id,
-      restaurant_id: restaurant.id,
-      restaurant_email: email,
-      restaurant_name: restaurant.name,
-      name: item.name,
-      image: item.image,
-      price: item.price,
-      quantity: 1,
-    });
+    increaseQuantity(item._id);
   }
 
-  function handleDecrease() {
-    if (quantity <= 1) return;
-    toast.info("Quantity decrease requires a remove/update function in CartContext.");
+  function handleDecrease(e?: React.MouseEvent) {
+    e?.stopPropagation();
+    if (quantity <= 0) return;
+
+    if (quantity === 1) {
+      removeFromCart(item._id);
+    } else {
+      decreaseQuantity(item._id);
+    }
   }
 
   return (
@@ -156,9 +162,13 @@ function MenuCard({ item, restaurant }: MenuCardProps) {
                 + Add
               </Button>
             ) : (
-              <div className="flex items-center gap-1 rounded-full bg-orange-500 p-1 shadow-md">
+              <div
+                className="flex items-center gap-1 rounded-full bg-orange-500 p-1 shadow-md"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <Button
                   type="button"
+                  aria-label={`Decrease ${item.name} quantity`}
                   onClick={handleDecrease}
                   className="h-9 w-9 rounded-full bg-white px-0 text-lg font-bold text-orange-600 hover:bg-orange-50"
                 >
@@ -171,6 +181,7 @@ function MenuCard({ item, restaurant }: MenuCardProps) {
 
                 <Button
                   type="button"
+                  aria-label={`Increase ${item.name} quantity`}
                   onClick={handleIncrease}
                   className="h-9 w-9 rounded-full bg-white px-0 text-lg font-bold text-orange-600 hover:bg-orange-50"
                 >
