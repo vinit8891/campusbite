@@ -49,6 +49,10 @@ describe("paymentLabels utilities", () => {
   describe("formatPaymentStatus", () => {
     it("formats COD payment statuses correctly", () => {
       expect(formatPaymentStatus("pending", "cod")).toBe("Pending — pay on delivery");
+      expect(formatPaymentStatus("paid", "cod")).toBe("Paid (Cash)");
+      expect(formatPaymentStatus("completed", "cod")).toBe("Paid (Cash)");
+      expect(formatPaymentStatus("pending", "cod", "delivered")).toBe("Paid (Cash)");
+      expect(formatPaymentStatus("pending", "cod", "Out for Delivery")).toBe("Pending — pay on delivery");
     });
 
     it("formats online gateway payment statuses correctly", () => {

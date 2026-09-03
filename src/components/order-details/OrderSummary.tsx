@@ -80,6 +80,7 @@ export function OrderSummary({ order }: OrderSummaryProps) {
             <PaymentStatusBadge
               status={order.payment_status}
               method={order.payment_method}
+              orderStatus={order.status}
               className="px-3 py-1 text-xs font-bold"
             />
           </div>

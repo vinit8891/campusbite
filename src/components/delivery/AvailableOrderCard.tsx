@@ -73,7 +73,8 @@ export function AvailableOrderCard({
           <p className="mt-2 text-xs text-gray-500">
             {formatPaymentStatus(
               order.payment_status,
-              order.payment_method
+              order.payment_method,
+              order.status
             )}
           </p>
 

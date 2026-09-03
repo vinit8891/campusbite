@@ -128,14 +128,19 @@ def _is_online_method(value: str | None) -> bool:
 
 
 def _apply_payment_defaults(order: dict) -> dict:
-    """Safe response defaults for legacy orders missing payment fields."""
+    """Safe response defaults for orders missing payment fields or delivered COD orders."""
     response = dict(order)
     method = response.get("payment_method")
+    status = str(response.get("status", "")).strip().title()
+    payment_status = str(response.get("payment_status", "")).strip().lower()
 
     if _is_cod_method(method) and not _is_online_method(method):
         response["payment_method"] = COD_METHOD
-        # COD is never treated as paid
-        response["payment_status"] = "pending"
+        # If delivered or already marked paid/completed, reflect paid status
+        if status == "Delivered" or payment_status in ["paid", "completed"]:
+            response["payment_status"] = "paid"
+        else:
+            response["payment_status"] = response.get("payment_status") or "pending"
     elif _is_online_method(method):
         response["payment_method"] = ONLINE_METHOD
         if not response.get("payment_status"):
@@ -143,7 +148,9 @@ def _apply_payment_defaults(order: dict) -> dict:
     else:
         if not method:
             response["payment_method"] = COD_METHOD
-        if not response.get("payment_status"):
+        if status == "Delivered" or payment_status in ["paid", "completed"]:
+            response["payment_status"] = "paid"
+        elif not response.get("payment_status"):
             response["payment_status"] = "pending"
 
     return response

@@ -727,6 +727,36 @@ async def verify_delivery_otp(order_id: str, otp):
     if not stored_otp or stored_otp != entered_otp:
         return False
 
+    now = datetime.now(UTC)
+    update_fields = {
+        "otp_verified": True,
+        "status": "Delivered",
+        "delivered_at": now,
+    }
+
+    # For COD orders, OTP handover confirms cash collection at the door
+    payment_method = (
+        str(order.get("payment_method", ""))
+        .strip()
+        .lower()
+        .replace("-", "_")
+        .replace(" ", "_")
+    )
+    if (
+        payment_method
+        in [
+            "cod",
+            "cash_on_delivery",
+            "cashondelivery",
+            "cash",
+            "cash_on_delivery_(cod)",
+        ]
+        or "cash" in payment_method
+        or not payment_method
+    ):
+        update_fields["payment_status"] = "paid"
+        update_fields["paid_at"] = now
+
     result = await order_collection.update_one(
         {
             "_id": oid,
@@ -734,11 +764,7 @@ async def verify_delivery_otp(order_id: str, otp):
             "otp_verified": False,
         },
         {
-            "$set": {
-                "otp_verified": True,
-                "status": "Delivered",
-                "delivered_at": datetime.now(UTC),
-            },
+            "$set": update_fields,
             "$unset": {
                 "delivery_otp": "",
             },

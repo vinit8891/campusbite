@@ -38,18 +38,35 @@ export function formatPaymentMethod(method?: string | null): string {
 }
 
 /**
- * Payment status label. COD stays pending (pay on delivery).
- * Online statuses reflect gateway state.
+ * Payment status label.
+ * For COD orders:
+ * - If status is paid/completed or order is delivered: "Paid (Cash)"
+ * - If active/pending: "Pending — pay on delivery"
+ * For Online orders:
+ * - Reflects gateway state ("Paid", "Processing", "Failed", etc.)
  */
 export function formatPaymentStatus(
   status?: string | null,
-  method?: string | null
+  method?: string | null,
+  orderStatus?: string | null
 ): string {
+  const normStatus = status?.trim().toLowerCase() ?? "";
+  const normOrderStatus = orderStatus?.trim().toLowerCase() ?? "";
+
   if (isCodPayment(method) && !isOnlinePayment(method)) {
+    if (
+      normStatus === "paid" ||
+      normStatus === "completed" ||
+      normOrderStatus === "delivered"
+    ) {
+      return "Paid (Cash)";
+    }
     return "Pending — pay on delivery";
   }
-  switch (status) {
+
+  switch (normStatus) {
     case "paid":
+    case "completed":
       return "Paid";
     case "processing":
       return "Processing";
@@ -63,7 +80,7 @@ export function formatPaymentStatus(
       return "Partially refunded";
     case "pending":
     default:
-      return status || "pending";
+      return status || "Pending";
   }
 }
 

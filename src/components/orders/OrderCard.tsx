@@ -223,6 +223,7 @@ export function OrderCard({
                 <PaymentStatusBadge
                   status={order.payment_status}
                   method={order.payment_method}
+                  orderStatus={order.status}
                   className="mt-1 block text-[11px]"
                 />
               </span>

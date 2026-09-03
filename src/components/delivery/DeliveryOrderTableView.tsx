@@ -62,6 +62,7 @@ export function DeliveryOrderTableView({
                 <PaymentStatusBadge
                   status={order.payment_status}
                   method={order.payment_method}
+                  orderStatus={order.status}
                   size="sm"
                 />
               </td>

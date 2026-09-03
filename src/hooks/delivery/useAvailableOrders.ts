@@ -21,6 +21,7 @@ export type AvailableOrder = {
   total?: number;
   payment_method?: string;
   payment_status?: string;
+  status?: string;
   distance?: string | number | null;
   created_at?: string;
   latitude?: number | null;

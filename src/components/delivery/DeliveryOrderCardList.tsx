@@ -66,7 +66,8 @@ export function DeliveryOrderCardList({
               </span>{" "}
               {formatPaymentStatus(
                 order.payment_status,
-                order.payment_method
+                order.payment_method,
+                order.status
               )}
             </p>
             <p>

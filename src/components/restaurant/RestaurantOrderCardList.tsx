@@ -54,6 +54,7 @@ export function RestaurantOrderCardList({
               <PaymentStatusBadge
                 status={order.payment_status}
                 method={order.payment_method}
+                orderStatus={order.status}
                 className="mt-1"
               />
               <div className="mt-2">

@@ -71,6 +71,7 @@ export function RestaurantOrderTableView({
                 <PaymentStatusBadge
                   status={order.payment_status}
                   method={order.payment_method}
+                  orderStatus={order.status}
                 />
               </td>
               <td className="px-4 py-3 font-semibold text-orange-600">
