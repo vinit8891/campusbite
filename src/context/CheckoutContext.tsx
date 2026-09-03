@@ -16,6 +16,7 @@ type CheckoutData = {
   city: string;
   pincode: string;
   landmark: string;
+  delivery_instructions: string;
   /** "cod" | "online" */
   payment_method: string;
   /** Customer must explicitly confirm COD before placing order. */
@@ -50,9 +51,10 @@ const defaultCheckout: CheckoutData = {
   customer_name: "",
   phone: "",
   address: "",
-  city: "",
-  pincode: "",
+  city: "Campus",
+  pincode: "000000",
   landmark: "",
+  delivery_instructions: "",
 
   payment_method: "cod",
   cod_confirmed: false,
@@ -105,9 +107,10 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
           customer_name: parsed.customer_name || "",
           phone: parsed.phone || "",
           address: parsed.address || "",
-          city: parsed.city || "",
-          pincode: parsed.pincode || "",
+          city: parsed.city || "Campus",
+          pincode: parsed.pincode || "000000",
           landmark: parsed.landmark || "",
+          delivery_instructions: parsed.delivery_instructions || "",
           payment_method: normalizePaymentMethod(parsed.payment_method),
           cod_confirmed: false,
           online_confirmed: false,

@@ -18,7 +18,8 @@ export interface Address {
   fullName: string;
   phone: string;
   address: string;
-  city: string;
-  pincode: string;
-  landmark: string;
+  city?: string;
+  pincode?: string;
+  landmark?: string;
+  delivery_instructions?: string;
 }

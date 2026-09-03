@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { useCheckout } from "@/context/CheckoutContext";
+import { useAuth } from "@/context/AuthContext";
 
 const HOSTEL_BLOCKS = [
   "Hostel Block A",
@@ -12,18 +13,42 @@ const HOSTEL_BLOCKS = [
   "PG Complex",
 ];
 
+const QUICK_INSTRUCTIONS = [
+  "Call when downstairs",
+  "Leave at hostel security / reception",
+  "Call from main gate",
+];
+
+function useSafeAuth() {
+  try {
+    return useAuth();
+  } catch {
+    return { user: null };
+  }
+}
+
 export default function AddressForm() {
   const { checkout, setCheckout } = useCheckout();
+  const { user } = useSafeAuth();
 
   const [errors, setErrors] = useState({
     customer_name: "",
     phone: "",
     address: "",
-    city: "",
-    pincode: "",
   });
 
   const isBatch = checkout.delivery_type === "HOSTEL_BATCH";
+
+  // Auto-fill recipient name and phone if ordering for self
+  useEffect(() => {
+    if (user && checkout.delivery_for === "self") {
+      setCheckout((prev) => ({
+        ...prev,
+        customer_name: prev.customer_name || user.name || "",
+        phone: prev.phone || user.phone || "",
+      }));
+    }
+  }, [user, checkout.delivery_for, setCheckout]);
 
   return (
     <section className="space-y-6">
@@ -233,12 +258,12 @@ export default function AddressForm() {
 
         <div>
           <label htmlFor="checkout-address" className="mb-1 block text-sm font-semibold text-gray-700">
-            {isBatch ? "Hostel Room / Floor Number" : "Delivery Address (Flat / Building / Street)"}
+            {isBatch ? "Room / Floor / Wing" : "Room / Flat / Building / Street"}
           </label>
           <textarea
             id="checkout-address"
             rows={2}
-            placeholder={isBatch ? "Room 304, 3rd Floor" : "Flat, Building, Street"}
+            placeholder={isBatch ? "Room 304, 3rd Floor, Wing B" : "Room 304, Flat / Building, Street"}
             value={checkout.address}
             onChange={(e) => {
               const val = e.target.value;
@@ -253,59 +278,52 @@ export default function AddressForm() {
           {errors.address && <p className="mt-1 text-xs text-red-500">{errors.address}</p>}
         </div>
 
-        <div className="grid gap-4 sm:grid-cols-2">
-          <div>
-            <label htmlFor="checkout-city" className="mb-1 block text-sm font-semibold text-gray-700">
-              City / Campus
-            </label>
-            <Input
-              id="checkout-city"
-              placeholder="Pune"
-              value={checkout.city}
-              onChange={(e) => {
-                const val = e.target.value;
-                setCheckout((prev) => ({ ...prev, city: val }));
-                setErrors((prev) => ({
-                  ...prev,
-                  city: val.trim().length >= 2 ? "" : "Enter valid city.",
-                }));
-              }}
-            />
-            {errors.city && <p className="mt-1 text-xs text-red-500">{errors.city}</p>}
-          </div>
-
-          <div>
-            <label htmlFor="checkout-pincode" className="mb-1 block text-sm font-semibold text-gray-700">
-              PIN Code
-            </label>
-            <Input
-              id="checkout-pincode"
-              maxLength={6}
-              placeholder="411041"
-              value={checkout.pincode}
-              onChange={(e) => {
-                const val = e.target.value.replace(/\D/g, "");
-                setCheckout((prev) => ({ ...prev, pincode: val }));
-                setErrors((prev) => ({
-                  ...prev,
-                  pincode: /^\d{6}$/.test(val) ? "" : "PIN code must be 6 digits.",
-                }));
-              }}
-            />
-            {errors.pincode && <p className="mt-1 text-xs text-red-500">{errors.pincode}</p>}
-          </div>
-        </div>
-
         <div>
           <label htmlFor="checkout-landmark" className="mb-1 block text-sm font-semibold text-gray-700">
-            Landmark <span className="font-normal text-gray-400">(Optional)</span>
+            Nearby Reference / Landmark <span className="font-normal text-gray-400">(Optional)</span>
           </label>
           <Input
             id="checkout-landmark"
-            placeholder="Nearby gate, canteen, or block"
+            placeholder="Nearby gate, canteen, staircase, or block entrance"
             value={checkout.landmark}
             onChange={(e) => setCheckout((prev) => ({ ...prev, landmark: e.target.value }))}
           />
+        </div>
+
+        <div>
+          <label htmlFor="checkout-delivery-instructions" className="mb-1 block text-sm font-semibold text-gray-700">
+            Delivery Notes / Instructions for Courier <span className="font-normal text-gray-400">(Optional)</span>
+          </label>
+          <Input
+            id="checkout-delivery-instructions"
+            placeholder="e.g. Call when downstairs, leave at security..."
+            value={checkout.delivery_instructions}
+            onChange={(e) =>
+              setCheckout((prev) => ({ ...prev, delivery_instructions: e.target.value }))
+            }
+          />
+          <div className="mt-2 flex flex-wrap gap-2">
+            {QUICK_INSTRUCTIONS.map((instruction) => (
+              <button
+                key={instruction}
+                type="button"
+                onClick={() =>
+                  setCheckout((prev) => ({
+                    ...prev,
+                    delivery_instructions:
+                      prev.delivery_instructions === instruction ? "" : instruction,
+                  }))
+                }
+                className={`rounded-full border px-3 py-1 text-xs font-medium transition ${
+                  checkout.delivery_instructions === instruction
+                    ? "border-orange-500 bg-orange-100 text-orange-900 font-semibold"
+                    : "border-gray-200 bg-gray-50 text-gray-700 hover:border-orange-300 hover:bg-orange-50/50"
+                }`}
+              >
+                + {instruction}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </section>

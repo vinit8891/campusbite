@@ -169,16 +169,6 @@ export default function OrderSummary() {
       return;
     }
 
-    if (!checkout.city.trim()) {
-      alert("Please enter the city.");
-      return;
-    }
-
-    if (!/^[0-9]{6}$/.test(checkout.pincode)) {
-      alert("Please enter a valid 6-digit PIN code.");
-      return;
-    }
-
     const restaurantEmail =
       checkout.restaurant_email.trim() ||
       cart.find((item) => item.restaurant_email)?.restaurant_email ||
@@ -206,9 +196,18 @@ export default function OrderSummary() {
       setPaymentState(isOnline ? "processing" : "idle");
       setStatusMessage(isOnline ? "Processing Payment" : "");
 
-      const fullAddress =
-        `${checkout.address}, ${checkout.city} - ${checkout.pincode}` +
-        (checkout.landmark.trim() ? `, ${checkout.landmark}` : "");
+      let fullAddress = checkout.address.trim();
+      if (checkout.delivery_type === "HOSTEL_BATCH" && checkout.hostel_block) {
+        if (!fullAddress.toLowerCase().includes(checkout.hostel_block.toLowerCase())) {
+          fullAddress = `${fullAddress}, ${checkout.hostel_block}`;
+        }
+      }
+      if (checkout.landmark?.trim()) {
+        fullAddress += `, Ref: ${checkout.landmark.trim()}`;
+      }
+      if (checkout.delivery_instructions?.trim()) {
+        fullAddress += ` (Note: ${checkout.delivery_instructions.trim()})`;
+      }
 
       const orderData = {
         restaurant_email: restaurantEmail,
@@ -459,9 +458,20 @@ export default function OrderSummary() {
         <p className="mt-1 text-gray-600">
           {checkout.customer_name || "Recipient"} • {checkout.delivery_for === "self" ? user?.phone : checkout.phone}
         </p>
-        <p className="mt-1 text-gray-500 truncate">
-          {checkout.address ? `${checkout.address}, ${checkout.city} - ${checkout.pincode}` : "Address pending"}
+        <p className="mt-1 text-gray-500 font-medium truncate">
+          {checkout.address
+            ? `${checkout.address}${
+                checkout.delivery_type === "HOSTEL_BATCH" && checkout.hostel_block
+                  ? `, ${checkout.hostel_block}`
+                  : ""
+              }${checkout.landmark?.trim() ? `, ${checkout.landmark.trim()}` : ""}`
+            : "Address pending"}
         </p>
+        {checkout.delivery_instructions?.trim() && (
+          <p className="mt-1 text-[11px] text-orange-700 italic truncate">
+            Note: {checkout.delivery_instructions.trim()}
+          </p>
+        )}
       </div>
 
       {/* Payment Notice */}

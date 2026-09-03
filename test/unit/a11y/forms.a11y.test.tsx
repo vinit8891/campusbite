@@ -46,9 +46,11 @@ describe("Forms Accessibility (WCAG 2.2 AA)", () => {
 
   it("Checkout AddressForm has no accessibility violations", async () => {
     const { container } = render(
-      <CheckoutProvider>
-        <AddressForm />
-      </CheckoutProvider>
+      <AuthProvider>
+        <CheckoutProvider>
+          <AddressForm />
+        </CheckoutProvider>
+      </AuthProvider>
     );
     const results = await axe(container);
     expect(results).toHaveNoViolations();
