@@ -8,6 +8,7 @@ export * from "./paymentService";
 export * from "./restaurantService";
 export * from "./subscriptionPlanService";
 export * from "./subscriptionService";
+export * from "./userService";
 export {
   type AdminStats,
   type AdminFinancialAnalytics,

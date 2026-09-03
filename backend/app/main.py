@@ -46,6 +46,7 @@ from app.core.security_middleware import (
 )
 from app.db.database import close_mongo_client
 from app.routes.auth import router as auth_router
+from app.routes.users import router as users_router
 from app.routes.restaurant_owner import (
     router as restaurant_owner_router,
 )
@@ -145,6 +146,7 @@ app.add_middleware(
 app.include_router(health_router)
 
 app.include_router(auth_router)
+app.include_router(users_router)
 
 app.include_router(
     restaurant_owner_router
