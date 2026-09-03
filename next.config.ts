@@ -26,6 +26,11 @@ const nextConfig: NextConfig = {
         hostname: "media.foodiaq.com",
         pathname: "/wp-content/uploads/**",
       },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+        pathname: "/**",
+      },
     ],
   },
   async redirects() {
