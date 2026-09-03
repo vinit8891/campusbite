@@ -33,7 +33,9 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
             fill
             sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
             className="object-cover"
-            unoptimized={imgSrc.startsWith("http")}
+            unoptimized={
+              imgSrc.startsWith("http") || imgSrc.startsWith("data:")
+            }
             onError={() => setImgSrc(DEFAULT_IMAGE)}
           />
         ) : (

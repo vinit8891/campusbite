@@ -123,7 +123,10 @@ export default function CartPage() {
                         fill
                         sizes="(max-width: 640px) 112px, 128px"
                         className="object-cover transition-transform duration-300 group-hover:scale-105"
-                        unoptimized={item.image.startsWith("http")}
+                        unoptimized={
+                          item.image.startsWith("http") ||
+                          item.image.startsWith("data:")
+                        }
                       />
                     ) : (
                       <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-orange-100 to-orange-50 text-4xl">

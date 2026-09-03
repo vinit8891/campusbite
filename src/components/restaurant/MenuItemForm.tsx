@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRef, useState } from "react";
+import { Image as ImageIcon, Link as LinkIcon, Trash2, UploadCloud } from "lucide-react";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +13,8 @@ import { AuthHttpError } from "@/services/authFetch";
 import { addMenuItem, updateMenuItem } from "@/services/menuService";
 import { ROUTES } from "@/lib/routes";
 
+const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
 
 export type MenuFormValues = {
   name: string;
@@ -43,18 +46,92 @@ export default function MenuItemForm({
   itemId,
 }: Props) {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
   const [form, setForm] = useState<MenuFormValues>(
     initialValues || EMPTY
   );
+  const [imageInputMode, setImageInputMode] = useState<"upload" | "url">(
+    initialValues?.image?.startsWith("http") ? "url" : "upload"
+  );
+  const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [imageError, setImageError] = useState(false);
+
+  function processImageFile(file: File) {
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      const msg = "Invalid file format. Please upload a JPEG, PNG, or WebP image.";
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      const msg = "Image file is too large. Maximum allowed size is 2MB.";
+      setError(msg);
+      toast.error(msg);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setImageError(false);
+        setError("");
+        setForm((prev) => ({ ...prev, image: reader.result as string }));
+        toast.success("Image loaded successfully");
+      }
+    };
+    reader.onerror = () => {
+      const msg = "Failed to read image file. Please try another image.";
+      setError(msg);
+      toast.error(msg);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      processImageFile(files[0]);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      processImageFile(files[0]);
+    }
+  }
+
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragging(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragging(false);
+  }
+
+  function handleRemoveImage() {
+    setForm((prev) => ({ ...prev, image: "" }));
+    setImageError(false);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
 
   function validate(): string | null {
     if (!form.name.trim()) return "Name is required.";
     if (!form.description.trim()) return "Description is required.";
     if (!form.category.trim()) return "Category is required.";
-    if (!form.image.trim()) return "Image URL is required.";
+    if (!form.image.trim()) {
+      return "Dish image is required. Please upload a file or enter an image URL.";
+    }
 
     const price = Number(form.price);
     if (!form.price.trim() || Number.isNaN(price) || price <= 0) {
@@ -82,7 +159,6 @@ export default function MenuItemForm({
       return;
     }
 
-
     setLoading(true);
 
     const payload = {
@@ -107,9 +183,7 @@ export default function MenuItemForm({
 
       router.push(ROUTES.RESTAURANT_MENU);
       router.refresh();
-
     } catch (err) {
-
       if (err instanceof AuthHttpError && err.status === 401) return;
       const message =
         err instanceof Error ? err.message : "Unable to save menu item.";
@@ -182,37 +256,114 @@ export default function MenuItemForm({
         </div>
       </div>
 
-      <div>
-        <label className="mb-2 block text-sm font-semibold">Image URL</label>
-        <Input
-          className="h-11"
-          placeholder="https://..."
-          value={form.image}
-          onChange={(e) => {
-            setImageError(false);
-            setForm({ ...form, image: e.target.value });
-          }}
-          required
-        />
-      </div>
-
-      {form.image.trim() && !imageError && (
-        <div className="overflow-hidden rounded-xl border bg-gray-50">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={form.image}
-            alt="Menu item preview"
-            className="h-48 w-full object-cover"
-            onError={() => setImageError(true)}
-          />
+      {/* Dish Image Section */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <label className="block text-sm font-semibold">Dish Image</label>
+          {/* Mode Switcher */}
+          <div className="flex rounded-lg border bg-gray-50 p-0.5 text-xs font-semibold">
+            <button
+              type="button"
+              onClick={() => setImageInputMode("upload")}
+              className={`flex items-center gap-1 rounded-md px-3 py-1 transition ${
+                imageInputMode === "upload"
+                  ? "bg-white text-orange-600 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              <UploadCloud className="h-3.5 w-3.5" />
+              Upload File
+            </button>
+            <button
+              type="button"
+              onClick={() => setImageInputMode("url")}
+              className={`flex items-center gap-1 rounded-md px-3 py-1 transition ${
+                imageInputMode === "url"
+                  ? "bg-white text-orange-600 shadow-sm"
+                  : "text-gray-600 hover:text-gray-900"
+              }`}
+            >
+              <LinkIcon className="h-3.5 w-3.5" />
+              Image URL
+            </button>
+          </div>
         </div>
-      )}
 
-      {imageError && form.image.trim() && (
-        <p className="text-sm text-amber-700">
-          Preview unavailable — check the image URL.
-        </p>
-      )}
+        {/* Upload Mode */}
+        {imageInputMode === "upload" ? (
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            onClick={() => fileInputRef.current?.click()}
+            className={`group flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-6 text-center transition ${
+              isDragging
+                ? "border-orange-500 bg-orange-50"
+                : "border-gray-300 bg-gray-50/50 hover:border-orange-400 hover:bg-orange-50/20"
+            }`}
+          >
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleFileInputChange}
+              className="hidden"
+            />
+            <div className="flex h-12 w-12 items-center justify-center rounded-full bg-orange-100 text-orange-600 transition group-hover:scale-110">
+              <UploadCloud className="h-6 w-6" />
+            </div>
+            <p className="mt-2 text-sm font-semibold text-gray-800">
+              Click to upload or drag &amp; drop
+            </p>
+            <p className="mt-1 text-xs text-gray-500">
+              PNG, JPG, or WebP (max 2MB)
+            </p>
+          </div>
+        ) : (
+          /* URL Mode */
+          <Input
+            className="h-11"
+            placeholder="https://images.example.com/dish.jpg"
+            value={form.image}
+            onChange={(e) => {
+              setImageError(false);
+              setForm({ ...form, image: e.target.value });
+            }}
+          />
+        )}
+
+        {/* Image Preview */}
+        {form.image.trim() && !imageError && (
+          <div className="relative overflow-hidden rounded-xl border bg-gray-50">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={form.image}
+              alt="Menu item preview"
+              className="h-48 w-full object-cover"
+              onError={() => setImageError(true)}
+            />
+            <div className="absolute right-3 top-3 flex items-center gap-2">
+              <span className="rounded-md bg-black/60 px-2 py-1 text-[11px] font-medium text-white backdrop-blur">
+                {form.image.startsWith("data:") ? "File Upload" : "Web URL"}
+              </span>
+              <button
+                type="button"
+                onClick={handleRemoveImage}
+                className="flex items-center gap-1 rounded-md bg-red-600 px-2.5 py-1 text-xs font-semibold text-white shadow transition hover:bg-red-700"
+              >
+                <Trash2 className="h-3.5 w-3.5" />
+                Remove
+              </button>
+            </div>
+          </div>
+        )}
+
+        {imageError && form.image.trim() && (
+          <p className="text-sm text-amber-700">
+            Preview unavailable — please verify the image file or URL.
+          </p>
+        )}
+      </div>
 
       {mode === "edit" && (
         <label className="flex items-center gap-3 text-sm font-medium">
