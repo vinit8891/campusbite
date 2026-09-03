@@ -132,12 +132,27 @@ async def admin_health(
     return result
 
 
+from app.models.analytics import get_admin_financial_analytics
+
+
+@router.get("/analytics")
+async def admin_analytics(
+    current_user: Annotated[dict, Depends(require_roles(ADMIN))],
+):
+    """Aggregated financial metrics from delivered orders for admin dashboard."""
+    logger.info("admin.analytics request received")
+    metrics = await get_admin_financial_analytics()
+    logger.info("admin.analytics completed successfully")
+    return metrics
+
+
 @router.get("/stats")
 async def admin_stats(
     current_user: Annotated[dict, Depends(require_roles(ADMIN))],
 ):
-    """Platform-wide document counts for the admin dashboard."""
+    """Platform-wide document counts and financial summary for the admin dashboard."""
     logger.info("admin.stats request received")
+    financials = await get_admin_financial_analytics()
     result = {
         "users": await database["users"].count_documents({}),
         "restaurant_owners": await database["restaurant_owners"].count_documents(
@@ -148,6 +163,7 @@ async def admin_stats(
             {}
         ),
         "orders": await database["orders"].count_documents({}),
+        **financials,
     }
     logger.info("admin.stats completed successfully")
     return result

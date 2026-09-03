@@ -226,3 +226,106 @@ async def get_restaurant_overview(email: str) -> dict:
         },
         "average_order_value": average_order_value,
     }
+
+
+async def get_admin_financial_analytics() -> dict:
+    """
+    Computes platform-wide aggregated financial metrics from all delivered orders.
+    Calculates GMV (gross revenue), net app earnings, completed orders,
+    restaurant settlements, courier payouts, and statutory GST pool.
+    """
+    delivered_query = {
+        "$or": [
+            {"status": {"$in": ["Delivered", "delivered"]}},
+            {"order_status": {"$in": ["Delivered", "delivered"]}},
+        ]
+    }
+
+    total_revenue = 0.0
+    platform_earnings = 0.0
+    restaurant_settlements = 0.0
+    courier_payouts = 0.0
+    gst_pool = 0.0
+    total_orders = 0
+
+    async for doc in order_collection.find(delivered_query):
+        total_orders += 1
+        order_total = float(
+            doc.get("total")
+            if doc.get("total") is not None
+            else (doc.get("grand_total") or 0.0)
+        )
+        items = doc.get("items") or []
+
+        # Food subtotal
+        if doc.get("food_subtotal") is not None:
+            subtotal = float(doc.get("food_subtotal") or 0.0)
+        elif items:
+            subtotal = sum(
+                float(it.get("price", 0)) * int(it.get("quantity", 1))
+                for it in items
+            )
+        else:
+            subtotal = (
+                max(0.0, (order_total - 18.0) / 1.05)
+                if order_total > 18
+                else order_total
+            )
+
+        # Commission
+        if doc.get("commission_amount") is not None:
+            comm = float(doc.get("commission_amount") or 0.0)
+        elif items:
+            comm = sum(
+                float(it.get("price", 0))
+                * int(it.get("quantity", 1))
+                * (0.05 if it.get("is_budget_meal") else 0.10)
+                for it in items
+            )
+        else:
+            comm = round(0.05 * subtotal, 2)
+
+        # Platform fee
+        if doc.get("platform_fee") is not None:
+            p_fee = float(doc.get("platform_fee") or 0.0)
+        else:
+            p_fee = 3.00 if subtotal <= 100.0 else 5.00
+            if order_total <= 0:
+                p_fee = 0.0
+
+        # Delivery fee
+        if doc.get("delivery_fee") is not None:
+            d_fee = float(doc.get("delivery_fee") or 0.0)
+        else:
+            d_fee = 15.00 if order_total > 0 else 0.0
+
+        # GST (5%)
+        if doc.get("restaurant_gst") is not None:
+            gst = float(doc.get("restaurant_gst") or 0.0)
+        elif doc.get("gst") is not None:
+            gst = float(doc.get("gst") or 0.0)
+        else:
+            gst = round(0.05 * subtotal, 2)
+
+        # Restaurant settlement: subtotal minus commission
+        settlement = max(0.0, subtotal - comm)
+
+        total_revenue += order_total
+        platform_earnings += p_fee + comm
+        restaurant_settlements += settlement
+        courier_payouts += d_fee
+        gst_pool += gst
+
+    average_order_value = (
+        round(total_revenue / total_orders, 2) if total_orders > 0 else 0.0
+    )
+
+    return {
+        "total_revenue": round(total_revenue, 2),
+        "platform_earnings": round(platform_earnings, 2),
+        "total_orders": total_orders,
+        "restaurant_settlements": round(restaurant_settlements, 2),
+        "courier_payouts": round(courier_payouts, 2),
+        "gst_pool": round(gst_pool, 2),
+        "average_order_value": average_order_value,
+    }

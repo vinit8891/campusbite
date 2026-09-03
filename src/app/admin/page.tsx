@@ -4,19 +4,25 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
+import AdminFinancialSummaryCards from "@/components/admin/AdminFinancialSummaryCards";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminTableSkeleton from "@/components/admin/AdminTableSkeleton";
 import { ROUTES } from "@/lib/routes";
 import {
   AuthHttpError,
   getAdminStats,
+  getAdminAnalytics,
   getBackendHealth,
   type AdminStats,
+  type AdminFinancialAnalytics,
   type BackendHealth,
 } from "@/services/adminService";
 
 const STAT_CARDS: {
-  key: keyof AdminStats;
+  key: keyof Pick<
+    AdminStats,
+    "users" | "restaurant_owners" | "restaurants" | "delivery_partners" | "orders"
+  >;
   label: string;
   valueClass: string;
 }[] = [
@@ -36,11 +42,12 @@ const STAT_CARDS: {
     label: "Delivery Partners",
     valueClass: "text-teal-600",
   },
-  { key: "orders", label: "Orders", valueClass: "text-slate-800" },
+  { key: "orders", label: "Total Orders", valueClass: "text-slate-800" },
 ];
 
 export default function AdminPage() {
   const [stats, setStats] = useState<AdminStats | null>(null);
+  const [analytics, setAnalytics] = useState<AdminFinancialAnalytics | null>(null);
   const [health, setHealth] = useState<BackendHealth | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -48,14 +55,29 @@ export default function AdminPage() {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadStats() {
+    async function loadDashboardData() {
       try {
-        const [data, healthData] = await Promise.all([
+        const [statsData, analyticsData, healthData] = await Promise.all([
           getAdminStats(),
+          getAdminAnalytics().catch(() => null),
           getBackendHealth().catch(() => null),
         ]);
         if (cancelled) return;
-        setStats(data);
+        setStats(statsData);
+        // If analytics endpoint succeeded, use it; otherwise fallback to statsData financial keys if present
+        if (analyticsData) {
+          setAnalytics(analyticsData);
+        } else if (statsData && statsData.total_revenue !== undefined) {
+          setAnalytics({
+            total_revenue: statsData.total_revenue ?? 0,
+            platform_earnings: statsData.platform_earnings ?? 0,
+            total_orders: statsData.total_orders ?? 0,
+            restaurant_settlements: statsData.restaurant_settlements ?? 0,
+            courier_payouts: statsData.courier_payouts ?? 0,
+            gst_pool: statsData.gst_pool ?? 0,
+            average_order_value: statsData.average_order_value ?? 0,
+          });
+        }
         setHealth(healthData);
         setError("");
       } catch (err) {
@@ -66,7 +88,7 @@ export default function AdminPage() {
         setError(
           err instanceof Error
             ? err.message
-            : "Unable to load admin statistics"
+            : "Unable to load admin dashboard statistics"
         );
       } finally {
         if (!cancelled) {
@@ -75,7 +97,7 @@ export default function AdminPage() {
       }
     }
 
-    void loadStats();
+    void loadDashboardData();
 
     return () => {
       cancelled = true;
@@ -86,6 +108,7 @@ export default function AdminPage() {
     return (
       <div className="mx-auto max-w-6xl space-y-8">
         <AdminPageHeader title="Admin Dashboard" />
+        <AdminTableSkeleton rows={1} columns={4} />
         <AdminTableSkeleton rows={1} columns={5} />
       </div>
     );
@@ -95,7 +118,7 @@ export default function AdminPage() {
     <div className="mx-auto max-w-6xl space-y-8">
       <AdminPageHeader
         title="Admin Dashboard"
-        description="Platform overview and quick actions"
+        description="Platform revenue, fund distributions, and management quick actions"
         actions={
           <>
             <Link
@@ -126,27 +149,40 @@ export default function AdminPage() {
         </p>
       )}
 
-      {!error && !stats ? (
+      {!error && !stats && !analytics ? (
         <AdminEmptyState
           title="No statistics available"
           description="Try refreshing the page after logging in again."
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-          {STAT_CARDS.map((card) => (
-            <div
-              key={card.key}
-              className="rounded-2xl border bg-white p-5 shadow-sm"
-            >
-              <h2 className="text-sm font-semibold text-gray-600">
-                {card.label}
-              </h2>
-              <p className={`mt-3 text-4xl font-bold ${card.valueClass}`}>
-                {stats?.[card.key] ?? 0}
-              </p>
+        <>
+          {/* Financial Metrics & Fund Distribution */}
+          <section aria-label="Platform Financial Metrics">
+            <AdminFinancialSummaryCards analytics={analytics} />
+          </section>
+
+          {/* Platform Directory Document Counts */}
+          <section aria-label="Platform Directory" className="space-y-4">
+            <h2 className="text-lg font-bold text-gray-900">
+              Platform Directory
+            </h2>
+            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+              {STAT_CARDS.map((card) => (
+                <div
+                  key={card.key}
+                  className="rounded-2xl border bg-white p-5 shadow-sm"
+                >
+                  <h3 className="text-sm font-semibold text-gray-600">
+                    {card.label}
+                  </h3>
+                  <p className={`mt-3 text-4xl font-bold ${card.valueClass}`}>
+                    {stats?.[card.key] ?? 0}
+                  </p>
+                </div>
+              ))}
             </div>
-          ))}
-        </div>
+          </section>
+        </>
       )}
 
       <footer className="border-t pt-4 text-center text-xs text-gray-400">

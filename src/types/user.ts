@@ -80,12 +80,29 @@ export type AdminRestaurantOwner = {
   restaurant: string;
 };
 
+export type AdminFinancialAnalytics = {
+  total_revenue: number;
+  platform_earnings: number;
+  total_orders: number;
+  restaurant_settlements: number;
+  courier_payouts: number;
+  gst_pool: number;
+  average_order_value: number;
+};
+
 export type AdminStats = {
   users: number;
   restaurant_owners: number;
   restaurants: number;
   delivery_partners: number;
   orders: number;
+  total_revenue?: number;
+  platform_earnings?: number;
+  total_orders?: number;
+  restaurant_settlements?: number;
+  courier_payouts?: number;
+  gst_pool?: number;
+  average_order_value?: number;
 };
 
 export type BackendHealth = {

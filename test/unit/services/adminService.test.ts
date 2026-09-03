@@ -1,5 +1,9 @@
 import { describe, it, expect } from "vitest";
-import { getAdminStats, getBackendHealth } from "@/services/adminService";
+import {
+  getAdminStats,
+  getAdminAnalytics,
+  getBackendHealth,
+} from "@/services/adminService";
 
 describe("adminService", () => {
   it("getAdminStats fetches administrative metrics", async () => {
@@ -7,6 +11,17 @@ describe("adminService", () => {
     expect(stats.users).toBe(120);
     expect(stats.restaurants).toBe(12);
     expect(stats.orders).toBe(540);
+  });
+
+  it("getAdminAnalytics fetches platform financial metrics", async () => {
+    const analytics = await getAdminAnalytics();
+    expect(analytics.total_revenue).toBe(65400.0);
+    expect(analytics.platform_earnings).toBe(5800.0);
+    expect(analytics.total_orders).toBe(540);
+    expect(analytics.restaurant_settlements).toBe(48000.0);
+    expect(analytics.courier_payouts).toBe(8100.0);
+    expect(analytics.gst_pool).toBe(3500.0);
+    expect(analytics.average_order_value).toBe(121.11);
   });
 
   it("getBackendHealth performs unauthenticated health check", async () => {

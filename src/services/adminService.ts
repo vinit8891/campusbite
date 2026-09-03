@@ -4,6 +4,7 @@ import { withQuery } from "@/lib/formatters";
 import type {
   BackendRestaurant,
   AdminStats,
+  AdminFinancialAnalytics,
   BackendHealth,
   AdminOrder,
   AdminOrdersQuery,
@@ -17,6 +18,7 @@ export type {
   BackendRestaurant,
   Paginated,
   AdminStats,
+  AdminFinancialAnalytics,
   BackendHealth,
   AdminOrder,
   AdminOrdersQuery,
@@ -35,6 +37,10 @@ const ADMIN_JSON = {
 
 export async function getAdminStats() {
   return authJson<AdminStats>("/admin/stats", ADMIN_JSON);
+}
+
+export async function getAdminAnalytics() {
+  return authJson<AdminFinancialAnalytics>("/admin/analytics", ADMIN_JSON);
 }
 
 /** Public liveness probe — no JWT required. */

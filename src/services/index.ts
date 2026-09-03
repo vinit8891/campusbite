@@ -10,6 +10,7 @@ export * from "./subscriptionPlanService";
 export * from "./subscriptionService";
 export {
   type AdminStats,
+  type AdminFinancialAnalytics,
   type BackendHealth,
   type AdminOrder,
   type AdminOrdersQuery,
@@ -18,6 +19,7 @@ export {
   type AdminDeliveryPartner,
   type AdminRestaurantInput,
   getAdminStats,
+  getAdminAnalytics,
   getBackendHealth,
   getAdminHealth,
   getAdminOrders,
