@@ -215,7 +215,11 @@ export function middleware(request: NextRequest) {
 
   // 1. Reverse Guards: Redirect authenticated users away from role login pages
   if (pathname === ROUTES.LOGIN && isCustomer) {
-    return NextResponse.redirect(new URL(ROUTES.RESTAURANTS, request.url));
+    const redirectParam = request.nextUrl.searchParams.get("redirect");
+    const targetUrl = redirectParam
+      ? new URL(redirectParam, request.url)
+      : new URL(ROUTES.RESTAURANTS, request.url);
+    return NextResponse.redirect(targetUrl);
   }
 
   if (pathname === ROUTES.RESTAURANT_LOGIN && isRestaurant) {

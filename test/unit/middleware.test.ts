@@ -348,6 +348,43 @@ describe("Next.js Edge Route Protection Middleware", () => {
       expect(res.status).toBe(307);
       expect(res.headers.get("location")).toBe("http://localhost:3000/admin/orders");
     });
+
+    it("allows customer with cb_token and cb_role=customer to access /checkout", () => {
+      const req = createMockRequest("http://localhost:3000/checkout", {
+        cookies: {
+          cb_token: "valid-customer-token",
+          cb_role: "customer",
+        },
+      });
+      const res = middleware(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("location")).toBeNull();
+    });
+
+    it("allows customer with cb_token and cb_role=customer to access /my-orders", () => {
+      const req = createMockRequest("http://localhost:3000/my-orders", {
+        cookies: {
+          cb_token: "valid-customer-token",
+          cb_role: "customer",
+        },
+      });
+      const res = middleware(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("location")).toBeNull();
+    });
+
+    it("redirects authenticated customer on /login?redirect=/checkout to /checkout", () => {
+      const req = createMockRequest("http://localhost:3000/login?redirect=%2Fcheckout", {
+        cookies: {
+          cb_token: "valid-customer-token",
+          cb_role: "customer",
+        },
+      });
+      const res = middleware(req);
+      expect(res.status).toBe(307);
+      expect(res.headers.get("location")).toBe("http://localhost:3000/checkout");
+    });
   });
 });
+
 

@@ -69,19 +69,26 @@ export default function RegisterForm() {
           password,
         });
 
+        const token = loginData.access_token;
+        const role = "customer";
+
+        document.cookie = `cb_token=${token}; path=/; max-age=86400; SameSite=Lax`;
+        document.cookie = `cb_role=${role}; path=/; max-age=86400; SameSite=Lax`;
+        document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax`;
+
         login(
           {
             name: trimmedName,
             email: trimmedEmail,
             phone: trimmedPhone,
           },
-          loginData.access_token
+          token
         );
 
-        router.push(ROUTES.HOME);
+        window.location.href = ROUTES.HOME;
       } catch {
         setError("Account created. Please log in with your credentials.");
-        router.push(ROUTES.LOGIN);
+        window.location.href = ROUTES.LOGIN;
       }
 
     } catch (err) {

@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +12,7 @@ import { loginCustomer } from "@/services/authService";
 
 export default function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuth();
 
   const [email, setEmail] = useState("");
@@ -27,16 +28,26 @@ export default function LoginForm() {
 
     try {
       const data = await loginCustomer({ email, password });
+      const token = data.access_token;
+      const role = "customer";
+
+      // Set cookies with path=/ for Edge middleware authentication
+      document.cookie = `cb_token=${token}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `cb_role=${role}; path=/; max-age=86400; SameSite=Lax`;
+      document.cookie = `token=${token}; path=/; max-age=86400; SameSite=Lax`;
 
       login(
         {
           name: email.split("@")[0],
           email,
         },
-        data.access_token
+        token
       );
 
-      router.push(ROUTES.HOME);
+      const redirectParam = searchParams.get("redirect");
+      const targetUrl = redirectParam || ROUTES.HOME;
+
+      window.location.href = targetUrl;
     } catch (err) {
       setError(
         err instanceof Error ? err.message : "Unable to connect to server."

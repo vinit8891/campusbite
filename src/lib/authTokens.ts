@@ -69,22 +69,29 @@ export function getTokenForRole(role: AuthRole): string | null {
 export function clearAuthForRole(role: AuthRole) {
   if (typeof window === "undefined") return;
 
+  document.cookie = "cb_token=; path=/; max-age=0; SameSite=Lax";
+  document.cookie = "cb_role=; path=/; max-age=0; SameSite=Lax";
+
   switch (role) {
     case "customer":
       localStorage.removeItem(AUTH_STORAGE_KEYS.customerToken);
       localStorage.removeItem(AUTH_STORAGE_KEYS.customerUser);
+      document.cookie = "token=; path=/; max-age=0; SameSite=Lax";
       break;
     case "restaurant_owner":
       localStorage.removeItem(AUTH_STORAGE_KEYS.restaurantToken);
       localStorage.removeItem(AUTH_STORAGE_KEYS.restaurantOwner);
+      document.cookie = "restaurantToken=; path=/; max-age=0; SameSite=Lax";
       break;
     case "delivery_partner":
       localStorage.removeItem(AUTH_STORAGE_KEYS.deliveryToken);
       localStorage.removeItem(AUTH_STORAGE_KEYS.deliveryPartner);
+      document.cookie = "deliveryToken=; path=/; max-age=0; SameSite=Lax";
       break;
     case "admin":
       localStorage.removeItem(AUTH_STORAGE_KEYS.adminToken);
       localStorage.removeItem(AUTH_STORAGE_KEYS.adminUser);
+      document.cookie = "adminToken=; path=/; max-age=0; SameSite=Lax";
       break;
   }
 }
