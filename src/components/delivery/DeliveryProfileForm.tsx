@@ -1,7 +1,13 @@
+import { useRef, useState } from "react";
+import { Camera, Trash2, UploadCloud } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import type { ProfileForm } from "@/hooks/delivery/useDeliveryProfile";
 import type { DeliveryPartnerProfile } from "@/services/deliveryPartnerService";
+
+const MAX_FILE_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/jpg"];
 
 type DeliveryProfileFormProps = {
   profile: DeliveryPartnerProfile;
@@ -33,6 +39,76 @@ export function DeliveryProfileForm({
   onSubmit,
 }: DeliveryProfileFormProps) {
   const previewSrc = form.profile_image.trim();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [fileError, setFileError] = useState("");
+  const [isDragging, setIsDragging] = useState(false);
+
+  function processFile(file: File) {
+    if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+      const msg = "Invalid file format. Please upload a JPEG, PNG, or WebP image.";
+      setFileError(msg);
+      toast.error(msg);
+      return;
+    }
+
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      const msg = "Image file is too large. Maximum allowed size is 2MB.";
+      setFileError(msg);
+      toast.error(msg);
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string") {
+        setFileError("");
+        setImageError(false);
+        setForm((prev) => (prev ? { ...prev, profile_image: reader.result as string } : null));
+        toast.success("Photo uploaded successfully");
+      }
+    };
+    reader.onerror = () => {
+      const msg = "Failed to read image file. Please try another image.";
+      setFileError(msg);
+      toast.error(msg);
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function handleFileInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      processFile(files[0]);
+    }
+  }
+
+  function handleDrop(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragging(false);
+    const files = e.dataTransfer.files;
+    if (files && files.length > 0) {
+      processFile(files[0]);
+    }
+  }
+
+  function handleDragOver(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragging(true);
+  }
+
+  function handleDragLeave(e: React.DragEvent<HTMLDivElement>) {
+    e.preventDefault();
+    setIsDragging(false);
+  }
+
+  function handleRemovePhoto() {
+    setForm((prev) => (prev ? { ...prev, profile_image: "" } : null));
+    setImageError(false);
+    setFileError("");
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  }
 
   return (
     <form
@@ -40,12 +116,12 @@ export function DeliveryProfileForm({
       className="space-y-6 rounded-3xl border bg-white p-8 shadow"
     >
       <div className="flex flex-col items-center gap-4 sm:flex-row sm:items-start">
-        <div className="flex h-28 w-28 items-center justify-center overflow-hidden rounded-full bg-orange-100">
+        <div className="relative flex h-28 w-28 shrink-0 items-center justify-center overflow-hidden rounded-full border-4 border-white bg-orange-100 shadow-md">
           {previewSrc && !imageError ? (
             // eslint-disable-next-line @next/next/no-img-element
             <img
               src={previewSrc}
-              alt="Profile"
+              alt={form.name || "Delivery Partner"}
               className="h-full w-full object-cover"
               onError={() => setImageError(true)}
             />
@@ -105,7 +181,7 @@ export function DeliveryProfileForm({
           <Input
             value={form.name}
             onChange={(e) =>
-              setForm({ ...form, name: e.target.value })
+              setForm((prev) => (prev ? { ...prev, name: e.target.value } : null))
             }
             placeholder="Your full name"
           />
@@ -126,36 +202,93 @@ export function DeliveryProfileForm({
           <Input
             value={form.vehicle_type}
             onChange={(e) =>
-              setForm({ ...form, vehicle_type: e.target.value })
+              setForm((prev) => (prev ? { ...prev, vehicle_type: e.target.value } : null))
             }
             placeholder="Bike, Scooter, etc."
           />
         </label>
 
-        <label className="space-y-2 text-sm">
+        <label className="space-y-2 text-sm md:col-span-2">
           <span className="font-medium text-gray-700">Vehicle Number</span>
           <Input
             value={form.vehicle_number}
             onChange={(e) =>
-              setForm({ ...form, vehicle_number: e.target.value })
+              setForm((prev) => (prev ? { ...prev, vehicle_number: e.target.value } : null))
             }
             placeholder="MH12AB1234"
           />
         </label>
 
-        <label className="space-y-2 text-sm md:col-span-2">
-          <span className="font-medium text-gray-700">
-            Profile Image URL (optional)
+        {/* Profile Photo Uploader */}
+        <div className="space-y-2 md:col-span-2">
+          <span className="block text-sm font-medium text-gray-700">
+            Profile Photo
           </span>
-          <Input
-            value={form.profile_image}
-            onChange={(e) => {
-              setImageError(false);
-              setForm({ ...form, profile_image: e.target.value });
-            }}
-            placeholder="https://… or /images/…"
+
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            onChange={handleFileInputChange}
+            className="hidden"
+            id="profile-photo-upload"
           />
-        </label>
+
+          <div
+            onDragOver={handleDragOver}
+            onDragLeave={handleDragLeave}
+            onDrop={handleDrop}
+            className={`flex flex-col items-center justify-between gap-4 rounded-2xl border-2 border-dashed p-4 transition sm:flex-row ${
+              isDragging
+                ? "border-orange-500 bg-orange-50"
+                : "border-gray-200 bg-gray-50/50 hover:border-orange-300"
+            }`}
+          >
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-orange-100 text-orange-600">
+                <Camera className="h-6 w-6" />
+              </div>
+              <div className="text-center sm:text-left">
+                <p className="text-sm font-semibold text-gray-800">
+                  {previewSrc && !imageError
+                    ? "Custom photo uploaded"
+                    : "Upload a profile photo"}
+                </p>
+                <p className="text-xs text-gray-500">
+                  Max 2MB: JPG, PNG, WebP
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => fileInputRef.current?.click()}
+                className="flex items-center gap-1.5 text-sm"
+              >
+                <UploadCloud className="h-4 w-4" />
+                {previewSrc && !imageError ? "Change Photo" : "Upload Photo"}
+              </Button>
+
+              {previewSrc ? (
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={handleRemovePhoto}
+                  className="flex items-center gap-1.5 border-red-200 text-sm text-red-600 hover:bg-red-50 hover:text-red-700"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  Remove Photo
+                </Button>
+              ) : null}
+            </div>
+          </div>
+
+          {fileError ? (
+            <p className="text-xs text-red-600">{fileError}</p>
+          ) : null}
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -174,3 +307,4 @@ export function DeliveryProfileForm({
     </form>
   );
 }
+

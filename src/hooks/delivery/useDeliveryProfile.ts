@@ -21,7 +21,7 @@ export type ProfileForm = {
   online: boolean;
 };
 
-const IMAGE_PATTERN = /^(https?:\/\/|\/).+/i;
+const IMAGE_PATTERN = /^(https?:\/\/|\/|data:image\/).+/i;
 
 function toForm(profile: DeliveryPartnerProfile): ProfileForm {
   return {
