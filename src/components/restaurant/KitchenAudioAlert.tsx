@@ -8,6 +8,7 @@ type KitchenAudioAlertProps = {
   onToggleSound: () => void;
   pendingCount: number;
   onTestSound?: () => void;
+  compact?: boolean;
 };
 
 export function KitchenAudioAlert({
@@ -15,7 +16,43 @@ export function KitchenAudioAlert({
   onToggleSound,
   pendingCount,
   onTestSound,
+  compact = false,
 }: KitchenAudioAlertProps) {
+  if (compact) {
+    return (
+      <button
+        type="button"
+        onClick={onToggleSound}
+        className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-bold border transition-all cursor-pointer ${
+          soundEnabled
+            ? pendingCount > 0
+              ? "bg-amber-500 text-white border-amber-600 shadow-sm animate-pulse"
+              : "bg-orange-50 border-orange-200 text-orange-700 hover:bg-orange-100"
+            : "bg-stone-100 border-stone-200 text-stone-500 hover:bg-stone-200"
+        }`}
+        aria-label={soundEnabled ? "Mute kitchen buzzer" : "Enable kitchen buzzer"}
+        title={soundEnabled ? "Sound Alerts: ON" : "Sound Alerts: OFF"}
+      >
+        {soundEnabled ? (
+          <>
+            <Bell className="h-3.5 w-3.5 shrink-0" />
+            <span className="text-[11px] font-black">ON</span>
+            {pendingCount > 0 && (
+              <span className="flex h-4 min-w-4 px-1 items-center justify-center rounded-full bg-white text-amber-700 font-extrabold text-[10px]">
+                {pendingCount}
+              </span>
+            )}
+          </>
+        ) : (
+          <>
+            <BellOff className="h-3.5 w-3.5 shrink-0 text-stone-400" />
+            <span className="text-[11px] font-bold text-stone-500">OFF</span>
+          </>
+        )}
+      </button>
+    );
+  }
+
   return (
     <div className="flex items-center gap-2">
       <button

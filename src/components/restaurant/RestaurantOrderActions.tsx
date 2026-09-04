@@ -24,25 +24,25 @@ export function RestaurantOrderActions({
       <button
         disabled={order.status !== "Pending" || isUnpaidOnline}
         onClick={() => onUpdateStatus(order._id, "Accepted")}
-        className="h-12 flex-1 min-w-[120px] rounded-xl bg-orange-600 hover:bg-orange-700 active:scale-98 text-white font-extrabold text-sm shadow-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5"
+        className="h-12 flex-1 min-w-[140px] rounded-xl bg-orange-600 hover:bg-orange-700 active:scale-98 text-white font-extrabold text-sm shadow-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5"
       >
-        ✅ Accept
+        ✅ Accept Order (15m)
       </button>
 
       <button
         disabled={order.status !== "Accepted" || isUnpaidOnline}
         onClick={() => onUpdateStatus(order._id, "Preparing")}
-        className="h-12 flex-1 min-w-[120px] rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-98 text-white font-extrabold text-sm shadow-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5"
+        className="h-12 flex-1 min-w-[120px] rounded-xl bg-blue-600 hover:bg-blue-700 active:scale-98 text-white font-extrabold text-sm shadow-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5"
       >
-        🍳 Preparing
+        🍳 Cooking
       </button>
 
       <button
         disabled={order.status !== "Preparing" || isUnpaidOnline}
         onClick={() => onUpdateStatus(order._id, "Ready for Pickup")}
-        className="h-12 flex-1 min-w-[150px] rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-extrabold text-sm shadow-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5"
+        className="h-12 flex-1 min-w-[160px] rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-extrabold text-sm shadow-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5"
       >
-        📦 Ready for Pickup
+        📦 Mark Ready for Pickup
       </button>
 
       <button

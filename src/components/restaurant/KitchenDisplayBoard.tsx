@@ -16,15 +16,19 @@ import { shortId } from "@/lib/formatters";
 import { isOnlinePayment, formatPaymentMethod } from "@/lib/paymentLabels";
 import type { Order } from "@/types";
 
+export type MobileKdsTab = "new" | "cooking" | "ready" | "all";
+
 type KitchenDisplayBoardProps = {
   orders: Order[];
   onUpdateStatus: (id: string, nextStatus: string) => void;
   soundEnabled?: boolean;
+  activeMobileTab?: MobileKdsTab;
 };
 
 export function KitchenDisplayBoard({
   orders,
   onUpdateStatus,
+  activeMobileTab = "all",
 }: KitchenDisplayBoardProps) {
   const pendingOrders = orders.filter((o) => o.status === "Pending");
   const inKitchenOrders = orders.filter(
@@ -32,12 +36,24 @@ export function KitchenDisplayBoard({
   );
   const readyOrders = orders.filter((o) => o.status === "Ready for Pickup");
 
+  // Determine visibility of columns on mobile (< md) based on activeMobileTab
+  const showPendingOnMobile =
+    activeMobileTab === "all" || activeMobileTab === "new";
+  const showKitchenOnMobile =
+    activeMobileTab === "all" || activeMobileTab === "cooking";
+  const showReadyOnMobile =
+    activeMobileTab === "all" || activeMobileTab === "ready";
+
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-5 lg:gap-6 min-h-[70vh]">
+    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 sm:gap-5 lg:gap-6 min-h-[65vh]">
       {/* =========================================================
           COLUMN 1: NEW ORDERS (PENDING)
       ========================================================= */}
-      <div className="flex flex-col rounded-3xl border-2 border-orange-200/90 bg-orange-50/40 p-4 sm:p-5 shadow-xs">
+      <div
+        className={`flex flex-col rounded-3xl border-2 border-orange-200/90 bg-orange-50/40 p-3.5 sm:p-5 shadow-xs transition-all ${
+          showPendingOnMobile ? "flex" : "hidden md:flex"
+        }`}
+      >
         {/* Column Header */}
         <div className="flex items-center justify-between pb-3.5 mb-3.5 border-b border-orange-200/80">
           <div className="flex items-center gap-2.5">
@@ -59,7 +75,7 @@ export function KitchenDisplayBoard({
         </div>
 
         {/* Order Cards List */}
-        <div className="space-y-4 overflow-y-auto flex-1 pr-0.5">
+        <div className="space-y-3.5 sm:space-y-4 overflow-y-auto flex-1 pr-0.5">
           {pendingOrders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
               <span className="text-4xl mb-2" role="img" aria-label="Chef">
@@ -94,10 +110,13 @@ export function KitchenDisplayBoard({
                         <span>{order.customer_name}</span>
                       </h3>
                       {order.phone && (
-                        <p className="text-xs font-medium text-stone-500 flex items-center gap-1 mt-0.5">
+                        <a
+                          href={`tel:${order.phone}`}
+                          className="text-xs font-semibold text-stone-600 hover:text-orange-600 active:text-orange-700 flex items-center gap-1 mt-0.5 transition-colors cursor-pointer"
+                        >
                           <Phone className="h-3 w-3 text-stone-400" />
                           <span>{order.phone}</span>
-                        </p>
+                        </a>
                       )}
                     </div>
                     <div className="text-right flex flex-col items-end gap-1">
@@ -112,7 +131,7 @@ export function KitchenDisplayBoard({
                   </div>
 
                   {/* Delivery Location & Mode */}
-                  <div className="my-3 rounded-xl bg-stone-50 p-2.5 text-xs text-stone-700">
+                  <div className="my-2.5 rounded-xl bg-stone-50 p-2 text-xs text-stone-700">
                     <div className="flex items-center gap-1.5 font-bold text-stone-900">
                       {order.delivery_type === "HOSTEL_BATCH" ? (
                         <Building className="h-3.5 w-3.5 text-orange-600 shrink-0" />
@@ -134,7 +153,7 @@ export function KitchenDisplayBoard({
                       <span className="text-sm leading-none shrink-0">📝</span>
                       <div className="min-w-0">
                         <p className="font-bold text-[11px] text-amber-800 uppercase tracking-wide">
-                          Delivery Note & Location
+                          Special Instructions / Location
                         </p>
                         <p className="font-semibold text-xs text-amber-900 mt-0.5">
                           {order.address}
@@ -144,17 +163,17 @@ export function KitchenDisplayBoard({
                   )}
 
                   {/* Itemized Order Breakdown */}
-                  <div className="space-y-2 my-3">
+                  <div className="space-y-1.5 my-3">
                     {order.items.map((item) => (
                       <div
                         key={`${order._id}-${item.id}`}
                         className="flex items-center justify-between text-sm bg-orange-50/30 rounded-xl px-3 py-2 border border-orange-100/60"
                       >
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="inline-flex items-center justify-center rounded-lg bg-orange-600 text-white font-black text-xs px-2 py-0.5 shrink-0 shadow-xs">
-                            {item.quantity}x
+                          <span className="inline-flex items-center justify-center rounded-lg bg-orange-600 text-white font-black text-xs px-2.5 py-0.5 shrink-0 shadow-xs">
+                            {item.quantity}×
                           </span>
-                          <span className="font-bold text-stone-900 truncate">
+                          <span className="font-extrabold text-stone-900 truncate">
                             {item.name}
                           </span>
                         </div>
@@ -166,7 +185,7 @@ export function KitchenDisplayBoard({
                   </div>
 
                   {/* Payment Details */}
-                  <div className="mb-3.5 flex items-center justify-between text-xs">
+                  <div className="mb-3 flex items-center justify-between text-xs">
                     <span className="text-xs text-stone-500 font-medium">
                       {formatPaymentMethod(order.payment_method)}
                     </span>
@@ -189,10 +208,10 @@ export function KitchenDisplayBoard({
                       type="button"
                       disabled={isUnpaidOnline}
                       onClick={() => onUpdateStatus(order._id, "Accepted")}
-                      className="h-12 flex-1 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold text-sm shadow-sm active:scale-98 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                      className="h-12 flex-1 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-sm shadow-sm active:scale-98 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <CheckCircle2 className="h-4 w-4 shrink-0" />
-                      <span>Accept Order</span>
+                      <span>Accept Order (15m)</span>
                     </button>
                     <button
                       type="button"
@@ -212,7 +231,11 @@ export function KitchenDisplayBoard({
       {/* =========================================================
           COLUMN 2: IN KITCHEN (PREPARING)
       ========================================================= */}
-      <div className="flex flex-col rounded-3xl border-2 border-blue-200/90 bg-blue-50/30 p-4 sm:p-5 shadow-xs">
+      <div
+        className={`flex flex-col rounded-3xl border-2 border-blue-200/90 bg-blue-50/30 p-3.5 sm:p-5 shadow-xs transition-all ${
+          showKitchenOnMobile ? "flex" : "hidden md:flex"
+        }`}
+      >
         {/* Column Header */}
         <div className="flex items-center justify-between pb-3.5 mb-3.5 border-b border-blue-200/80">
           <div className="flex items-center gap-2.5">
@@ -234,7 +257,7 @@ export function KitchenDisplayBoard({
         </div>
 
         {/* Order Cards List */}
-        <div className="space-y-4 overflow-y-auto flex-1 pr-0.5">
+        <div className="space-y-3.5 sm:space-y-4 overflow-y-auto flex-1 pr-0.5">
           {inKitchenOrders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
               <span className="text-4xl mb-2" role="img" aria-label="Chef cooking">
@@ -263,6 +286,15 @@ export function KitchenDisplayBoard({
                       <h3 className="text-base font-extrabold text-stone-900 mt-0.5">
                         {order.customer_name}
                       </h3>
+                      {order.phone && (
+                        <a
+                          href={`tel:${order.phone}`}
+                          className="text-xs font-semibold text-stone-600 hover:text-blue-600 active:text-blue-700 flex items-center gap-1 mt-0.5 transition-colors cursor-pointer"
+                        >
+                          <Phone className="h-3 w-3 text-stone-400" />
+                          <span>{order.phone}</span>
+                        </a>
+                      )}
                     </div>
                     <OrderPrepTimer
                       createdAt={order.created_at}
@@ -271,21 +303,21 @@ export function KitchenDisplayBoard({
                   </div>
 
                   {/* Dishes to Prepare */}
-                  <div className="space-y-2 my-3">
+                  <div className="space-y-1.5 my-3">
                     {order.items.map((item) => (
                       <div
                         key={`${order._id}-${item.id}`}
                         className="flex items-center justify-between p-2.5 rounded-xl bg-blue-50/50 border border-blue-100/80"
                       >
                         <div className="flex items-center gap-2 min-w-0">
-                          <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-blue-600 text-white text-xs font-black shrink-0">
-                            {item.quantity}x
+                          <span className="flex h-7 min-w-7 px-1.5 items-center justify-center rounded-lg bg-blue-600 text-white text-xs font-black shrink-0">
+                            {item.quantity}×
                           </span>
-                          <span className="text-sm font-bold text-stone-900 truncate">
+                          <span className="text-sm font-extrabold text-stone-900 truncate">
                             {item.name}
                           </span>
                         </div>
-                        <span className="text-xs font-semibold text-blue-700 shrink-0 ml-2">
+                        <span className="text-xs font-bold text-blue-700 shrink-0 ml-2">
                           In Prep
                         </span>
                       </div>
@@ -309,7 +341,7 @@ export function KitchenDisplayBoard({
                     onClick={() =>
                       onUpdateStatus(order._id, "Ready for Pickup")
                     }
-                    className="h-12 w-full mt-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-sm shadow-sm active:scale-98 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                    className="h-12 w-full mt-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-sm active:scale-98 flex items-center justify-center gap-2 transition-all cursor-pointer"
                   >
                     <PackageCheck className="h-4 w-4" />
                     <span>Mark Ready for Pickup</span>
@@ -324,7 +356,11 @@ export function KitchenDisplayBoard({
       {/* =========================================================
           COLUMN 3: READY FOR PICKUP
       ========================================================= */}
-      <div className="flex flex-col rounded-3xl border-2 border-emerald-200/90 bg-emerald-50/30 p-4 sm:p-5 shadow-xs">
+      <div
+        className={`flex flex-col rounded-3xl border-2 border-emerald-200/90 bg-emerald-50/30 p-3.5 sm:p-5 shadow-xs transition-all ${
+          showReadyOnMobile ? "flex" : "hidden md:flex"
+        }`}
+      >
         {/* Column Header */}
         <div className="flex items-center justify-between pb-3.5 mb-3.5 border-b border-emerald-200/80">
           <div className="flex items-center gap-2.5">
@@ -346,7 +382,7 @@ export function KitchenDisplayBoard({
         </div>
 
         {/* Order Cards List */}
-        <div className="space-y-4 overflow-y-auto flex-1 pr-0.5">
+        <div className="space-y-3.5 sm:space-y-4 overflow-y-auto flex-1 pr-0.5">
           {readyOrders.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
               <span className="text-4xl mb-2" role="img" aria-label="Sparkles">
@@ -375,9 +411,13 @@ export function KitchenDisplayBoard({
                         {order.customer_name}
                       </h3>
                       {order.phone && (
-                        <p className="text-xs font-medium text-stone-500">
-                          📞 {order.phone}
-                        </p>
+                        <a
+                          href={`tel:${order.phone}`}
+                          className="text-xs font-semibold text-stone-600 hover:text-emerald-600 active:text-emerald-700 flex items-center gap-1 mt-0.5 transition-colors cursor-pointer"
+                        >
+                          <Phone className="h-3 w-3 text-stone-400" />
+                          <span>{order.phone}</span>
+                        </a>
                       )}
                     </div>
                     <span className="inline-flex items-center gap-1 px-3 py-1 rounded-xl text-xs font-extrabold bg-emerald-100 text-emerald-800 border border-emerald-200">

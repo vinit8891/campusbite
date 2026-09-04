@@ -5,6 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { KitchenDisplayBoard } from "@/components/restaurant/KitchenDisplayBoard";
 import { OrderPrepTimer } from "@/components/restaurant/OrderPrepTimer";
 import { KitchenAudioAlert } from "@/components/restaurant/KitchenAudioAlert";
+import { RestaurantOrderFilterBar } from "@/components/restaurant/RestaurantOrderFilterBar";
 import type { Order } from "@/types";
 
 const mockOrders: Order[] = [
@@ -68,7 +69,7 @@ const mockOrders: Order[] = [
 ];
 
 describe("KitchenDisplayBoard & Kitchen Audio System", () => {
-  it("renders 3 KDS Kanban columns with correct order distribution", () => {
+  it("renders 3 KDS Kanban columns with correct order distribution and tap-to-call links", () => {
     const handleUpdate = vi.fn();
     render(
       <KitchenDisplayBoard orders={mockOrders} onUpdateStatus={handleUpdate} />
@@ -85,6 +86,10 @@ describe("KitchenDisplayBoard & Kitchen Audio System", () => {
     expect(screen.getByText("Butter Naan")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /accept order/i })).toBeInTheDocument();
 
+    // Tap-to-call phone link
+    const phoneLink = screen.getByRole("link", { name: /9876543210/i });
+    expect(phoneLink).toHaveAttribute("href", "tel:9876543210");
+
     // Preparing Order in Column 2
     expect(screen.getByText("Ananya Desai")).toBeInTheDocument();
     expect(screen.getByText("Veg Biryani")).toBeInTheDocument();
@@ -95,6 +100,40 @@ describe("KitchenDisplayBoard & Kitchen Audio System", () => {
     // Ready Order in Column 3
     expect(screen.getByText("Om Roy")).toBeInTheDocument();
     expect(screen.getByText("Cold Coffee × 1")).toBeInTheDocument();
+  });
+
+  it("supports activeMobileTab filtering for 1-thumb mobile view", () => {
+    const handleUpdate = vi.fn();
+    const { rerender } = render(
+      <KitchenDisplayBoard
+        orders={mockOrders}
+        onUpdateStatus={handleUpdate}
+        activeMobileTab="new"
+      />
+    );
+
+    // When tab is 'new', pending order is visible
+    expect(screen.getByText("Rahul Sharma")).toBeInTheDocument();
+
+    // Switch to 'cooking' tab
+    rerender(
+      <KitchenDisplayBoard
+        orders={mockOrders}
+        onUpdateStatus={handleUpdate}
+        activeMobileTab="cooking"
+      />
+    );
+    expect(screen.getByText("Ananya Desai")).toBeInTheDocument();
+
+    // Switch to 'ready' tab
+    rerender(
+      <KitchenDisplayBoard
+        orders={mockOrders}
+        onUpdateStatus={handleUpdate}
+        activeMobileTab="ready"
+      />
+    );
+    expect(screen.getByText("Om Roy")).toBeInTheDocument();
   });
 
   it("triggers status update callbacks when kitchen action buttons are clicked", async () => {
@@ -118,7 +157,7 @@ describe("KitchenDisplayBoard & Kitchen Audio System", () => {
     expect(handleUpdate).toHaveBeenCalledWith("order-prep-2", "Ready for Pickup");
   });
 
-  it("renders OrderPrepTimer color-coded states dynamically", () => {
+  it("renders OrderPrepTimer color-coded states and handles >60m delay gracefully", () => {
     const { rerender } = render(
       <OrderPrepTimer
         createdAt={new Date(Date.now() - 2 * 60 * 1000).toISOString()}
@@ -144,9 +183,18 @@ describe("KitchenDisplayBoard & Kitchen Audio System", () => {
       />
     );
     expect(screen.getByText(/delayed by/i)).toBeInTheDocument();
+
+    // Old or mock date (> 60m delay)
+    rerender(
+      <OrderPrepTimer
+        createdAt={new Date(Date.now() - 120 * 60 * 1000).toISOString()}
+        status="Preparing"
+      />
+    );
+    expect(screen.getByText(/delayed \(>60m\)/i)).toBeInTheDocument();
   });
 
-  it("toggles sound alert button state in KitchenAudioAlert", async () => {
+  it("toggles sound alert button in standard and compact modes", async () => {
     const handleToggle = vi.fn();
     const handleTest = vi.fn();
     const user = userEvent.setup();
@@ -167,13 +215,52 @@ describe("KitchenDisplayBoard & Kitchen Audio System", () => {
     await user.click(toggleBtn);
     expect(handleToggle).toHaveBeenCalled();
 
+    // Test compact mode for mobile
     rerender(
       <KitchenAudioAlert
-        soundEnabled={false}
+        soundEnabled={true}
         onToggleSound={handleToggle}
-        pendingCount={0}
+        pendingCount={3}
+        compact={true}
       />
     );
-    expect(screen.getByText("Sound Alerts: OFF")).toBeInTheDocument();
+    expect(screen.getByText("ON")).toBeInTheDocument();
+    expect(screen.getByText("3")).toBeInTheDocument();
+  });
+
+  it("renders RestaurantOrderFilterBar and expands filters on mobile toggle", async () => {
+    const setQ = vi.fn();
+    const onStatusChange = vi.fn();
+    const onPaymentStatusChange = vi.fn();
+    const onPaymentMethodChange = vi.fn();
+    const onSearchSubmit = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <RestaurantOrderFilterBar
+        q=""
+        setQ={setQ}
+        status=""
+        onStatusChange={onStatusChange}
+        paymentStatus=""
+        onPaymentStatusChange={onPaymentStatusChange}
+        paymentMethod=""
+        onPaymentMethodChange={onPaymentMethodChange}
+        loading={false}
+        onSearchSubmit={onSearchSubmit}
+      />
+    );
+
+    expect(
+      screen.getByPlaceholderText(/search order id or phone/i)
+    ).toBeInTheDocument();
+
+    const filterToggleBtn = screen.getByRole("button", {
+      name: /toggle advanced filters/i,
+    });
+    expect(filterToggleBtn).toHaveAttribute("aria-expanded", "false");
+
+    await user.click(filterToggleBtn);
+    expect(filterToggleBtn).toHaveAttribute("aria-expanded", "true");
   });
 });

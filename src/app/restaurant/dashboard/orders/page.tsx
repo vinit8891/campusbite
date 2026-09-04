@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { LayoutGrid, ListFilter, ChefHat, TableProperties } from "lucide-react";
+import { LayoutGrid, ChefHat, TableProperties } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/common";
 import { useRestaurantOrders } from "@/hooks/restaurant/useRestaurantOrders";
@@ -10,7 +10,7 @@ import { KitchenAudioAlert } from "@/components/restaurant/KitchenAudioAlert";
 import { RestaurantOrderFilterBar } from "@/components/restaurant/RestaurantOrderFilterBar";
 import { RestaurantOrderTableView } from "@/components/restaurant/RestaurantOrderTableView";
 import { RestaurantOrderCardList } from "@/components/restaurant/RestaurantOrderCardList";
-import { KitchenDisplayBoard } from "@/components/restaurant/KitchenDisplayBoard";
+import { KitchenDisplayBoard, MobileKdsTab } from "@/components/restaurant/KitchenDisplayBoard";
 
 type ViewMode = "kds" | "cards" | "table";
 
@@ -44,14 +44,66 @@ export default function OrdersPage() {
   } = useRestaurantOrders();
 
   const [viewMode, setViewMode] = useState<ViewMode>("kds");
+  const [mobileTab, setMobileTab] = useState<MobileKdsTab>("new");
 
   const { soundEnabled, toggleSound, pendingCount, playChime } =
     useKitchenAudio(orders);
 
+  const cookingCount = orders.filter(
+    (o) => o.status === "Accepted" || o.status === "Preparing"
+  ).length;
+  const readyCount = orders.filter(
+    (o) => o.status === "Ready for Pickup"
+  ).length;
+
+  // For non-KDS views on mobile, filter by mobileTab when not "all"
+  const displayedOrders =
+    mobileTab === "new"
+      ? orders.filter((o) => o.status === "Pending")
+      : mobileTab === "cooking"
+      ? orders.filter(
+          (o) => o.status === "Accepted" || o.status === "Preparing"
+        )
+      : mobileTab === "ready"
+      ? orders.filter((o) => o.status === "Ready for Pickup")
+      : orders;
+
   return (
-    <main className="space-y-6">
-      {/* Top Header & Action Bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4">
+    <main className="space-y-4 sm:space-y-6">
+      {/* =========================================================
+          1. COMPACT STICKY MOBILE HEADER (< md)
+      ========================================================= */}
+      <div className="sticky top-0 z-30 -mx-4 -mt-2 px-4 py-2.5 bg-white/95 backdrop-blur-md border-b border-stone-200/80 shadow-2xs md:hidden flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl font-black text-stone-900 tracking-tight">
+            Orders
+          </h1>
+          {pendingCount > 0 ? (
+            <span className="flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-500 text-white font-black text-[11px] animate-pulse shadow-xs">
+              <span className="h-1.5 w-1.5 rounded-full bg-white animate-ping" />
+              <span>{pendingCount} New</span>
+            </span>
+          ) : (
+            <span className="text-xs font-bold text-stone-400">
+              ({orders.length})
+            </span>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <KitchenAudioAlert
+            soundEnabled={soundEnabled}
+            onToggleSound={toggleSound}
+            pendingCount={pendingCount}
+            compact={true}
+          />
+        </div>
+      </div>
+
+      {/* =========================================================
+          2. DESKTOP HEADER & CONTROLS (md+)
+      ========================================================= */}
+      <div className="hidden md:flex flex-wrap items-center justify-between gap-4">
         <div>
           <h1 className="text-3xl sm:text-4xl font-extrabold text-stone-900 tracking-tight">
             Restaurant Orders & KDS
@@ -61,7 +113,7 @@ export default function OrdersPage() {
           </p>
         </div>
 
-        {/* Top Controls: Sound Toggle & View Switcher */}
+        {/* Desktop Controls: Sound Toggle & View Switcher */}
         <div className="flex flex-wrap items-center gap-3">
           <KitchenAudioAlert
             soundEnabled={soundEnabled}
@@ -124,7 +176,112 @@ export default function OrdersPage() {
         </div>
       </div>
 
-      {/* Filter Bar */}
+      {/* =========================================================
+          3. 1-TAP MOBILE STATUS TABS (SEGMENTED CONTROL) (< md)
+      ========================================================= */}
+      <div
+        className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar md:hidden"
+        role="tablist"
+        aria-label="Filter orders by stage"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mobileTab === "new"}
+          onClick={() => setMobileTab("new")}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+            mobileTab === "new"
+              ? "bg-orange-600 text-white shadow-xs"
+              : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+          }`}
+        >
+          <span>🔔 New Orders</span>
+          <span
+            className={`flex h-4.5 min-w-4.5 px-1.5 items-center justify-center rounded-full text-[10px] font-black ${
+              mobileTab === "new"
+                ? "bg-white text-orange-700"
+                : pendingCount > 0
+                ? "bg-orange-600 text-white animate-pulse"
+                : "bg-stone-200 text-stone-600"
+            }`}
+          >
+            {pendingCount}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mobileTab === "cooking"}
+          onClick={() => setMobileTab("cooking")}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+            mobileTab === "cooking"
+              ? "bg-blue-600 text-white shadow-xs"
+              : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+          }`}
+        >
+          <span>🍳 Cooking</span>
+          <span
+            className={`flex h-4.5 min-w-4.5 px-1.5 items-center justify-center rounded-full text-[10px] font-black ${
+              mobileTab === "cooking"
+                ? "bg-white text-blue-700"
+                : "bg-stone-200 text-stone-600"
+            }`}
+          >
+            {cookingCount}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mobileTab === "ready"}
+          onClick={() => setMobileTab("ready")}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+            mobileTab === "ready"
+              ? "bg-emerald-600 text-white shadow-xs"
+              : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+          }`}
+        >
+          <span>📦 Ready</span>
+          <span
+            className={`flex h-4.5 min-w-4.5 px-1.5 items-center justify-center rounded-full text-[10px] font-black ${
+              mobileTab === "ready"
+                ? "bg-white text-emerald-700"
+                : "bg-stone-200 text-stone-600"
+            }`}
+          >
+            {readyCount}
+          </span>
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          aria-selected={mobileTab === "all"}
+          onClick={() => setMobileTab("all")}
+          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all shrink-0 cursor-pointer ${
+            mobileTab === "all"
+              ? "bg-stone-800 text-white shadow-xs"
+              : "bg-stone-100 text-stone-700 hover:bg-stone-200"
+          }`}
+        >
+          <span>📋 All / History</span>
+          <span
+            className={`flex h-4.5 min-w-4.5 px-1.5 items-center justify-center rounded-full text-[10px] font-black ${
+              mobileTab === "all"
+                ? "bg-white text-stone-800"
+                : "bg-stone-200 text-stone-600"
+            }`}
+          >
+            {orders.length}
+          </span>
+        </button>
+      </div>
+
+      {/* =========================================================
+          4. FILTER BAR
+      ========================================================= */}
       <RestaurantOrderFilterBar
         q={q}
         setQ={setQ}
@@ -159,7 +316,9 @@ export default function OrdersPage() {
         </p>
       )}
 
-      {/* Content Rendering by View Mode */}
+      {/* =========================================================
+          5. CONTENT RENDERING BY VIEW MODE
+      ========================================================= */}
       {loading ? (
         <OrdersSkeleton />
       ) : orders.length === 0 ? (
@@ -173,15 +332,16 @@ export default function OrdersPage() {
           orders={orders}
           onUpdateStatus={(id, nextStatus) => void updateStatus(id, nextStatus)}
           soundEnabled={soundEnabled}
+          activeMobileTab={mobileTab}
         />
       ) : viewMode === "table" ? (
         <RestaurantOrderTableView
-          orders={orders}
+          orders={displayedOrders}
           onUpdateStatus={(id, nextStatus) => void updateStatus(id, nextStatus)}
         />
       ) : (
         <RestaurantOrderCardList
-          orders={orders}
+          orders={displayedOrders}
           onUpdateStatus={(id, nextStatus) => void updateStatus(id, nextStatus)}
         />
       )}

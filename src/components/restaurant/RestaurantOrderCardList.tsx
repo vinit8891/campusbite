@@ -43,9 +43,12 @@ export function RestaurantOrderCardList({
                 {order.customer_name}
               </h2>
               {order.phone && (
-                <p className="text-sm font-semibold text-stone-600 mt-0.5">
+                <a
+                  href={`tel:${order.phone}`}
+                  className="text-sm font-semibold text-stone-600 hover:text-orange-600 active:text-orange-700 flex items-center gap-1 mt-0.5 transition-colors cursor-pointer"
+                >
                   📞 {order.phone}
-                </p>
+                </a>
               )}
               {order.customer_email && (
                 <p className="text-xs text-stone-400">
@@ -82,7 +85,7 @@ export function RestaurantOrderCardList({
               <span className="text-sm leading-none shrink-0">📝</span>
               <div className="min-w-0">
                 <p className="font-bold text-[11px] text-amber-800 uppercase tracking-wide">
-                  Delivery Location & Instructions
+                  Special Instructions / Location
                 </p>
                 <p className="font-semibold text-xs text-amber-900 mt-0.5">
                   {order.hostel_block ? `${order.hostel_block} • ` : ""}
@@ -105,8 +108,8 @@ export function RestaurantOrderCardList({
                 className="flex items-center justify-between rounded-xl bg-stone-50 p-2.5 text-sm"
               >
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className="inline-flex items-center justify-center rounded-lg bg-orange-600 text-white font-black text-xs px-2 py-0.5 shrink-0">
-                    {item.quantity}x
+                  <span className="inline-flex items-center justify-center rounded-lg bg-orange-600 text-white font-black text-xs px-2.5 py-0.5 shrink-0">
+                    {item.quantity}×
                   </span>
                   <span className="font-bold text-stone-900 truncate">
                     {item.name}

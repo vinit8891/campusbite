@@ -47,12 +47,14 @@ export function OrderPrepTimer({
       );
     } else {
       const overdueMin = Math.floor(Math.abs(remainSec) / 60);
+      const overdueText =
+        overdueMin > 60 ? "Delayed (>60m)" : `Pending Overdue (${overdueMin}m late)`;
       return (
         <span
           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 animate-pulse ${className}`}
         >
           <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
-          <span>Pending Overdue ({overdueMin}m late)</span>
+          <span>⚠️ {overdueText}</span>
         </span>
       );
     }
@@ -94,12 +96,15 @@ export function OrderPrepTimer({
       const delayMin = Math.floor(Math.abs(remainSec) / 60);
       const delaySec = Math.abs(remainSec) % 60;
       const formatted = `${String(delayMin).padStart(2, "0")}:${String(delaySec).padStart(2, "0")}`;
+      const delayText =
+        delayMin > 60 ? "⚠️ Delayed (>60m)" : `Delayed by +${formatted}`;
+
       return (
         <span
           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-extrabold bg-rose-50 text-rose-700 border border-rose-300 animate-pulse shadow-sm ${className}`}
         >
           <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
-          <span>Delayed by +{formatted}</span>
+          <span>{delayText}</span>
         </span>
       );
     }
@@ -107,12 +112,14 @@ export function OrderPrepTimer({
 
   // 3. Ready for Pickup
   if (status === "Ready for Pickup") {
+    const readyText =
+      elapsedMin > 60 ? "Ready (>60m ago)" : `Ready (${elapsedMin}m ago)`;
     return (
       <span
         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 ${className}`}
       >
         <CheckCircle2 className="h-3.5 w-3.5 text-indigo-600" />
-        <span>Ready ({elapsedMin}m ago)</span>
+        <span>{readyText}</span>
       </span>
     );
   }
@@ -124,7 +131,7 @@ export function OrderPrepTimer({
     >
       <Clock className="h-3 w-3 text-stone-400" />
       <span>
-        {elapsedMin}m {elapsedRemainSec}s ago
+        {elapsedMin > 60 ? ">60m ago" : `${elapsedMin}m ${elapsedRemainSec}s ago`}
       </span>
     </span>
   );
