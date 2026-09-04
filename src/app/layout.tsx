@@ -5,6 +5,7 @@ import { Toaster } from "sonner";
 import { appConfig } from "@/config/app";
 import AppProviders from "@/providers/AppProviders";
 import Footer from "@/components/layout/Footer";
+import { LiveOrderTrackerBar } from "@/components/orders/LiveOrderTrackerBar";
 
 import "./globals.css";
 
@@ -38,6 +39,9 @@ export default function RootLayout({
           {children}
 
           <Footer />
+
+          {/* Floating Live Activity Order Tracker */}
+          <LiveOrderTrackerBar />
 
           <Toaster
             position="bottom-right"
