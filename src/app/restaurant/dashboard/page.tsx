@@ -71,44 +71,51 @@ export default function DashboardPage() {
   const isRushActive = pendingCount > 0;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-5 sm:space-y-8">
       {/* Eatery Welcome Card */}
-      <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-amber-100/70 via-orange-50 to-white border border-amber-200/60 p-5 sm:p-7 shadow-xs">
-        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-5">
-          <div className="space-y-2">
-            <div className="inline-flex items-center gap-2 rounded-full bg-orange-100/80 px-3 py-1 text-xs font-bold text-orange-800 border border-orange-200/80">
-              <Sparkles className="h-3.5 w-3.5 text-orange-600" />
-              <span>Campus Live Kitchen Hub</span>
+      <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-amber-100/70 via-orange-50 to-white border border-amber-200/60 p-4 sm:p-5 md:p-7 shadow-xs">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center md:justify-between gap-3.5 sm:gap-5">
+          <div className="space-y-1.5 sm:space-y-2">
+            <div className="flex items-center gap-2">
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-100/80 px-2.5 py-0.5 sm:px-3 sm:py-1 text-[11px] sm:text-xs font-bold text-orange-800 border border-orange-200/80">
+                <Sparkles className="h-3 w-3 sm:h-3.5 sm:w-3.5 text-orange-600" />
+                <span>Kitchen Hub</span>
+              </div>
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] sm:text-xs font-bold text-emerald-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-600 animate-pulse" />
+                <span>Live</span>
+              </span>
             </div>
 
-            <h1 className="text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">
+            <h1 className="text-lg sm:text-2xl md:text-3xl font-black text-stone-900 tracking-tight">
               {getGreeting()}, {eateryName}! 🍲
             </h1>
 
-            <p className="text-sm font-medium text-stone-600 max-w-2xl">
+            <div className="text-xs sm:text-sm font-medium text-stone-600 max-w-2xl">
               {isRushActive ? (
-                <span className="text-orange-900 font-semibold">
-                  You have{" "}
-                  <span className="underline decoration-orange-500 font-extrabold">
-                    {pendingCount} pending order{pendingCount === 1 ? "" : "s"}
-                  </span>{" "}
-                  waiting for acceptance. Kitchen rush is active!
-                </span>
+                <div className="inline-flex items-center gap-1.5 rounded-xl bg-rose-50 border border-rose-200 px-2.5 py-1 text-xs font-bold text-rose-800">
+                  <span className="h-2 w-2 rounded-full bg-rose-600 animate-ping" />
+                  <span>
+                    🔴 {pendingCount} order{pendingCount === 1 ? "" : "s"} need cooking
+                  </span>
+                </div>
               ) : (
-                "Kitchen is running smoothly. Ready for incoming student meals and rush orders!"
+                <span className="text-stone-500">
+                  ✨ Kitchen is running smoothly. Ready for incoming campus orders!
+                </span>
               )}
-            </p>
+            </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2.5 sm:gap-3 shrink-0">
             <Link
               href={ROUTES.RESTAURANT_ORDERS}
-              className="inline-flex items-center justify-center gap-2.5 rounded-2xl bg-orange-600 hover:bg-orange-700 active:scale-98 px-5 py-3.5 text-sm font-extrabold text-white shadow-md shadow-orange-600/25 transition-all cursor-pointer"
+              className="inline-flex h-11 sm:h-12 w-full md:w-auto items-center justify-center gap-2 rounded-xl sm:rounded-2xl bg-orange-600 hover:bg-orange-700 active:scale-98 px-4 sm:px-5 text-xs sm:text-sm font-extrabold text-white shadow-md shadow-orange-600/25 transition-all cursor-pointer"
             >
-              <ChefHat className="h-5 w-5" />
+              <ChefHat className="h-4 w-4 sm:h-5 sm:w-5" />
               <span>Open Kitchen KDS Board 🍳</span>
               {pendingCount > 0 && (
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-[11px] font-black text-orange-600">
+                <span className="flex h-5 min-w-5 px-1.5 items-center justify-center rounded-full bg-white text-[11px] font-black text-orange-600">
                   {pendingCount}
                 </span>
               )}

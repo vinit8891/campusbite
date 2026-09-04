@@ -2,7 +2,8 @@ import React from "react";
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { DashboardMetricCards } from "@/components/restaurant/DashboardMetricCards";
-import type { DashboardData, StatCard } from "@/hooks/restaurant/useRestaurantDashboard";
+import { DashboardAnalyticsCharts } from "@/components/restaurant/DashboardAnalyticsCharts";
+import type { DashboardData, StatCard, AnalyticsOverview } from "@/hooks/restaurant/useRestaurantDashboard";
 import type { RestaurantSubscriptionRevenueSummary } from "@/types";
 
 const mockDashboard: DashboardData = {
@@ -35,9 +36,42 @@ const mockSubscriptionRevenue: RestaurantSubscriptionRevenueSummary = {
   pending_subscription_payments: 2,
 };
 
+const mockAnalytics: AnalyticsOverview = {
+  orders_by_status: [
+    { key: "Delivered", count: 40 },
+    { key: "In Progress", count: 5 },
+    { key: "Pending", count: 3 },
+  ],
+  orders_by_payment_method: [
+    { key: "online", count: 35 },
+    { key: "cod", count: 13 },
+  ],
+  orders_by_payment_status: [
+    { key: "paid", count: 35 },
+    { key: "pending", count: 13 },
+  ],
+  revenue_last_7_days: 14250,
+  revenue_last_30_days: 52000,
+  revenue_trend_7d: [
+    { date: "2026-09-01", revenue: 2000, orders: 8 },
+    { date: "2026-09-02", revenue: 3500, orders: 12 },
+    { date: "2026-09-03", revenue: 4100, orders: 15 },
+    { date: "2026-09-04", revenue: 4650, orders: 13 },
+  ],
+  top_selling_items: [
+    { name: "Special Paneer Thali", orders: 25 },
+    { name: "Butter Naan", orders: 42 },
+  ],
+  recent_reviews: [],
+  reviews_summary: {
+    average_rating: 4.8,
+    count: 32,
+  },
+  average_order_value: 296.87,
+};
 
-describe("Restaurant Dashboard Metric Cards", () => {
-  it("renders stat cards with emojis and values", () => {
+describe("Restaurant Dashboard Metric Cards & Analytics", () => {
+  it("renders stat cards with emojis and values in 2-column mobile layout", () => {
     render(
       <DashboardMetricCards
         cards={mockCards}
@@ -58,8 +92,32 @@ describe("Restaurant Dashboard Metric Cards", () => {
     expect(screen.getByText("18")).toBeInTheDocument();
 
     // Subscription Revenue card
-    expect(screen.getByText("Active subscriptions")).toBeInTheDocument();
+    expect(screen.getByText("Active subs")).toBeInTheDocument();
     expect(screen.getByText("14")).toBeInTheDocument();
     expect(screen.getByText("₹28000.00")).toBeInTheDocument();
+    expect(screen.getByText("Pending dues")).toBeInTheDocument();
+  });
+
+  it("renders dashboard analytics charts with revenue trend and top selling items", () => {
+    render(
+      <DashboardAnalyticsCharts
+        analytics={mockAnalytics}
+        trend={mockAnalytics.revenue_trend_7d}
+        maxTrendRevenue={5000}
+        topItems={mockAnalytics.top_selling_items}
+        maxTop={45}
+      />
+    );
+
+    expect(screen.getByText("Revenue Trend (7 days)")).toBeInTheDocument();
+    expect(screen.getByText("Orders by Status")).toBeInTheDocument();
+    expect(screen.getByText("Payment Breakdown")).toBeInTheDocument();
+    expect(screen.getByText("Top Selling Items")).toBeInTheDocument();
+
+    // Check top selling items rendered
+    expect(screen.getByText(/Special Paneer Thali/i)).toBeInTheDocument();
+    expect(screen.getByText("25 sold")).toBeInTheDocument();
+    expect(screen.getByText(/Butter Naan/i)).toBeInTheDocument();
+    expect(screen.getByText("42 sold")).toBeInTheDocument();
   });
 });
