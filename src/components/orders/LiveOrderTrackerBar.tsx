@@ -2,21 +2,57 @@
 
 import React, { useState, useEffect, useCallback, useMemo } from "react";
 import Link from "next/link";
-import { ChevronRight, KeyRound, Bike, Clock, Sparkles } from "lucide-react";
+import { usePathname } from "next/navigation";
+import { ChevronRight, KeyRound, Bike, Clock } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { getMyOrders } from "@/services/orderService";
 import { isActiveOrderStatus } from "@/lib/orderDomain";
 import { trackOrderPath, ROUTES } from "@/lib/routes";
 import type { Order } from "@/types";
 
+export function isRestrictedPath(pathname: string): boolean {
+  if (!pathname) return false;
+
+  const isPortalOrAuth = (prefix: string) =>
+    pathname === prefix || pathname.startsWith(`${prefix}/`);
+
+  return (
+    isPortalOrAuth("/admin") ||
+    isPortalOrAuth("/restaurant") ||
+    isPortalOrAuth("/delivery") ||
+    isPortalOrAuth("/login") ||
+    isPortalOrAuth("/register") ||
+    isPortalOrAuth("/forgot-password") ||
+    isPortalOrAuth("/reset-password")
+  );
+}
+
+export function isNonCustomerRole(): boolean {
+  if (typeof document === "undefined") return false;
+  const match = document.cookie.match(/(?:^|;\s*)cb_role=([^;]+)/);
+  const cookieRole = match ? decodeURIComponent(match[1]) : null;
+  if (
+    cookieRole &&
+    ["admin", "restaurant_owner", "delivery_partner"].includes(cookieRole)
+  ) {
+    return true;
+  }
+  return false;
+}
+
 export function LiveOrderTrackerBar() {
+  const pathname = usePathname();
   const { isLoggedIn } = useAuth();
   const [activeOrder, setActiveOrder] = useState<Order | null>(null);
   const [showOtp, setShowOtp] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const isRestricted = useMemo(() => {
+    return isRestrictedPath(pathname) || isNonCustomerRole();
+  }, [pathname]);
+
   const fetchActiveOrders = useCallback(async () => {
-    if (!isLoggedIn) {
+    if (!isLoggedIn || isRestricted) {
       setActiveOrder(null);
       return;
     }
@@ -34,10 +70,10 @@ export function LiveOrderTrackerBar() {
     } finally {
       setLoading(false);
     }
-  }, [isLoggedIn]);
+  }, [isLoggedIn, isRestricted]);
 
   useEffect(() => {
-    if (!isLoggedIn) {
+    if (!isLoggedIn || isRestricted) {
       setActiveOrder(null);
       return;
     }
@@ -48,7 +84,7 @@ export function LiveOrderTrackerBar() {
     }, 8000);
 
     return () => clearInterval(interval);
-  }, [isLoggedIn, fetchActiveOrders]);
+  }, [isLoggedIn, isRestricted, fetchActiveOrders]);
 
   const statusText = useMemo(() => {
     if (!activeOrder) return "";
@@ -84,7 +120,8 @@ export function LiveOrderTrackerBar() {
   const trackingUrl = orderId ? trackOrderPath(orderId) : ROUTES.MY_ORDERS;
   const otpCode = activeOrder?.delivery_otp ? String(activeOrder.delivery_otp) : "4821";
 
-  if (!isLoggedIn || !activeOrder) {
+  // Immediate guard: Skip rendering and polling on non-customer / restricted pages
+  if (isRestricted || !isLoggedIn || !activeOrder) {
     return null;
   }
 

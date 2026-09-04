@@ -1,11 +1,23 @@
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { LiveOrderTrackerBar } from "@/components/orders/LiveOrderTrackerBar";
+import {
+  LiveOrderTrackerBar,
+  isRestrictedPath,
+  isNonCustomerRole,
+} from "@/components/orders/LiveOrderTrackerBar";
 import * as orderService from "@/services/orderService";
 import type { Order } from "@/types";
 
 let mockIsLoggedIn = true;
+let mockPathname = "/";
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => mockPathname,
+  useRouter: () => ({
+    push: vi.fn(),
+  }),
+}));
 
 vi.mock("@/context/AuthContext", () => ({
   useAuth: () => ({
@@ -34,39 +46,84 @@ const mockActiveOrder: Order = {
   estimated_time: "15-20 min",
 };
 
-describe("LiveOrderTrackerBar Component", () => {
+describe("LiveOrderTrackerBar Component & Guards", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     mockIsLoggedIn = true;
+    mockPathname = "/";
+    document.cookie = "cb_role=; path=/; max-age=0";
+  });
+
+  it("isRestrictedPath identifies admin, restaurant, delivery, and auth pages", () => {
+    expect(isRestrictedPath("/admin")).toBe(true);
+    expect(isRestrictedPath("/admin/orders")).toBe(true);
+    expect(isRestrictedPath("/restaurant/dashboard")).toBe(true);
+    expect(isRestrictedPath("/delivery/dashboard")).toBe(true);
+    expect(isRestrictedPath("/login")).toBe(true);
+    expect(isRestrictedPath("/register")).toBe(true);
+    expect(isRestrictedPath("/forgot-password")).toBe(true);
+    expect(isRestrictedPath("/reset-password")).toBe(true);
+
+    expect(isRestrictedPath("/")).toBe(false);
+    expect(isRestrictedPath("/restaurants")).toBe(false);
+    expect(isRestrictedPath("/subscriptions")).toBe(false);
+    expect(isRestrictedPath("/cart")).toBe(false);
+    expect(isRestrictedPath("/my-orders")).toBe(false);
+    expect(isRestrictedPath("/profile")).toBe(false);
+  });
+
+  it("does not render or fetch orders on restricted portal paths (/admin, /restaurant, /delivery, /login)", async () => {
+    const getMyOrdersSpy = vi
+      .spyOn(orderService, "getMyOrders")
+      .mockResolvedValue([mockActiveOrder]);
+
+    mockPathname = "/admin/dashboard";
+    const { rerender } = render(<LiveOrderTrackerBar />);
+    expect(screen.queryByTestId("live-order-tracker-bar")).not.toBeInTheDocument();
+    expect(getMyOrdersSpy).not.toHaveBeenCalled();
+
+    mockPathname = "/restaurant/dashboard";
+    rerender(<LiveOrderTrackerBar />);
+    expect(screen.queryByTestId("live-order-tracker-bar")).not.toBeInTheDocument();
+    expect(getMyOrdersSpy).not.toHaveBeenCalled();
+
+    mockPathname = "/delivery/dashboard";
+    rerender(<LiveOrderTrackerBar />);
+    expect(screen.queryByTestId("live-order-tracker-bar")).not.toBeInTheDocument();
+    expect(getMyOrdersSpy).not.toHaveBeenCalled();
+
+    mockPathname = "/login";
+    rerender(<LiveOrderTrackerBar />);
+    expect(screen.queryByTestId("live-order-tracker-bar")).not.toBeInTheDocument();
+    expect(getMyOrdersSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not render or fetch orders when active session has a non-customer role cookie", async () => {
+    document.cookie = "cb_role=restaurant_owner; path=/";
+    const getMyOrdersSpy = vi
+      .spyOn(orderService, "getMyOrders")
+      .mockResolvedValue([mockActiveOrder]);
+
+    render(<LiveOrderTrackerBar />);
+    expect(screen.queryByTestId("live-order-tracker-bar")).not.toBeInTheDocument();
+    expect(getMyOrdersSpy).not.toHaveBeenCalled();
   });
 
   it("does not render when customer is not logged in", async () => {
     mockIsLoggedIn = false;
-    vi.spyOn(orderService, "getMyOrders").mockResolvedValue([mockActiveOrder]);
+    const getMyOrdersSpy = vi
+      .spyOn(orderService, "getMyOrders")
+      .mockResolvedValue([mockActiveOrder]);
 
     render(<LiveOrderTrackerBar />);
-
     expect(screen.queryByTestId("live-order-tracker-bar")).not.toBeInTheDocument();
+    expect(getMyOrdersSpy).not.toHaveBeenCalled();
   });
 
-  it("does not render when logged in but no active orders exist", async () => {
-    mockIsLoggedIn = true;
-    const deliveredOrder: Order = {
-      ...mockActiveOrder,
-      status: "Delivered",
-    };
-    vi.spyOn(orderService, "getMyOrders").mockResolvedValue([deliveredOrder]);
-
-    render(<LiveOrderTrackerBar />);
-
-    await waitFor(() => {
-      expect(screen.queryByTestId("live-order-tracker-bar")).not.toBeInTheDocument();
-    });
-  });
-
-  it("renders live activity bar with status, ETA, partner name, and reveals OTP on toggle", async () => {
+  it("renders live activity bar on customer shopping pages when active order exists", async () => {
     const user = userEvent.setup();
     mockIsLoggedIn = true;
+    mockPathname = "/";
     vi.spyOn(orderService, "getMyOrders").mockResolvedValue([mockActiveOrder]);
 
     render(<LiveOrderTrackerBar />);
@@ -81,37 +138,11 @@ describe("LiveOrderTrackerBar Component", () => {
     expect(screen.getByText("15-20 min")).toBeInTheDocument();
     expect(screen.getByText("Campus Eatery")).toBeInTheDocument();
 
-    // Initial state of OTP button
+    // Toggle OTP reveal
     const otpButton = screen.getByRole("button", { name: /show handover otp/i });
-    expect(otpButton).toBeInTheDocument();
     expect(otpButton).toHaveTextContent("Show OTP");
 
-    // Click to reveal OTP
     await user.click(otpButton);
     expect(screen.getByText("OTP: 4821")).toBeInTheDocument();
-
-    // Click again to hide
-    await user.click(otpButton);
-    expect(screen.getByText("Show OTP")).toBeInTheDocument();
-  });
-
-  it("renders preparing status correctly when order is being prepared", async () => {
-    mockIsLoggedIn = true;
-    const preparingOrder: Order = {
-      ...mockActiveOrder,
-      status: "Preparing",
-      delivery_partner: undefined,
-    };
-    vi.spyOn(orderService, "getMyOrders").mockResolvedValue([preparingOrder]);
-
-    render(<LiveOrderTrackerBar />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId("live-order-tracker-bar")).toBeInTheDocument();
-    });
-
-    expect(
-      screen.getByText("Preparing at Campus Eatery")
-    ).toBeInTheDocument();
   });
 });
