@@ -17,7 +17,8 @@ vi.mock("sonner", () => ({
 }));
 
 function TestWrapperComponent() {
-  const { fullAddressLabel, activeAddress, openLocationModal } = useLocation();
+  const { fullAddressLabel, activeAddress, savedAddresses, openLocationModal } =
+    useLocation();
   const { checkout } = useCheckout();
 
   return (
@@ -29,7 +30,8 @@ function TestWrapperComponent() {
       >
         {fullAddressLabel}
       </button>
-      <div data-testid="active-type">{activeAddress.type}</div>
+      <div data-testid="active-tag">{activeAddress.tag}</div>
+      <div data-testid="saved-count">{savedAddresses.length}</div>
       <div data-testid="checkout-hostel">{checkout.hostel_block}</div>
       <div data-testid="checkout-address">{checkout.address}</div>
       <div data-testid="checkout-landmark">{checkout.landmark}</div>
@@ -48,10 +50,26 @@ function renderWithProviders() {
   );
 }
 
-describe("LocationPickerModal & Generalized LocationContext", () => {
+describe("LocationPickerModal & Dynamic Saved Addresses Lifecycle", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     localStorage.clear();
+  });
+
+  it("starts with empty savedAddresses and displays empty state message in modal", async () => {
+    const user = userEvent.setup();
+    renderWithProviders();
+
+    expect(screen.getByTestId("saved-count")).toHaveTextContent("0");
+
+    await user.click(
+      screen.getByRole("button", { name: /open location modal/i })
+    );
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(
+      screen.getByText("No saved addresses yet. Enter details above to save.")
+    ).toBeInTheDocument();
   });
 
   it("opens modal on trigger and closes on X or backdrop click", async () => {
@@ -66,11 +84,6 @@ describe("LocationPickerModal & Generalized LocationContext", () => {
 
     expect(screen.getByRole("dialog")).toBeInTheDocument();
     expect(screen.getByText("Select Delivery Location")).toBeInTheDocument();
-    expect(
-      screen.getByText(
-        "Delivering to your hostel, PG, flat, or college department"
-      )
-    ).toBeInTheDocument();
 
     // Close via close button
     const closeBtn = screen.getByRole("button", {
@@ -92,7 +105,7 @@ describe("LocationPickerModal & Generalized LocationContext", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
 
-  it("allows selecting address type and entering custom PG/flat details with checkout sync", async () => {
+  it("allows selecting address tag, entering custom address, and saving to localStorage and checkout", async () => {
     const user = userEvent.setup();
     renderWithProviders();
 
@@ -100,27 +113,27 @@ describe("LocationPickerModal & Generalized LocationContext", () => {
       screen.getByRole("button", { name: /open location modal/i })
     );
 
-    // Select "PG / Flat" address type
-    const pgTypeBtn = screen.getByRole("radio", { name: /pg \/ flat/i });
-    await user.click(pgTypeBtn);
-    expect(pgTypeBtn).toHaveAttribute("aria-checked", "true");
+    // Select "Home" tag
+    const homeTagBtn = screen.getByRole("radio", { name: /home/i });
+    await user.click(homeTagBtn);
+    expect(homeTagBtn).toHaveAttribute("aria-checked", "true");
 
     // Enter room/flat
     const roomInput = screen.getByLabelText(/flat \/ room \/ house no/i);
     await user.clear(roomInput);
-    await user.type(roomInput, "Flat 402, 4th Floor");
+    await user.type(roomInput, "Flat 201, 2nd Floor");
 
     // Enter building/society name
     const buildingInput = screen.getByLabelText(
-      /building \/ society \/ hostel name/i
+      /building \/ hostel \/ pg \/ society name/i
     );
     await user.clear(buildingInput);
-    await user.type(buildingInput, "Greenfield Heights PG");
+    await user.type(buildingInput, "Sai Residency");
 
     // Enter landmark
     const landmarkInput = screen.getByLabelText(/area \/ landmark/i);
     await user.clear(landmarkInput);
-    await user.type(landmarkInput, "Near Zeal North Gate");
+    await user.type(landmarkInput, "Near West Gate");
 
     // Click "Save & Deliver Here"
     const saveBtn = screen.getByRole("button", {
@@ -132,53 +145,81 @@ describe("LocationPickerModal & Generalized LocationContext", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
 
     // Context & Checkout verified
-    expect(screen.getByTestId("active-type")).toHaveTextContent("pg_flat");
+    expect(screen.getByTestId("active-tag")).toHaveTextContent("home");
+    expect(screen.getByTestId("saved-count")).toHaveTextContent("1");
     expect(screen.getByTestId("checkout-hostel")).toHaveTextContent(
-      "Greenfield Heights PG"
+      "Sai Residency"
     );
     expect(screen.getByTestId("checkout-address")).toHaveTextContent(
-      "Greenfield Heights PG, Flat 402, 4th Floor"
+      "Sai Residency, Flat 201, 2nd Floor"
     );
     expect(screen.getByTestId("checkout-landmark")).toHaveTextContent(
-      "Near Zeal North Gate"
+      "Near West Gate"
     );
 
+    // Check localStorage persistence
+    const savedInStorage = JSON.parse(
+      localStorage.getItem("cb_saved_addresses") || "[]"
+    );
+    expect(savedInStorage).toHaveLength(1);
+    expect(savedInStorage[0].buildingOrSociety).toBe("Sai Residency");
+    expect(savedInStorage[0].tag).toBe("home");
+
     expect(toast.success).toHaveBeenCalledWith(
-      "Location set to Greenfield Heights PG, Flat 402, 4th Floor"
+      "Location set to Sai Residency, Flat 201, 2nd Floor"
     );
   });
 
-  it("allows selecting from saved locations list and updates active location", async () => {
+  it("allows deleting a saved address from the list and localStorage", async () => {
+    // Pre-populate 1 saved address in localStorage
+    const initialAddress = {
+      id: "addr-test-1",
+      tag: "hostel",
+      label: "Block B Hostel",
+      roomOrFlat: "Room 14",
+      buildingOrSociety: "Block B Hostel",
+      areaOrLandmark: "Campus Wing B",
+      city: "Pune",
+    };
+    localStorage.setItem(
+      "cb_saved_addresses",
+      JSON.stringify([initialAddress])
+    );
+
     const user = userEvent.setup();
     renderWithProviders();
+
+    expect(screen.getByTestId("saved-count")).toHaveTextContent("1");
 
     await user.click(
       screen.getByRole("button", { name: /open location modal/i })
     );
 
-    // Look for saved location "Silver Oak PG"
-    const silverOakSavedBtn = screen.getByRole("button", {
-      name: /silver oak pg/i,
-    });
-    await user.click(silverOakSavedBtn);
+    // Verify saved address card is visible
+    expect(screen.getByText("Block B Hostel")).toBeInTheDocument();
 
-    // Click "Save & Deliver Here"
-    const saveBtn = screen.getByRole("button", {
-      name: /save & deliver here/i,
+    // Click Delete button
+    const deleteBtn = screen.getByRole("button", {
+      name: /delete saved address block b hostel/i,
     });
-    await user.click(saveBtn);
+    await user.click(deleteBtn);
 
-    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(screen.getByTestId("active-type")).toHaveTextContent("pg_flat");
-    expect(screen.getByTestId("checkout-hostel")).toHaveTextContent(
-      "Silver Oak PG"
+    // Verify item deleted
+    expect(screen.getByTestId("saved-count")).toHaveTextContent("0");
+    expect(
+      screen.getByText("No saved addresses yet. Enter details above to save.")
+    ).toBeInTheDocument();
+
+    const storedList = JSON.parse(
+      localStorage.getItem("cb_saved_addresses") || "[]"
     );
+    expect(storedList).toHaveLength(0);
+    expect(toast.success).toHaveBeenCalledWith("Saved address removed");
   });
 
   it("handles GPS reverse geocoding with OpenStreetMap Nominatim", async () => {
     const user = userEvent.setup();
 
-    // Mock global fetch for OpenStreetMap Nominatim
     const mockFetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -191,7 +232,6 @@ describe("LocationPickerModal & Generalized LocationContext", () => {
     });
     vi.stubGlobal("fetch", mockFetch);
 
-    // Mock navigator.geolocation
     const mockGeolocation = {
       getCurrentPosition: vi.fn().mockImplementation((success) => {
         success({

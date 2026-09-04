@@ -4,16 +4,7 @@ import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { useCheckout } from "@/context/CheckoutContext";
 import { useAuth } from "@/context/AuthContext";
-
-const HOSTEL_BLOCKS = [
-  "Hostel Block A",
-  "Hostel Block B",
-  "Hostel Block C",
-  "Girls Hostel",
-  "PG Complex",
-  "Silver Oak PG",
-  "Central Library / Dept",
-];
+import { useLocation } from "@/context/LocationContext";
 
 const QUICK_INSTRUCTIONS = [
   "Call when downstairs",
@@ -32,10 +23,16 @@ function useSafeAuth() {
 export default function AddressForm() {
   const { checkout, setCheckout } = useCheckout();
   const { user } = useSafeAuth();
+  const {
+    savedAddresses,
+    setActiveAddress,
+    openLocationModal,
+  } = useLocation();
 
   const [errors, setErrors] = useState({
     customer_name: "",
     phone: "",
+    hostel_block: "",
     address: "",
   });
 
@@ -69,7 +66,11 @@ export default function AddressForm() {
         <label className="mb-3 block text-sm font-semibold text-gray-700">
           Select Delivery Mode
         </label>
-        <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label="Delivery mode">
+        <div
+          className="grid gap-3 sm:grid-cols-2"
+          role="group"
+          aria-label="Delivery mode"
+        >
           {/* Hostel Batch Drop */}
           <button
             type="button"
@@ -90,10 +91,14 @@ export default function AddressForm() {
               Save ₹25
             </span>
             <div className="flex items-start gap-3">
-              <div className="text-2xl" aria-hidden="true">🏢</div>
+              <div className="text-2xl" aria-hidden="true">
+                🏢
+              </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <p className="font-semibold text-gray-900">Hostel Batch Drop</p>
+                  <p className="font-semibold text-gray-900">
+                    Hostel Batch Drop
+                  </p>
                   <span className="font-bold text-orange-600">₹15</span>
                 </div>
                 <p className="mt-0.5 text-xs text-gray-500">
@@ -120,10 +125,14 @@ export default function AddressForm() {
             }`}
           >
             <div className="flex items-start gap-3">
-              <div className="text-2xl" aria-hidden="true">🚀</div>
+              <div className="text-2xl" aria-hidden="true">
+                🚀
+              </div>
               <div>
                 <div className="flex items-center gap-2">
-                  <p className="font-semibold text-gray-900">Standard Express</p>
+                  <p className="font-semibold text-gray-900">
+                    Standard Express
+                  </p>
                   <span className="font-bold text-gray-700">₹40</span>
                 </div>
                 <p className="mt-0.5 text-xs text-gray-500">
@@ -133,39 +142,78 @@ export default function AddressForm() {
             </div>
           </button>
         </div>
-
-        {/* Hostel Batch Drop Details */}
-        {isBatch ? (
-          <div className="mt-4 rounded-xl border border-orange-200 bg-orange-50/80 p-4">
-            <div className="flex items-center justify-between">
-              <label htmlFor="hostel-block-select" className="text-xs font-semibold uppercase text-orange-900">
-                Select Hostel / Complex
-              </label>
-              <span className="text-[11px] font-medium text-orange-700">20-min batch slots</span>
-            </div>
-            <select
-              id="hostel-block-select"
-              value={checkout.hostel_block}
-              onChange={(e) =>
-                setCheckout((prev) => ({
-                  ...prev,
-                  hostel_block: e.target.value,
-                }))
-              }
-              className="mt-2 w-full rounded-lg border border-orange-300 bg-white px-3 py-2 text-sm font-medium text-gray-800 outline-none focus:border-orange-500"
-            >
-              {Array.from(new Set([checkout.hostel_block || "Hostel Block A", ...HOSTEL_BLOCKS])).map((block) => (
-                <option key={block} value={block}>
-                  {block}
-                </option>
-              ))}
-            </select>
-            <p className="mt-2 text-xs text-orange-800">
-              ℹ️ Orders delivered in 20-min batch slots to your hostel lobby.
-            </p>
-          </div>
-        ) : null}
       </div>
+
+      {/* =========================
+          SAVED LOCATIONS PILL BAR
+      ========================== */}
+      {savedAddresses.length > 0 && (
+        <div className="rounded-xl border border-orange-100 bg-orange-50/40 p-3.5">
+          <div className="flex items-center justify-between mb-2">
+            <label className="text-xs font-bold uppercase tracking-wider text-orange-950">
+              Saved Addresses
+            </label>
+            <button
+              type="button"
+              onClick={openLocationModal}
+              className="text-xs font-semibold text-orange-600 hover:text-orange-700 cursor-pointer"
+            >
+              + Add / Edit
+            </button>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {savedAddresses.map((saved) => {
+              const isSelected =
+                checkout.hostel_block === saved.buildingOrSociety &&
+                (checkout.address.includes(saved.roomOrFlat) || !saved.roomOrFlat);
+              const tag = saved.tag || saved.type || "other";
+              const icon =
+                tag === "home"
+                  ? "🏠"
+                  : tag === "college"
+                  ? "🎓"
+                  : tag === "other"
+                  ? "📍"
+                  : "🏢";
+
+              return (
+                <button
+                  key={saved.id}
+                  type="button"
+                  onClick={() => {
+                    setActiveAddress(saved);
+                    setCheckout((prev) => ({
+                      ...prev,
+                      hostel_block: saved.buildingOrSociety,
+                      address: saved.roomOrFlat
+                        ? `${saved.buildingOrSociety}, ${saved.roomOrFlat}`
+                        : saved.buildingOrSociety,
+                      landmark: saved.areaOrLandmark || prev.landmark,
+                      latitude: saved.lat ?? prev.latitude,
+                      longitude: saved.lng ?? prev.longitude,
+                    }));
+                  }}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs font-semibold transition-all cursor-pointer ${
+                    isSelected
+                      ? "border-orange-500 bg-orange-500 text-white shadow-2xs"
+                      : "border-orange-200 bg-white text-stone-700 hover:border-orange-300 hover:bg-orange-50"
+                  }`}
+                >
+                  <span>{icon}</span>
+                  <span className="truncate max-w-[130px]">
+                    {saved.buildingOrSociety}
+                  </span>
+                  {saved.roomOrFlat && (
+                    <span className={isSelected ? "text-orange-100" : "text-stone-400"}>
+                      ({saved.roomOrFlat})
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {/* =========================
           DELIVERY FOR
@@ -174,11 +222,17 @@ export default function AddressForm() {
         <label className="mb-3 block text-sm font-semibold text-gray-700">
           Who are you ordering for?
         </label>
-        <div className="grid gap-3 sm:grid-cols-2" role="group" aria-label="Delivery recipient">
+        <div
+          className="grid gap-3 sm:grid-cols-2"
+          role="group"
+          aria-label="Delivery recipient"
+        >
           <button
             type="button"
             aria-pressed={checkout.delivery_for === "self"}
-            onClick={() => setCheckout((prev) => ({ ...prev, delivery_for: "self" }))}
+            onClick={() =>
+              setCheckout((prev) => ({ ...prev, delivery_for: "self" }))
+            }
             className={`rounded-xl border-2 p-3 text-left transition ${
               checkout.delivery_for === "self"
                 ? "border-orange-500 bg-orange-50"
@@ -187,14 +241,21 @@ export default function AddressForm() {
           >
             <div className="flex items-center gap-2">
               <span className="text-xl">🧑</span>
-              <span className="text-sm font-semibold text-gray-900">Myself</span>
+              <span className="text-sm font-semibold text-gray-900">
+                Myself
+              </span>
             </div>
           </button>
 
           <button
             type="button"
             aria-pressed={checkout.delivery_for === "someone_else"}
-            onClick={() => setCheckout((prev) => ({ ...prev, delivery_for: "someone_else" }))}
+            onClick={() =>
+              setCheckout((prev) => ({
+                ...prev,
+                delivery_for: "someone_else",
+              }))
+            }
             className={`rounded-xl border-2 p-3 text-left transition ${
               checkout.delivery_for === "someone_else"
                 ? "border-orange-500 bg-orange-50"
@@ -203,7 +264,9 @@ export default function AddressForm() {
           >
             <div className="flex items-center gap-2">
               <span className="text-xl">👤</span>
-              <span className="text-sm font-semibold text-gray-900">Someone Else</span>
+              <span className="text-sm font-semibold text-gray-900">
+                Someone Else
+              </span>
             </div>
           </button>
         </div>
@@ -214,7 +277,10 @@ export default function AddressForm() {
       ========================== */}
       <div className="grid gap-4">
         <div>
-          <label htmlFor="checkout-customer-name" className="mb-1 block text-sm font-semibold text-gray-700">
+          <label
+            htmlFor="checkout-customer-name"
+            className="mb-1 block text-sm font-semibold text-gray-700"
+          >
             Recipient Name
           </label>
           <Input
@@ -227,7 +293,10 @@ export default function AddressForm() {
               setCheckout((prev) => ({ ...prev, customer_name: val }));
               setErrors((prev) => ({
                 ...prev,
-                customer_name: val.trim().length >= 3 ? "" : "Name must be at least 3 characters.",
+                customer_name:
+                  val.trim().length >= 3
+                    ? ""
+                    : "Name must be at least 3 characters.",
               }));
             }}
           />
@@ -237,7 +306,10 @@ export default function AddressForm() {
         </div>
 
         <div>
-          <label htmlFor="checkout-phone" className="mb-1 block text-sm font-semibold text-gray-700">
+          <label
+            htmlFor="checkout-phone"
+            className="mb-1 block text-sm font-semibold text-gray-700"
+          >
             Recipient Mobile Number
           </label>
           <Input
@@ -251,57 +323,108 @@ export default function AddressForm() {
               setCheckout((prev) => ({ ...prev, phone: val }));
               setErrors((prev) => ({
                 ...prev,
-                phone: /^[6-9]\d{9}$/.test(val) ? "" : "Enter a valid 10-digit mobile number.",
+                phone: /^[6-9]\d{9}$/.test(val)
+                  ? ""
+                  : "Enter a valid 10-digit mobile number.",
               }));
             }}
           />
-          {errors.phone && <p className="mt-1 text-xs text-red-500">{errors.phone}</p>}
+          {errors.phone && (
+            <p className="mt-1 text-xs text-red-500">{errors.phone}</p>
+          )}
         </div>
 
         <div>
-          <label htmlFor="checkout-address" className="mb-1 block text-sm font-semibold text-gray-700">
-            {isBatch ? "Room / Floor / Wing" : "Room / Flat / Building / Street"}
+          <label
+            htmlFor="checkout-building"
+            className="mb-1 block text-sm font-semibold text-gray-700"
+          >
+            Building / Hostel / PG / Society Name
+          </label>
+          <Input
+            id="checkout-building"
+            placeholder="e.g. Balaji PG, Royal Palace, or Hostel Wing 2"
+            value={checkout.hostel_block}
+            onChange={(e) => {
+              const val = e.target.value;
+              setCheckout((prev) => ({ ...prev, hostel_block: val }));
+              setErrors((prev) => ({
+                ...prev,
+                hostel_block:
+                  val.trim().length >= 2 ? "" : "Building name is required.",
+              }));
+            }}
+          />
+          {errors.hostel_block && (
+            <p className="mt-1 text-xs text-red-500">{errors.hostel_block}</p>
+          )}
+        </div>
+
+        <div>
+          <label
+            htmlFor="checkout-address"
+            className="mb-1 block text-sm font-semibold text-gray-700"
+          >
+            Room / Flat / Floor / Wing
           </label>
           <textarea
             id="checkout-address"
             rows={2}
-            placeholder={isBatch ? "Room 304, 3rd Floor, Wing B" : "Room 304, Flat / Building, Street"}
+            placeholder="e.g. Flat 402, Room 12, 3rd Floor"
             value={checkout.address}
             onChange={(e) => {
               const val = e.target.value;
               setCheckout((prev) => ({ ...prev, address: val }));
               setErrors((prev) => ({
                 ...prev,
-                address: val.trim().length >= 3 ? "" : "Address must be at least 3 characters.",
+                address:
+                  val.trim().length >= 3
+                    ? ""
+                    : "Address must be at least 3 characters.",
               }));
             }}
             className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm outline-none focus:border-orange-500"
           />
-          {errors.address && <p className="mt-1 text-xs text-red-500">{errors.address}</p>}
+          {errors.address && (
+            <p className="mt-1 text-xs text-red-500">{errors.address}</p>
+          )}
         </div>
 
         <div>
-          <label htmlFor="checkout-landmark" className="mb-1 block text-sm font-semibold text-gray-700">
-            Nearby Reference / Landmark <span className="font-normal text-gray-400">(Optional)</span>
+          <label
+            htmlFor="checkout-landmark"
+            className="mb-1 block text-sm font-semibold text-gray-700"
+          >
+            Nearby Reference / Landmark{" "}
+            <span className="font-normal text-gray-400">(Optional)</span>
           </label>
           <Input
             id="checkout-landmark"
-            placeholder="Nearby gate, canteen, staircase, or block entrance"
+            placeholder="e.g. Near College Back Gate, Opp. Metro Pillar 42"
             value={checkout.landmark}
-            onChange={(e) => setCheckout((prev) => ({ ...prev, landmark: e.target.value }))}
+            onChange={(e) =>
+              setCheckout((prev) => ({ ...prev, landmark: e.target.value }))
+            }
           />
         </div>
 
         <div>
-          <label htmlFor="checkout-delivery-instructions" className="mb-1 block text-sm font-semibold text-gray-700">
-            Delivery Notes / Instructions for Courier <span className="font-normal text-gray-400">(Optional)</span>
+          <label
+            htmlFor="checkout-delivery-instructions"
+            className="mb-1 block text-sm font-semibold text-gray-700"
+          >
+            Delivery Notes / Instructions for Courier{" "}
+            <span className="font-normal text-gray-400">(Optional)</span>
           </label>
           <Input
             id="checkout-delivery-instructions"
             placeholder="e.g. Call when downstairs, leave at security..."
             value={checkout.delivery_instructions}
             onChange={(e) =>
-              setCheckout((prev) => ({ ...prev, delivery_instructions: e.target.value }))
+              setCheckout((prev) => ({
+                ...prev,
+                delivery_instructions: e.target.value,
+              }))
             }
           />
           <div className="mt-2 flex flex-wrap gap-2">
@@ -313,7 +436,9 @@ export default function AddressForm() {
                   setCheckout((prev) => ({
                     ...prev,
                     delivery_instructions:
-                      prev.delivery_instructions === instruction ? "" : instruction,
+                      prev.delivery_instructions === instruction
+                        ? ""
+                        : instruction,
                   }))
                 }
                 className={`rounded-full border px-3 py-1 text-xs font-medium transition ${

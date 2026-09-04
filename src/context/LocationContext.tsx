@@ -12,15 +12,17 @@ import React, {
 import { toast } from "sonner";
 import { useCheckout } from "@/context/CheckoutContext";
 
-export type AddressType = "pg_flat" | "hostel" | "college" | "other";
+export type AddressTag = "home" | "hostel" | "college" | "other";
+export type AddressType = AddressTag; // Backwards compatibility alias
 
 export interface DeliveryAddress {
   id: string;
-  type: AddressType;
-  label: string; // e.g., "Silver Birch PG", "Hostel Block A", "Flat 402"
-  roomOrFlat: string; // e.g., "Flat 402", "Room 304"
-  buildingOrSociety: string; // e.g., "Greenfield Heights", "Hostel Block A", "Engineering Block"
-  areaOrLandmark: string; // e.g., "Near North Gate", "Kothrud", "Campus Wing A"
+  tag: AddressTag;
+  type?: AddressTag; // Backwards compatibility alias
+  label?: string; // Backwards compatibility alias
+  roomOrFlat: string;
+  buildingOrSociety: string;
+  areaOrLandmark: string;
   city?: string;
   lat?: number | null;
   lng?: number | null;
@@ -91,45 +93,6 @@ export const CAMPUS_PRESETS: CampusLocationPreset[] = [
     icon: "🚀",
     lat: 18.447,
     lng: 73.8275,
-  },
-];
-
-export const DEFAULT_SAVED_ADDRESSES: DeliveryAddress[] = [
-  {
-    id: "preset-hostel-a",
-    type: "hostel",
-    label: "Hostel Block A",
-    roomOrFlat: "Rm 304",
-    buildingOrSociety: "Hostel Block A",
-    areaOrLandmark: "Campus Wing A",
-    city: "Pune",
-    lat: 18.4482,
-    lng: 73.826,
-    isDefault: true,
-  },
-  {
-    id: "preset-pg",
-    type: "pg_flat",
-    label: "Silver Oak PG",
-    roomOrFlat: "Flat 201",
-    buildingOrSociety: "Silver Oak PG",
-    areaOrLandmark: "Near North Gate",
-    city: "Pune",
-    lat: 18.451,
-    lng: 73.829,
-    isDefault: false,
-  },
-  {
-    id: "preset-college",
-    type: "college",
-    label: "Central Library / Dept",
-    roomOrFlat: "Room 102",
-    buildingOrSociety: "Central Library / Dept",
-    areaOrLandmark: "Academic Block",
-    city: "Pune",
-    lat: 18.4492,
-    lng: 73.8258,
-    isDefault: false,
   },
 ];
 
@@ -267,7 +230,19 @@ export interface LocationContextType {
   detectGpsLocation: () => Promise<DeliveryAddress | null>;
 }
 
-const DEFAULT_ACTIVE_ADDRESS: DeliveryAddress = DEFAULT_SAVED_ADDRESSES[0];
+const DEFAULT_ACTIVE_ADDRESS: DeliveryAddress = {
+  id: "default-active",
+  tag: "hostel",
+  type: "hostel",
+  label: "Hostel Block A",
+  roomOrFlat: "Rm 304",
+  buildingOrSociety: "Hostel Block A",
+  areaOrLandmark: "Campus Wing A",
+  city: "Pune",
+  lat: 18.4482,
+  lng: 73.826,
+  isDefault: true,
+};
 
 const DEFAULT_LOCATION_STATE: LocationState = {
   hostel: DEFAULT_ACTIVE_ADDRESS.buildingOrSociety,
@@ -279,7 +254,7 @@ const DEFAULT_LOCATION_STATE: LocationState = {
 
 const defaultLocationContextValue: LocationContextType = {
   activeAddress: DEFAULT_ACTIVE_ADDRESS,
-  savedAddresses: DEFAULT_SAVED_ADDRESSES,
+  savedAddresses: [],
   location: DEFAULT_LOCATION_STATE,
   fullAddressLabel: `${DEFAULT_ACTIVE_ADDRESS.buildingOrSociety}, ${DEFAULT_ACTIVE_ADDRESS.roomOrFlat}`,
   isModalOpen: false,
@@ -307,9 +282,8 @@ export function LocationProvider({ children }: { children: ReactNode }) {
   const { setCheckout } = useSafeCheckout();
   const [activeAddress, setActiveAddressState] =
     useState<DeliveryAddress>(DEFAULT_ACTIVE_ADDRESS);
-  const [savedAddresses, setSavedAddresses] = useState<DeliveryAddress[]>(
-    DEFAULT_SAVED_ADDRESSES
-  );
+  // Default savedAddresses starts completely EMPTY if nothing is in localStorage
+  const [savedAddresses, setSavedAddresses] = useState<DeliveryAddress[]>([]);
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetectingGps, setIsDetectingGps] = useState(false);
   const [isGpsDetected, setIsGpsDetected] = useState(false);
@@ -320,7 +294,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       const savedList = localStorage.getItem("cb_saved_addresses");
       if (savedList) {
         const parsedList = JSON.parse(savedList);
-        if (Array.isArray(parsedList) && parsedList.length > 0) {
+        if (Array.isArray(parsedList)) {
           setSavedAddresses(parsedList);
         }
       }
@@ -331,9 +305,13 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 
       if (savedActive) {
         const parsed = JSON.parse(savedActive);
+        const resolvedTag: AddressTag =
+          parsed.tag || parsed.type || "hostel";
+
         const resolved: DeliveryAddress = {
           id: parsed.id || "saved-active",
-          type: parsed.type || "hostel",
+          tag: resolvedTag,
+          type: resolvedTag,
           label:
             parsed.label ||
             parsed.buildingOrSociety ||
@@ -370,21 +348,28 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 
   const setActiveAddress = useCallback(
     (address: DeliveryAddress, isGps = false) => {
-      setActiveAddressState(address);
+      const normalizedTag: AddressTag = address.tag || address.type || "other";
+      const normalized: DeliveryAddress = {
+        ...address,
+        tag: normalizedTag,
+        type: normalizedTag,
+      };
+
+      setActiveAddressState(normalized);
       setIsGpsDetected(isGps);
 
       try {
         localStorage.setItem(
           "cb_active_delivery_address",
-          JSON.stringify({ ...address, isGpsDetected: isGps })
+          JSON.stringify({ ...normalized, isGpsDetected: isGps })
         );
         localStorage.setItem(
           "campus_location",
           JSON.stringify({
-            hostel: address.buildingOrSociety,
-            room: address.roomOrFlat,
-            latitude: address.lat,
-            longitude: address.lng,
+            hostel: normalized.buildingOrSociety,
+            room: normalized.roomOrFlat,
+            latitude: normalized.lat,
+            longitude: normalized.lng,
             isGpsDetected: isGps,
           })
         );
@@ -395,13 +380,13 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       // Sync with CheckoutContext
       setCheckout((prev) => ({
         ...prev,
-        hostel_block: address.buildingOrSociety,
-        address: address.roomOrFlat
-          ? `${address.buildingOrSociety}, ${address.roomOrFlat}`
-          : address.buildingOrSociety,
-        landmark: address.areaOrLandmark || prev.landmark,
-        latitude: address.lat ?? prev.latitude,
-        longitude: address.lng ?? prev.longitude,
+        hostel_block: normalized.buildingOrSociety,
+        address: normalized.roomOrFlat
+          ? `${normalized.buildingOrSociety}, ${normalized.roomOrFlat}`
+          : normalized.buildingOrSociety,
+        landmark: normalized.areaOrLandmark || prev.landmark,
+        latitude: normalized.lat ?? prev.latitude,
+        longitude: normalized.lng ?? prev.longitude,
       }));
     },
     [setCheckout]
@@ -409,9 +394,12 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 
   const saveAndSelectAddress = useCallback(
     (newAddr: Omit<DeliveryAddress, "id"> & { id?: string }) => {
+      const normalizedTag: AddressTag = newAddr.tag || newAddr.type || "hostel";
       const addressToSave: DeliveryAddress = {
         ...newAddr,
         id: newAddr.id || `addr-${Date.now()}`,
+        tag: normalizedTag,
+        type: normalizedTag,
         label: newAddr.label || newAddr.buildingOrSociety,
       };
 
@@ -438,17 +426,21 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     [setActiveAddress]
   );
 
-  const removeSavedAddress = useCallback((id: string) => {
-    setSavedAddresses((prev) => {
-      const updated = prev.filter((a) => a.id !== id);
-      try {
-        localStorage.setItem("cb_saved_addresses", JSON.stringify(updated));
-      } catch {
-        // ignore
-      }
-      return updated;
-    });
-  }, []);
+  const removeSavedAddress = useCallback(
+    (id: string) => {
+      setSavedAddresses((prev) => {
+        const updated = prev.filter((a) => a.id !== id);
+        try {
+          localStorage.setItem("cb_saved_addresses", JSON.stringify(updated));
+        } catch {
+          // ignore
+        }
+        return updated;
+      });
+      toast.success("Saved address removed");
+    },
+    []
+  );
 
   const setLocation = useCallback(
     (
@@ -460,6 +452,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     ) => {
       const addr: DeliveryAddress = {
         id: `loc-${Date.now()}`,
+        tag: "hostel",
         type: "hostel",
         label: hostel,
         roomOrFlat: room,
@@ -494,6 +487,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 
           const detectedAddr: DeliveryAddress = {
             id: `gps-${Date.now()}`,
+            tag: "other",
             type: "other",
             label: geo.buildingOrSociety,
             roomOrFlat: activeAddress.roomOrFlat || "Room / Flat",
@@ -517,6 +511,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
 
           const fallbackAddr: DeliveryAddress = {
             id: "fallback-hostel-a",
+            tag: "hostel",
             type: "hostel",
             label: "Hostel Block A",
             roomOrFlat: activeAddress.roomOrFlat || "Rm 304",
