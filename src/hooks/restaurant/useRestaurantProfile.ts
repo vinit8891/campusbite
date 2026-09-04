@@ -24,7 +24,8 @@ export type ProfileForm = {
 
 const TIME_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 const PHONE_PATTERN = /^[6-9]\d{9}$/;
-const IMAGE_PATTERN = /^(https?:\/\/|\/).+/i;
+const IMAGE_PATTERN = /^(https?:\/\/|\/|data:image\/).+/i;
+
 
 function toForm(restaurant: BackendRestaurant): ProfileForm {
   return {

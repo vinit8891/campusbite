@@ -30,11 +30,11 @@ const mockCards: StatCard[] = [
 ];
 
 const mockSubscriptionRevenue: RestaurantSubscriptionRevenueSummary = {
-  restaurant_id: "rest-1",
   active_subscriptions: 14,
   monthly_subscription_revenue: 28000,
   pending_subscription_payments: 2,
 };
+
 
 describe("Restaurant Dashboard Metric Cards", () => {
   it("renders stat cards with emojis and values", () => {
