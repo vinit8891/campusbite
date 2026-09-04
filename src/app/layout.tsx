@@ -6,6 +6,7 @@ import { appConfig } from "@/config/app";
 import AppProviders from "@/providers/AppProviders";
 import Footer from "@/components/layout/Footer";
 import { LiveOrderTrackerBar } from "@/components/orders/LiveOrderTrackerBar";
+import { LocationPickerModal } from "@/components/location/LocationPickerModal";
 
 import "./globals.css";
 
@@ -42,6 +43,9 @@ export default function RootLayout({
 
           {/* Floating Live Activity Order Tracker */}
           <LiveOrderTrackerBar />
+
+          {/* Location Selector Bottom Sheet Modal */}
+          <LocationPickerModal />
 
           <Toaster
             position="bottom-right"

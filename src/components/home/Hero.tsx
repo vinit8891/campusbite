@@ -6,8 +6,11 @@ import Link from "next/link";
 import { MapPin, ChevronDown, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
+import { useLocation } from "@/context/LocationContext";
 
 export default function Hero() {
+  const { fullAddressLabel, openLocationModal } = useLocation();
+
   return (
     <section className="bg-gradient-to-br from-orange-50/80 via-white to-amber-50/30">
       {/* Mobile Location Top Bar (< md) */}
@@ -23,9 +26,11 @@ export default function Hero() {
               </div>
               <button
                 type="button"
-                className="flex items-center gap-1 text-xs font-bold text-stone-900 truncate hover:text-orange-600 transition-colors cursor-pointer"
+                onClick={openLocationModal}
+                className="flex items-center gap-1 text-xs font-bold text-stone-900 truncate hover:text-orange-600 transition-colors cursor-pointer active:scale-98"
+                aria-label="Change delivery location"
               >
-                <span className="truncate">Hostel Block A, Rm 304</span>
+                <span className="truncate">{fullAddressLabel}</span>
                 <ChevronDown className="h-3.5 w-3.5 text-stone-400 shrink-0" />
               </button>
             </div>

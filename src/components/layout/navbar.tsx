@@ -3,10 +3,11 @@
 import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Menu, ShoppingCart } from "lucide-react";
+import { Menu, ShoppingCart, MapPin, ChevronDown } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
+import { useLocation } from "@/context/LocationContext";
 import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
 import { MobileDrawer } from "@/components/layout/MobileDrawer";
@@ -16,6 +17,7 @@ export function Navbar() {
   const pathname = usePathname();
   const { isLoggedIn } = useAuth();
   const { cart } = useCart();
+  const { fullAddressLabel, openLocationModal } = useLocation();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
 
   const totalItems = cart.reduce(
@@ -34,21 +36,35 @@ export function Navbar() {
     <>
       <header className="sticky top-0 z-50 border-b border-orange-100/70 bg-white/90 backdrop-blur-md shadow-xs supports-backdrop-filter:bg-white/80">
         <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
-          {/* Brand Logo with warm badge */}
-          <Link
-            href={ROUTES.HOME}
-            className="flex items-center gap-2.5 group"
-            aria-label="CampusBite Home"
-          >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 text-white shadow-sm shadow-orange-500/20 group-hover:scale-105 transition-transform">
-              <span className="text-lg" role="img" aria-label="Plate and cutlery">
-                🍽️
+          {/* Brand Logo & Location Indicator */}
+          <div className="flex items-center gap-3">
+            <Link
+              href={ROUTES.HOME}
+              className="flex items-center gap-2.5 group"
+              aria-label="CampusBite Home"
+            >
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 text-white shadow-sm shadow-orange-500/20 group-hover:scale-105 transition-transform">
+                <span className="text-lg" role="img" aria-label="Plate and cutlery">
+                  🍽️
+                </span>
+              </div>
+              <span className="text-xl font-bold tracking-tight text-gray-900 group-hover:text-orange-600 transition-colors">
+                Campus<span className="text-orange-600">Bite</span>
               </span>
-            </div>
-            <span className="text-xl font-bold tracking-tight text-gray-900 group-hover:text-orange-600 transition-colors">
-              Campus<span className="text-orange-600">Bite</span>
-            </span>
-          </Link>
+            </Link>
+
+            {/* Desktop Location Pill */}
+            <button
+              type="button"
+              onClick={openLocationModal}
+              className="hidden lg:flex items-center gap-1.5 rounded-xl border border-orange-100 bg-orange-50/50 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:border-orange-200 hover:bg-orange-100/60 hover:text-orange-600 transition-all cursor-pointer active:scale-98"
+              aria-label="Change campus delivery location"
+            >
+              <MapPin className="h-3.5 w-3.5 text-orange-500 shrink-0" />
+              <span className="truncate max-w-[150px]">{fullAddressLabel}</span>
+              <ChevronDown className="h-3 w-3 text-stone-400 shrink-0" />
+            </button>
+          </div>
 
           {/* Desktop Navigation Links */}
           <nav
