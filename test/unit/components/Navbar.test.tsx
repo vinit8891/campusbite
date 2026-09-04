@@ -67,4 +67,27 @@ describe("Navbar Component", () => {
       screen.getByRole("dialog", { name: /campusbite navigation menu/i })
     ).toBeInTheDocument();
   });
+
+  it("renders UserNavDropdown when customer is logged in and opens menu on click", async () => {
+    const user = userEvent.setup();
+    mockIsLoggedIn = true;
+    mockUser = { name: "Om Roy", email: "om.roy@campus.edu" };
+
+    render(<Navbar />);
+
+    const userMenuBtn = screen.getByRole("button", { name: /user account menu/i });
+    expect(userMenuBtn).toBeInTheDocument();
+
+    await user.click(userMenuBtn);
+
+    expect(screen.getByRole("menu", { name: /user profile options/i })).toBeInTheDocument();
+    expect(screen.getByText("Student Account")).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /my orders/i })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /account & settings/i })).toBeInTheDocument();
+    expect(screen.getByRole("menuitem", { name: /campus batch schedule/i })).toBeInTheDocument();
+
+    const signOutBtn = screen.getByRole("menuitem", { name: /sign out/i });
+    await user.click(signOutBtn);
+    expect(mockLogout).toHaveBeenCalledTimes(1);
+  });
 });
