@@ -130,30 +130,30 @@ export function LiveOrderTrackerBar() {
       role="status"
       aria-live="polite"
       data-testid="live-order-tracker-bar"
-      className="fixed bottom-6 inset-x-4 max-w-lg mx-auto z-40 bg-gray-900/95 backdrop-blur-md text-white rounded-2xl p-3.5 shadow-2xl border border-white/10 flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-5 duration-300"
+      className="fixed bottom-6 inset-x-4 max-w-lg mx-auto z-40 bg-white/95 backdrop-blur-md text-gray-900 rounded-2xl p-3.5 shadow-xl shadow-orange-950/10 border border-orange-200/80 flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-5 duration-300"
     >
-      {/* Left side: Animated Pulse + Status + Estimated Time */}
+      {/* Left side: Vehicle Icon Box + Pulse Indicator + Status + ETA */}
       <Link
         href={trackingUrl}
-        className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-95 transition-opacity"
+        className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-90 transition-opacity"
         aria-label={`Track order status: ${statusText}`}
       >
-        <div className="relative flex items-center justify-center h-9 w-9 rounded-xl bg-emerald-500/20 text-emerald-400 shrink-0 border border-emerald-500/30">
+        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-sm shadow-orange-500/20">
           <Bike className="h-5 w-5" />
           <span className="absolute -top-1 -right-1 flex h-3 w-3">
             <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 ring-2 ring-gray-900" />
+            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 ring-2 ring-white" />
           </span>
         </div>
 
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
-            <h4 className="text-sm font-semibold text-white truncate">
+            <h4 className="font-semibold text-gray-900 text-sm truncate">
               {statusText}
             </h4>
           </div>
-          <div className="flex items-center gap-2 text-xs text-gray-400 mt-0.5">
-            <span className="inline-flex items-center gap-1 text-emerald-400 font-medium">
+          <div className="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5">
+            <span className="inline-flex items-center gap-1 font-medium text-orange-600">
               <Clock className="h-3 w-3" />
               {estimatedTime}
             </span>
@@ -163,25 +163,25 @@ export function LiveOrderTrackerBar() {
         </div>
       </Link>
 
-      {/* Right side: Interactive OTP Chip & Track Navigation */}
+      {/* Right side: Interactive "Show OTP" Chip & Tracking Navigation Chevron */}
       <div className="flex items-center gap-2 shrink-0">
         <button
           type="button"
           onClick={() => setShowOtp((prev) => !prev)}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold transition-all duration-200 border ${
+          className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all duration-200 cursor-pointer ${
             showOtp
-              ? "bg-amber-400/20 text-amber-300 border-amber-400/40 ring-2 ring-amber-400/20"
-              : "bg-white/10 hover:bg-white/15 text-gray-200 border-white/10"
+              ? "bg-orange-100 border-orange-300 text-orange-800 ring-2 ring-orange-400/20 shadow-xs"
+              : "bg-orange-50 border-orange-200/80 text-orange-700 hover:bg-orange-100"
           }`}
           aria-label={showOtp ? `Handover OTP is ${otpCode}` : "Show Handover OTP"}
         >
-          <KeyRound className="h-3.5 w-3.5 text-amber-400" />
+          <KeyRound className="h-3.5 w-3.5 text-orange-600" />
           <span>{showOtp ? `OTP: ${otpCode}` : "Show OTP"}</span>
         </button>
 
         <Link
           href={trackingUrl}
-          className="flex items-center justify-center h-8 w-8 rounded-full bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white transition-colors"
+          className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-50 text-gray-500 hover:bg-orange-50 hover:text-orange-600 transition-colors"
           aria-label="View live tracking details"
         >
           <ChevronRight className="h-4 w-4" />
