@@ -112,10 +112,10 @@ export function RestaurantProfileForm({
   return (
     <form
       onSubmit={onSubmit}
-      className="space-y-4 sm:space-y-6 rounded-2xl sm:rounded-3xl border border-stone-200/90 bg-white p-4 sm:p-8 shadow-xs"
+      className="space-y-4 sm:space-y-6 rounded-2xl sm:rounded-3xl border border-stone-200/90 bg-white p-4 sm:p-8 shadow-xs relative"
     >
       {/* Mobile Sticky Header (< md) */}
-      <div className="md:hidden sticky top-14 z-20 -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 mb-4 px-4 py-3 bg-white/95 backdrop-blur-md border-b border-stone-200/80 flex items-center justify-between gap-3 shadow-xs">
+      <div className="md:hidden sticky top-0 z-20 -mx-4 -mt-4 mb-5 px-4 py-3 bg-white/95 backdrop-blur-md border-b border-stone-200/70 rounded-t-2xl flex items-center justify-between gap-3 shadow-xs">
         <div className="flex items-center gap-2 min-w-0">
           <span className="text-base" role="img" aria-label="Settings">
             ⚙️
@@ -145,7 +145,7 @@ export function RestaurantProfileForm({
       )}
 
       {/* 1. Restaurant Name */}
-      <div>
+      <div className="pt-1">
         <label
           htmlFor="restaurant-name"
           className="mb-1.5 block text-xs sm:text-sm font-bold text-stone-900"
