@@ -12,6 +12,21 @@ import React, {
 import { toast } from "sonner";
 import { useCheckout } from "@/context/CheckoutContext";
 
+export type AddressType = "pg_flat" | "hostel" | "college" | "other";
+
+export interface DeliveryAddress {
+  id: string;
+  type: AddressType;
+  label: string; // e.g., "Silver Birch PG", "Hostel Block A", "Flat 402"
+  roomOrFlat: string; // e.g., "Flat 402", "Room 304"
+  buildingOrSociety: string; // e.g., "Greenfield Heights", "Hostel Block A", "Engineering Block"
+  areaOrLandmark: string; // e.g., "Near North Gate", "Kothrud", "Campus Wing A"
+  city?: string;
+  lat?: number | null;
+  lng?: number | null;
+  isDefault?: boolean;
+}
+
 export interface CampusLocationPreset {
   id: string;
   name: string;
@@ -79,6 +94,45 @@ export const CAMPUS_PRESETS: CampusLocationPreset[] = [
   },
 ];
 
+export const DEFAULT_SAVED_ADDRESSES: DeliveryAddress[] = [
+  {
+    id: "preset-hostel-a",
+    type: "hostel",
+    label: "Hostel Block A",
+    roomOrFlat: "Rm 304",
+    buildingOrSociety: "Hostel Block A",
+    areaOrLandmark: "Campus Wing A",
+    city: "Pune",
+    lat: 18.4482,
+    lng: 73.826,
+    isDefault: true,
+  },
+  {
+    id: "preset-pg",
+    type: "pg_flat",
+    label: "Silver Oak PG",
+    roomOrFlat: "Flat 201",
+    buildingOrSociety: "Silver Oak PG",
+    areaOrLandmark: "Near North Gate",
+    city: "Pune",
+    lat: 18.451,
+    lng: 73.829,
+    isDefault: false,
+  },
+  {
+    id: "preset-college",
+    type: "college",
+    label: "Central Library / Dept",
+    roomOrFlat: "Room 102",
+    buildingOrSociety: "Central Library / Dept",
+    areaOrLandmark: "Academic Block",
+    city: "Pune",
+    lat: 18.4492,
+    lng: 73.8258,
+    isDefault: false,
+  },
+];
+
 function getDistanceInMeters(
   lat1: number,
   lon1: number,
@@ -128,6 +182,59 @@ export function matchNearestCampusLocation(
   };
 }
 
+export async function reverseGeocodeCoords(
+  lat: number,
+  lng: number
+): Promise<{
+  buildingOrSociety: string;
+  areaOrLandmark: string;
+  city: string;
+}> {
+  try {
+    const res = await fetch(
+      `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
+      {
+        headers: {
+          Accept: "application/json",
+        },
+      }
+    );
+    if (!res.ok) throw new Error("Reverse geocode failed");
+    const data = await res.json();
+    const addr = data.address || {};
+
+    const buildingOrSociety =
+      addr.amenity ||
+      addr.building ||
+      addr.university ||
+      addr.college ||
+      addr.road ||
+      `Detected Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+
+    const areaOrLandmark =
+      addr.suburb ||
+      addr.neighbourhood ||
+      addr.residential ||
+      addr.county ||
+      "Campus / Local Area";
+
+    const city =
+      addr.city || addr.town || addr.village || addr.state_district || "Pune";
+
+    return {
+      buildingOrSociety,
+      areaOrLandmark,
+      city,
+    };
+  } catch {
+    return {
+      buildingOrSociety: `Detected Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
+      areaOrLandmark: "Nearby Campus / Area",
+      city: "Pune",
+    };
+  }
+}
+
 export interface LocationState {
   hostel: string;
   room: string;
@@ -136,13 +243,20 @@ export interface LocationState {
   isGpsDetected: boolean;
 }
 
-interface LocationContextType {
-  location: LocationState;
+export interface LocationContextType {
+  activeAddress: DeliveryAddress;
+  savedAddresses: DeliveryAddress[];
+  location: LocationState; // backwards compatibility
   fullAddressLabel: string;
   isModalOpen: boolean;
   isDetectingGps: boolean;
   openLocationModal: () => void;
   closeLocationModal: () => void;
+  setActiveAddress: (address: DeliveryAddress) => void;
+  saveAndSelectAddress: (
+    address: Omit<DeliveryAddress, "id"> & { id?: string }
+  ) => void;
+  removeSavedAddress: (id: string) => void;
   setLocation: (
     hostel: string,
     room?: string,
@@ -150,26 +264,33 @@ interface LocationContextType {
     lng?: number | null,
     isGps?: boolean
   ) => void;
-  detectGpsLocation: () => Promise<void>;
+  detectGpsLocation: () => Promise<DeliveryAddress | null>;
 }
 
-const DEFAULT_LOCATION: LocationState = {
-  hostel: "Hostel Block A",
-  room: "Rm 304",
-  latitude: 18.4482,
-  longitude: 73.826,
+const DEFAULT_ACTIVE_ADDRESS: DeliveryAddress = DEFAULT_SAVED_ADDRESSES[0];
+
+const DEFAULT_LOCATION_STATE: LocationState = {
+  hostel: DEFAULT_ACTIVE_ADDRESS.buildingOrSociety,
+  room: DEFAULT_ACTIVE_ADDRESS.roomOrFlat,
+  latitude: DEFAULT_ACTIVE_ADDRESS.lat ?? 18.4482,
+  longitude: DEFAULT_ACTIVE_ADDRESS.lng ?? 73.826,
   isGpsDetected: false,
 };
 
 const defaultLocationContextValue: LocationContextType = {
-  location: DEFAULT_LOCATION,
-  fullAddressLabel: "Hostel Block A, Rm 304",
+  activeAddress: DEFAULT_ACTIVE_ADDRESS,
+  savedAddresses: DEFAULT_SAVED_ADDRESSES,
+  location: DEFAULT_LOCATION_STATE,
+  fullAddressLabel: `${DEFAULT_ACTIVE_ADDRESS.buildingOrSociety}, ${DEFAULT_ACTIVE_ADDRESS.roomOrFlat}`,
   isModalOpen: false,
   isDetectingGps: false,
   openLocationModal: () => {},
   closeLocationModal: () => {},
+  setActiveAddress: () => {},
+  saveAndSelectAddress: () => {},
+  removeSavedAddress: () => {},
   setLocation: () => {},
-  detectGpsLocation: async () => {},
+  detectGpsLocation: async () => null,
 };
 
 const LocationContext = createContext<LocationContextType | null>(null);
@@ -184,37 +305,150 @@ function useSafeCheckout() {
 
 export function LocationProvider({ children }: { children: ReactNode }) {
   const { setCheckout } = useSafeCheckout();
-  const [location, setLocationState] = useState<LocationState>(DEFAULT_LOCATION);
+  const [activeAddress, setActiveAddressState] =
+    useState<DeliveryAddress>(DEFAULT_ACTIVE_ADDRESS);
+  const [savedAddresses, setSavedAddresses] = useState<DeliveryAddress[]>(
+    DEFAULT_SAVED_ADDRESSES
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [isDetectingGps, setIsDetectingGps] = useState(false);
+  const [isGpsDetected, setIsGpsDetected] = useState(false);
 
   // Initialize from localStorage or sync with checkout
   useEffect(() => {
     try {
-      const saved = localStorage.getItem("campus_location");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        if (parsed.hostel) {
-          setLocationState({
-            hostel: parsed.hostel,
-            room: parsed.room || "Rm 304",
-            latitude: parsed.latitude ?? null,
-            longitude: parsed.longitude ?? null,
-            isGpsDetected: !!parsed.isGpsDetected,
-          });
-          setCheckout((prev) => ({
-            ...prev,
-            hostel_block: parsed.hostel,
-            address: parsed.room ? `${parsed.hostel}, ${parsed.room}` : parsed.hostel,
-            latitude: parsed.latitude ?? prev.latitude,
-            longitude: parsed.longitude ?? prev.longitude,
-          }));
+      const savedList = localStorage.getItem("cb_saved_addresses");
+      if (savedList) {
+        const parsedList = JSON.parse(savedList);
+        if (Array.isArray(parsedList) && parsedList.length > 0) {
+          setSavedAddresses(parsedList);
         }
+      }
+
+      const savedActive =
+        localStorage.getItem("cb_active_delivery_address") ||
+        localStorage.getItem("campus_location");
+
+      if (savedActive) {
+        const parsed = JSON.parse(savedActive);
+        const resolved: DeliveryAddress = {
+          id: parsed.id || "saved-active",
+          type: parsed.type || "hostel",
+          label:
+            parsed.label ||
+            parsed.buildingOrSociety ||
+            parsed.hostel ||
+            "Selected Location",
+          roomOrFlat: parsed.roomOrFlat || parsed.room || "",
+          buildingOrSociety:
+            parsed.buildingOrSociety || parsed.hostel || "Hostel Block A",
+          areaOrLandmark: parsed.areaOrLandmark || "",
+          city: parsed.city || "Pune",
+          lat: parsed.lat ?? parsed.latitude ?? null,
+          lng: parsed.lng ?? parsed.longitude ?? null,
+          isDefault: !!parsed.isDefault,
+        };
+
+        setActiveAddressState(resolved);
+        setIsGpsDetected(!!parsed.isGpsDetected);
+
+        setCheckout((prev) => ({
+          ...prev,
+          hostel_block: resolved.buildingOrSociety,
+          address: resolved.roomOrFlat
+            ? `${resolved.buildingOrSociety}, ${resolved.roomOrFlat}`
+            : resolved.buildingOrSociety,
+          landmark: resolved.areaOrLandmark || prev.landmark,
+          latitude: resolved.lat ?? prev.latitude,
+          longitude: resolved.lng ?? prev.longitude,
+        }));
       }
     } catch {
       // ignore
     }
   }, [setCheckout]);
+
+  const setActiveAddress = useCallback(
+    (address: DeliveryAddress, isGps = false) => {
+      setActiveAddressState(address);
+      setIsGpsDetected(isGps);
+
+      try {
+        localStorage.setItem(
+          "cb_active_delivery_address",
+          JSON.stringify({ ...address, isGpsDetected: isGps })
+        );
+        localStorage.setItem(
+          "campus_location",
+          JSON.stringify({
+            hostel: address.buildingOrSociety,
+            room: address.roomOrFlat,
+            latitude: address.lat,
+            longitude: address.lng,
+            isGpsDetected: isGps,
+          })
+        );
+      } catch {
+        // ignore
+      }
+
+      // Sync with CheckoutContext
+      setCheckout((prev) => ({
+        ...prev,
+        hostel_block: address.buildingOrSociety,
+        address: address.roomOrFlat
+          ? `${address.buildingOrSociety}, ${address.roomOrFlat}`
+          : address.buildingOrSociety,
+        landmark: address.areaOrLandmark || prev.landmark,
+        latitude: address.lat ?? prev.latitude,
+        longitude: address.lng ?? prev.longitude,
+      }));
+    },
+    [setCheckout]
+  );
+
+  const saveAndSelectAddress = useCallback(
+    (newAddr: Omit<DeliveryAddress, "id"> & { id?: string }) => {
+      const addressToSave: DeliveryAddress = {
+        ...newAddr,
+        id: newAddr.id || `addr-${Date.now()}`,
+        label: newAddr.label || newAddr.buildingOrSociety,
+      };
+
+      setSavedAddresses((prev) => {
+        const existingIdx = prev.findIndex((a) => a.id === addressToSave.id);
+        let updated: DeliveryAddress[];
+        if (existingIdx >= 0) {
+          updated = [...prev];
+          updated[existingIdx] = addressToSave;
+        } else {
+          updated = [addressToSave, ...prev];
+        }
+
+        try {
+          localStorage.setItem("cb_saved_addresses", JSON.stringify(updated));
+        } catch {
+          // ignore
+        }
+        return updated;
+      });
+
+      setActiveAddress(addressToSave, false);
+    },
+    [setActiveAddress]
+  );
+
+  const removeSavedAddress = useCallback((id: string) => {
+    setSavedAddresses((prev) => {
+      const updated = prev.filter((a) => a.id !== id);
+      try {
+        localStorage.setItem("cb_saved_addresses", JSON.stringify(updated));
+      } catch {
+        // ignore
+      }
+      return updated;
+    });
+  }, []);
 
   const setLocation = useCallback(
     (
@@ -224,110 +458,136 @@ export function LocationProvider({ children }: { children: ReactNode }) {
       lng: number | null = null,
       isGps = false
     ) => {
-      const nextLocation: LocationState = {
-        hostel,
-        room: room || "Rm 304",
-        latitude: lat,
-        longitude: lng,
-        isGpsDetected: isGps,
+      const addr: DeliveryAddress = {
+        id: `loc-${Date.now()}`,
+        type: "hostel",
+        label: hostel,
+        roomOrFlat: room,
+        buildingOrSociety: hostel,
+        areaOrLandmark: "",
+        city: "Pune",
+        lat,
+        lng,
       };
-
-      setLocationState(nextLocation);
-
-      try {
-        localStorage.setItem("campus_location", JSON.stringify(nextLocation));
-      } catch {
-        // ignore
-      }
-
-      // Sync with CheckoutContext
-      setCheckout((prev) => ({
-        ...prev,
-        hostel_block: hostel,
-        address: room ? `${hostel}, ${room}` : hostel,
-        latitude: lat ?? prev.latitude,
-        longitude: lng ?? prev.longitude,
-      }));
+      setActiveAddress(addr, isGps);
     },
-    [setCheckout]
+    [setActiveAddress]
   );
 
-  const detectGpsLocation = useCallback(async () => {
+  const detectGpsLocation = useCallback(async (): Promise<DeliveryAddress | null> => {
     if (typeof window === "undefined" || !navigator.geolocation) {
       toast.error("Geolocation is not supported by your browser");
-      return;
+      return null;
     }
 
     setIsDetectingGps(true);
     const toastId = toast.loading("Fetching GPS location...");
 
-    return new Promise<void>((resolve) => {
+    return new Promise<DeliveryAddress | null>((resolve) => {
       navigator.geolocation.getCurrentPosition(
-        (position) => {
+        async (position) => {
           setIsDetectingGps(false);
           const { latitude, longitude } = position.coords;
-          const matched = matchNearestCampusLocation(latitude, longitude);
 
-          const resolvedHostel = matched.isInsideCampus
-            ? matched.preset.name
-            : "Main Campus Gate / Zeal Campus (GPS Detected)";
+          // Attempt OpenStreetMap Nominatim reverse geocode
+          const geo = await reverseGeocodeCoords(latitude, longitude);
 
-          setLocation(
-            resolvedHostel,
-            location.room || "Rm 304",
-            latitude,
-            longitude,
-            true
-          );
+          const detectedAddr: DeliveryAddress = {
+            id: `gps-${Date.now()}`,
+            type: "other",
+            label: geo.buildingOrSociety,
+            roomOrFlat: activeAddress.roomOrFlat || "Room / Flat",
+            buildingOrSociety: geo.buildingOrSociety,
+            areaOrLandmark: geo.areaOrLandmark,
+            city: geo.city,
+            lat: latitude,
+            lng: longitude,
+          };
+
+          setActiveAddress(detectedAddr, true);
           toast.dismiss(toastId);
-          toast.success(`Location set to ${resolvedHostel}`);
+          toast.success(`Location detected: ${geo.buildingOrSociety}`);
           setIsModalOpen(false);
-          resolve();
+          resolve(detectedAddr);
         },
         (error) => {
           setIsDetectingGps(false);
           toast.dismiss(toastId);
           console.warn("GPS detection error:", error);
-          const fallbackHostel = "Hostel Block A";
-          setLocation(
-            fallbackHostel,
-            location.room || "Rm 304",
-            18.4482,
-            73.826,
-            false
-          );
+
+          const fallbackAddr: DeliveryAddress = {
+            id: "fallback-hostel-a",
+            type: "hostel",
+            label: "Hostel Block A",
+            roomOrFlat: activeAddress.roomOrFlat || "Rm 304",
+            buildingOrSociety: "Hostel Block A",
+            areaOrLandmark: "Campus Wing A",
+            city: "Pune",
+            lat: 18.4482,
+            lng: 73.826,
+          };
+
+          setActiveAddress(fallbackAddr, false);
           toast.info("GPS unavailable: Set to Hostel Block A");
-          resolve();
+          resolve(fallbackAddr);
         },
         { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
       );
     });
-  }, [location.room, setLocation]);
+  }, [activeAddress.roomOrFlat, setActiveAddress]);
 
   const fullAddressLabel = useMemo(() => {
-    if (!location.hostel) return "Select Location";
-    if (location.room) {
-      return `${location.hostel}, ${location.room}`;
+    const building = activeAddress.buildingOrSociety || activeAddress.label;
+    if (!building) return "Select Location";
+    if (activeAddress.roomOrFlat) {
+      return `${building}, ${activeAddress.roomOrFlat}`;
     }
-    return location.hostel;
-  }, [location.hostel, location.room]);
+    return building;
+  }, [activeAddress.buildingOrSociety, activeAddress.label, activeAddress.roomOrFlat]);
+
+  const locationState: LocationState = useMemo(
+    () => ({
+      hostel: activeAddress.buildingOrSociety,
+      room: activeAddress.roomOrFlat,
+      latitude: activeAddress.lat ?? null,
+      longitude: activeAddress.lng ?? null,
+      isGpsDetected,
+    }),
+    [
+      activeAddress.buildingOrSociety,
+      activeAddress.roomOrFlat,
+      activeAddress.lat,
+      activeAddress.lng,
+      isGpsDetected,
+    ]
+  );
 
   const value = useMemo(
     () => ({
-      location,
+      activeAddress,
+      savedAddresses,
+      location: locationState,
       fullAddressLabel,
       isModalOpen,
       isDetectingGps,
       openLocationModal: () => setIsModalOpen(true),
       closeLocationModal: () => setIsModalOpen(false),
+      setActiveAddress,
+      saveAndSelectAddress,
+      removeSavedAddress,
       setLocation,
       detectGpsLocation,
     }),
     [
-      location,
+      activeAddress,
+      savedAddresses,
+      locationState,
       fullAddressLabel,
       isModalOpen,
       isDetectingGps,
+      setActiveAddress,
+      saveAndSelectAddress,
+      removeSavedAddress,
       setLocation,
       detectGpsLocation,
     ]

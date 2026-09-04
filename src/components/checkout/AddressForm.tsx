@@ -11,6 +11,8 @@ const HOSTEL_BLOCKS = [
   "Hostel Block C",
   "Girls Hostel",
   "PG Complex",
+  "Silver Oak PG",
+  "Central Library / Dept",
 ];
 
 const QUICK_INSTRUCTIONS = [
@@ -152,7 +154,7 @@ export default function AddressForm() {
               }
               className="mt-2 w-full rounded-lg border border-orange-300 bg-white px-3 py-2 text-sm font-medium text-gray-800 outline-none focus:border-orange-500"
             >
-              {HOSTEL_BLOCKS.map((block) => (
+              {Array.from(new Set([checkout.hostel_block || "Hostel Block A", ...HOSTEL_BLOCKS])).map((block) => (
                 <option key={block} value={block}>
                   {block}
                 </option>
