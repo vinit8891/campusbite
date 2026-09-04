@@ -10,60 +10,49 @@ export function RestaurantOrderActions({
   order,
   onUpdateStatus,
 }: RestaurantOrderActionsProps) {
+  const isUnpaidOnline =
+    isOnlinePayment(order.payment_method) && order.payment_status !== "paid";
+
   return (
-    <div className="flex flex-wrap gap-3">
-      {isOnlinePayment(order.payment_method) &&
-      order.payment_status !== "paid" ? (
-        <p className="w-full text-sm font-medium text-amber-700">
-          Waiting for online payment before kitchen processing.
+    <div className="flex flex-wrap gap-2.5">
+      {isUnpaidOnline ? (
+        <p className="w-full text-xs font-bold text-amber-800 bg-amber-50 border border-amber-200 p-2.5 rounded-xl">
+          ⚠️ Waiting for online payment confirmation before kitchen processing.
         </p>
       ) : null}
 
       <button
-        disabled={
-          order.status !== "Pending" ||
-          (isOnlinePayment(order.payment_method) &&
-            order.payment_status !== "paid")
-        }
+        disabled={order.status !== "Pending" || isUnpaidOnline}
         onClick={() => onUpdateStatus(order._id, "Accepted")}
-        className="rounded-lg bg-green-600 px-4 py-2 text-white disabled:opacity-40"
+        className="h-12 flex-1 min-w-[120px] rounded-xl bg-orange-600 hover:bg-orange-700 active:scale-98 text-white font-extrabold text-sm shadow-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5"
       >
         ✅ Accept
       </button>
 
       <button
-        disabled={
-          order.status !== "Accepted" ||
-          (isOnlinePayment(order.payment_method) &&
-            order.payment_status !== "paid")
-        }
+        disabled={order.status !== "Accepted" || isUnpaidOnline}
         onClick={() => onUpdateStatus(order._id, "Preparing")}
-        className="rounded-lg bg-yellow-500 px-4 py-2 text-white disabled:opacity-40"
+        className="h-12 flex-1 min-w-[120px] rounded-xl bg-amber-500 hover:bg-amber-600 active:scale-98 text-white font-extrabold text-sm shadow-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5"
       >
         🍳 Preparing
       </button>
 
       <button
-        disabled={
-          order.status !== "Preparing" ||
-          (isOnlinePayment(order.payment_method) &&
-            order.payment_status !== "paid")
-        }
+        disabled={order.status !== "Preparing" || isUnpaidOnline}
         onClick={() => onUpdateStatus(order._id, "Ready for Pickup")}
-        className="rounded-lg bg-indigo-600 px-4 py-2 text-white disabled:opacity-40"
+        className="h-12 flex-1 min-w-[150px] rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-extrabold text-sm shadow-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-1.5"
       >
         📦 Ready for Pickup
       </button>
 
       <button
-        disabled={
-          order.status === "Delivered" || order.status === "Cancelled"
-        }
+        disabled={order.status === "Delivered" || order.status === "Cancelled"}
         onClick={() => onUpdateStatus(order._id, "Cancelled")}
-        className="rounded-lg bg-red-600 px-4 py-2 text-white disabled:opacity-40"
+        className="h-12 px-4 rounded-xl bg-stone-100 hover:bg-rose-50 hover:text-rose-700 active:scale-98 text-stone-600 font-bold text-xs border border-stone-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
       >
         ❌ Reject
       </button>
     </div>
   );
 }
+
