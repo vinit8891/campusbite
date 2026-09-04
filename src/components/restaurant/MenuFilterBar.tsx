@@ -1,4 +1,6 @@
-import { RefreshCw, Search } from "lucide-react";
+"use client";
+
+import { RefreshCw, Search, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { selectClassName } from "@/lib/formatters";
@@ -15,6 +17,9 @@ type MenuFilterBarProps = {
   onSearchSubmit: (e: React.FormEvent) => void;
   onCategoryChange: (cat: string) => void;
   onAvailabilityChange: (avail: string) => void;
+  inStockCount?: number;
+  soldOutCount?: number;
+  totalCount?: number;
 };
 
 export function getCategoryEmoji(cat: string): string {
@@ -67,10 +72,13 @@ export function MenuFilterBar({
   onSearchSubmit,
   onCategoryChange,
   onAvailabilityChange,
+  inStockCount,
+  soldOutCount,
+  totalCount,
 }: MenuFilterBarProps) {
   return (
-    <div className="space-y-3">
-      {/* Category Pills Bar */}
+    <div className="space-y-2.5 sm:space-y-3">
+      {/* 1. Horizontal Scrolling Category Pills Bar */}
       {categories.length > 0 && (
         <div className="flex items-center gap-2 overflow-x-auto pb-1 no-scrollbar">
           <button
@@ -109,10 +117,88 @@ export function MenuFilterBar({
         </div>
       )}
 
-      {/* Main Filter Row */}
+      {/* 2. Mobile-Optimized Search & Stock Filter Chips (< md) */}
+      <div className="space-y-2 md:hidden">
+        {/* Sleek Single-Row Search Input */}
+        <form onSubmit={onSearchSubmit} className="relative">
+          <Search
+            size={16}
+            className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-stone-400"
+          />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search dish name..."
+            className="h-10 pl-9 pr-8 text-xs rounded-xl border-stone-200 focus-visible:ring-orange-500 bg-white shadow-2xs"
+          />
+          {q && (
+            <button
+              type="button"
+              onClick={() => setQ("")}
+              className="absolute top-1/2 right-2.5 -translate-y-1/2 text-stone-400 hover:text-stone-600 p-0.5"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </form>
+
+        {/* 1-Tap Stock Filter Chips */}
+        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 no-scrollbar">
+          <button
+            type="button"
+            onClick={() => onAvailabilityChange("")}
+            className={`flex shrink-0 items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 ${
+              availability === ""
+                ? "bg-stone-900 text-white shadow-xs"
+                : "bg-stone-100 text-stone-600 hover:bg-stone-200"
+            }`}
+          >
+            <span>All</span>
+            {totalCount !== undefined && (
+              <span className="text-[10px] opacity-75">({totalCount})</span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onAvailabilityChange(availability === "true" ? "" : "true")}
+            className={`flex shrink-0 items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 ${
+              availability === "true"
+                ? "bg-emerald-600 text-white shadow-xs"
+                : "bg-emerald-50 text-emerald-800 border border-emerald-200/80 hover:bg-emerald-100"
+            }`}
+          >
+            <span>🟢 In Stock</span>
+            {inStockCount !== undefined && (
+              <span className="text-[10px] opacity-90 font-extrabold">
+                ({inStockCount})
+              </span>
+            )}
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onAvailabilityChange(availability === "false" ? "" : "false")}
+            className={`flex shrink-0 items-center gap-1 px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer active:scale-95 ${
+              availability === "false"
+                ? "bg-rose-600 text-white shadow-xs"
+                : "bg-rose-50 text-rose-800 border border-rose-200/80 hover:bg-rose-100"
+            }`}
+          >
+            <span>🔴 Sold Out</span>
+            {soldOutCount !== undefined && (
+              <span className="text-[10px] opacity-90 font-extrabold">
+                ({soldOutCount})
+              </span>
+            )}
+          </button>
+        </div>
+      </div>
+
+      {/* 3. Desktop Filter Card (hidden on mobile, visible on md+) */}
       <form
         onSubmit={onSearchSubmit}
-        className="grid gap-3 rounded-3xl border border-stone-200/90 bg-white p-4 sm:p-5 shadow-xs md:grid-cols-2 xl:grid-cols-4"
+        className="hidden md:grid gap-3 rounded-3xl border border-stone-200/90 bg-white p-4 sm:p-5 shadow-xs md:grid-cols-2 xl:grid-cols-4"
       >
         <div className="relative xl:col-span-2">
           <Search

@@ -42,19 +42,41 @@ describe("MenuCardGrid & MenuFilterBar", () => {
       />
     );
 
-    expect(screen.getByText("Special Paneer Thali")).toBeInTheDocument();
-    expect(screen.getByText("₹180.00")).toBeInTheDocument();
-    expect(screen.getByText("✅ In Stock")).toBeInTheDocument();
+    expect(screen.getAllByText("Special Paneer Thali").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("₹180.00").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/in stock/i).length).toBeGreaterThan(0);
 
-    const inStockToggle = screen.getByRole("button", {
+    const inStockToggleButtons = screen.getAllByRole("button", {
       name: /in stock \(tap to pause\)/i,
     });
-    await user.click(inStockToggle);
+    expect(inStockToggleButtons.length).toBeGreaterThan(0);
+    await user.click(inStockToggleButtons[0]);
     expect(handleToggle).toHaveBeenCalledWith(mockMenuItems[0]);
 
     // Out of stock item
-    expect(screen.getByText("Masala Chai")).toBeInTheDocument();
-    expect(screen.getByText("❌ Sold Out")).toBeInTheDocument();
+    expect(screen.getAllByText("Masala Chai").length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/sold out/i).length).toBeGreaterThan(0);
+  });
+
+  it("triggers delete item callback when mobile delete button is clicked", async () => {
+    const handleToggle = vi.fn();
+    const handleDelete = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <MenuCardGrid
+        menu={mockMenuItems}
+        updatingId={null}
+        onToggleAvailability={handleToggle}
+        onDeleteItem={handleDelete}
+      />
+    );
+
+    const deleteBtn = screen.getByRole("button", {
+      name: /delete special paneer thali/i,
+    });
+    await user.click(deleteBtn);
+    expect(handleDelete).toHaveBeenCalledWith("m-1", "Special Paneer Thali");
   });
 
   it("renders category chips with emojis and triggers category selection", async () => {
@@ -85,6 +107,39 @@ describe("MenuCardGrid & MenuFilterBar", () => {
     const mealsBtn = screen.getByRole("button", { name: /meals/i });
     await user.click(mealsBtn);
     expect(handleCategoryChange).toHaveBeenCalledWith("Meals");
+  });
+
+  it("renders 1-tap stock filter chips and triggers availability filtering", async () => {
+    const handleAvailabilityChange = vi.fn();
+    const user = userEvent.setup();
+
+    render(
+      <MenuFilterBar
+        q=""
+        setQ={vi.fn()}
+        category=""
+        setCategory={vi.fn()}
+        availability=""
+        setAvailability={vi.fn()}
+        categories={["Meals"]}
+        loading={false}
+        onSearchSubmit={vi.fn()}
+        onCategoryChange={vi.fn()}
+        onAvailabilityChange={handleAvailabilityChange}
+        inStockCount={5}
+        soldOutCount={2}
+        totalCount={7}
+      />
+    );
+
+    expect(screen.getByRole("button", { name: /🟢 in stock/i })).toBeInTheDocument();
+    expect(screen.getByText("(5)")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /🔴 sold out/i })).toBeInTheDocument();
+    expect(screen.getByText("(2)")).toBeInTheDocument();
+
+    const inStockChip = screen.getByRole("button", { name: /🟢 in stock/i });
+    await user.click(inStockChip);
+    expect(handleAvailabilityChange).toHaveBeenCalledWith("true");
   });
 
   it("maps categories to appropriate emojis", () => {

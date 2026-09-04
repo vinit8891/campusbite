@@ -44,25 +44,59 @@ export default function MenuPage() {
     deleteItem,
   } = useRestaurantMenu();
 
+  const inStockCount = menu.filter((item) => item.available !== false).length;
+  const soldOutCount = menu.filter((item) => item.available === false).length;
+  const totalCount = total || menu.length;
+
   return (
-    <main className="space-y-6">
-      <div className="flex flex-wrap items-start justify-between gap-4">
+    <main className="space-y-4 sm:space-y-6">
+      {/* =========================================================
+          1. COMPACT STICKY MOBILE HEADER (< md)
+      ========================================================= */}
+      <div className="sticky top-0 z-30 -mx-4 -mt-2 px-4 py-2.5 bg-white/95 backdrop-blur-md border-b border-stone-200/80 shadow-2xs md:hidden flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl font-black text-stone-900 tracking-tight">
+            Menu
+          </h1>
+          <span className="flex items-center px-2 py-0.5 rounded-full bg-stone-100 text-stone-600 font-bold text-xs border border-stone-200/80">
+            {totalCount} {totalCount === 1 ? "item" : "items"}
+          </span>
+        </div>
+
+        <Link
+          href={ROUTES.RESTAURANT_MENU_ADD}
+          className="bg-orange-600 hover:bg-orange-700 text-white text-xs font-semibold px-3 py-2 rounded-xl flex items-center gap-1 shadow-xs active:scale-95 transition-all shrink-0"
+        >
+          <Plus size={14} />
+          <span>Add Food</span>
+        </Link>
+      </div>
+
+      {/* =========================================================
+          2. DESKTOP TITLE & ADD BUTTON (md+)
+      ========================================================= */}
+      <div className="hidden md:flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-4xl font-bold">Restaurant Menu</h1>
-          <p className="mt-2 text-gray-500">
+          <h1 className="text-3xl sm:text-4xl font-extrabold text-stone-900 tracking-tight">
+            Restaurant Menu
+          </h1>
+          <p className="mt-1 text-sm text-stone-500">
             Search, filter, and manage your food items
           </p>
         </div>
 
         <Link
           href={ROUTES.RESTAURANT_MENU_ADD}
-          className="inline-flex h-10 items-center gap-2 rounded-lg bg-orange-600 px-4 text-sm font-semibold text-white hover:bg-orange-700"
+          className="inline-flex h-11 items-center gap-2 rounded-2xl bg-orange-600 px-5 text-sm font-bold text-white hover:bg-orange-700 shadow-sm transition-all"
         >
           <Plus size={16} />
-          Add Food
+          <span>Add Food</span>
         </Link>
       </div>
 
+      {/* =========================================================
+          3. FILTER BAR
+      ========================================================= */}
       <MenuFilterBar
         q={q}
         setQ={setQ}
@@ -87,6 +121,9 @@ export default function MenuPage() {
             showLoading: true,
           });
         }}
+        inStockCount={inStockCount}
+        soldOutCount={soldOutCount}
+        totalCount={totalCount}
       />
 
       {error && (
@@ -98,16 +135,22 @@ export default function MenuPage() {
       {loading ? (
         <MenuSkeleton />
       ) : menu.length === 0 ? (
-        <div className="rounded-2xl border border-dashed bg-white px-6 py-16 text-center">
-          <h2 className="text-2xl font-semibold">No menu items found</h2>
-          <p className="mt-3 text-gray-500">
-            Try clearing filters, or add your first food item.
+        <div className="rounded-3xl border border-dashed border-stone-300 bg-white px-6 py-16 text-center shadow-2xs">
+          <span className="text-4xl mb-2" role="img" aria-label="Menu empty">
+            🍽️
+          </span>
+          <h2 className="text-xl font-extrabold text-stone-900 mt-2">
+            No menu items found
+          </h2>
+          <p className="mt-2 text-xs sm:text-sm text-stone-500 max-w-sm mx-auto">
+            Try clearing filters or search terms, or add your first food item.
           </p>
           <Link
             href={ROUTES.RESTAURANT_MENU_ADD}
-            className="mt-6 inline-flex h-10 items-center rounded-lg bg-orange-600 px-5 text-sm font-semibold text-white hover:bg-orange-700"
+            className="mt-6 inline-flex h-11 items-center gap-2 rounded-2xl bg-orange-600 px-6 text-sm font-bold text-white hover:bg-orange-700 shadow-sm transition-all"
           >
-            Add Food
+            <Plus size={16} />
+            <span>Add Food</span>
           </Link>
         </div>
       ) : (
