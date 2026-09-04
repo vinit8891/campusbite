@@ -15,6 +15,7 @@ import { AuthHttpError } from "@/services/authFetch";
 export type AvailableOrder = {
   _id: string;
   restaurant_email?: string;
+  restaurant_name?: string;
   customer_name?: string;
   phone?: string;
   address?: string;
@@ -26,6 +27,9 @@ export type AvailableOrder = {
   created_at?: string;
   latitude?: number | null;
   longitude?: number | null;
+  special_instructions?: string;
+  notes?: string;
+  runner_fee?: number;
   items?: Array<{
     id?: string | number;
     name?: string;

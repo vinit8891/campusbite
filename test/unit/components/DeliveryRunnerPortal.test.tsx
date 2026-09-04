@@ -3,6 +3,8 @@ import { describe, it, expect, vi } from "vitest";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BatchOrderGroupCard, type BatchGroup } from "@/components/delivery/BatchOrderGroupCard";
+import { AvailableOrderCard } from "@/components/delivery/AvailableOrderCard";
+import { AvailableOrdersFilterBar } from "@/components/delivery/AvailableOrdersFilterBar";
 import { ActiveDeliveryManifest } from "@/components/delivery/ActiveDeliveryManifest";
 import { DeliveryOtpModal } from "@/components/delivery/DeliveryOtpModal";
 import type { DeliveryOrder } from "@/types";
@@ -79,7 +81,7 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
 
       expect(screen.getByText("Tagore Hostel")).toBeInTheDocument();
       expect(screen.getByText("2 Orders")).toBeInTheDocument();
-      expect(screen.getByText("40")).toBeInTheDocument(); // Payout ₹40
+      expect(screen.getByText(/₹40/)).toBeInTheDocument(); // Payout ₹40
       expect(screen.getByText(/Campus Corner Grill • Chai & Snacks Point/i)).toBeInTheDocument();
 
       // Individual orders inside the batch
@@ -265,4 +267,87 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
       ).toBeInTheDocument();
     });
   });
+
+  describe("AvailableOrderCard", () => {
+    it("renders formatted canteen name fallback, unclipped payout pill, and 48px touch CTA", async () => {
+      const user = userEvent.setup();
+      const onAccept = vi.fn();
+      const onNavigate = vi.fn();
+
+      const rawEmailOrder: AvailableOrder = {
+        ...mockBatchOrders[0],
+        restaurant_email: "north.indian.dhaba@campus.edu",
+      };
+
+      render(
+        <AvailableOrderCard
+          order={rawEmailOrder}
+          isAccepting={false}
+          onAccept={onAccept}
+          onNavigate={onNavigate}
+        />
+      );
+
+      // Ensures raw email is converted to clean canteen name
+      expect(screen.getByText(/North Indian Dhaba/i)).toBeInTheDocument();
+      expect(screen.queryByText("north.indian.dhaba@campus.edu")).not.toBeInTheDocument();
+
+      // Unclipped payout badge
+      expect(screen.getByText(/💰 \+₹20 Payout/i)).toBeInTheDocument();
+
+      // Customer & Room
+      expect(screen.getByText("Rahul Sharma")).toBeInTheDocument();
+      expect(screen.getByText(/Room 304, Tagore Hostel/i)).toBeInTheDocument();
+
+      // 48px touch claim button
+      const claimBtn = screen.getByRole("button", { name: /claim run • ₹20 payout/i });
+      await user.click(claimBtn);
+      expect(onAccept).toHaveBeenCalledWith("order-101");
+
+      // Map Route button
+      const mapBtn = screen.getByRole("button", { name: /map route/i });
+      await user.click(mapBtn);
+      expect(onNavigate).toHaveBeenCalledWith(rawEmailOrder);
+    });
+  });
+
+  describe("AvailableOrdersFilterBar", () => {
+    it("renders clean single-row search bar and expands filters on toggle", async () => {
+      const user = userEvent.setup();
+      const setQ = vi.fn();
+      const onRestaurantChange = vi.fn();
+      const onPaymentMethodChange = vi.fn();
+      const onRefresh = vi.fn();
+
+      render(
+        <AvailableOrdersFilterBar
+          q=""
+          setQ={setQ}
+          restaurant=""
+          onRestaurantChange={onRestaurantChange}
+          restaurantOptions={["south.canteen@campus.edu"]}
+          paymentMethod=""
+          onPaymentMethodChange={onPaymentMethodChange}
+          onRefresh={onRefresh}
+          onSubmit={vi.fn()}
+        />
+      );
+
+      const searchInput = screen.getByPlaceholderText(/search hostel, room, or canteen/i);
+      expect(searchInput).toBeInTheDocument();
+
+      // Open collapsible filters
+      const filterToggleBtn = screen.getByRole("button", { name: /filters/i });
+      await user.click(filterToggleBtn);
+
+      expect(screen.getByText("Filter by Canteen")).toBeInTheDocument();
+      expect(screen.getByText("South Canteen")).toBeInTheDocument();
+
+      // Refresh button
+      const refreshBtn = screen.getByRole("button", { name: /refresh orders/i });
+      await user.click(refreshBtn);
+      expect(onRefresh).toHaveBeenCalled();
+    });
+  });
 });
+

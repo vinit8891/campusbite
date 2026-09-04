@@ -170,3 +170,46 @@ export function formatUpdatedTime(date?: Date | string | number | null): string 
 
   return `Updated ${minutes} min ago`;
 }
+
+/**
+ * Formats a restaurant email, slug, or identifier into a clean, human-readable eatery name.
+ * e.g. "Campus Corner Grill" -> "Campus Corner Grill"
+ * e.g. "owner@test.com" -> "Owner Canteen"
+ * e.g. "rajesh.dhaba@campus.edu" -> "Rajesh Dhaba"
+ */
+export function formatRestaurantName(
+  nameOrEmail?: string | null,
+  fallback = "Campus Eatery"
+): string {
+  if (!nameOrEmail || !nameOrEmail.trim()) return fallback;
+  const str = nameOrEmail.trim();
+
+  // If it's not an email, return as-is
+  if (!str.includes("@")) return str;
+
+  // Extract the part before @ and replace dots/dashes/underscores with spaces
+  const prefix = str.split("@")[0].replace(/[._-]+/g, " ").trim();
+  if (!prefix) return fallback;
+
+  const capitalized = prefix
+    .split(/\s+/)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+
+  const lower = capitalized.toLowerCase();
+  if (
+    lower.includes("canteen") ||
+    lower.includes("dhaba") ||
+    lower.includes("kitchen") ||
+    lower.includes("mess") ||
+    lower.includes("point") ||
+    lower.includes("grill") ||
+    lower.includes("cafe") ||
+    lower.includes("corner")
+  ) {
+    return capitalized;
+  }
+
+  return `${capitalized} Canteen`;
+}
+
