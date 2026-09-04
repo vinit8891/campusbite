@@ -29,12 +29,14 @@ describe("Next.js Edge Route Protection Middleware", () => {
         "/admin/:path*",
         "/restaurant/dashboard/:path*",
         "/delivery/dashboard/:path*",
+        "/courier/:path*",
         "/checkout/:path*",
         "/my-orders/:path*",
         "/track-order/:path*",
         "/login",
         "/restaurant/login",
         "/delivery/login",
+        "/courier/login",
         "/admin/login",
       ]);
     });
@@ -272,6 +274,30 @@ describe("Next.js Edge Route Protection Middleware", () => {
         cookies: {
           cb_token: "opaque-or-jwt-token",
           cb_role: "delivery",
+        },
+      });
+      const res = middleware(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("location")).toBeNull();
+    });
+
+    it("authenticates delivery access with cb_token and cb_role=courier (alias)", () => {
+      const req = createMockRequest("http://localhost:3000/delivery/dashboard", {
+        cookies: {
+          cb_token: "opaque-or-jwt-token",
+          cb_role: "courier",
+        },
+      });
+      const res = middleware(req);
+      expect(res.status).toBe(200);
+      expect(res.headers.get("location")).toBeNull();
+    });
+
+    it("authenticates delivery access with cb_token and cb_role=runner (alias)", () => {
+      const req = createMockRequest("http://localhost:3000/delivery/dashboard", {
+        cookies: {
+          cb_token: "opaque-or-jwt-token",
+          cb_role: "runner",
         },
       });
       const res = middleware(req);

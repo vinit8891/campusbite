@@ -27,50 +27,60 @@ export function AvailableOrderCard({
   onNavigate,
 }: AvailableOrderCardProps) {
   return (
-    <div className="rounded-3xl border bg-white p-7 shadow transition hover:-translate-y-1 hover:shadow-xl">
+    <div className="rounded-3xl border border-stone-200/90 bg-white p-5 sm:p-7 shadow-xs transition-all hover:shadow-md">
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <p className="font-mono text-xs text-gray-500">
-            Order ID: {shortId(order._id)}
-          </p>
-          <h2 className="mt-1 text-2xl font-bold">
-            {order.restaurant_email || "Restaurant"}
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className="font-mono text-xs font-bold text-stone-500 bg-stone-100 px-2 py-0.5 rounded-md">
+              Order #{shortId(order._id)}
+            </span>
+            <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-xs font-extrabold text-emerald-800">
+              +₹20 Runner Fee
+            </span>
+          </div>
+
+          <h2 className="text-xl sm:text-2xl font-black text-stone-900 tracking-tight pt-1">
+            {order.restaurant_email || "Campus Canteen"}
           </h2>
 
-          <div className="mt-3 space-y-2 text-gray-600">
+          <div className="mt-3 space-y-2 text-xs sm:text-sm text-stone-600">
             <p className="flex items-center gap-2">
-              <User size={18} />
-              {order.customer_name || "Customer"}
+              <User size={16} className="text-stone-400 shrink-0" />
+              <span className="font-semibold text-stone-800">
+                {order.customer_name || "Student Customer"}
+              </span>
             </p>
 
             <p className="flex items-center gap-2">
-              <Phone size={18} />
-              {order.phone || "—"}
+              <Phone size={16} className="text-stone-400 shrink-0" />
+              <span>{order.phone || "—"}</span>
             </p>
 
-            <p className="flex items-center gap-2">
-              <MapPin size={18} />
-              {order.address || "Address not available"}
+            <p className="flex items-start gap-2">
+              <MapPin size={16} className="text-orange-500 shrink-0 mt-0.5" />
+              <span className="font-medium text-stone-800">
+                {order.address || "Hostel Delivery Location"}
+              </span>
             </p>
 
-            <p className="flex items-center gap-2">
-              <Clock3 size={18} />
-              {formatDateTime(order.created_at)}
+            <p className="flex items-center gap-2 text-stone-500 text-xs">
+              <Clock3 size={14} className="text-stone-400 shrink-0" />
+              <span>{formatDateTime(order.created_at)}</span>
             </p>
 
             {order.distance != null && order.distance !== "" ? (
-              <p className="text-sm text-gray-500">
-                Distance: {order.distance}
+              <p className="text-xs font-semibold text-stone-500">
+                📍 Distance: {order.distance}
               </p>
             ) : null}
           </div>
         </div>
 
-        <div className="text-right">
-          <div className="rounded-full bg-amber-100 px-4 py-2 text-sm font-semibold text-amber-800">
+        <div className="text-right space-y-1">
+          <div className="inline-block rounded-full bg-amber-100/80 px-3 py-1 text-xs font-bold text-amber-900">
             {formatPaymentMethod(order.payment_method)}
           </div>
-          <p className="mt-2 text-xs text-gray-500">
+          <p className="text-xs text-stone-500 font-medium">
             {formatPaymentStatus(
               order.payment_status,
               order.payment_method,
@@ -78,26 +88,28 @@ export function AvailableOrderCard({
             )}
           </p>
 
-          <div className="mt-5 flex items-center justify-end text-4xl font-bold text-orange-600">
-            <IndianRupee size={30} />
-            {order.total ?? 0}
+          <div className="mt-3 flex items-center justify-end text-3xl font-black text-stone-900">
+            <IndianRupee size={24} className="text-stone-400" />
+            <span>{order.total ?? 0}</span>
           </div>
         </div>
       </div>
 
       {Array.isArray(order.items) && order.items.length > 0 ? (
-        <div className="mt-8 rounded-2xl bg-gray-50 p-5">
-          <h3 className="mb-4 text-lg font-bold">Ordered Items</h3>
-          <div className="space-y-3">
+        <div className="mt-5 rounded-2xl bg-stone-50 border border-stone-200/60 p-4">
+          <h3 className="mb-2 text-xs font-extrabold uppercase tracking-wider text-stone-500">
+            Food Items ({order.items.length})
+          </h3>
+          <div className="space-y-1.5 text-xs sm:text-sm">
             {order.items.map((item, index) => (
               <div
                 key={item.id || `${item.name}-${index}`}
-                className="flex justify-between"
+                className="flex justify-between text-stone-700"
               >
                 <span>
                   {item.name || "Item"} × {item.quantity || 1}
                 </span>
-                <span className="font-semibold">
+                <span className="font-bold text-stone-900">
                   ₹{(item.price || 0) * (item.quantity || 1)}
                 </span>
               </div>
@@ -106,26 +118,28 @@ export function AvailableOrderCard({
         </div>
       ) : null}
 
-      <div className="mt-8 flex flex-wrap items-center justify-between gap-5">
-        <span className="rounded-full bg-orange-100 px-4 py-2 text-sm font-semibold text-orange-700">
-          Ready for Pickup
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3 pt-3 border-t border-stone-100">
+        <span className="rounded-full bg-orange-100 px-3 py-1 text-xs font-bold text-orange-800">
+          🟢 Ready for Pickup
         </span>
 
-        <div className="flex flex-wrap gap-4">
+        <div className="flex flex-wrap gap-2.5">
           <button
+            type="button"
             onClick={() => onNavigate(order)}
-            className="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 text-lg font-semibold text-white transition hover:bg-blue-700"
+            className="flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 px-4 py-2.5 text-xs font-bold text-stone-700 transition-all shadow-xs active:scale-95 cursor-pointer"
           >
-            <Navigation size={20} />
-            Navigate
+            <Navigation size={15} className="text-blue-600" />
+            <span>Map Route</span>
           </button>
 
           <button
+            type="button"
             onClick={() => onAccept(order._id)}
             disabled={isAccepting}
-            className="rounded-xl bg-green-600 px-8 py-3 text-lg font-semibold text-white transition hover:bg-green-700 disabled:opacity-60"
+            className="flex items-center gap-1.5 rounded-xl bg-orange-600 hover:bg-orange-700 active:scale-95 px-5 py-2.5 text-xs font-extrabold text-white transition-all shadow-xs disabled:opacity-60 cursor-pointer"
           >
-            {isAccepting ? "Accepting..." : "🚴 Accept Delivery"}
+            <span>{isAccepting ? "Claiming…" : "🚴 Claim Delivery Run"}</span>
           </button>
         </div>
       </div>

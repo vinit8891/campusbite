@@ -61,7 +61,9 @@ function isDeliveryRole(role?: string | null): boolean {
   return (
     normalized === "delivery" ||
     normalized === "delivery_partner" ||
-    normalized === "driver"
+    normalized === "driver" ||
+    normalized === "courier" ||
+    normalized === "runner"
   );
 }
 
@@ -253,7 +255,12 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  if (pathname.startsWith(ROUTES.DELIVERY_DASHBOARD)) {
+  if (
+    (pathname.startsWith(ROUTES.DELIVERY_DASHBOARD) ||
+      pathname.startsWith("/courier")) &&
+    pathname !== ROUTES.DELIVERY_LOGIN &&
+    pathname !== "/courier/login"
+  ) {
     if (!isDelivery) {
       return NextResponse.redirect(new URL(ROUTES.DELIVERY_LOGIN, request.url));
     }
@@ -282,12 +289,14 @@ export const config = {
     "/admin/:path*",
     "/restaurant/dashboard/:path*",
     "/delivery/dashboard/:path*",
+    "/courier/:path*",
     "/checkout/:path*",
     "/my-orders/:path*",
     "/track-order/:path*",
     "/login",
     "/restaurant/login",
     "/delivery/login",
+    "/courier/login",
     "/admin/login",
   ],
 };

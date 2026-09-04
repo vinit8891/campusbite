@@ -28,7 +28,7 @@ export const ROUTES = {
   RESTAURANT_SUBSCRIPTION_PLANS: "/restaurant/dashboard/subscription-plans",
   RESTAURANT_SUBSCRIPTIONS: "/restaurant/dashboard/subscriptions",
 
-  // Delivery
+  // Delivery & Courier
   DELIVERY_LOGIN: "/delivery/login",
   DELIVERY_REGISTER: "/delivery/register",
   DELIVERY_DASHBOARD: "/delivery/dashboard",
@@ -38,6 +38,17 @@ export const ROUTES = {
   DELIVERY_HISTORY: "/delivery/dashboard/history",
   DELIVERY_PROFILE: "/delivery/dashboard/profile",
   DELIVERY_EARNINGS: "/delivery/earnings",
+
+  // Courier aliases
+  COURIER_LOGIN: "/delivery/login",
+  COURIER_REGISTER: "/delivery/register",
+  COURIER_DASHBOARD: "/delivery/dashboard",
+  COURIER_AVAILABLE: "/delivery/dashboard/available-orders",
+  COURIER_ORDERS: "/delivery/dashboard/orders",
+  COURIER_MY: "/delivery/dashboard/my-deliveries",
+  COURIER_HISTORY: "/delivery/dashboard/history",
+  COURIER_PROFILE: "/delivery/dashboard/profile",
+  COURIER_EARNINGS: "/delivery/earnings",
 
   // Admin
   ADMIN: "/admin",
@@ -121,6 +132,20 @@ export const routes = {
     history: ROUTES.DELIVERY_HISTORY,
     profile: ROUTES.DELIVERY_PROFILE,
     earnings: ROUTES.DELIVERY_EARNINGS,
+  },
+
+  // Courier
+  courier: {
+    login: ROUTES.COURIER_LOGIN,
+    register: ROUTES.COURIER_REGISTER,
+    dashboard: ROUTES.COURIER_DASHBOARD,
+    availableOrders: ROUTES.COURIER_AVAILABLE,
+    activeOrders: ROUTES.COURIER_ORDERS,
+    orders: ROUTES.COURIER_ORDERS,
+    myDeliveries: ROUTES.COURIER_MY,
+    history: ROUTES.COURIER_HISTORY,
+    profile: ROUTES.COURIER_PROFILE,
+    earnings: ROUTES.COURIER_EARNINGS,
   },
 
   // Admin
