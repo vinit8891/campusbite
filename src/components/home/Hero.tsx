@@ -3,33 +3,38 @@
 import React from "react";
 import Image from "next/image";
 import Link from "next/link";
+import { MapPin, ChevronDown, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
-import { useAuth } from "@/context/AuthContext";
 
 export default function Hero() {
-  const { user } = useAuth();
-  const firstName = user?.name ? user.name.trim().split(" ")[0] : "";
-
   return (
     <section className="bg-gradient-to-br from-orange-50/80 via-white to-amber-50/30">
-      {/* Mobile Greeting (< md) */}
-      <div className="md:hidden px-4 pt-3 pb-2">
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-lg font-bold text-gray-900 tracking-tight flex items-center gap-1.5">
-              <span>Craving something{firstName ? `, ${firstName}` : ""}?</span>
-              <span role="img" aria-label="Burger">
-                🍔
-              </span>
-            </h1>
-            <p className="text-xs text-stone-500 mt-0.5">
-              Delivering to your hostel room
-            </p>
+      {/* Mobile Location Header (< md) */}
+      <div className="md:hidden px-4 pt-3 pb-1">
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-100 text-orange-600 shrink-0">
+              <MapPin className="h-4 w-4" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1 text-[10px] font-semibold text-stone-500 uppercase tracking-wider">
+                <span>Delivering to</span>
+              </div>
+              <button
+                type="button"
+                className="flex items-center gap-1 text-xs font-bold text-stone-900 truncate hover:text-orange-600 transition-colors cursor-pointer"
+              >
+                <span className="truncate">Hostel Block A, Rm 304</span>
+                <ChevronDown className="h-3.5 w-3.5 text-stone-400 shrink-0" />
+              </button>
+            </div>
           </div>
-          <span className="inline-flex items-center gap-1 rounded-full bg-orange-100/80 border border-orange-200/60 px-2.5 py-0.5 text-[10px] font-bold text-orange-700 shadow-2xs">
-            ⚡ 20m Batch
-          </span>
+
+          <div className="shrink-0 flex items-center gap-1 rounded-full bg-amber-50 border border-amber-200/80 px-2.5 py-1 text-[11px] font-bold text-amber-800 shadow-2xs">
+            <Zap className="h-3.5 w-3.5 text-amber-600 fill-amber-500" />
+            <span>15-20 min</span>
+          </div>
         </div>
       </div>
 

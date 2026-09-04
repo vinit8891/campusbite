@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState, useMemo, useCallback } from "react";
 import Image from "next/image";
-import { Plus, RotateCcw } from "lucide-react";
+import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 import { useAuth } from "@/context/AuthContext";
@@ -20,11 +20,20 @@ interface ReorderDish {
   is_budget_meal?: boolean;
 }
 
+const FALLBACK_DISH_IMAGE =
+  "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=80";
+
+function cleanDishName(name: string): string {
+  if (!name) return "Campus Dish";
+  return name.replace(/\bVed Pizza\b/gi, "Veg Pizza");
+}
+
 function getRealisticDishImage(name: string, currentImage?: string): string {
   if (
     currentImage &&
     !currentImage.includes("placeholder") &&
     !currentImage.includes("default") &&
+    !currentImage.startsWith("/images/") &&
     (currentImage.startsWith("http://") || currentImage.startsWith("https://"))
   ) {
     return currentImage;
@@ -41,7 +50,7 @@ function getRealisticDishImage(name: string, currentImage?: string): string {
     return "https://images.unsplash.com/photo-1568901346375-23c9450c58cd?w=400&auto=format&fit=crop&q=80";
   }
   if (lower.includes("pasta") || lower.includes("maggi") || lower.includes("noodle") || lower.includes("chowmein")) {
-    return "https://images.unsplash.com/photo-1621996346565-e3d5d6281691?w=400&auto=format&fit=crop&q=80";
+    return "https://images.unsplash.com/photo-1621996346565-e3d5d6281696?w=400&auto=format&fit=crop&q=80";
   }
   if (lower.includes("thali") || lower.includes("dal") || lower.includes("roti") || lower.includes("paneer") || lower.includes("curry")) {
     return "https://images.unsplash.com/photo-1585937421612-70a008356fbe?w=400&auto=format&fit=crop&q=80";
@@ -59,7 +68,25 @@ function getRealisticDishImage(name: string, currentImage?: string): string {
     return "https://images.unsplash.com/photo-1551024709-8f23befc6f87?w=400&auto=format&fit=crop&q=80";
   }
 
-  return "https://images.unsplash.com/photo-1546069901-ba9599a7e63c?w=400&auto=format&fit=crop&q=80";
+  return FALLBACK_DISH_IMAGE;
+}
+
+function DishImage({ src, alt }: { src: string; alt: string }) {
+  const [imgSrc, setImgSrc] = useState(src);
+
+  return (
+    <div className="relative h-24 w-full overflow-hidden rounded-xl bg-orange-50/60 mb-2">
+      <Image
+        src={imgSrc}
+        alt={alt}
+        fill
+        sizes="(max-width: 640px) 144px, 176px"
+        className="object-cover group-hover:scale-105 transition-transform duration-300"
+        onError={() => setImgSrc(FALLBACK_DISH_IMAGE)}
+        unoptimized
+      />
+    </div>
+  );
 }
 
 export function OrderAgainCarousel() {
@@ -112,14 +139,15 @@ export function OrderAgainCarousel() {
       const restName = order.restaurant_name || "Campus Eatery";
 
       for (const item of order.items || []) {
-        const dishKey = `${item.name}-${restEmail}`;
+        const cleanedName = cleanDishName(item.name);
+        const dishKey = `${cleanedName}-${restEmail}`;
         if (!seen.has(dishKey)) {
           seen.add(dishKey);
           dishes.push({
-            id: String(item.id || item.name),
-            name: item.name,
+            id: String(item.id || cleanedName),
+            name: cleanedName,
             price: Number(item.price) || 99,
-            image: getRealisticDishImage(item.name, item.image),
+            image: getRealisticDishImage(cleanedName, item.image),
             restaurant_email: restEmail,
             restaurant_name: restName,
             is_budget_meal: item.is_budget_meal,
@@ -157,7 +185,7 @@ export function OrderAgainCarousel() {
   return (
     <section
       data-testid="order-again-section"
-      className="mx-auto max-w-7xl px-4 md:px-6 pt-6 md:pt-8 pb-2"
+      className="mx-auto max-w-7xl px-4 md:px-6 pt-4 pb-2"
       aria-label="Order Again"
     >
       <div className="flex items-center justify-between mb-3">
@@ -166,10 +194,10 @@ export function OrderAgainCarousel() {
             <RotateCcw className="h-3.5 w-3.5" />
           </div>
           <div>
-            <h2 className="text-base md:text-xl font-bold text-gray-900 tracking-tight">
+            <h2 className="text-base md:text-lg font-bold text-stone-900 tracking-tight">
               Order Again
             </h2>
-            <p className="text-[11px] text-gray-500 hidden sm:block">
+            <p className="text-[11px] text-stone-500 hidden sm:block">
               Quickly reorder your favorite campus meals
             </p>
           </div>
@@ -182,45 +210,33 @@ export function OrderAgainCarousel() {
           <div
             key={`${dish.name}-${dish.restaurant_email}`}
             data-testid={`order-again-card-${dish.id}`}
-            className="snap-start shrink-0 w-36 sm:w-44 rounded-2xl border border-gray-100 bg-white p-2.5 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group"
+            className="snap-start shrink-0 w-36 sm:w-44 rounded-2xl border border-stone-200/70 bg-white p-2.5 shadow-xs hover:shadow-md transition-all duration-200 flex flex-col justify-between group"
           >
-            {/* Dish Image */}
-            <div className="relative h-24 w-full overflow-hidden rounded-xl bg-gray-100 mb-2">
-              <Image
-                src={dish.image}
-                alt={dish.name}
-                fill
-                sizes="(max-width: 640px) 144px, 176px"
-                className="object-cover group-hover:scale-105 transition-transform duration-300"
-                unoptimized
-              />
-              <div className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded-md bg-black/65 backdrop-blur-xs text-[10px] font-bold text-white">
-                ₹{dish.price}
-              </div>
-            </div>
+            {/* Dish Image with Fallback and No Duplicate Overlaid Badge */}
+            <DishImage src={dish.image} alt={dish.name} />
 
             {/* Dish Details */}
             <div className="min-w-0 mb-2">
-              <h3 className="text-xs font-semibold text-gray-900 truncate group-hover:text-orange-600 transition-colors">
+              <h3 className="text-xs font-semibold text-stone-900 truncate group-hover:text-orange-600 transition-colors">
                 {dish.name}
               </h3>
-              <p className="text-[10px] text-gray-500 truncate mt-0.5">
+              <p className="text-[10px] text-stone-500 truncate mt-0.5">
                 {dish.restaurant_name}
               </p>
             </div>
 
-            {/* 1-Tap Add/Reorder Button */}
-            <div className="flex items-center justify-between pt-1 border-t border-gray-100">
-              <span className="text-xs font-bold text-gray-900">
+            {/* Bottom Bar: Single Price & Swiggy-style '+ ADD' Button */}
+            <div className="flex items-center justify-between pt-1 border-t border-stone-100">
+              <span className="text-sm font-bold text-stone-900">
                 ₹{dish.price}
               </span>
               <button
                 type="button"
                 onClick={() => handleReorder(dish)}
-                className="h-6 w-6 rounded-lg bg-orange-600 hover:bg-orange-700 text-white flex items-center justify-center text-xs font-bold transition-all duration-200 active:scale-90 shadow-2xs cursor-pointer"
+                className="h-7 px-3 rounded-lg bg-orange-50 border border-orange-200 text-orange-600 font-bold text-xs hover:bg-orange-600 hover:text-white shadow-xs flex items-center justify-center uppercase transition-all duration-200 active:scale-95 cursor-pointer"
                 aria-label={`Reorder ${dish.name} for ₹${dish.price}`}
               >
-                <Plus className="h-3.5 w-3.5" />
+                + ADD
               </button>
             </div>
           </div>
