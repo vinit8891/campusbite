@@ -182,4 +182,37 @@ describe("RestaurantProfileForm & Dual-Mode Image Selector", () => {
 
     expect(setForm).toHaveBeenCalled();
   });
+
+  it("renders compact mobile header, 2-column fields, and de-prioritized admin email notice", () => {
+    render(
+      <RestaurantProfileForm
+        restaurant={mockRestaurant}
+        form={initialForm}
+        setForm={vi.fn()}
+        saving={false}
+        error=""
+        imageError={false}
+        setImageError={vi.fn()}
+        isDirty={true}
+        onSubmit={vi.fn()}
+        onCancel={vi.fn()}
+      />
+    );
+
+    // Mobile Header
+    expect(screen.getByText("Store Profile")).toBeInTheDocument();
+    expect(screen.getByText("⚙️ Profile Details")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Save Changes" })).toBeInTheDocument();
+
+    // 2-Column Fields
+    expect(screen.getByLabelText("Contact Phone")).toBeInTheDocument();
+    expect(screen.getByLabelText("Cuisine Type")).toBeInTheDocument();
+    expect(screen.getByLabelText("Opening Time")).toBeInTheDocument();
+    expect(screen.getByLabelText("Closing Time")).toBeInTheDocument();
+
+    // De-prioritized admin email notice
+    expect(screen.getByText(/account email:/i)).toBeInTheDocument();
+    expect(screen.getByText("grill@campus.edu")).toBeInTheDocument();
+    expect(screen.getByText(/managed by admin/i)).toBeInTheDocument();
+  });
 });

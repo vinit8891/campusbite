@@ -112,35 +112,49 @@ export function RestaurantProfileForm({
   return (
     <form
       onSubmit={onSubmit}
-      className="space-y-6 rounded-3xl border border-stone-200/90 bg-white p-6 shadow-xs sm:p-8"
+      className="space-y-4 sm:space-y-6 rounded-2xl sm:rounded-3xl border border-stone-200/90 bg-white p-4 sm:p-8 shadow-xs"
     >
+      {/* Mobile Sticky Header (< md) */}
+      <div className="md:hidden sticky top-14 z-20 -mx-4 -mt-4 sm:-mx-6 sm:-mt-6 mb-4 px-4 py-3 bg-white/95 backdrop-blur-md border-b border-stone-200/80 flex items-center justify-between gap-3 shadow-xs">
+        <div className="flex items-center gap-2 min-w-0">
+          <span className="text-base" role="img" aria-label="Settings">
+            ⚙️
+          </span>
+          <div className="min-w-0">
+            <h2 className="text-sm font-extrabold text-stone-900 truncate">
+              Store Profile
+            </h2>
+            <p className="text-[10px] font-semibold text-stone-500 truncate">
+              ⚙️ Profile Details
+            </p>
+          </div>
+        </div>
+        <Button
+          type="submit"
+          disabled={saving || !isDirty}
+          className="h-8 px-3.5 text-xs font-semibold rounded-xl bg-orange-600 hover:bg-orange-700 text-white active:scale-95 shadow-xs disabled:opacity-50 cursor-pointer"
+        >
+          {saving ? "Saving…" : "Save Changes"}
+        </Button>
+      </div>
+
       {error && (
-        <p className="rounded-2xl bg-rose-50 border border-rose-200 p-4 text-sm font-medium text-rose-700">
+        <p className="rounded-2xl bg-rose-50 border border-rose-200 p-3.5 sm:p-4 text-xs sm:text-sm font-medium text-rose-700">
           {error}
         </p>
       )}
 
-      {/* Basic Eatery Details */}
+      {/* 1. Restaurant Name */}
       <div>
-        <label className="mb-2 block text-sm font-bold text-stone-900">
-          Restaurant Email
-        </label>
-        <Input
-          value={restaurant.email}
-          disabled
-          className="h-11 rounded-2xl bg-stone-50 border-stone-200 text-stone-500 font-medium"
-        />
-        <p className="mt-1 text-xs text-stone-400">
-          Account email is managed by your administrator and cannot be edited.
-        </p>
-      </div>
-
-      <div>
-        <label className="mb-2 block text-sm font-bold text-stone-900">
+        <label
+          htmlFor="restaurant-name"
+          className="mb-1.5 block text-xs sm:text-sm font-bold text-stone-900"
+        >
           Restaurant Name
         </label>
         <Input
-          className="h-11 rounded-2xl border-stone-200"
+          id="restaurant-name"
+          className="h-10 sm:h-11 rounded-xl sm:rounded-2xl border-stone-200 text-sm"
           value={form.name}
           onChange={(e) =>
             setForm((prev) => (prev ? { ...prev, name: e.target.value } : prev))
@@ -150,12 +164,18 @@ export function RestaurantProfileForm({
         />
       </div>
 
+      {/* 2. Description (2-row textarea) */}
       <div>
-        <label className="mb-2 block text-sm font-bold text-stone-900">
+        <label
+          htmlFor="restaurant-description"
+          className="mb-1.5 block text-xs sm:text-sm font-bold text-stone-900"
+        >
           Description
         </label>
         <textarea
-          className="min-h-24 w-full rounded-2xl border border-stone-200 bg-transparent px-3.5 py-2.5 text-sm outline-none focus-visible:border-orange-500 focus-visible:ring-2 focus-visible:ring-orange-500/20"
+          id="restaurant-description"
+          rows={2}
+          className="min-h-16 sm:min-h-20 w-full rounded-xl sm:rounded-2xl border border-stone-200 bg-transparent px-3.5 py-2.5 text-sm outline-none focus-visible:border-orange-500 focus-visible:ring-2 focus-visible:ring-orange-500/20"
           value={form.description}
           onChange={(e) =>
             setForm((prev) =>
@@ -166,12 +186,17 @@ export function RestaurantProfileForm({
         />
       </div>
 
+      {/* 3. Campus Address / Stall Location */}
       <div>
-        <label className="mb-2 block text-sm font-bold text-stone-900">
+        <label
+          htmlFor="restaurant-address"
+          className="mb-1.5 block text-xs sm:text-sm font-bold text-stone-900"
+        >
           Campus Address / Stall Location
         </label>
         <Input
-          className="h-11 rounded-2xl border-stone-200"
+          id="restaurant-address"
+          className="h-10 sm:h-11 rounded-xl sm:rounded-2xl border-stone-200 text-sm"
           value={form.address}
           onChange={(e) =>
             setForm((prev) =>
@@ -183,13 +208,19 @@ export function RestaurantProfileForm({
         />
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* 4. Contact & Cuisine Row (2-column responsive grid) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <div>
-          <label className="mb-2 block text-sm font-bold text-stone-900">
+          <label
+            htmlFor="restaurant-phone"
+            className="mb-1.5 block text-xs sm:text-sm font-bold text-stone-900"
+          >
             Contact Phone
           </label>
           <Input
-            className="h-11 rounded-2xl border-stone-200"
+            id="restaurant-phone"
+            type="tel"
+            className="h-10 sm:h-11 rounded-xl sm:rounded-2xl border-stone-200 text-sm"
             value={form.phone}
             onChange={(e) =>
               setForm((prev) =>
@@ -201,30 +232,39 @@ export function RestaurantProfileForm({
           />
         </div>
         <div>
-          <label className="mb-2 block text-sm font-bold text-stone-900">
+          <label
+            htmlFor="restaurant-cuisine"
+            className="mb-1.5 block text-xs sm:text-sm font-bold text-stone-900"
+          >
             Cuisine Type
           </label>
           <Input
-            className="h-11 rounded-2xl border-stone-200"
+            id="restaurant-cuisine"
+            className="h-10 sm:h-11 rounded-xl sm:rounded-2xl border-stone-200 text-sm"
             value={form.cuisine}
             onChange={(e) =>
               setForm((prev) =>
                 prev ? { ...prev, cuisine: e.target.value } : prev
               )
             }
-            placeholder="e.g. North Indian, Snacks & Shakes"
+            placeholder="e.g. North Indian • Thali"
             required
           />
         </div>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      {/* 5. Operating Hours Row (2-column responsive grid) */}
+      <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="mb-2 block text-sm font-bold text-stone-900">
-            Opening Hours (24h)
+          <label
+            htmlFor="restaurant-opening-hours"
+            className="mb-1.5 block text-xs sm:text-sm font-bold text-stone-900 truncate"
+          >
+            Opening Time
           </label>
           <Input
-            className="h-11 rounded-2xl border-stone-200"
+            id="restaurant-opening-hours"
+            className="h-10 sm:h-11 rounded-xl sm:rounded-2xl border-stone-200 text-sm"
             value={form.opening_hours}
             onChange={(e) =>
               setForm((prev) =>
@@ -236,11 +276,15 @@ export function RestaurantProfileForm({
           />
         </div>
         <div>
-          <label className="mb-2 block text-sm font-bold text-stone-900">
-            Closing Hours (24h)
+          <label
+            htmlFor="restaurant-closing-hours"
+            className="mb-1.5 block text-xs sm:text-sm font-bold text-stone-900 truncate"
+          >
+            Closing Time
           </label>
           <Input
-            className="h-11 rounded-2xl border-stone-200"
+            id="restaurant-closing-hours"
+            className="h-10 sm:h-11 rounded-xl sm:rounded-2xl border-stone-200 text-sm"
             value={form.closing_hours}
             onChange={(e) =>
               setForm((prev) =>
@@ -253,21 +297,21 @@ export function RestaurantProfileForm({
         </div>
       </div>
 
-      {/* Dual-Mode Restaurant Banner Section */}
-      <div className="space-y-3 pt-2">
+      {/* 6. Dual-Mode Restaurant Banner Section */}
+      <div className="space-y-3 pt-1">
         <div className="flex flex-wrap items-center justify-between gap-2">
-          <label className="block text-sm font-bold text-stone-900">
+          <label className="block text-xs sm:text-sm font-bold text-stone-900">
             Restaurant Banner Image
           </label>
 
           {/* Segmented Control / Tab Switcher */}
-          <div className="flex rounded-xl border border-stone-200 bg-stone-100/80 p-1 text-xs font-bold">
+          <div className="flex rounded-xl border border-stone-200 bg-stone-100/80 p-0.5 text-xs font-bold">
             <button
               type="button"
               onClick={() => setImageInputMode("upload")}
-              className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3.5 py-1 sm:py-1.5 text-[11px] sm:text-xs transition-all cursor-pointer ${
                 imageInputMode === "upload"
-                  ? "bg-white text-orange-600 shadow-xs"
+                  ? "bg-white text-orange-600 shadow-xs font-extrabold"
                   : "text-stone-600 hover:text-stone-900"
               }`}
             >
@@ -277,9 +321,9 @@ export function RestaurantProfileForm({
             <button
               type="button"
               onClick={() => setImageInputMode("url")}
-              className={`flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 transition-all cursor-pointer ${
+              className={`flex items-center gap-1.5 rounded-lg px-2.5 sm:px-3.5 py-1 sm:py-1.5 text-[11px] sm:text-xs transition-all cursor-pointer ${
                 imageInputMode === "url"
-                  ? "bg-white text-orange-600 shadow-xs"
+                  ? "bg-white text-orange-600 shadow-xs font-extrabold"
                   : "text-stone-600 hover:text-stone-900"
               }`}
             >
@@ -296,7 +340,7 @@ export function RestaurantProfileForm({
             onDragLeave={handleDragLeave}
             onDrop={handleDrop}
             onClick={() => fileInputRef.current?.click()}
-            className={`group flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-6 text-center transition-all ${
+            className={`group flex cursor-pointer flex-col items-center justify-center rounded-2xl border-2 border-dashed p-4 sm:p-6 text-center transition-all ${
               isDragging
                 ? "border-orange-500 bg-orange-50/80"
                 : "border-stone-300 bg-stone-50/50 hover:border-orange-400 hover:bg-orange-50/30"
@@ -309,20 +353,20 @@ export function RestaurantProfileForm({
               onChange={handleFileInputChange}
               className="hidden"
             />
-            <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-orange-100 text-orange-600 transition-transform group-hover:scale-110 shadow-xs">
-              <UploadCloud className="h-6 w-6" />
+            <div className="flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center rounded-xl sm:rounded-2xl bg-orange-100 text-orange-600 transition-transform group-hover:scale-110 shadow-xs">
+              <UploadCloud className="h-5 w-5 sm:h-6 sm:w-6" />
             </div>
-            <p className="mt-2.5 text-sm font-bold text-stone-800">
+            <p className="mt-2 text-xs sm:text-sm font-bold text-stone-800">
               Click to upload or drag &amp; drop banner image
             </p>
-            <p className="mt-1 text-xs text-stone-500">
+            <p className="mt-0.5 text-[11px] text-stone-500">
               PNG, JPG, WebP, or AVIF (max 5MB)
             </p>
           </div>
         ) : (
           /* URL Input Mode */
           <Input
-            className="h-11 rounded-2xl border-stone-200"
+            className="h-10 sm:h-11 rounded-xl sm:rounded-2xl border-stone-200 text-sm"
             placeholder="https://images.unsplash.com/photo-..."
             value={form.image}
             onChange={(e) => {
@@ -341,19 +385,19 @@ export function RestaurantProfileForm({
             <img
               src={form.image}
               alt="Restaurant banner preview"
-              className="max-h-52 w-full object-cover"
+              className="h-36 sm:h-48 w-full object-cover"
               onError={() => setImageError(true)}
             />
-            <div className="absolute right-3 top-3 flex items-center gap-2">
-              <span className="rounded-lg bg-stone-900/70 px-2.5 py-1 text-[11px] font-bold text-white backdrop-blur-md">
+            <div className="absolute right-2.5 top-2.5 flex items-center gap-1.5 sm:gap-2">
+              <span className="rounded-lg bg-stone-900/75 px-2 py-0.5 text-[10px] sm:text-[11px] font-bold text-white backdrop-blur-md">
                 {form.image.startsWith("data:") ? "📁 File Upload" : "🔗 Web URL"}
               </span>
               <button
                 type="button"
                 onClick={handleRemoveImage}
-                className="flex items-center gap-1 rounded-lg bg-rose-600 hover:bg-rose-700 active:scale-95 px-2.5 py-1 text-xs font-bold text-white shadow-xs transition-all cursor-pointer"
+                className="flex items-center gap-1 rounded-lg bg-rose-600 hover:bg-rose-700 active:scale-95 px-2 py-0.5 sm:px-2.5 sm:py-1 text-[11px] sm:text-xs font-bold text-white shadow-xs transition-all cursor-pointer"
               >
-                <Trash2 className="h-3.5 w-3.5" />
+                <Trash2 className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
                 <span>Remove</span>
               </button>
             </div>
@@ -367,8 +411,23 @@ export function RestaurantProfileForm({
         )}
       </div>
 
-      {/* Form Action Buttons */}
-      <div className="flex flex-wrap gap-3 pt-3 border-t border-stone-100">
+      {/* 7. De-prioritized Admin Email & Account Details Card */}
+      <div className="rounded-2xl border border-stone-200/80 bg-stone-50/80 p-3.5 sm:p-4 text-xs text-stone-600 flex items-start gap-2.5">
+        <span className="text-base shrink-0" role="img" aria-label="Locked account">
+          🔒
+        </span>
+        <div className="min-w-0">
+          <p className="font-bold text-stone-800 truncate">
+            Account email: <span className="font-medium text-stone-600">{restaurant.email}</span>
+          </p>
+          <p className="text-[11px] text-stone-400 mt-0.5">
+            Managed by admin. Contact campus administration to update registered email address.
+          </p>
+        </div>
+      </div>
+
+      {/* Form Action Buttons (Desktop & Backup) */}
+      <div className="flex flex-wrap items-center gap-3 pt-4 border-t border-stone-100">
         <Button
           type="submit"
           disabled={saving || !isDirty}
@@ -387,7 +446,7 @@ export function RestaurantProfileForm({
         </Button>
         <Link
           href={ROUTES.RESTAURANT_DASHBOARD}
-          className="inline-flex h-11 items-center rounded-xl border border-stone-200 px-4 text-xs font-bold text-stone-600 hover:bg-stone-50 transition-colors"
+          className="inline-flex h-11 items-center rounded-xl border border-stone-200 px-4 text-xs font-bold text-stone-600 hover:bg-stone-50 transition-colors ml-auto sm:ml-0"
         >
           Back to Dashboard
         </Link>

@@ -52,11 +52,13 @@ export default function RestaurantProfilePage() {
   }
 
   return (
-    <main className="mx-auto max-w-3xl space-y-6">
-      <div>
-        <h1 className="text-4xl font-bold">Restaurant Profile</h1>
-        <p className="mt-2 text-gray-500">
-          Update your public restaurant listing details
+    <main className="mx-auto max-w-3xl space-y-4 md:space-y-6 pb-32 md:pb-12">
+      <div className="hidden md:block">
+        <h1 className="text-3xl sm:text-4xl font-extrabold text-stone-900 tracking-tight">
+          Restaurant Profile
+        </h1>
+        <p className="mt-1 text-sm text-stone-500">
+          Update your public restaurant listing details and store information
         </p>
       </div>
 
