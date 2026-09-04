@@ -5,6 +5,7 @@ import {
 import { formatDateTime, shortId } from "@/lib/formatters";
 import { formatPaymentMethod } from "@/lib/paymentLabels";
 import { RestaurantOrderActions } from "./RestaurantOrderActions";
+import { OrderPrepTimer } from "./OrderPrepTimer";
 import type { Order } from "@/types";
 
 type RestaurantOrderCardListProps = {
@@ -21,25 +22,31 @@ export function RestaurantOrderCardList({
       {orders.map((order) => (
         <div
           key={order._id}
-          className="rounded-2xl border bg-white p-6 shadow"
+          className="rounded-2xl border bg-white p-6 shadow-sm"
         >
-          <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <p
-                className="font-mono text-xs text-gray-500"
-                title={order._id}
-              >
-                {shortId(order._id)}
-              </p>
-              <h2 className="text-xl font-bold">{order.customer_name}</h2>
-              <p>{order.phone}</p>
+              <div className="flex items-center gap-2">
+                <p
+                  className="font-mono text-xs font-bold text-gray-500"
+                  title={order._id}
+                >
+                  #{shortId(order._id)}
+                </p>
+                <OrderPrepTimer
+                  createdAt={order.created_at}
+                  status={order.status}
+                />
+              </div>
+              <h2 className="text-xl font-bold mt-1">{order.customer_name}</h2>
+              <p className="text-sm font-medium text-stone-700">{order.phone}</p>
               {order.customer_email && (
                 <p className="text-sm text-gray-500">
                   {order.customer_email}
                 </p>
               )}
-              <p className="text-gray-500">{order.address}</p>
-              <p className="mt-1 text-xs text-gray-500">
+              <p className="text-gray-500 text-xs mt-1">{order.address}</p>
+              <p className="mt-1 text-xs text-gray-400">
                 {formatDateTime(order.created_at)}
               </p>
             </div>
@@ -48,7 +55,7 @@ export function RestaurantOrderCardList({
               <p className="text-2xl font-bold text-orange-600">
                 ₹{Number(order.total ?? 0).toFixed(2)}
               </p>
-              <p className="font-semibold">
+              <p className="font-semibold text-xs text-stone-600">
                 {formatPaymentMethod(order.payment_method)}
               </p>
               <PaymentStatusBadge
@@ -63,19 +70,23 @@ export function RestaurantOrderCardList({
             </div>
           </div>
 
-          <hr className="my-6" />
+          <hr className="my-5" />
 
-          <h3 className="mb-3 text-lg font-bold">Ordered Items</h3>
+          <h3 className="mb-2 text-sm font-bold uppercase tracking-wider text-stone-500">
+            Ordered Items
+          </h3>
           <div className="space-y-2">
             {order.items.map((item) => (
               <div
                 key={`${order._id}-${item.id}`}
-                className="flex justify-between border-b pb-2"
+                className="flex justify-between border-b border-stone-100 pb-2 text-sm"
               >
-                <span>
-                  {item.name} × {item.quantity}
+                <span className="font-semibold text-stone-800">
+                  {item.quantity}× {item.name}
                 </span>
-                <span>₹{item.price * item.quantity}</span>
+                <span className="font-medium text-stone-600">
+                  ₹{item.price * item.quantity}
+                </span>
               </div>
             ))}
           </div>
