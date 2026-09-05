@@ -50,11 +50,18 @@ export function ActiveDeliveryManifest({
   // Track checked items for canteen pickup validation
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
 
-  const statusLower = (order.status || "").toLowerCase();
-  const isAssigned = statusLower === "assigned";
-  const isPickedUp = statusLower === "picked up";
-  const isOutForDelivery = statusLower === "out for delivery";
-  const isDelivered = statusLower === "delivered";
+  const currentStatus = (order.status || "")
+    .toLowerCase()
+    .replace(/[-_]/g, " ")
+    .trim();
+  const isAssigned = currentStatus === "assigned";
+  const isEnRoute = [
+    "picked up",
+    "out for delivery",
+    "in transit",
+    "on the way",
+  ].includes(currentStatus);
+  const isDelivered = ["delivered", "completed"].includes(currentStatus);
 
   const items = Array.isArray(order.items) ? order.items : [];
   const totalItemsCount = items.length;
@@ -159,7 +166,7 @@ export function ActiveDeliveryManifest({
         </div>
       </div>
 
-      {/* Stage 1: Item Checklist or Completed Banner */}
+      {/* Stage 1: Item Checklist or En-Route / Completed Banner */}
       {isDelivered ? (
         /* Completed Delivery Summary Card */
         <div className="rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/60 via-emerald-50/30 to-white p-4 sm:p-5 space-y-3">
@@ -175,6 +182,39 @@ export function ActiveDeliveryManifest({
 
           {items.length > 0 ? (
             <div className="rounded-xl border border-emerald-100/80 bg-white/90 p-3 space-y-1.5 text-xs sm:text-sm text-stone-700">
+              {items.map((item, index) => (
+                <div
+                  key={item.id || `${item.name}-${index}`}
+                  className="flex justify-between items-center py-1 border-b border-stone-100 last:border-0"
+                >
+                  <span className="font-medium text-stone-800 truncate pr-2">
+                    {item.name || "Item"} × {item.quantity || 1}
+                  </span>
+                  <span className="font-semibold text-stone-600 shrink-0">
+                    ₹{(item.price || 0) * (item.quantity || 1)}
+                  </span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-stone-500 italic">No item details recorded.</p>
+          )}
+        </div>
+      ) : isEnRoute ? (
+        /* In Transit / Picked Up Banner */
+        <div className="rounded-2xl border border-blue-200/80 bg-gradient-to-br from-blue-50/60 via-indigo-50/30 to-white p-4 sm:p-5 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-xs sm:text-sm font-extrabold text-blue-900 flex items-center gap-2">
+              <Navigation className="h-4 w-4 text-blue-600 shrink-0" />
+              <span>🛵 Order In Transit to Hostel Dropoff</span>
+            </h3>
+            <span className="rounded-full bg-blue-100 border border-blue-200 px-2.5 py-0.5 text-[11px] font-bold text-blue-800">
+              {totalItemsCount} {totalItemsCount === 1 ? "Item Picked Up" : "Items Picked Up"}
+            </span>
+          </div>
+
+          {items.length > 0 ? (
+            <div className="rounded-xl border border-blue-100/80 bg-white/90 p-3 space-y-1.5 text-xs sm:text-sm text-stone-700">
               {items.map((item, index) => (
                 <div
                   key={item.id || `${item.name}-${index}`}
@@ -334,41 +374,8 @@ export function ActiveDeliveryManifest({
 
         {/* Action Controls for Transit & Handover */}
         <div className="flex flex-wrap items-center gap-2.5 pt-2">
-          {/* Out for Delivery Action */}
-          {isPickedUp && (
-            <button
-              type="button"
-              disabled={isSubmitting}
-              onClick={async (e) => {
-                e.stopPropagation();
-                const orderId = order._id || (order as { id?: string }).id;
-                if (!orderId) return;
-                try {
-                  setIsSubmitting(true);
-                  if (typeof onUpdateStatus === "function") {
-                    await onUpdateStatus(orderId, "Out for Delivery");
-                  } else {
-                    await updateStatus(orderId, "Out for Delivery");
-                  }
-                } catch (err) {
-                  console.error("Failed to start delivery trip:", err);
-                } finally {
-                  setIsSubmitting(false);
-                }
-              }}
-              className="relative z-10 flex-1 h-11 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs sm:text-sm shadow-xs active:scale-[0.98] select-none cursor-pointer transition-all flex items-center justify-center gap-2 disabled:opacity-60"
-            >
-              <span>
-                {isSubmitting
-                  ? "Starting trip..."
-                  : "🛵 Start Delivery Trip (Out for Delivery)"}
-              </span>
-              <ChevronRight size={16} />
-            </button>
-          )}
-
           {/* Complete Delivery / OTP Handover Trigger */}
-          {isOutForDelivery && (
+          {isEnRoute && (
             <button
               type="button"
               onClick={(e) => {
@@ -378,10 +385,10 @@ export function ActiveDeliveryManifest({
                   onOpenOtp(orderId);
                 }
               }}
-              className="relative z-10 flex-1 h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-sm sm:text-base shadow-sm active:scale-[0.98] select-none cursor-pointer transition-all flex items-center justify-center gap-2"
+              className="w-full py-3.5 px-4 rounded-xl font-semibold bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white shadow-md flex items-center justify-center gap-2 cursor-pointer relative z-10 select-none active:scale-[0.98] transition-all"
             >
               <KeyRound size={18} />
-              <span>🔐 Complete Delivery &amp; Verify OTP</span>
+              <span>🔑 Enter Delivery OTP to Complete</span>
             </button>
           )}
 

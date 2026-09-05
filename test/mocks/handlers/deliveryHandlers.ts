@@ -30,4 +30,14 @@ export const deliveryHandlers = [
       },
     ]);
   }),
+
+  http.put(url("/orders/:id/:status"), ({ params }) => {
+    return HttpResponse.json({
+      message: "Order status updated",
+      order: {
+        _id: params.id as string,
+        status: decodeURIComponent(params.status as string),
+      },
+    });
+  }),
 ];

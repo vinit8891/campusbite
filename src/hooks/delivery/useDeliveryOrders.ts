@@ -158,8 +158,21 @@ export function useDeliveryOrders() {
     };
   }, []);
 
+  const [isUpdating, setIsUpdating] = useState(false);
+
   async function updateStatus(id: string, nextStatus: string) {
     try {
+      setIsUpdating(true);
+      // 1. Optimistic UI update
+      setOrders((prev) =>
+        prev.map((ord) => {
+          const matches =
+            ord._id === id || (ord as { id?: string }).id === id;
+          return matches ? { ...ord, status: nextStatus } : ord;
+        })
+      );
+
+      // Push initial GPS location if picked up or out for delivery
       if (nextStatus === "Picked Up" || nextStatus === "Out for Delivery") {
         const coords = await getCoordsSafe(2500);
         if (coords.lat != null && coords.lng != null) {
@@ -173,16 +186,25 @@ export function useDeliveryOrders() {
         }
       }
 
+      // 2. Call backend API
       await updateDeliveryOrderStatus(id, nextStatus);
-      await loadOrders(currentFilters());
 
+      // 3. Trigger global sync and refetch to guarantee persistence
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("delivery_state_changed"));
       }
+      await loadOrders(currentFilters());
     } catch (err) {
       console.error(err);
+      // Rollback or refetch on error
+      await loadOrders(currentFilters());
       if (err instanceof AuthHttpError && err.status === 401) return;
-      toast.error(err instanceof Error ? err.message : "Failed to update status");
+      toast.error(
+        err instanceof Error ? err.message : "Failed to update status"
+      );
+      throw err;
+    } finally {
+      setIsUpdating(false);
     }
   }
 
@@ -220,6 +242,7 @@ export function useDeliveryOrders() {
   return {
     orders,
     loading,
+    isUpdating,
     error,
     q,
     setQ,

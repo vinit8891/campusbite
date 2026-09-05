@@ -216,7 +216,7 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
       expect(screen.getByText(/Lassi × 2/i)).toBeInTheDocument();
     });
 
-    it("renders Complete Delivery button and opens OTP modal when Out for Delivery", async () => {
+    it("renders Complete Delivery OTP button and opens OTP modal when Out for Delivery", async () => {
       const user = userEvent.setup();
       const onOpenOtp = vi.fn();
 
@@ -234,9 +234,51 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
       );
 
       const completeBtn = screen.getByRole("button", {
-        name: /complete delivery & verify otp/i,
+        name: /enter delivery otp to complete|complete delivery/i,
       });
       await user.click(completeBtn);
+
+      expect(onOpenOtp).toHaveBeenCalledWith("order-201");
+    });
+
+    it("collapses packing checklist and renders In Transit banner and OTP button when Picked Up", async () => {
+      const user = userEvent.setup();
+      const onOpenOtp = vi.fn();
+
+      const pickedUpOrder: DeliveryOrder = {
+        ...mockActiveOrder,
+        status: "Picked Up",
+      };
+
+      render(
+        <ActiveDeliveryManifest
+          order={pickedUpOrder}
+          onUpdateStatus={vi.fn()}
+          onOpenOtp={onOpenOtp}
+        />
+      );
+
+      // In Transit banner
+      expect(
+        screen.getByText(/order in transit to hostel dropoff/i)
+      ).toBeInTheDocument();
+
+      // Packing checklist header and confirm button are hidden
+      expect(
+        screen.queryByText(/ITEM PACKING CHECKLIST/i)
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("button", {
+          name: /confirm all items & mark picked up/i,
+        })
+      ).not.toBeInTheDocument();
+
+      // OTP button is available
+      const otpBtn = screen.getByRole("button", {
+        name: /enter delivery otp to complete/i,
+      });
+      expect(otpBtn).toBeInTheDocument();
+      await user.click(otpBtn);
 
       expect(onOpenOtp).toHaveBeenCalledWith("order-201");
     });
