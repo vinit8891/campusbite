@@ -466,4 +466,51 @@ describe("KitchenDisplayBoard & Kitchen Audio System", () => {
     // Fresh order MUST be in the active In Kitchen column
     expect(screen.getByText("Today Chef")).toBeInTheDocument();
   });
+
+  it("renders a single clean status card when 0 active orders exist and allows switching to history", async () => {
+    const handleUpdate = vi.fn();
+    const handleSwitchToHistory = vi.fn();
+    const user = userEvent.setup();
+
+    const deliveredOnlyOrders: Order[] = [
+      {
+        _id: "order-past-1",
+        customer_name: "Delivered Student",
+        phone: "9111111111",
+        address: "Hostel 1, Rm 101",
+        restaurant_id: "rest-1",
+        restaurant_name: "Campus Grill",
+        restaurant_email: "grill@campus.edu",
+        status: "Delivered",
+        payment_method: "online",
+        payment_status: "paid",
+        items: [{ id: "i-1", name: "Thali", price: 120, quantity: 1 }],
+        total: 120,
+        created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+      },
+    ];
+
+    render(
+      <KitchenDisplayBoard
+        orders={deliveredOnlyOrders}
+        onUpdateStatus={handleUpdate}
+        onSwitchToHistory={handleSwitchToHistory}
+      />
+    );
+
+    // Should render single clean card, NOT 3 separate empty columns
+    expect(screen.getByText("Kitchen is all caught up!")).toBeInTheDocument();
+    expect(
+      screen.getByText(/New student orders will alert you here as soon as they are placed/i)
+    ).toBeInTheDocument();
+
+    const viewHistoryBtn = screen.getByRole("button", {
+      name: /view all past orders/i,
+    });
+    expect(viewHistoryBtn).toBeInTheDocument();
+    expect(viewHistoryBtn).toHaveTextContent("1");
+
+    await user.click(viewHistoryBtn);
+    expect(handleSwitchToHistory).toHaveBeenCalledTimes(1);
+  });
 });

@@ -29,12 +29,14 @@ type KitchenDisplayBoardProps = {
   onUpdateStatus: (id: string, nextStatus: string) => void;
   soundEnabled?: boolean;
   activeMobileTab?: MobileKdsTab;
+  onSwitchToHistory?: () => void;
 };
 
 export function KitchenDisplayBoard({
   orders,
   onUpdateStatus,
   activeMobileTab = "all",
+  onSwitchToHistory,
 }: KitchenDisplayBoardProps) {
   const pendingOrders = orders.filter(
     (o) => isNewOrder(o.status) && !isOrderStale(o.created_at)
@@ -45,6 +47,36 @@ export function KitchenDisplayBoard({
   const readyOrders = orders.filter(
     (o) => isReadyOrder(o.status) && !isOrderStale(o.created_at)
   );
+
+  const totalActive =
+    pendingOrders.length + inKitchenOrders.length + readyOrders.length;
+
+  if (totalActive === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center py-16 px-6 text-center rounded-3xl border-2 border-dashed border-stone-200 bg-white min-h-[50vh] shadow-2xs">
+        <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-orange-50 border border-orange-200/60 text-4xl mb-4 shadow-xs">
+          <span role="img" aria-label="Chef">
+            👨‍🍳
+          </span>
+        </div>
+        <h2 className="text-xl font-black text-stone-900 tracking-tight">
+          Kitchen is all caught up!
+        </h2>
+        <p className="text-sm text-stone-500 mt-1.5 max-w-md font-medium">
+          New student orders will alert you here as soon as they are placed.
+        </p>
+        {onSwitchToHistory && (
+          <button
+            type="button"
+            onClick={onSwitchToHistory}
+            className="mt-6 inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-stone-900 hover:bg-stone-800 text-white text-xs sm:text-sm font-extrabold shadow-sm active:scale-98 transition-all cursor-pointer"
+          >
+            <span>📋 View All Past Orders ({orders.length})</span>
+          </button>
+        )}
+      </div>
+    );
+  }
 
   // Determine visibility of columns on mobile (< md) based on activeMobileTab
   const showPendingOnMobile =
@@ -87,16 +119,10 @@ export function KitchenDisplayBoard({
         {/* Order Cards List */}
         <div className="space-y-3.5 sm:space-y-4 overflow-y-auto flex-1 pr-0.5">
           {pendingOrders.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-              <span className="text-4xl mb-2" role="img" aria-label="Chef">
-                👨‍🍳
-              </span>
-              <h3 className="text-sm font-extrabold text-stone-800">
-                Kitchen is all caught up!
-              </h3>
-              <p className="text-xs text-stone-500 mt-1 max-w-xs">
-                New student orders will ring the bell here as soon as they drop in.
-              </p>
+            <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+              <span className="text-2xl mb-1.5 opacity-60">🔔</span>
+              <p className="text-xs font-bold text-stone-600">No new incoming orders</p>
+              <p className="text-[11px] text-stone-400 mt-0.5">Awaiting new student orders.</p>
             </div>
           ) : (
             pendingOrders.map((order) => {
@@ -269,14 +295,10 @@ export function KitchenDisplayBoard({
         {/* Order Cards List */}
         <div className="space-y-3.5 sm:space-y-4 overflow-y-auto flex-1 pr-0.5">
           {inKitchenOrders.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-              <span className="text-4xl mb-2" role="img" aria-label="Chef cooking">
-                🍲
-              </span>
-              <h3 className="text-sm font-extrabold text-stone-800">
-                No active cooking orders
-              </h3>
-              <p className="text-xs text-stone-500 mt-1 max-w-xs">
+            <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+              <span className="text-2xl mb-1.5 opacity-60">🍲</span>
+              <p className="text-xs font-bold text-stone-600">No active cooking orders</p>
+              <p className="text-[11px] text-stone-400 mt-0.5">
                 Accepted orders will appear here ready for prep & packaging.
               </p>
             </div>
@@ -394,14 +416,10 @@ export function KitchenDisplayBoard({
         {/* Order Cards List */}
         <div className="space-y-3.5 sm:space-y-4 overflow-y-auto flex-1 pr-0.5">
           {readyOrders.length === 0 ? (
-            <div className="flex flex-col items-center justify-center py-16 px-4 text-center">
-              <span className="text-4xl mb-2" role="img" aria-label="Sparkles">
-                ✨
-              </span>
-              <h3 className="text-sm font-extrabold text-stone-800">
-                No orders awaiting pickup
-              </h3>
-              <p className="text-xs text-stone-500 mt-1 max-w-xs">
+            <div className="flex flex-col items-center justify-center py-10 px-4 text-center">
+              <span className="text-2xl mb-1.5 opacity-60">✨</span>
+              <p className="text-xs font-bold text-stone-600">No orders awaiting pickup</p>
+              <p className="text-[11px] text-stone-400 mt-0.5">
                 Packaged meals ready for pickup will appear here.
               </p>
             </div>

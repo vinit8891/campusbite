@@ -10,7 +10,7 @@ import { KitchenAudioAlert } from "@/components/restaurant/KitchenAudioAlert";
 import { RestaurantOrderFilterBar } from "@/components/restaurant/RestaurantOrderFilterBar";
 import { RestaurantOrderTableView } from "@/components/restaurant/RestaurantOrderTableView";
 import { RestaurantOrderCardList } from "@/components/restaurant/RestaurantOrderCardList";
-import { KitchenDisplayBoard, MobileKdsTab } from "@/components/restaurant/KitchenDisplayBoard";
+import { KitchenDisplayBoard } from "@/components/restaurant/KitchenDisplayBoard";
 import {
   isNewOrder,
   isCookingOrder,
@@ -19,6 +19,7 @@ import {
 } from "@/lib/orderDomain";
 
 type ViewMode = "kds" | "cards" | "table";
+type MainTab = "active" | "history";
 
 function OrdersSkeleton() {
   return (
@@ -49,8 +50,8 @@ export default function OrdersPage() {
     currentFilters,
   } = useRestaurantOrders();
 
+  const [mainTab, setMainTab] = useState<MainTab>("active");
   const [viewMode, setViewMode] = useState<ViewMode>("kds");
-  const [mobileTab, setMobileTab] = useState<MobileKdsTab>("new");
 
   const { soundEnabled, toggleSound, pendingCount, playChime } =
     useKitchenAudio(orders);
@@ -62,19 +63,17 @@ export default function OrdersPage() {
     (o) => isReadyOrder(o.status) && !isOrderStale(o.created_at)
   ).length;
 
-  // For non-KDS views on mobile, filter by mobileTab when not "all"
-  const displayedOrders =
-    mobileTab === "new"
-      ? orders.filter((o) => isNewOrder(o.status) && !isOrderStale(o.created_at))
-      : mobileTab === "cooking"
-      ? orders.filter(
-          (o) => isCookingOrder(o.status) && !isOrderStale(o.created_at)
-        )
-      : mobileTab === "ready"
-      ? orders.filter(
-          (o) => isReadyOrder(o.status) && !isOrderStale(o.created_at)
-        )
-      : orders;
+  const activeOrdersCount = pendingCount + cookingCount + readyCount;
+  const totalOrdersCount = orders.length;
+
+  // Active non-stale orders for non-KDS views
+  const activeOrders = orders.filter(
+    (o) =>
+      (isNewOrder(o.status) ||
+        isCookingOrder(o.status) ||
+        isReadyOrder(o.status)) &&
+      !isOrderStale(o.created_at)
+  );
 
   return (
     <main className="space-y-4 sm:space-y-6">
@@ -93,7 +92,7 @@ export default function OrdersPage() {
             </span>
           ) : (
             <span className="text-xs font-bold text-stone-400">
-              ({orders.length})
+              ({totalOrdersCount})
             </span>
           )}
         </div>
@@ -185,138 +184,104 @@ export default function OrdersPage() {
       </div>
 
       {/* =========================================================
-          3. 1-TAP MOBILE STATUS TABS (SEGMENTED CONTROL) (< md)
+          3. PROMINENT 2-WAY SEGMENTED VIEW TOGGLE
       ========================================================= */}
-      <div
-        className="flex items-center gap-1.5 overflow-x-auto pb-1 no-scrollbar md:hidden"
-        role="tablist"
-        aria-label="Filter orders by stage"
-      >
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mobileTab === "new"}
-          onClick={() => setMobileTab("new")}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all shrink-0 cursor-pointer ${
-            mobileTab === "new"
-              ? "bg-orange-600 text-white shadow-xs"
-              : "bg-stone-100 text-stone-700 hover:bg-stone-200"
-          }`}
+      <div className="flex items-center justify-between flex-wrap gap-3">
+        <div
+          className="flex items-center p-1 bg-stone-100/90 rounded-2xl border border-stone-200/90 w-full sm:w-auto"
+          role="tablist"
+          aria-label="Filter orders by queue"
         >
-          <span>🔔 New Orders</span>
-          <span
-            className={`flex h-4.5 min-w-4.5 px-1.5 items-center justify-center rounded-full text-[10px] font-black ${
-              mobileTab === "new"
-                ? "bg-white text-orange-700"
-                : pendingCount > 0
-                ? "bg-orange-600 text-white animate-pulse"
-                : "bg-stone-200 text-stone-600"
+          {/* Tab 1: Active Prep */}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mainTab === "active"}
+            onClick={() => setMainTab("active")}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl font-extrabold text-xs sm:text-sm transition-all cursor-pointer ${
+              mainTab === "active"
+                ? "bg-orange-600 text-white shadow-xs"
+                : "text-stone-600 hover:text-stone-900"
             }`}
           >
-            {pendingCount}
-          </span>
-        </button>
+            <span>🍳 Active Prep</span>
+            <span
+              className={`flex h-5 min-w-5 px-1.5 items-center justify-center rounded-full text-[11px] font-black ${
+                mainTab === "active"
+                  ? "bg-white text-orange-700"
+                  : activeOrdersCount > 0
+                  ? "bg-orange-600 text-white animate-pulse"
+                  : "bg-stone-200 text-stone-600"
+              }`}
+            >
+              {activeOrdersCount}
+            </span>
+          </button>
 
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mobileTab === "cooking"}
-          onClick={() => setMobileTab("cooking")}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all shrink-0 cursor-pointer ${
-            mobileTab === "cooking"
-              ? "bg-blue-600 text-white shadow-xs"
-              : "bg-stone-100 text-stone-700 hover:bg-stone-200"
-          }`}
-        >
-          <span>🍳 Cooking</span>
-          <span
-            className={`flex h-4.5 min-w-4.5 px-1.5 items-center justify-center rounded-full text-[10px] font-black ${
-              mobileTab === "cooking"
-                ? "bg-white text-blue-700"
-                : "bg-stone-200 text-stone-600"
+          {/* Tab 2: All Orders & History */}
+          <button
+            type="button"
+            role="tab"
+            aria-selected={mainTab === "history"}
+            onClick={() => setMainTab("history")}
+            className={`flex-1 sm:flex-initial flex items-center justify-center gap-2 px-4 sm:px-6 py-2.5 rounded-xl font-extrabold text-xs sm:text-sm transition-all cursor-pointer ${
+              mainTab === "history"
+                ? "bg-stone-900 text-white shadow-xs"
+                : "text-stone-600 hover:text-stone-900"
             }`}
           >
-            {cookingCount}
-          </span>
-        </button>
+            <span>📋 All Orders & History</span>
+            <span
+              className={`flex h-5 min-w-5 px-1.5 items-center justify-center rounded-full text-[11px] font-black ${
+                mainTab === "history"
+                  ? "bg-white text-stone-900"
+                  : "bg-stone-200 text-stone-600"
+              }`}
+            >
+              {totalOrdersCount}
+            </span>
+          </button>
+        </div>
 
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mobileTab === "ready"}
-          onClick={() => setMobileTab("ready")}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all shrink-0 cursor-pointer ${
-            mobileTab === "ready"
-              ? "bg-emerald-600 text-white shadow-xs"
-              : "bg-stone-100 text-stone-700 hover:bg-stone-200"
-          }`}
-        >
-          <span>📦 Ready</span>
-          <span
-            className={`flex h-4.5 min-w-4.5 px-1.5 items-center justify-center rounded-full text-[10px] font-black ${
-              mobileTab === "ready"
-                ? "bg-white text-emerald-700"
-                : "bg-stone-200 text-stone-600"
-            }`}
-          >
-            {readyCount}
-          </span>
-        </button>
-
-        <button
-          type="button"
-          role="tab"
-          aria-selected={mobileTab === "all"}
-          onClick={() => setMobileTab("all")}
-          className={`flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-extrabold whitespace-nowrap transition-all shrink-0 cursor-pointer ${
-            mobileTab === "all"
-              ? "bg-stone-800 text-white shadow-xs"
-              : "bg-stone-100 text-stone-700 hover:bg-stone-200"
-          }`}
-        >
-          <span>📋 All / History</span>
-          <span
-            className={`flex h-4.5 min-w-4.5 px-1.5 items-center justify-center rounded-full text-[10px] font-black ${
-              mobileTab === "all"
-                ? "bg-white text-stone-800"
-                : "bg-stone-200 text-stone-600"
-            }`}
-          >
-            {orders.length}
-          </span>
-        </button>
+        {mainTab === "history" && (
+          <p className="text-xs text-stone-500 font-medium">
+            Showing all {orders.length} orders chronologically
+          </p>
+        )}
       </div>
 
       {/* =========================================================
-          4. FILTER BAR
+          4. FILTER & SEARCH BAR (Active in History Mode)
       ========================================================= */}
-      <RestaurantOrderFilterBar
-        q={q}
-        setQ={setQ}
-        status={status}
-        onStatusChange={(next) => {
-          setStatus(next);
-          void fetchOrders(currentFilters({ status: next }), {
-            showLoading: true,
-          });
-        }}
-        paymentStatus={paymentStatus}
-        onPaymentStatusChange={(next) => {
-          setPaymentStatus(next);
-          void fetchOrders(currentFilters({ payment_status: next }), {
-            showLoading: true,
-          });
-        }}
-        paymentMethod={paymentMethod}
-        onPaymentMethodChange={(next) => {
-          setPaymentMethod(next);
-          void fetchOrders(currentFilters({ payment_method: next }), {
-            showLoading: true,
-          });
-        }}
-        loading={loading}
-        onSearchSubmit={handleSearchSubmit}
-      />
+      {mainTab === "history" && (
+        <RestaurantOrderFilterBar
+          q={q}
+          setQ={setQ}
+          status={status}
+          onStatusChange={(next) => {
+            setStatus(next);
+            void fetchOrders(currentFilters({ status: next }), {
+              showLoading: true,
+            });
+          }}
+          paymentStatus={paymentStatus}
+          onPaymentStatusChange={(next) => {
+            setPaymentStatus(next);
+            void fetchOrders(currentFilters({ payment_status: next }), {
+              showLoading: true,
+            });
+          }}
+          paymentMethod={paymentMethod}
+          onPaymentMethodChange={(next) => {
+            setPaymentMethod(next);
+            void fetchOrders(currentFilters({ payment_method: next }), {
+              showLoading: true,
+            });
+          }}
+          loading={loading}
+          onSearchSubmit={handleSearchSubmit}
+        />
+      )}
 
       {error && (
         <p className="rounded-xl bg-red-50 p-4 text-sm text-red-600">
@@ -325,33 +290,75 @@ export default function OrdersPage() {
       )}
 
       {/* =========================================================
-          5. CONTENT RENDERING BY VIEW MODE
+          5. CONTENT RENDERING BY TAB & VIEW MODE
       ========================================================= */}
       {loading ? (
         <OrdersSkeleton />
-      ) : orders.length === 0 ? (
-        <EmptyState
-          icon="📦"
-          title="No orders found"
-          description="Try clearing filters, or wait for incoming customer orders."
-        />
-      ) : viewMode === "kds" ? (
-        <KitchenDisplayBoard
-          orders={orders}
-          onUpdateStatus={(id, nextStatus) => void updateStatus(id, nextStatus)}
-          soundEnabled={soundEnabled}
-          activeMobileTab={mobileTab}
-        />
-      ) : viewMode === "table" ? (
-        <RestaurantOrderTableView
-          orders={displayedOrders}
-          onUpdateStatus={(id, nextStatus) => void updateStatus(id, nextStatus)}
-        />
+      ) : mainTab === "active" ? (
+        /* ACTIVE PREP QUEUE */
+        viewMode === "kds" ? (
+          <KitchenDisplayBoard
+            orders={orders}
+            onUpdateStatus={(id, nextStatus) => void updateStatus(id, nextStatus)}
+            soundEnabled={soundEnabled}
+            onSwitchToHistory={() => setMainTab("history")}
+          />
+        ) : activeOrders.length === 0 ? (
+          <div className="flex flex-col items-center justify-center py-16 px-6 text-center rounded-3xl border-2 border-dashed border-stone-200 bg-white min-h-[45vh] shadow-2xs">
+            <div className="flex h-20 w-20 items-center justify-center rounded-3xl bg-orange-50 border border-orange-200/60 text-4xl mb-4 shadow-xs">
+              <span role="img" aria-label="Chef">
+                👨‍🍳
+              </span>
+            </div>
+            <h2 className="text-xl font-black text-stone-900 tracking-tight">
+              Kitchen is all caught up!
+            </h2>
+            <p className="text-sm text-stone-500 mt-1.5 max-w-md font-medium">
+              New student orders will alert you here as soon as they are placed.
+            </p>
+            <button
+              type="button"
+              onClick={() => setMainTab("history")}
+              className="mt-6 inline-flex items-center gap-2 px-5 py-3 rounded-2xl bg-stone-900 hover:bg-stone-800 text-white text-xs sm:text-sm font-extrabold shadow-sm active:scale-98 transition-all cursor-pointer"
+            >
+              <span>📋 View All Past Orders ({orders.length})</span>
+            </button>
+          </div>
+        ) : viewMode === "table" ? (
+          <RestaurantOrderTableView
+            orders={activeOrders}
+            onUpdateStatus={(id, nextStatus) => void updateStatus(id, nextStatus)}
+          />
+        ) : (
+          <RestaurantOrderCardList
+            orders={activeOrders}
+            onUpdateStatus={(id, nextStatus) => void updateStatus(id, nextStatus)}
+          />
+        )
       ) : (
-        <RestaurantOrderCardList
-          orders={displayedOrders}
-          onUpdateStatus={(id, nextStatus) => void updateStatus(id, nextStatus)}
-        />
+        /* ALL ORDERS & HISTORY */
+        orders.length === 0 ? (
+          <EmptyState
+            icon="📦"
+            title="No orders found"
+            description="Try clearing search filters, or wait for incoming customer orders."
+          />
+        ) : viewMode === "table" ? (
+          <RestaurantOrderTableView
+            orders={orders}
+            onUpdateStatus={(id, nextStatus) => void updateStatus(id, nextStatus)}
+          />
+        ) : viewMode === "cards" ? (
+          <RestaurantOrderCardList
+            orders={orders}
+            onUpdateStatus={(id, nextStatus) => void updateStatus(id, nextStatus)}
+          />
+        ) : (
+          <RestaurantOrderTableView
+            orders={orders}
+            onUpdateStatus={(id, nextStatus) => void updateStatus(id, nextStatus)}
+          />
+        )
       )}
     </main>
   );

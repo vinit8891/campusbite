@@ -19,6 +19,7 @@ export type DashboardData = {
   rating: number;
   pending_orders?: number;
   active_orders?: number;
+  cooking_orders?: number;
   delivered_orders?: number;
   cancelled_orders?: number;
   today_orders?: number;

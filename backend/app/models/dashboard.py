@@ -25,32 +25,60 @@ def _start_of_today_utc() -> datetime:
 async def get_dashboard(email: str):
     """Restaurant owner dashboard stats. Preserves legacy keys."""
     base_filter = {"restaurant_email": email}
+    today_start = _start_of_today_utc()
 
     total_orders = await order_collection.count_documents(base_filter)
 
     pending_orders = await order_collection.count_documents(
-        {**base_filter, "status": "Pending"}
+        {
+            **base_filter,
+            "status": {"$in": ["Pending", "pending"]},
+            "created_at": {"$gte": today_start},
+        }
+    )
+
+    cooking_orders = await order_collection.count_documents(
+        {
+            **base_filter,
+            "status": {
+                "$in": [
+                    "Accepted",
+                    "Preparing",
+                    "Cooking",
+                    "In Prep",
+                    "accepted",
+                    "preparing",
+                    "cooking",
+                    "in_prep",
+                ]
+            },
+            "created_at": {"$gte": today_start},
+        }
     )
 
     active_orders = await order_collection.count_documents(
-        {**base_filter, "status": {"$in": ACTIVE_STATUSES}}
+        {
+            **base_filter,
+            "status": {
+                "$in": ACTIVE_STATUSES + [s.lower() for s in ACTIVE_STATUSES]
+            },
+            "created_at": {"$gte": today_start},
+        }
     )
 
     delivered_orders = await order_collection.count_documents(
-        {**base_filter, "status": "Delivered"}
+        {**base_filter, "status": {"$in": ["Delivered", "delivered"]}}
     )
 
     cancelled_orders = await order_collection.count_documents(
-        {**base_filter, "status": "Cancelled"}
+        {**base_filter, "status": {"$in": ["Cancelled", "cancelled"]}}
     )
 
     delivered_docs = await order_collection.find(
-        {**base_filter, "status": "Delivered"}
+        {**base_filter, "status": {"$in": ["Delivered", "delivered"]}}
     ).to_list(None)
 
     revenue = sum(float(order.get("total") or 0) for order in delivered_docs)
-
-    today_start = _start_of_today_utc()
 
     today_orders = await order_collection.count_documents(
         {
@@ -106,6 +134,7 @@ async def get_dashboard(email: str):
         # Extended statistics
         "pending_orders": pending_orders,
         "active_orders": active_orders,
+        "cooking_orders": cooking_orders,
         "delivered_orders": delivered_orders,
         "cancelled_orders": cancelled_orders,
         "today_orders": today_orders,

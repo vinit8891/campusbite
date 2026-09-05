@@ -1,6 +1,7 @@
 import React from "react";
 import { describe, it, expect } from "vitest";
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { DashboardMetricCards } from "@/components/restaurant/DashboardMetricCards";
 import { DashboardAnalyticsCharts } from "@/components/restaurant/DashboardAnalyticsCharts";
 import type { DashboardData, StatCard, AnalyticsOverview } from "@/hooks/restaurant/useRestaurantDashboard";
@@ -71,7 +72,8 @@ const mockAnalytics: AnalyticsOverview = {
 };
 
 describe("Restaurant Dashboard Metric Cards & Analytics", () => {
-  it("renders stat cards with emojis and values in 2-column mobile layout", () => {
+  it("renders 4 operational tiles and toggles all-time store performance collapsible", async () => {
+    const user = userEvent.setup();
     render(
       <DashboardMetricCards
         cards={mockCards}
@@ -80,12 +82,15 @@ describe("Restaurant Dashboard Metric Cards & Analytics", () => {
       />
     );
 
-    expect(screen.getByText("Total Orders")).toBeInTheDocument();
-    expect(screen.getByText("48")).toBeInTheDocument();
+    // Operational tiles
+    expect(screen.getByText("Today's Earnings")).toBeInTheDocument();
+    expect(screen.getByText("₹3600.00")).toBeInTheDocument();
+    expect(screen.getByText("Today's Orders")).toBeInTheDocument();
+    expect(screen.getByText("12")).toBeInTheDocument();
     expect(screen.getByText("Pending")).toBeInTheDocument();
     expect(screen.getByText("3")).toBeInTheDocument();
-    expect(screen.getByText("₹14250.00")).toBeInTheDocument();
-    expect(screen.getByText("⭐ 4.8")).toBeInTheDocument();
+    expect(screen.getByText("In Progress")).toBeInTheDocument();
+    expect(screen.getByText("5")).toBeInTheDocument();
 
     // Today's mess meals
     expect(screen.getByText(/Today's Mess Meals/i)).toBeInTheDocument();
@@ -96,6 +101,20 @@ describe("Restaurant Dashboard Metric Cards & Analytics", () => {
     expect(screen.getByText("14")).toBeInTheDocument();
     expect(screen.getByText("₹28000.00")).toBeInTheDocument();
     expect(screen.getByText("Pending dues")).toBeInTheDocument();
+
+    // Toggle All-Time Store Performance collapsible
+    const collapsibleTrigger = screen.getByRole("button", {
+      name: /All-Time Store Performance/i,
+    });
+    expect(collapsibleTrigger).toBeInTheDocument();
+
+    await user.click(collapsibleTrigger);
+
+    // Lifetime metrics now visible
+    expect(screen.getByText("Total Orders")).toBeInTheDocument();
+    expect(screen.getByText("48")).toBeInTheDocument();
+    expect(screen.getByText("₹14250.00")).toBeInTheDocument();
+    expect(screen.getByText("⭐ 4.8")).toBeInTheDocument();
   });
 
   it("renders dashboard analytics charts with revenue trend and top selling items", () => {

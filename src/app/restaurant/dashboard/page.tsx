@@ -135,6 +135,7 @@ export default function DashboardPage() {
         cards={cards}
         dashboard={dashboard}
         subscriptionRevenue={subscriptionRevenue}
+        analytics={analytics}
       />
 
       {/* Analytics Charts */}
