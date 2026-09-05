@@ -263,4 +263,207 @@ describe("KitchenDisplayBoard & Kitchen Audio System", () => {
     await user.click(filterToggleBtn);
     expect(filterToggleBtn).toHaveAttribute("aria-expanded", "true");
   });
+
+  it("strictly excludes delivered, out-for-delivery, picked-up, and cancelled orders from Cooking and Ready queues", () => {
+    const handleUpdate = vi.fn();
+    const mixedOrders: Order[] = [
+      {
+        _id: "order-del-1",
+        customer_name: "Delivered Student",
+        phone: "9111111111",
+        address: "Hostel 1, Rm 101",
+        restaurant_id: "rest-1",
+        restaurant_name: "Campus Grill",
+        restaurant_email: "grill@campus.edu",
+        status: "Delivered",
+        payment_method: "online",
+        payment_status: "paid",
+        items: [{ id: "i-1", name: "Thali", price: 120, quantity: 1 }],
+        total: 120,
+        created_at: new Date(Date.now() - 30 * 60 * 1000).toISOString(),
+      },
+      {
+        _id: "order-del-2",
+        customer_name: "Delivered Lowercase",
+        phone: "9111111112",
+        address: "Hostel 1, Rm 102",
+        restaurant_id: "rest-1",
+        restaurant_name: "Campus Grill",
+        restaurant_email: "grill@campus.edu",
+        status: "delivered",
+        payment_method: "online",
+        payment_status: "paid",
+        items: [{ id: "i-2", name: "Dosa", price: 80, quantity: 1 }],
+        total: 80,
+        created_at: new Date(Date.now() - 40 * 60 * 1000).toISOString(),
+      },
+      {
+        _id: "order-ofd-1",
+        customer_name: "Out For Delivery Student",
+        phone: "9222222222",
+        address: "Hostel 2, Rm 201",
+        restaurant_id: "rest-1",
+        restaurant_name: "Campus Grill",
+        restaurant_email: "grill@campus.edu",
+        status: "Out for Delivery",
+        payment_method: "online",
+        payment_status: "paid",
+        items: [{ id: "i-3", name: "Burger", price: 90, quantity: 1 }],
+        total: 90,
+        created_at: new Date(Date.now() - 20 * 60 * 1000).toISOString(),
+      },
+      {
+        _id: "order-ofd-2",
+        customer_name: "OFD Snake Case",
+        phone: "9222222223",
+        address: "Hostel 2, Rm 202",
+        restaurant_id: "rest-1",
+        restaurant_name: "Campus Grill",
+        restaurant_email: "grill@campus.edu",
+        status: "out_for_delivery",
+        payment_method: "online",
+        payment_status: "paid",
+        items: [{ id: "i-4", name: "Pizza", price: 200, quantity: 1 }],
+        total: 200,
+        created_at: new Date(Date.now() - 25 * 60 * 1000).toISOString(),
+      },
+      {
+        _id: "order-pup-1",
+        customer_name: "Picked Up Student",
+        phone: "9333333333",
+        address: "Hostel 3, Rm 301",
+        restaurant_id: "rest-1",
+        restaurant_name: "Campus Grill",
+        restaurant_email: "grill@campus.edu",
+        status: "Picked Up",
+        payment_method: "online",
+        payment_status: "paid",
+        items: [{ id: "i-5", name: "Roll", price: 70, quantity: 1 }],
+        total: 70,
+        created_at: new Date(Date.now() - 15 * 60 * 1000).toISOString(),
+      },
+      {
+        _id: "order-pup-2",
+        customer_name: "Picked Up Snake",
+        phone: "9333333334",
+        address: "Hostel 3, Rm 302",
+        restaurant_id: "rest-1",
+        restaurant_name: "Campus Grill",
+        restaurant_email: "grill@campus.edu",
+        status: "picked_up",
+        payment_method: "online",
+        payment_status: "paid",
+        items: [{ id: "i-6", name: "Noodles", price: 110, quantity: 1 }],
+        total: 110,
+        created_at: new Date(Date.now() - 18 * 60 * 1000).toISOString(),
+      },
+      {
+        _id: "order-can-1",
+        customer_name: "Cancelled Student",
+        phone: "9444444444",
+        address: "Hostel 4, Rm 401",
+        restaurant_id: "rest-1",
+        restaurant_name: "Campus Grill",
+        restaurant_email: "grill@campus.edu",
+        status: "Cancelled",
+        payment_method: "online",
+        payment_status: "failed",
+        items: [{ id: "i-7", name: "Shake", price: 60, quantity: 1 }],
+        total: 60,
+        created_at: new Date(Date.now() - 50 * 60 * 1000).toISOString(),
+      },
+      {
+        _id: "order-act-prep",
+        customer_name: "Active Cooking Chef",
+        phone: "9555555555",
+        address: "Hostel 5, Rm 501",
+        restaurant_id: "rest-1",
+        restaurant_name: "Campus Grill",
+        restaurant_email: "grill@campus.edu",
+        status: "cooking",
+        payment_method: "online",
+        payment_status: "paid",
+        items: [{ id: "i-8", name: "Fried Rice", price: 130, quantity: 1 }],
+        total: 130,
+        created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(),
+      },
+      {
+        _id: "order-act-ready",
+        customer_name: "Active Ready Eater",
+        phone: "9666666666",
+        address: "Hostel 6, Rm 601",
+        restaurant_id: "rest-1",
+        restaurant_name: "Campus Grill",
+        restaurant_email: "grill@campus.edu",
+        status: "ready_for_pickup",
+        payment_method: "online",
+        payment_status: "paid",
+        items: [{ id: "i-9", name: "Sandwich", price: 75, quantity: 1 }],
+        total: 75,
+        created_at: new Date(Date.now() - 10 * 60 * 1000).toISOString(),
+      },
+    ];
+
+    render(
+      <KitchenDisplayBoard orders={mixedOrders} onUpdateStatus={handleUpdate} />
+    );
+
+    // Active Cooking and Ready orders MUST be visible
+    expect(screen.getByText("Active Cooking Chef")).toBeInTheDocument();
+    expect(screen.getByText("Active Ready Eater")).toBeInTheDocument();
+
+    // Delivered, Out for Delivery, Picked Up, and Cancelled orders must NOT be rendered in any column
+    expect(screen.queryByText("Delivered Student")).not.toBeInTheDocument();
+    expect(screen.queryByText("Delivered Lowercase")).not.toBeInTheDocument();
+    expect(screen.queryByText("Out For Delivery Student")).not.toBeInTheDocument();
+    expect(screen.queryByText("OFD Snake Case")).not.toBeInTheDocument();
+    expect(screen.queryByText("Picked Up Student")).not.toBeInTheDocument();
+    expect(screen.queryByText("Picked Up Snake")).not.toBeInTheDocument();
+    expect(screen.queryByText("Cancelled Student")).not.toBeInTheDocument();
+  });
+
+  it("excludes stale orders (>24h) from active columns", () => {
+    const handleUpdate = vi.fn();
+    const staleOrders: Order[] = [
+      {
+        _id: "order-stale-prep",
+        customer_name: "Yesterday Chef",
+        phone: "9777777777",
+        address: "Hostel 7, Rm 701",
+        restaurant_id: "rest-1",
+        restaurant_name: "Campus Grill",
+        restaurant_email: "grill@campus.edu",
+        status: "Preparing",
+        payment_method: "online",
+        payment_status: "paid",
+        items: [{ id: "i-10", name: "Pasta", price: 150, quantity: 1 }],
+        total: 150,
+        created_at: new Date(Date.now() - 25 * 60 * 60 * 1000).toISOString(), // 25 hours ago
+      },
+      {
+        _id: "order-fresh-prep",
+        customer_name: "Today Chef",
+        phone: "9888888888",
+        address: "Hostel 8, Rm 801",
+        restaurant_id: "rest-1",
+        restaurant_name: "Campus Grill",
+        restaurant_email: "grill@campus.edu",
+        status: "Preparing",
+        payment_method: "online",
+        payment_status: "paid",
+        items: [{ id: "i-11", name: "Pasta Fresh", price: 150, quantity: 1 }],
+        total: 150,
+        created_at: new Date(Date.now() - 5 * 60 * 1000).toISOString(), // 5 mins ago
+      },
+    ];
+
+    render(
+      <KitchenDisplayBoard orders={staleOrders} onUpdateStatus={handleUpdate} />
+    );
+
+    // Stale order should NOT be in the active In Kitchen column
+    expect(screen.queryByText("Yesterday Chef")).not.toBeInTheDocument();
+    // Fresh order MUST be in the active In Kitchen column
+    expect(screen.getByText("Today Chef")).toBeInTheDocument();
+  });
 });

@@ -14,6 +14,12 @@ import { OrderPrepTimer } from "./OrderPrepTimer";
 import { PaymentStatusBadge } from "@/components/common";
 import { shortId } from "@/lib/formatters";
 import { isOnlinePayment, formatPaymentMethod } from "@/lib/paymentLabels";
+import {
+  isNewOrder,
+  isCookingOrder,
+  isReadyOrder,
+  isOrderStale,
+} from "@/lib/orderDomain";
 import type { Order } from "@/types";
 
 export type MobileKdsTab = "new" | "cooking" | "ready" | "all";
@@ -30,11 +36,15 @@ export function KitchenDisplayBoard({
   onUpdateStatus,
   activeMobileTab = "all",
 }: KitchenDisplayBoardProps) {
-  const pendingOrders = orders.filter((o) => o.status === "Pending");
-  const inKitchenOrders = orders.filter(
-    (o) => o.status === "Accepted" || o.status === "Preparing"
+  const pendingOrders = orders.filter(
+    (o) => isNewOrder(o.status) && !isOrderStale(o.created_at)
   );
-  const readyOrders = orders.filter((o) => o.status === "Ready for Pickup");
+  const inKitchenOrders = orders.filter(
+    (o) => isCookingOrder(o.status) && !isOrderStale(o.created_at)
+  );
+  const readyOrders = orders.filter(
+    (o) => isReadyOrder(o.status) && !isOrderStale(o.created_at)
+  );
 
   // Determine visibility of columns on mobile (< md) based on activeMobileTab
   const showPendingOnMobile =

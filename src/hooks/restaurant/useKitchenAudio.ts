@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
+import { isNewOrder, isOrderStale } from "@/lib/orderDomain";
 import type { Order } from "@/types";
 
 export function playKitchenChime() {
@@ -58,7 +59,9 @@ export function useKitchenAudio(orders: Order[]) {
     }
   });
 
-  const pendingCount = orders.filter((o) => o.status === "Pending").length;
+  const pendingCount = orders.filter(
+    (o) => isNewOrder(o.status) && !isOrderStale(o.created_at)
+  ).length;
   const lastPendingCountRef = useRef(pendingCount);
 
   const toggleSound = useCallback(() => {

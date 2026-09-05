@@ -22,7 +22,7 @@ const mockRestaurantOrder: Order = {
   payment_status: "pending",
   items: [{ id: "m-1", name: "Veg Thali", price: 150, quantity: 1 }],
   total: 150,
-  created_at: "2026-08-20T11:00:00Z",
+  created_at: new Date().toISOString(),
 };
 
 describe("Restaurant Owner User Journey", () => {

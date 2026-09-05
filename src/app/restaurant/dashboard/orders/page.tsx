@@ -11,6 +11,12 @@ import { RestaurantOrderFilterBar } from "@/components/restaurant/RestaurantOrde
 import { RestaurantOrderTableView } from "@/components/restaurant/RestaurantOrderTableView";
 import { RestaurantOrderCardList } from "@/components/restaurant/RestaurantOrderCardList";
 import { KitchenDisplayBoard, MobileKdsTab } from "@/components/restaurant/KitchenDisplayBoard";
+import {
+  isNewOrder,
+  isCookingOrder,
+  isReadyOrder,
+  isOrderStale,
+} from "@/lib/orderDomain";
 
 type ViewMode = "kds" | "cards" | "table";
 
@@ -50,22 +56,24 @@ export default function OrdersPage() {
     useKitchenAudio(orders);
 
   const cookingCount = orders.filter(
-    (o) => o.status === "Accepted" || o.status === "Preparing"
+    (o) => isCookingOrder(o.status) && !isOrderStale(o.created_at)
   ).length;
   const readyCount = orders.filter(
-    (o) => o.status === "Ready for Pickup"
+    (o) => isReadyOrder(o.status) && !isOrderStale(o.created_at)
   ).length;
 
   // For non-KDS views on mobile, filter by mobileTab when not "all"
   const displayedOrders =
     mobileTab === "new"
-      ? orders.filter((o) => o.status === "Pending")
+      ? orders.filter((o) => isNewOrder(o.status) && !isOrderStale(o.created_at))
       : mobileTab === "cooking"
       ? orders.filter(
-          (o) => o.status === "Accepted" || o.status === "Preparing"
+          (o) => isCookingOrder(o.status) && !isOrderStale(o.created_at)
         )
       : mobileTab === "ready"
-      ? orders.filter((o) => o.status === "Ready for Pickup")
+      ? orders.filter(
+          (o) => isReadyOrder(o.status) && !isOrderStale(o.created_at)
+        )
       : orders;
 
   return (

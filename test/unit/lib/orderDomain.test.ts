@@ -5,6 +5,12 @@ import {
   TERMINAL_ORDER_STATUSES,
   RESTAURANT_PICKUP_STATUSES,
   ACTIVE_ORDER_STATUSES,
+  normalizeOrderStatus,
+  isNewOrder,
+  isCookingOrder,
+  isReadyOrder,
+  isCompletedOrInactiveOrder,
+  isOrderStale,
   isActiveStatus,
   isActiveOrderStatus,
   isTerminalStatus,
@@ -21,6 +27,67 @@ describe("orderDomain utilities", () => {
     expect(TERMINAL_ORDER_STATUSES).toEqual(["Delivered", "Cancelled", "Rejected"]);
     expect(RESTAURANT_PICKUP_STATUSES).toEqual(["Accepted", "Preparing", "Ready for Pickup"]);
     expect(ACTIVE_ORDER_STATUSES.length).toBe(7);
+  });
+
+  describe("normalizeOrderStatus & status buckets", () => {
+    it("normalizes order status strings", () => {
+      expect(normalizeOrderStatus("  Pending  ")).toBe("pending");
+      expect(normalizeOrderStatus("READY_FOR_PICKUP")).toBe("ready_for_pickup");
+      expect(normalizeOrderStatus(null)).toBe("");
+      expect(normalizeOrderStatus(undefined)).toBe("");
+    });
+
+    it("evaluates isNewOrder strictly for pending", () => {
+      expect(isNewOrder("Pending")).toBe(true);
+      expect(isNewOrder("pending")).toBe(true);
+      expect(isNewOrder("Accepted")).toBe(false);
+      expect(isNewOrder("Delivered")).toBe(false);
+      expect(isNewOrder(null)).toBe(false);
+    });
+
+    it("evaluates isCookingOrder for cooking and preparing variations", () => {
+      expect(isCookingOrder("Accepted")).toBe(true);
+      expect(isCookingOrder("preparing")).toBe(true);
+      expect(isCookingOrder("Cooking")).toBe(true);
+      expect(isCookingOrder("in_prep")).toBe(true);
+      expect(isCookingOrder("in prep")).toBe(true);
+      expect(isCookingOrder("Pending")).toBe(false);
+      expect(isCookingOrder("Ready")).toBe(false);
+      expect(isCookingOrder("Delivered")).toBe(false);
+      expect(isCookingOrder("out_for_delivery")).toBe(false);
+    });
+
+    it("evaluates isReadyOrder for ready variations", () => {
+      expect(isReadyOrder("Ready for Pickup")).toBe(true);
+      expect(isReadyOrder("ready_for_pickup")).toBe(true);
+      expect(isReadyOrder("Ready")).toBe(true);
+      expect(isReadyOrder("ready")).toBe(true);
+      expect(isReadyOrder("Cooking")).toBe(false);
+      expect(isReadyOrder("Delivered")).toBe(false);
+      expect(isReadyOrder(null)).toBe(false);
+    });
+
+    it("evaluates isCompletedOrInactiveOrder strictly", () => {
+      expect(isCompletedOrInactiveOrder("Delivered")).toBe(true);
+      expect(isCompletedOrInactiveOrder("delivered")).toBe(true);
+      expect(isCompletedOrInactiveOrder("Cancelled")).toBe(true);
+      expect(isCompletedOrInactiveOrder("Picked Up")).toBe(true);
+      expect(isCompletedOrInactiveOrder("picked_up")).toBe(true);
+      expect(isCompletedOrInactiveOrder("Out for Delivery")).toBe(true);
+      expect(isCompletedOrInactiveOrder("out_for_delivery")).toBe(true);
+      expect(isCompletedOrInactiveOrder("Rejected")).toBe(true);
+      expect(isCompletedOrInactiveOrder("Preparing")).toBe(false);
+      expect(isCompletedOrInactiveOrder("Pending")).toBe(false);
+    });
+
+    it("evaluates isOrderStale based on timestamp", () => {
+      const freshDate = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(); // 2 hours ago
+      const staleDate = new Date(Date.now() - 26 * 60 * 60 * 1000).toISOString(); // 26 hours ago
+      expect(isOrderStale(freshDate)).toBe(false);
+      expect(isOrderStale(staleDate)).toBe(true);
+      expect(isOrderStale(null)).toBe(false);
+      expect(isOrderStale("invalid-date")).toBe(false);
+    });
   });
 
   describe("isActiveStatus & isActiveOrderStatus", () => {
