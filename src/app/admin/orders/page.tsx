@@ -1,16 +1,21 @@
 "use client";
 
+import { useState } from "react";
+import { toast } from "sonner";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminTableSkeleton from "@/components/admin/AdminTableSkeleton";
+import DeleteOrderModal from "@/components/admin/DeleteOrderModal";
 import PaginationControls from "@/components/ui/PaginationControls";
 import { useAdminOrders } from "@/hooks/admin/useAdminOrders";
 import { AdminOrdersFilterBar } from "@/components/admin/AdminOrdersFilterBar";
 import { AdminOrdersTable } from "@/components/admin/AdminOrdersTable";
+import { deleteAdminOrder, type AdminOrder } from "@/services/adminService";
 
 export default function AdminOrdersPage() {
   const {
     orders,
+    setOrders,
     loading,
     error,
     page,
@@ -30,11 +35,32 @@ export default function AdminOrdersPage() {
     handleSearchSubmit,
   } = useAdminOrders();
 
+  const [orderToDelete, setOrderToDelete] = useState<AdminOrder | null>(null);
+  const [deleteLoading, setDeleteLoading] = useState(false);
+
+  async function handleConfirmDelete() {
+    if (!orderToDelete) return;
+
+    setDeleteLoading(true);
+    try {
+      await deleteAdminOrder(orderToDelete._id);
+      toast.success("Order deleted successfully");
+      setOrders((prev) => prev.filter((o) => o._id !== orderToDelete._id));
+      setOrderToDelete(null);
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to delete order"
+      );
+    } finally {
+      setDeleteLoading(false);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-7xl space-y-6 sm:space-y-8">
       <AdminPageHeader
         title="Orders"
-        description="Read-only view of platform orders"
+        description="Global platform orders dispatch & administration"
       />
 
       <AdminOrdersFilterBar
@@ -66,14 +92,17 @@ export default function AdminOrdersPage() {
       )}
 
       {loading ? (
-        <AdminTableSkeleton rows={6} columns={8} />
+        <AdminTableSkeleton rows={6} columns={9} />
       ) : orders.length === 0 ? (
         <AdminEmptyState
           title="No orders found"
           description="Try clearing filters or searching with a different term."
         />
       ) : (
-        <AdminOrdersTable orders={orders} />
+        <AdminOrdersTable
+          orders={orders}
+          onDeleteOrder={(order) => setOrderToDelete(order)}
+        />
       )}
 
       <PaginationControls
@@ -85,6 +114,14 @@ export default function AdminOrdersPage() {
           setPage(next);
           void fetchOrders(currentFilters({ page: next }));
         }}
+      />
+
+      <DeleteOrderModal
+        isOpen={Boolean(orderToDelete)}
+        order={orderToDelete}
+        loading={deleteLoading}
+        onConfirm={() => void handleConfirmDelete()}
+        onCancel={() => setOrderToDelete(null)}
       />
     </div>
   );

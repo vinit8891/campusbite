@@ -128,6 +128,7 @@ export function useAdminSubscriptions() {
 
   return {
     items,
+    setItems,
     loading,
     error,
     generationStatus,
@@ -150,3 +151,4 @@ export function useAdminSubscriptions() {
     handleReset,
   };
 }
+

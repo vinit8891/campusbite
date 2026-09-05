@@ -418,3 +418,87 @@ async def delete_user(
     )
 
     return {"success": True, "message": "User deleted successfully"}
+
+
+@router.delete("/orders/{order_id}")
+async def delete_order(
+    order_id: str,
+    current_user: Annotated[dict, Depends(require_roles(ADMIN))],
+):
+    """
+    Deletes an order record by ID.
+    Guarded with admin authorization and logs audit action.
+    """
+    admin_email = (
+        current_user.get("email") or current_user.get("sub") or ""
+    ).strip().lower()
+
+    query = _id_filter(order_id)
+    order_doc = await database["orders"].find_one(query)
+    if not order_doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Order not found",
+        )
+
+    await database["orders"].delete_one({"_id": order_doc["_id"]})
+
+    await log_admin_action(
+        admin_email=admin_email,
+        action="delete_order",
+        resource="orders",
+        resource_id=order_id,
+        metadata={
+            "customer_name": order_doc.get("customer_name") or "",
+            "customer_email": order_doc.get("customer_email") or "",
+            "restaurant_email": order_doc.get("restaurant_email") or "",
+            "total": order_doc.get("total") or 0,
+        },
+    )
+
+    return {"success": True, "message": "Order deleted successfully"}
+
+
+@router.delete("/subscriptions/{subscription_id}")
+async def delete_subscription(
+    subscription_id: str,
+    current_user: Annotated[dict, Depends(require_roles(ADMIN))],
+):
+    """
+    Deletes a mess meal subscription record by ID and cleans up pending payments.
+    Guarded with admin authorization and logs audit action.
+    """
+    admin_email = (
+        current_user.get("email") or current_user.get("sub") or ""
+    ).strip().lower()
+
+    query = _id_filter(subscription_id)
+    sub_doc = await database["subscriptions"].find_one(query)
+    if not sub_doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Subscription not found",
+        )
+
+    await database["subscriptions"].delete_one({"_id": sub_doc["_id"]})
+
+    # Clean up associated subscription payments
+    sub_id_str = str(sub_doc["_id"])
+    await database["subscription_payments"].delete_many(
+        {"subscription_id": {"$in": [sub_id_str, subscription_id]}}
+    )
+
+    await log_admin_action(
+        admin_email=admin_email,
+        action="delete_subscription",
+        resource="subscriptions",
+        resource_id=subscription_id,
+        metadata={
+            "customer_email": sub_doc.get("customer_email") or "",
+            "restaurant_email": sub_doc.get("restaurant_email") or "",
+            "plan_type": f"{sub_doc.get('meal_type')} · {sub_doc.get('subscription_type')}",
+        },
+    )
+
+    return {"success": True, "message": "Subscription deleted successfully"}
+

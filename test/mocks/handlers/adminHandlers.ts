@@ -43,4 +43,17 @@ export const adminHandlers = [
       message: "User deleted successfully",
     });
   }),
+  http.delete(url("/admin/orders/:order_id"), () => {
+    return HttpResponse.json({
+      success: true,
+      message: "Order deleted successfully",
+    });
+  }),
+  http.delete(url("/admin/subscriptions/:subscription_id"), () => {
+    return HttpResponse.json({
+      success: true,
+      message: "Subscription deleted successfully",
+    });
+  }),
 ];
+

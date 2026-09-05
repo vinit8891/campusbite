@@ -130,6 +130,7 @@ export function useAdminOrders() {
 
   return {
     orders,
+    setOrders,
     loading,
     error,
     page,
@@ -149,3 +150,4 @@ export function useAdminOrders() {
     handleSearchSubmit,
   };
 }
+

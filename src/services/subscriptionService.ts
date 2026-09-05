@@ -346,3 +346,16 @@ export async function getRestaurantSubscriptionRevenueSummary(
     }
   );
 }
+
+export async function deleteAdminSubscription(
+  subscriptionId: string
+): Promise<{ success: boolean; message: string }> {
+  return authJson<{ success: boolean; message: string }>(
+    `/admin/subscriptions/${encodeURIComponent(subscriptionId)}`,
+    {
+      role: "admin",
+      method: "DELETE",
+    }
+  );
+}
+

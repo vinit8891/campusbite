@@ -153,3 +153,28 @@ export async function deleteUser(
     method: "DELETE",
   });
 }
+
+export async function deleteAdminOrder(
+  orderId: string
+): Promise<{ success: boolean; message: string }> {
+  return authJson<{ success: boolean; message: string }>(
+    `/admin/orders/${encodeURIComponent(orderId)}`,
+    {
+      ...ADMIN_JSON,
+      method: "DELETE",
+    }
+  );
+}
+
+export async function deleteAdminSubscription(
+  subscriptionId: string
+): Promise<{ success: boolean; message: string }> {
+  return authJson<{ success: boolean; message: string }>(
+    `/admin/subscriptions/${encodeURIComponent(subscriptionId)}`,
+    {
+      ...ADMIN_JSON,
+      method: "DELETE",
+    }
+  );
+}
+
