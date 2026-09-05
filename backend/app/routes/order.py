@@ -30,6 +30,7 @@ from app.models.order import (
     get_order_otp,
     verify_delivery_otp,
     canonicalize_status,
+    can_transition_to,
     DISPLAY_STATUS_MAP,
     STATUS_NORMALIZATION_MAP,
 )

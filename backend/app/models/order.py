@@ -568,30 +568,57 @@ async def assign_delivery_partner(
 
 
 def canonicalize_status(status: str | None) -> str:
-    s = (status or "").lower().replace("-", "_").strip()
+    if not status:
+        return ""
+    s = str(status).lower().strip().replace("-", "_").replace("%20", " ")
+    if s in ["pending"]:
+        return "pending"
     if s in ["accepted", "preparing", "cooking", "in_prep", "in prep"]:
         return "preparing"
     if s in ["ready", "ready_for_pickup", "ready for pickup"]:
         return "ready"
-    if s in ["out_for_delivery", "out for delivery", "picked_up", "picked up"]:
+    if s in [
+        "assigned",
+        "picked_up",
+        "picked up",
+        "out_for_delivery",
+        "out for delivery",
+    ]:
         return "out_for_delivery"
-    if s in ["completed", "delivered"]:
+    if s in ["delivered", "completed"]:
         return "delivered"
     if s in ["cancelled", "rejected"]:
         return "cancelled"
     return s
 
 
-TRANSITIONS: dict[str, set[str]] = {
-    "pending": {"preparing", "ready", "cancelled", "rejected"},
-    "preparing": {"ready", "cancelled"},
-    "ready": {"assigned", "out_for_delivery", "delivered", "cancelled"},
-    "assigned": {"out_for_delivery", "delivered", "cancelled"},
-    "out_for_delivery": {"delivered", "cancelled"},
-    "delivered": set(),
-    "cancelled": set(),
-    "rejected": set(),
-}
+def can_transition_to(
+    current_status: str | None, new_status: str | None
+) -> bool:
+    curr = canonicalize_status(current_status)
+    target = canonicalize_status(new_status)
+
+    # 1. Idempotent check: If already in this logical state, permit it!
+    if curr == target:
+        return True
+
+    # 2. Flexible transition matrix
+    ALLOWED_TRANSITIONS = {
+        "pending": {"preparing", "ready", "cancelled"},
+        "preparing": {"ready", "preparing", "cancelled"},  # Allow re-cooking
+        "ready": {
+            "preparing",
+            "out_for_delivery",
+            "delivered",
+            "cancelled",
+        },  # Allow reverting if marked ready by accident
+        "out_for_delivery": {"delivered", "cancelled"},
+        "delivered": set(),
+        "cancelled": set(),
+    }
+
+    return target in ALLOWED_TRANSITIONS.get(curr, set())
+
 
 DISPLAY_STATUS_MAP: dict[str, str] = {
     "pending": "Pending",
@@ -656,8 +683,7 @@ async def update_order_status(
     if canonical_current == canonical_target:
         return True
 
-    allowed_for_current = TRANSITIONS.get(canonical_current, set())
-    if canonical_target not in allowed_for_current:
+    if not can_transition_to(current_status, status):
         return False
 
     update_data = {"status": target_display}
