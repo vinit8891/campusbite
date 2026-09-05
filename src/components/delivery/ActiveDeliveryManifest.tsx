@@ -76,9 +76,14 @@ export function ActiveDeliveryManifest({
             <span className="truncate">{canteenName}</span>
           </h2>
 
-          <p className="flex items-center gap-1.5 text-xs text-stone-500 pt-0.5">
+          <p
+            suppressHydrationWarning
+            className="flex items-center gap-1.5 text-xs text-stone-500 pt-0.5"
+          >
             <Clock3 size={13} className="text-stone-400 shrink-0" />
-            <span>Assigned at {formatDateTime(order.created_at)}</span>
+            <span suppressHydrationWarning>
+              Assigned at {formatDateTime(order.created_at)}
+            </span>
           </p>
         </div>
 

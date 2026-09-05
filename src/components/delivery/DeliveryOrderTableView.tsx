@@ -69,7 +69,7 @@ export function DeliveryOrderTableView({
               <td className="px-4 py-4 font-semibold text-orange-600">
                 ₹{order.total ?? 0}
               </td>
-              <td className="px-4 py-4 text-gray-600">
+              <td suppressHydrationWarning className="px-4 py-4 text-gray-600">
                 {formatAssignedTime(order)}
               </td>
               <td className="px-4 py-4">

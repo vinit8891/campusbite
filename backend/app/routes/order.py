@@ -886,9 +886,10 @@ async def change_status(
         status = normalized_status
 
     canonical_target = canonicalize_status(status)
-    target_display = STATUS_NORMALIZATION_MAP.get(
-        canonical_target,
-        DISPLAY_STATUS_MAP.get(canonical_target, status.strip().title()),
+    target_display = (
+        normalized_status
+        or STATUS_NORMALIZATION_MAP.get(canonical_target)
+        or DISPLAY_STATUS_MAP.get(canonical_target, status.strip().title())
     )
 
     order = await get_order_by_id(order_id)

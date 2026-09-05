@@ -54,7 +54,7 @@ export function DeliveryHistoryTableView({
                 <td className="max-w-[14rem] px-4 py-4 text-gray-600">
                   {order.address || "—"}
                 </td>
-                <td className="px-4 py-4 text-gray-600">
+                <td suppressHydrationWarning className="px-4 py-4 text-gray-600">
                   {formatDeliveredTime(order)}
                 </td>
                 <td className="px-4 py-4">

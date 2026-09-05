@@ -43,7 +43,7 @@ export function DeliveryHistoryCardList({
             </div>
 
             <div className="mt-4 grid gap-2 text-sm text-gray-600">
-              <p>
+              <p suppressHydrationWarning>
                 <span className="font-medium text-gray-800">
                   Delivered:
                 </span>{" "}

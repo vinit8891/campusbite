@@ -97,7 +97,7 @@ export function AvailableOrderCard({
         ) : null}
 
         <div className="flex flex-wrap items-center gap-3 pt-1 text-xs text-stone-500">
-          <span className="flex items-center gap-1">
+          <span suppressHydrationWarning className="flex items-center gap-1">
             <Clock3 size={13} className="text-stone-400" />
             {formatDateTime(order.created_at)}
           </span>

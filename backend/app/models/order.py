@@ -674,9 +674,15 @@ async def update_order_status(
     canonical_current = canonicalize_status(current_status)
     canonical_target = canonicalize_status(status)
 
-    target_display = STATUS_NORMALIZATION_MAP.get(
-        canonical_target,
-        DISPLAY_STATUS_MAP.get(canonical_target, status.strip().title()),
+    raw_key = str(status).lower().strip().replace("-", "_")
+    normalized_target = (
+        STATUS_NORMALIZATION_MAP.get(raw_key)
+        or STATUS_NORMALIZATION_MAP.get(raw_key.replace("_", " "))
+    )
+    target_display = (
+        normalized_target
+        or STATUS_NORMALIZATION_MAP.get(canonical_target)
+        or DISPLAY_STATUS_MAP.get(canonical_target, status.strip().title())
     )
 
     # Idempotent status update: if already in target canonical state, succeed immediately

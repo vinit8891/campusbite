@@ -204,17 +204,37 @@ async def test_change_status_endpoint_simulation():
         assert res["success"] is True
         assert res["status"] == "Ready for Pickup"
 
-    # 3. Simulate order currently "in_prep" updated to "Preparing" (idempotent)
-    mock_order_3 = {
+    # 4. Simulate courier partner transitioning Assigned -> Picked Up
+    courier_user = {
+        "sub": "courier_1",
+        "phone": "9876543210",
+        "role": "DELIVERY_PARTNER",
+    }
+    mock_order_assigned = {
         "_id": test_id,
-        "restaurant_email": "owner@restaurant.com",
-        "status": "in_prep",
+        "status": "Assigned",
+        "delivery_partner": {"phone": "9876543210"},
         "payment_method": "cod",
         "payment_status": "pending",
     }
-    with patch("app.routes.order.get_order_by_id", AsyncMock(return_value=mock_order_3)), \
+    with patch("app.routes.order.get_order_by_id", AsyncMock(return_value=mock_order_assigned)), \
          patch("app.routes.order.update_order_status", AsyncMock(return_value=True)):
-        res = await change_status(test_id, "Preparing", bg, owner_user)
+        res = await change_status(test_id, "Picked Up", bg, courier_user)
         assert res["success"] is True
-        assert res["status"] == "Preparing"
+        assert res["status"] == "Picked Up"
+
+    # 5. Simulate courier partner transitioning Picked Up -> Out for Delivery
+    mock_order_picked_up = {
+        "_id": test_id,
+        "status": "Picked Up",
+        "delivery_partner": {"phone": "9876543210"},
+        "payment_method": "cod",
+        "payment_status": "pending",
+    }
+    with patch("app.routes.order.get_order_by_id", AsyncMock(return_value=mock_order_picked_up)), \
+         patch("app.routes.order.update_order_status", AsyncMock(return_value=True)):
+        res = await change_status(test_id, "Out for Delivery", bg, courier_user)
+        assert res["success"] is True
+        assert res["status"] == "Out for Delivery"
+
 

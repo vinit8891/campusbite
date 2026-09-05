@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { usePolling } from "@/hooks/usePolling";
 import { getDeliveryPartnerSession } from "@/lib/authTokens";
 import { AuthHttpError } from "@/services/authFetch";
+import { getCoordsSafe } from "@/lib/geolocation";
 import {
   getMyDeliveries,
   updateDeliveryOrderStatus,
@@ -159,6 +160,19 @@ export function useDeliveryOrders() {
 
   async function updateStatus(id: string, nextStatus: string) {
     try {
+      if (nextStatus === "Picked Up" || nextStatus === "Out for Delivery") {
+        const coords = await getCoordsSafe(2500);
+        if (coords.lat != null && coords.lng != null) {
+          try {
+            await updateLiveLocation(id, coords.lat, coords.lng);
+          } catch (locErr) {
+            console.warn("Could not push initial pickup location:", locErr);
+          }
+        } else {
+          toast.info("Picked up (GPS offline)");
+        }
+      }
+
       await updateDeliveryOrderStatus(id, nextStatus);
       await loadOrders(currentFilters());
     } catch (err) {
