@@ -3,7 +3,7 @@
 import { useState, useMemo } from "react";
 import { Bike, Layers, ListFilter } from "lucide-react";
 import { toast } from "sonner";
-import PaginationControls from "@/components/ui/PaginationControls";
+import { DeliveryPagination } from "@/components/delivery/DeliveryPagination";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/common";
 import { useAvailableOrders } from "@/hooks/delivery/useAvailableOrders";
@@ -279,10 +279,12 @@ export default function AvailableOrdersPage() {
         </div>
       )}
 
-      <PaginationControls
+      <DeliveryPagination
         page={page}
         pages={pages}
         total={total}
+        pageSize={20}
+        itemName="runs"
         disabled={loading}
         onPageChange={(next) => {
           setPage(next);

@@ -2,7 +2,7 @@
 
 import { Package } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
-import PaginationControls from "@/components/ui/PaginationControls";
+import { DeliveryPagination } from "@/components/delivery/DeliveryPagination";
 import { EmptyState } from "@/components/common";
 import { useDeliveryHistory } from "@/hooks/delivery/useDeliveryHistory";
 import { DeliveryHistoryStatCards } from "@/components/delivery/DeliveryHistoryStatCards";
@@ -105,10 +105,12 @@ export default function DeliveryHistoryPage() {
             </>
           )}
 
-          <PaginationControls
+          <DeliveryPagination
             page={page}
             pages={pages}
             total={total}
+            pageSize={20}
+            itemName="deliveries"
             disabled={loading}
             onPageChange={(next) => {
               setPage(next);

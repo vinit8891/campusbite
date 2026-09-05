@@ -8,6 +8,7 @@ import { AvailableOrdersFilterBar } from "@/components/delivery/AvailableOrdersF
 import { DeliveryOrdersFilterBar } from "@/components/delivery/DeliveryOrdersFilterBar";
 import { DeliveryHistoryFilterBar } from "@/components/delivery/DeliveryHistoryFilterBar";
 import { DeliveryHistoryStatCards } from "@/components/delivery/DeliveryHistoryStatCards";
+import { DeliveryPagination } from "@/components/delivery/DeliveryPagination";
 import { ActiveDeliveryManifest } from "@/components/delivery/ActiveDeliveryManifest";
 import { DeliveryOtpModal } from "@/components/delivery/DeliveryOtpModal";
 import type { DeliveryOrder } from "@/types";
@@ -514,6 +515,95 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
 
       expect(screen.getByText("This Month")).toBeInTheDocument();
       expect(screen.getByText("32")).toBeInTheDocument();
+    });
+  });
+
+  describe("DeliveryPagination", () => {
+    it("auto-hides when only a single page of results exists (pages <= 1)", () => {
+      const { container } = render(
+        <DeliveryPagination
+          page={1}
+          pages={1}
+          total={8}
+          pageSize={20}
+          onPageChange={vi.fn()}
+        />
+      );
+
+      expect(container.firstChild).toBeNull();
+      expect(screen.queryByRole("navigation")).not.toBeInTheDocument();
+    });
+
+    it("auto-hides when total count is less than or equal to page size", () => {
+      const { container } = render(
+        <DeliveryPagination
+          page={1}
+          pages={1}
+          total={15}
+          pageSize={20}
+          onPageChange={vi.fn()}
+        />
+      );
+
+      expect(container.firstChild).toBeNull();
+    });
+
+    it("renders streamlined mobile pagination with lightweight arrows when multiple pages exist", async () => {
+      const user = userEvent.setup();
+      const onPageChange = vi.fn();
+
+      render(
+        <DeliveryPagination
+          page={2}
+          pages={5}
+          total={95}
+          pageSize={20}
+          itemName="runs"
+          onPageChange={onPageChange}
+        />
+      );
+
+      expect(screen.getByRole("navigation", { name: /delivery pagination/i })).toBeInTheDocument();
+      expect(screen.getByText(/showing page/i)).toBeInTheDocument();
+      expect(screen.getByText(/95 runs/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/current page, page 2/i)).toBeInTheDocument();
+
+      // Click previous page arrow
+      const prevBtn = screen.getByRole("button", { name: /previous page/i });
+      await user.click(prevBtn);
+      expect(onPageChange).toHaveBeenCalledWith(1);
+
+      // Click next page arrow
+      const nextBtn = screen.getByRole("button", { name: /next page/i });
+      await user.click(nextBtn);
+      expect(onPageChange).toHaveBeenCalledWith(3);
+    });
+
+    it("disables previous button on first page and next button on last page", () => {
+      const { rerender } = render(
+        <DeliveryPagination
+          page={1}
+          pages={3}
+          total={60}
+          onPageChange={vi.fn()}
+        />
+      );
+
+      expect(screen.getByRole("button", { name: /previous page/i })).toBeDisabled();
+      expect(screen.getByRole("button", { name: /next page/i })).not.toBeDisabled();
+
+      // Rerender on last page
+      rerender(
+        <DeliveryPagination
+          page={3}
+          pages={3}
+          total={60}
+          onPageChange={vi.fn()}
+        />
+      );
+
+      expect(screen.getByRole("button", { name: /previous page/i })).not.toBeDisabled();
+      expect(screen.getByRole("button", { name: /next page/i })).toBeDisabled();
     });
   });
 });
