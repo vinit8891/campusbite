@@ -24,14 +24,28 @@ export function OrderPrepTimer({
   status,
   className = "",
 }: OrderPrepTimerProps) {
+  const [isMounted, setIsMounted] = useState(false);
   const [now, setNow] = useState<number>(() => Date.now());
 
   useEffect(() => {
+    setIsMounted(true);
     const timer = setInterval(() => {
       setNow(Date.now());
     }, 1000);
     return () => clearInterval(timer);
   }, []);
+
+  if (!isMounted) {
+    return (
+      <span
+        suppressHydrationWarning
+        className={`inline-flex items-center gap-1 text-xs text-stone-400 font-mono ${className}`}
+      >
+        <Clock className="h-3 w-3 text-stone-300" />
+        <span>Loading timer...</span>
+      </span>
+    );
+  }
 
   const createdTime = createdAt ? parseDateSafe(createdAt).getTime() : now;
   const elapsedSec = Math.max(0, Math.floor((now - createdTime) / 1000));
@@ -43,6 +57,7 @@ export function OrderPrepTimer({
     if (elapsedMin < 10) {
       return (
         <span
+          suppressHydrationWarning
           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 ${className}`}
         >
           <Clock className="h-3.5 w-3.5 text-amber-600 animate-spin-slow" />
@@ -52,6 +67,7 @@ export function OrderPrepTimer({
     } else {
       return (
         <span
+          suppressHydrationWarning
           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse ${className}`}
         >
           <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
@@ -85,6 +101,7 @@ export function OrderPrepTimer({
       const formatted = `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
       return (
         <span
+          suppressHydrationWarning
           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-emerald-50 text-emerald-700 border border-emerald-200 ${className}`}
         >
           <Clock className="h-3.5 w-3.5 text-emerald-600" />
@@ -98,6 +115,7 @@ export function OrderPrepTimer({
       const formatted = `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
       return (
         <span
+          suppressHydrationWarning
           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-700 border border-amber-300 shadow-2xs ${className}`}
         >
           <Clock className="h-3.5 w-3.5 text-amber-600" />
@@ -114,6 +132,7 @@ export function OrderPrepTimer({
 
       return (
         <span
+          suppressHydrationWarning
           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-extrabold bg-rose-50 text-rose-700 border border-rose-300 animate-pulse shadow-sm ${className}`}
         >
           <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
@@ -129,6 +148,7 @@ export function OrderPrepTimer({
       elapsedMin > 60 ? "Ready (>60m ago)" : `Ready (${elapsedMin}m ago)`;
     return (
       <span
+        suppressHydrationWarning
         className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-200 ${className}`}
       >
         <CheckCircle2 className="h-3.5 w-3.5 text-indigo-600" />
@@ -140,6 +160,7 @@ export function OrderPrepTimer({
   // 4. Default / Delivered / Cancelled
   return (
     <span
+      suppressHydrationWarning
       className={`inline-flex items-center gap-1 text-xs text-stone-500 ${className}`}
     >
       <Clock className="h-3 w-3 text-stone-400" />

@@ -93,7 +93,10 @@ export function RestaurantOrderTableView({
               <td className="px-4 py-3 font-bold text-orange-600">
                 ₹{Number(order.total ?? 0).toFixed(2)}
               </td>
-              <td className="px-4 py-3 whitespace-nowrap text-xs text-gray-500">
+              <td
+                suppressHydrationWarning
+                className="px-4 py-3 whitespace-nowrap text-xs text-gray-500"
+              >
                 {formatDateTime(order.created_at)}
               </td>
               <td className="min-w-[220px] px-4 py-3">

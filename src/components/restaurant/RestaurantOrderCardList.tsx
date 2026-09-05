@@ -87,7 +87,10 @@ export function RestaurantOrderCardList({
                   >
                     #{shortId(order._id)}
                   </span>
-                  <span className="text-[11px] font-medium text-stone-400 truncate">
+                  <span
+                    suppressHydrationWarning
+                    className="text-[11px] font-medium text-stone-400 truncate"
+                  >
                     {formatDateTime(order.created_at)}
                   </span>
                 </div>
@@ -224,7 +227,10 @@ export function RestaurantOrderCardList({
                     {order.customer_email}
                   </p>
                 )}
-                <p className="mt-1 text-[11px] text-stone-400">
+                <p
+                  suppressHydrationWarning
+                  className="mt-1 text-[11px] text-stone-400"
+                >
                   {formatDateTime(order.created_at)}
                 </p>
               </div>
