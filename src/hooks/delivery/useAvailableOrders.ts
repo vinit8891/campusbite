@@ -116,7 +116,7 @@ export function useAvailableOrders() {
       const partner = getDeliveryPartnerSession();
 
       if (!partner) {
-        alert("Please log in as a delivery partner.");
+        toast.error("Please log in as a delivery partner.");
         window.location.assign(ROUTES.DELIVERY_LOGIN);
         return;
       }
@@ -137,7 +137,7 @@ export function useAvailableOrders() {
     } catch (err) {
       console.error(err);
       if (err instanceof AuthHttpError && err.status === 401) return;
-      alert(
+      toast.error(
         err instanceof Error ? err.message : "Failed to accept order"
       );
     } finally {
@@ -147,7 +147,7 @@ export function useAvailableOrders() {
 
   function openNavigation(order: AvailableOrder) {
     if (order.latitude == null || order.longitude == null) {
-      alert("Customer location not available.");
+      toast.error("Customer location not available.");
       return;
     }
 

@@ -243,14 +243,14 @@ export function KitchenDisplayBoard({
                     <button
                       type="button"
                       disabled={isUnpaidOnline}
-                      onClick={() => onUpdateStatus(order._id, "Preparing")}
+                      onClick={() => onUpdateStatus(order._id, "preparing")}
                       className="h-12 flex-1 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-sm shadow-sm active:scale-98 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <span>🍳 Accept &amp; Start Cooking</span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => onUpdateStatus(order._id, "Cancelled")}
+                      onClick={() => onUpdateStatus(order._id, "cancelled")}
                       className="h-12 px-4 rounded-xl bg-stone-100 hover:bg-rose-50 hover:text-rose-700 text-stone-600 font-bold text-xs border border-stone-200 transition-colors cursor-pointer active:scale-98"
                     >
                       Reject
@@ -370,7 +370,7 @@ export function KitchenDisplayBoard({
                   <button
                     type="button"
                     onClick={() =>
-                      onUpdateStatus(order._id, "Ready for Pickup")
+                      onUpdateStatus(order._id, "ready")
                     }
                     className="h-12 w-full mt-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-sm active:scale-98 flex items-center justify-center gap-2 transition-all cursor-pointer"
                   >

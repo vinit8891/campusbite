@@ -29,6 +29,8 @@ from app.models.order import (
     get_delivery_location,
     get_order_otp,
     verify_delivery_otp,
+    canonicalize_status,
+    DISPLAY_STATUS_MAP,
 )
 from app.services.notification_service import (
     notify_delivery_assigned,
@@ -873,37 +875,10 @@ async def change_status(
         ),
     ],
 ):
-    canonical_map = {
-        "pending": "Pending",
-        "placed": "Pending",
-        "accepted": "Accepted",
-        "preparing": "Preparing",
-        "cooking": "Preparing",
-        "in_prep": "Preparing",
-        "in prep": "Preparing",
-        "ready": "Ready for Pickup",
-        "ready for pickup": "Ready for Pickup",
-        "ready_for_pickup": "Ready for Pickup",
-        "assigned": "Assigned",
-        "picked up": "Picked Up",
-        "picked_up": "Picked Up",
-        "out for delivery": "Out for Delivery",
-        "out_for_delivery": "Out for Delivery",
-        "delivered": "Delivered",
-        "completed": "Delivered",
-        "cancelled": "Cancelled",
-        "rejected": "Cancelled",
-    }
-    canonical_status = canonical_map.get(
-        status.lower().strip().replace("_", " "),
-        status.strip().title(),
+    canonical_target = canonicalize_status(status)
+    target_display = DISPLAY_STATUS_MAP.get(
+        canonical_target, status.strip().title()
     )
-
-    if canonical_status not in VALID_STATUS and status not in VALID_STATUS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Invalid status. Allowed values: {', '.join(VALID_STATUS)}",
-        )
 
     order = await get_order_by_id(order_id)
 
@@ -926,7 +901,7 @@ async def change_status(
                 status_code=403,
                 detail="You can only update orders for your restaurant",
             )
-        if canonical_status not in RESTAURANT_STATUSES:
+        if canonical_target not in {"preparing", "ready", "cancelled"}:
             raise HTTPException(
                 status_code=403,
                 detail="Restaurant owners cannot set this status",
@@ -940,15 +915,14 @@ async def change_status(
                 status_code=403,
                 detail="You can only update orders assigned to you",
             )
-        if canonical_status not in DELIVERY_STATUSES:
+        if canonical_target not in {"assigned", "out_for_delivery", "delivered"}:
             raise HTTPException(
                 status_code=403,
                 detail="Delivery partners cannot set this status",
             )
 
     # Online orders must be paid before kitchen/processing advances
-    restaurant_processing = RESTAURANT_STATUSES - {"Cancelled"}
-    if canonical_status in restaurant_processing:
+    if canonical_target in {"preparing", "ready"}:
         if (
             order.get("payment_method") == ONLINE_METHOD
             and order.get("payment_status") != "paid"
@@ -961,9 +935,17 @@ async def change_status(
                 ),
             )
 
+    current_canonical = canonicalize_status(order.get("status", ""))
+    if current_canonical == canonical_target:
+        return {
+            "success": True,
+            "status": target_display,
+            "message": f"Order status is already {target_display}",
+        }
+
     updated = await update_order_status(
         order_id,
-        canonical_status,
+        status,
     )
 
     if not updated:
@@ -972,7 +954,7 @@ async def change_status(
             detail="Invalid status transition for this order.",
         )
 
-    if canonical_status in ["Accepted", "Preparing"]:
+    if canonical_target == "preparing":
         schedule_notification(
             background_tasks,
             notify_order_accepted,
@@ -981,6 +963,6 @@ async def change_status(
 
     return {
         "success": True,
-        "status": canonical_status,
-        "message": f"Order status updated to {canonical_status}",
+        "status": target_display,
+        "message": f"Order status updated to {target_display}",
     }

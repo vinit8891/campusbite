@@ -136,23 +136,23 @@ export default function OrderSummary() {
     }
 
     if (!isLoggedIn) {
-      alert("Please log in to place an order.");
+      toast.error("Please log in to place an order.");
       router.push(ROUTES.LOGIN);
       return;
     }
 
     if (!user?.phone) {
-      alert("Your account is missing a phone number. Please log in again.");
+      toast.error("Your account is missing a phone number. Please log in again.");
       return;
     }
 
     if (cart.length === 0) {
-      alert("Your cart is empty.");
+      toast.error("Your cart is empty.");
       return;
     }
 
     if (!checkout.customer_name.trim()) {
-      alert("Please enter the recipient name.");
+      toast.error("Please enter the recipient name.");
       return;
     }
 
@@ -160,12 +160,12 @@ export default function OrderSummary() {
       checkout.delivery_for === "someone_else" ? checkout.phone : user.phone;
 
     if (!/^[0-9]{10}$/.test(deliveryPhone)) {
-      alert("Please enter a valid 10-digit mobile number.");
+      toast.error("Please enter a valid 10-digit mobile number.");
       return;
     }
 
     if (!checkout.address.trim()) {
-      alert("Please enter the delivery address.");
+      toast.error("Please enter the delivery address.");
       return;
     }
 
@@ -175,17 +175,17 @@ export default function OrderSummary() {
       "";
 
     if (!restaurantEmail) {
-      alert("Restaurant information is missing. Please select items from a restaurant.");
+      toast.error("Restaurant information is missing. Please select items from a restaurant.");
       return;
     }
 
     if (isCod && !checkout.cod_confirmed) {
-      alert("Please confirm Cash on Delivery before placing your order.");
+      toast.error("Please confirm Cash on Delivery before placing your order.");
       return;
     }
 
     if (isOnline && !checkout.online_confirmed) {
-      alert("Please confirm Online Payment before continuing.");
+      toast.error("Please confirm Online Payment before continuing.");
       return;
     }
 
@@ -327,7 +327,7 @@ export default function OrderSummary() {
         error instanceof Error ? error.message : "Payment Failed"
       );
 
-      alert(
+      toast.error(
         error instanceof Error
           ? error.message
           : "Failed to place order. Please check that the backend is running and try again."

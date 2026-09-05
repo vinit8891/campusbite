@@ -161,7 +161,7 @@ export function useRestaurantOrders() {
       if (error instanceof AuthHttpError && error.status === 401) {
         return;
       }
-      alert(
+      toast.error(
         error instanceof Error ? error.message : "Failed to update status"
       );
     }

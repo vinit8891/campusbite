@@ -567,6 +567,44 @@ async def assign_delivery_partner(
     return result.modified_count == 1
 
 
+def canonicalize_status(status: str | None) -> str:
+    s = (status or "").lower().replace("-", "_").strip()
+    if s in ["accepted", "preparing", "cooking", "in_prep", "in prep"]:
+        return "preparing"
+    if s in ["ready", "ready_for_pickup", "ready for pickup"]:
+        return "ready"
+    if s in ["out_for_delivery", "out for delivery", "picked_up", "picked up"]:
+        return "out_for_delivery"
+    if s in ["completed", "delivered"]:
+        return "delivered"
+    if s in ["cancelled", "rejected"]:
+        return "cancelled"
+    return s
+
+
+TRANSITIONS: dict[str, set[str]] = {
+    "pending": {"preparing", "ready", "cancelled", "rejected"},
+    "preparing": {"ready", "cancelled"},
+    "ready": {"assigned", "out_for_delivery", "delivered", "cancelled"},
+    "assigned": {"out_for_delivery", "delivered", "cancelled"},
+    "out_for_delivery": {"delivered", "cancelled"},
+    "delivered": set(),
+    "cancelled": set(),
+    "rejected": set(),
+}
+
+DISPLAY_STATUS_MAP: dict[str, str] = {
+    "pending": "Pending",
+    "preparing": "Preparing",
+    "ready": "Ready for Pickup",
+    "assigned": "Assigned",
+    "out_for_delivery": "Out for Delivery",
+    "delivered": "Delivered",
+    "cancelled": "Cancelled",
+    "rejected": "Cancelled",
+}
+
+
 async def update_order_status(
     order_id: str,
     status: str,
@@ -583,102 +621,24 @@ async def update_order_status(
         return False
 
     current_status = str(order.get("status", "")).strip()
-    norm_current = current_status.lower().replace("_", " ")
-    norm_target = status.lower().strip().replace("_", " ")
+    canonical_current = canonicalize_status(current_status)
+    canonical_target = canonicalize_status(status)
 
-    canonical_map = {
-        "pending": "Pending",
-        "placed": "Pending",
-        "accepted": "Accepted",
-        "preparing": "Preparing",
-        "cooking": "Preparing",
-        "in prep": "Preparing",
-        "in_prep": "Preparing",
-        "ready": "Ready for Pickup",
-        "ready for pickup": "Ready for Pickup",
-        "ready_for_pickup": "Ready for Pickup",
-        "assigned": "Assigned",
-        "picked up": "Picked Up",
-        "picked_up": "Picked Up",
-        "out for delivery": "Out for Delivery",
-        "out_for_delivery": "Out for Delivery",
-        "delivered": "Delivered",
-        "completed": "Delivered",
-        "cancelled": "Cancelled",
-        "rejected": "Cancelled",
-    }
+    target_display = DISPLAY_STATUS_MAP.get(
+        canonical_target, status.strip().title()
+    )
 
-    target_canonical = canonical_map.get(norm_target, status)
-
-    if norm_current == norm_target or current_status == target_canonical:
+    # Idempotent status update: if already in target canonical state, succeed immediately
+    if canonical_current == canonical_target:
         return True
 
-    # Flexible transition state machine:
-    # pending -> accepted, preparing, ready, cancelled, rejected
-    # accepted -> preparing, ready, cancelled
-    # preparing -> ready, cancelled
-    # ready -> assigned, picked_up, out_for_delivery, delivered
-    allowed_transitions = {
-        "pending": [
-            "accepted",
-            "preparing",
-            "ready",
-            "ready for pickup",
-            "cancelled",
-            "rejected",
-        ],
-        "placed": [
-            "accepted",
-            "preparing",
-            "ready",
-            "ready for pickup",
-            "cancelled",
-            "rejected",
-        ],
-        "accepted": ["preparing", "ready", "ready for pickup", "cancelled", "rejected"],
-        "preparing": ["ready", "ready for pickup", "cancelled", "rejected"],
-        "cooking": ["ready", "ready for pickup", "cancelled", "rejected"],
-        "in prep": ["ready", "ready for pickup", "cancelled", "rejected"],
-        "ready": [
-            "assigned",
-            "picked up",
-            "out for delivery",
-            "delivered",
-            "cancelled",
-        ],
-        "ready for pickup": [
-            "assigned",
-            "picked up",
-            "out for delivery",
-            "delivered",
-            "cancelled",
-        ],
-        "assigned": [
-            "picked up",
-            "out for delivery",
-            "delivered",
-            "cancelled",
-        ],
-        "picked up": ["out for delivery", "delivered", "cancelled"],
-        "out for delivery": ["delivered", "cancelled"],
-        "delivered": [],
-        "cancelled": [],
-        "rejected": [],
-    }
+    allowed_for_current = TRANSITIONS.get(canonical_current, set())
+    if canonical_target not in allowed_for_current:
+        return False
 
-    allowed_for_current = allowed_transitions.get(norm_current, [])
-    if norm_target not in allowed_for_current:
-        canonical_curr_key = (
-            canonical_map.get(norm_current, norm_current)
-            .lower()
-            .replace("_", " ")
-        )
-        if norm_target not in allowed_transitions.get(canonical_curr_key, []):
-            return False
+    update_data = {"status": target_display}
 
-    update_data = {"status": target_canonical}
-
-    if target_canonical == "Delivered" and not order.get("delivered_at"):
+    if target_display == "Delivered" and not order.get("delivered_at"):
         update_data["delivered_at"] = datetime.now(UTC)
 
     if delivery_partner:

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { toast } from "sonner";
 
 import RatingStars from "./RatingStars";
 import { AuthHttpError, authJson } from "@/services/authFetch";
@@ -33,7 +34,7 @@ export default function ReviewModal({
 
   async function submitReview() {
     if (rating === 0) {
-      alert("Please select rating.");
+      toast.error("Please select a rating.");
       return;
     }
 
@@ -53,9 +54,7 @@ export default function ReviewModal({
         }),
       });
 
-      alert(
-        "Thank you for your feedback ❤️"
-      );
+      toast.success("Thank you for your feedback ❤️");
 
       setOpen(false);
 
@@ -71,7 +70,7 @@ export default function ReviewModal({
         return;
       }
 
-      alert(
+      toast.error(
         err instanceof Error
           ? err.message
           : "Unable to submit review."

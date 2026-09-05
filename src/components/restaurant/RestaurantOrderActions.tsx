@@ -82,14 +82,14 @@ export function RestaurantOrderActions({
           <button
             type="button"
             disabled={isUnpaidOnline}
-            onClick={() => onUpdateStatus(order._id, "Preparing")}
+            onClick={() => onUpdateStatus(order._id, "preparing")}
             className="h-12 flex-1 min-w-[170px] rounded-xl bg-orange-600 hover:bg-orange-700 active:scale-98 text-white font-extrabold text-sm shadow-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
           >
             <span>🍳 Accept &amp; Start Cooking</span>
           </button>
           <button
             type="button"
-            onClick={() => onUpdateStatus(order._id, "Cancelled")}
+            onClick={() => onUpdateStatus(order._id, "cancelled")}
             className="h-12 px-4 rounded-xl bg-stone-100 hover:bg-rose-50 hover:text-rose-700 active:scale-98 text-stone-600 font-bold text-xs border border-stone-200 transition-colors disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
           >
             ❌ Reject
@@ -101,7 +101,7 @@ export function RestaurantOrderActions({
         <button
           type="button"
           disabled={isUnpaidOnline}
-          onClick={() => onUpdateStatus(order._id, "Ready for Pickup")}
+          onClick={() => onUpdateStatus(order._id, "ready")}
           className="h-12 flex-1 min-w-[170px] rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-extrabold text-sm shadow-xs transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer flex items-center justify-center gap-2"
         >
           <span>📦 Mark Ready for Pickup</span>

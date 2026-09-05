@@ -151,14 +151,14 @@ describe("KitchenDisplayBoard & Kitchen Audio System", () => {
       name: /accept & start cooking/i,
     });
     await user.click(acceptBtn);
-    expect(handleUpdate).toHaveBeenCalledWith("order-pending-1", "Preparing");
+    expect(handleUpdate).toHaveBeenCalledWith("order-pending-1", "preparing");
 
     // Mark ready for pickup
     const readyBtn = screen.getByRole("button", {
       name: /mark ready for pickup/i,
     });
     await user.click(readyBtn);
-    expect(handleUpdate).toHaveBeenCalledWith("order-prep-2", "Ready for Pickup");
+    expect(handleUpdate).toHaveBeenCalledWith("order-prep-2", "ready");
   });
 
   it("renders OrderPrepTimer color-coded states and handles flexible SLA rules and naive UTC dates", () => {

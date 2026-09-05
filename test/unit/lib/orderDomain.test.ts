@@ -19,9 +19,35 @@ import {
   getOrderStatusIndex,
   hasValidCoordinates,
   parseDateSafe,
+  canonicalizeOrderStatus,
 } from "@/lib/orderDomain";
 
 describe("orderDomain utilities", () => {
+  describe("canonicalizeOrderStatus", () => {
+    it("canonicalizes cooking and preparing aliases to preparing", () => {
+      expect(canonicalizeOrderStatus("Accepted")).toBe("preparing");
+      expect(canonicalizeOrderStatus("Preparing")).toBe("preparing");
+      expect(canonicalizeOrderStatus("cooking")).toBe("preparing");
+      expect(canonicalizeOrderStatus("in_prep")).toBe("preparing");
+      expect(canonicalizeOrderStatus("in prep")).toBe("preparing");
+    });
+
+    it("canonicalizes ready variations to ready", () => {
+      expect(canonicalizeOrderStatus("Ready")).toBe("ready");
+      expect(canonicalizeOrderStatus("ready_for_pickup")).toBe("ready");
+      expect(canonicalizeOrderStatus("Ready for Pickup")).toBe("ready");
+    });
+
+    it("canonicalizes delivery and terminal variations", () => {
+      expect(canonicalizeOrderStatus("Picked Up")).toBe("out_for_delivery");
+      expect(canonicalizeOrderStatus("out_for_delivery")).toBe("out_for_delivery");
+      expect(canonicalizeOrderStatus("Delivered")).toBe("delivered");
+      expect(canonicalizeOrderStatus("completed")).toBe("delivered");
+      expect(canonicalizeOrderStatus("Cancelled")).toBe("cancelled");
+      expect(canonicalizeOrderStatus("Rejected")).toBe("cancelled");
+    });
+  });
+
   describe("parseDateSafe", () => {
     it("parses date with explicit Z timezone", () => {
       const parsed = parseDateSafe("2026-09-05T12:00:00Z");

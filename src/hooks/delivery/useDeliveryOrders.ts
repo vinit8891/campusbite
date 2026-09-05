@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { usePolling } from "@/hooks/usePolling";
 import { getDeliveryPartnerSession } from "@/lib/authTokens";
 import { AuthHttpError } from "@/services/authFetch";
@@ -163,7 +164,7 @@ export function useDeliveryOrders() {
     } catch (err) {
       console.error(err);
       if (err instanceof AuthHttpError && err.status === 401) return;
-      alert(err instanceof Error ? err.message : "Failed to update status");
+      toast.error(err instanceof Error ? err.message : "Failed to update status");
     }
   }
 
@@ -181,7 +182,7 @@ export function useDeliveryOrders() {
 
       await loadOrders(currentFilters());
 
-      alert("✅ Delivery Completed Successfully");
+      toast.success("Delivery completed successfully");
     } catch (err: unknown) {
       setOtpError(err instanceof Error ? err.message : "Invalid OTP");
     } finally {

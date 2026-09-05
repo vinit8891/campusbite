@@ -53,6 +53,34 @@ export function normalizeOrderStatus(status?: string | null): string {
   return (status || "").toLowerCase().trim();
 }
 
+/** Robust canonical status normalizer matching backend canonicalize_status */
+export function canonicalizeOrderStatus(status?: string | null): string {
+  const s = (status || "").toLowerCase().replace(/[-_]/g, " ").trim();
+  if (["accepted", "preparing", "cooking", "in_prep", "in prep"].includes(s)) {
+    return "preparing";
+  }
+  if (["ready", "ready_for_pickup", "ready for pickup"].includes(s)) {
+    return "ready";
+  }
+  if (
+    [
+      "out_for_delivery",
+      "out for delivery",
+      "picked_up",
+      "picked up",
+    ].includes(s)
+  ) {
+    return "out_for_delivery";
+  }
+  if (["completed", "delivered"].includes(s)) {
+    return "delivered";
+  }
+  if (["cancelled", "rejected"].includes(s)) {
+    return "cancelled";
+  }
+  return s;
+}
+
 /** Strict status buckets */
 export const NEW_ORDER_STATUSES = ["pending"] as const;
 
