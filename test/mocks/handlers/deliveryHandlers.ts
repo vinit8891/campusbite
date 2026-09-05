@@ -40,4 +40,11 @@ export const deliveryHandlers = [
       },
     });
   }),
+
+  http.put(url("/orders/verify-otp/:id"), () => {
+    return HttpResponse.json({
+      success: true,
+      message: "OTP Verified",
+    });
+  }),
 ];

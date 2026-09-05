@@ -95,6 +95,40 @@ async def test_verify_delivery_otp_marks_cod_as_paid():
 
 
 @pytest.mark.asyncio
+async def test_verify_delivery_otp_allows_picked_up_status():
+    """verify_delivery_otp succeeds when order is in Picked Up state."""
+    test_oid = ObjectId()
+    mock_order = {
+        "_id": test_oid,
+        "status": "Picked Up",
+        "otp_verified": False,
+        "delivery_otp": "5555",
+        "payment_method": "online",
+        "payment_status": "paid",
+        "total": 180.0,
+    }
+
+    mock_collection = AsyncMock()
+    mock_collection.find_one = AsyncMock(return_value=mock_order)
+    mock_update_result = AsyncMock()
+    mock_update_result.modified_count = 1
+    mock_collection.update_one = AsyncMock(return_value=mock_update_result)
+
+    with patch("app.models.order.order_collection", mock_collection):
+        success = await verify_delivery_otp(str(test_oid), "5555")
+
+        assert success is True
+        mock_collection.update_one.assert_called_once()
+        call_args = mock_collection.update_one.call_args[0]
+        filter_clause = call_args[0]
+        update_clause = call_args[1]
+
+        assert filter_clause["_id"] == test_oid
+        assert update_clause["$set"]["status"] == "Delivered"
+        assert update_clause["$set"]["otp_verified"] is True
+
+
+@pytest.mark.asyncio
 async def test_verify_delivery_otp_increments_failed_attempts():
     """Incorrect OTP increments failed_otp_attempts counter."""
     test_oid = ObjectId()

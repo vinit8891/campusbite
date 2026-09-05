@@ -814,7 +814,19 @@ async def verify_delivery_otp(order_id: str, otp):
     if not order:
         return False
 
-    if order.get("status") != "Out for Delivery":
+    curr_status = order.get("status")
+    allowed_otp_statuses = [
+        "Picked Up",
+        "Out for Delivery",
+        "picked_up",
+        "out_for_delivery",
+        "In Transit",
+        "in transit",
+    ]
+    if (
+        curr_status not in allowed_otp_statuses
+        and canonicalize_status(curr_status) not in ["picked_up", "out_for_delivery"]
+    ):
         return False
 
     if order.get("otp_verified") or order.get("status") == "Delivered":
@@ -868,7 +880,6 @@ async def verify_delivery_otp(order_id: str, otp):
     result = await order_collection.update_one(
         {
             "_id": oid,
-            "status": "Out for Delivery",
             "otp_verified": False,
         },
         {

@@ -35,4 +35,30 @@ describe("useDeliveryOrders hook", () => {
 
     dispatchSpy.mockRestore();
   });
+
+  it("verifies delivery OTP and dispatches delivery_state_changed event", async () => {
+    const dispatchSpy = vi.spyOn(window, "dispatchEvent");
+    const { result } = renderHook(() => useDeliveryOrders());
+
+    await waitFor(() => {
+      expect(result.current.loading).toBe(false);
+    });
+
+    act(() => {
+      result.current.setOtpOrderId("del-ord-1");
+      result.current.setOtp("1234");
+    });
+
+    await act(async () => {
+      await result.current.verifyOTP();
+    });
+
+    expect(result.current.otpOrderId).toBeNull();
+    expect(result.current.otp).toBe("");
+    expect(dispatchSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "delivery_state_changed" })
+    );
+
+    dispatchSpy.mockRestore();
+  });
 });

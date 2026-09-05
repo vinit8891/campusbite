@@ -795,10 +795,23 @@ async def verify_otp(
             detail="Order is already delivered.",
         )
 
-    if order.get("status") != "Out for Delivery":
+    allowed_otp_statuses = [
+        "Picked Up",
+        "Out for Delivery",
+        "picked_up",
+        "out_for_delivery",
+        "In Transit",
+        "in transit",
+    ]
+    current_status = order.get("status")
+
+    if (
+        current_status not in allowed_otp_statuses
+        and canonicalize_status(current_status) not in ["picked_up", "out_for_delivery"]
+    ):
         raise HTTPException(
             status_code=400,
-            detail="OTP can only be verified when order is Out for Delivery.",
+            detail="OTP can only be verified when order is Picked Up or Out for Delivery.",
         )
 
     if order.get("failed_otp_attempts", 0) >= 5:
