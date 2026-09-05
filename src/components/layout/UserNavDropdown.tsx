@@ -10,6 +10,7 @@ import {
   Clock,
   LogOut,
   Sparkles,
+  QrCode,
 } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { ROUTES } from "@/lib/routes";
@@ -109,6 +110,16 @@ export function UserNavDropdown() {
             >
               <ShoppingBag className="h-4 w-4 text-gray-500" />
               <span>My Orders</span>
+            </Link>
+
+            <Link
+              href={ROUTES.SUBSCRIPTIONS_PASS}
+              onClick={() => setIsOpen(false)}
+              role="menuitem"
+              className="flex items-center gap-2.5 px-3 py-2 rounded-xl text-sm font-semibold text-orange-600 hover:bg-orange-50 transition-colors"
+            >
+              <QrCode className="h-4 w-4 text-orange-600" />
+              <span>Digital Meal Pass</span>
             </Link>
 
             <Link

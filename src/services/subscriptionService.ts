@@ -359,3 +359,63 @@ export async function deleteAdminSubscription(
   );
 }
 
+export interface SkipMealResponse {
+  message: string;
+  subscription: Subscription;
+  skipped_date: string;
+  new_end_date: string;
+}
+
+export async function skipSubscriptionDate(
+  subscriptionId: string,
+  date: string
+): Promise<SkipMealResponse> {
+  return authJson<SkipMealResponse>(
+    `/subscriptions/${encodeURIComponent(subscriptionId)}/skip-date`,
+    {
+      role: "customer",
+      method: "POST",
+      body: JSON.stringify({ date }),
+    }
+  );
+}
+
+export interface MealRedemptionResult {
+  success: boolean;
+  message: string;
+  customer_name: string;
+  customer_email: string;
+  plan_name: string;
+  meal_type: string;
+  redeemed_at: string;
+}
+
+export async function redeemSubscriptionMeal(payload: {
+  token: string;
+  restaurant_email?: string;
+  date?: string;
+}): Promise<MealRedemptionResult> {
+  return authJson<MealRedemptionResult>("/subscriptions/redeem-token", {
+    role: "restaurant_owner",
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export interface MessCounterSummary {
+  date: string;
+  meals_served: number;
+  total_subscribers: number;
+}
+
+export async function getMessCounterSummary(
+  targetDate?: string
+): Promise<MessCounterSummary> {
+  const suffix = targetDate ? `?target_date=${encodeURIComponent(targetDate)}` : "";
+  return authJson<MessCounterSummary>(`/subscriptions/counter/summary${suffix}`, {
+    role: "restaurant_owner",
+    cache: "no-store",
+  });
+}
+
+

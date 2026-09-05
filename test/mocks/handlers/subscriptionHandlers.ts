@@ -40,4 +40,54 @@ export const subscriptionHandlers = [
       pages: 1,
     });
   }),
+
+  http.post(url("/subscriptions/:id/skip-date"), async ({ params, request }) => {
+    const body = (await request.json()) as { skip_date: string };
+    return HttpResponse.json({
+      subscription_id: params.id,
+      skip_date: body.skip_date,
+      status: "active",
+      message: `Date ${body.skip_date} added to skipped dates. Validity extended by +1 day.`,
+    });
+  }),
+
+  http.post(url("/subscriptions/redeem-token"), async ({ request }) => {
+    const body = (await request.json()) as {
+      token: string;
+      meal_type?: string;
+      restaurant_email?: string;
+    };
+    if (body.token === "9999" || body.token === "EXPIRED") {
+      return HttpResponse.json(
+        { detail: "Invalid meal token or no active subscription found." },
+        { status: 400 }
+      );
+    }
+    if (body.token === "ALREADY") {
+      return HttpResponse.json(
+        {
+          detail: "Meal token already redeemed today for Lunch at 12:45 PM.",
+        },
+        { status: 400 }
+      );
+    }
+
+    return HttpResponse.json({
+      success: true,
+      message: "Meal successfully redeemed!",
+      customer_name: "Rahul Sharma",
+      customer_email: "rahul@campus.edu",
+      plan_name: "North Mess • Veg Thali Plan",
+      meal_type: body.meal_type || "Lunch",
+      redeemed_at: "12:35 PM",
+    });
+  }),
+
+  http.get(url("/subscriptions/counter/summary"), () => {
+    return HttpResponse.json({
+      date: "2026-09-05",
+      meals_served: 142,
+      total_subscribers: 210,
+    });
+  }),
 ];

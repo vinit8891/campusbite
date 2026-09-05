@@ -13,6 +13,7 @@ import {
   NotebookPen,
   Store,
   ChevronRight,
+  QrCode,
 } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import {
@@ -115,6 +116,11 @@ export default function RestaurantDashboardLayout({
       badge: pendingCount,
     },
     {
+      label: "Mess Counter",
+      href: ROUTES.RESTAURANT_COUNTER,
+      icon: QrCode,
+    },
+    {
       label: "Menu Items",
       href: ROUTES.RESTAURANT_MENU,
       icon: UtensilsCrossed,
@@ -142,6 +148,11 @@ export default function RestaurantDashboardLayout({
       href: ROUTES.RESTAURANT_ORDERS,
       icon: "🍳",
       badge: pendingCount,
+    },
+    {
+      label: "Counter",
+      href: ROUTES.RESTAURANT_COUNTER,
+      icon: "🎟️",
     },
     {
       label: "Menu",

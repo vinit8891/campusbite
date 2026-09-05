@@ -27,10 +27,15 @@ export function SubscriptionHeader({
 
       {isLoggedIn ? (
         <div className="flex flex-wrap gap-2">
+          <Link href={ROUTES.SUBSCRIPTIONS_PASS}>
+            <Button className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-bold gap-1.5 shadow-xs">
+              <span>🎟️ Digital Pass</span>
+            </Button>
+          </Link>
           <Link href={ROUTES.SUBSCRIPTIONS_CALENDAR}>
             <Button variant="outline">Meal calendar</Button>
           </Link>
-          <Button onClick={onToggleCreate}>
+          <Button onClick={onToggleCreate} variant="outline">
             {showCreate ? "Close" : "Subscribe"}
           </Button>
         </div>
@@ -39,7 +44,7 @@ export function SubscriptionHeader({
           <Button>Log in</Button>
         </Link>
       )}
-
     </div>
   );
 }
+

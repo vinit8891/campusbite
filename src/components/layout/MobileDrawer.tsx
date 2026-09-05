@@ -17,6 +17,7 @@ import {
   X,
   ChevronRight,
   User as UserIcon,
+  QrCode,
 } from "lucide-react";
 
 import { useAuth } from "@/context/AuthContext";
@@ -94,6 +95,12 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
       label: "Hostel Mess Plans",
       href: ROUTES.SUBSCRIPTIONS,
       icon: CalendarCheck,
+      badge: null,
+    },
+    {
+      label: "🎟️ Digital Meal Pass",
+      href: ROUTES.SUBSCRIPTIONS_PASS,
+      icon: QrCode,
       badge: null,
     },
     {

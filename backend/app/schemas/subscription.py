@@ -101,3 +101,14 @@ class SubscriptionPauseRequest(BaseModel):
         if pause_from and pause_to < pause_from:
             raise ValueError("pause_to must be on or after pause_from")
         return pause_to
+
+
+class SubscriptionSkipDateRequest(BaseModel):
+    date: date
+
+
+class SubscriptionRedeemTokenRequest(BaseModel):
+    token: str
+    restaurant_email: EmailStr | None = None
+    date: date | None = None
+
