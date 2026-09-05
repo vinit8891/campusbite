@@ -18,9 +18,32 @@ import {
   isPickupStatus,
   getOrderStatusIndex,
   hasValidCoordinates,
+  parseDateSafe,
 } from "@/lib/orderDomain";
 
 describe("orderDomain utilities", () => {
+  describe("parseDateSafe", () => {
+    it("parses date with explicit Z timezone", () => {
+      const parsed = parseDateSafe("2026-09-05T12:00:00Z");
+      expect(parsed.toISOString()).toBe("2026-09-05T12:00:00.000Z");
+    });
+
+    it("parses naive ISO string without timezone as UTC", () => {
+      const parsed = parseDateSafe("2026-09-05T12:00:00");
+      expect(parsed.toISOString()).toBe("2026-09-05T12:00:00.000Z");
+    });
+
+    it("parses date with timezone offset correctly", () => {
+      const parsed = parseDateSafe("2026-09-05T17:30:00+05:30");
+      expect(parsed.toISOString()).toBe("2026-09-05T12:00:00.000Z");
+    });
+
+    it("handles null, undefined, or empty gracefully", () => {
+      expect(parseDateSafe(null)).toBeInstanceOf(Date);
+      expect(parseDateSafe(undefined)).toBeInstanceOf(Date);
+      expect(parseDateSafe("")).toBeInstanceOf(Date);
+    });
+  });
   it("exports status constant arrays correctly", () => {
     expect(ORDER_STATUS_FLOW.length).toBe(8);
     expect(ORDER_STATUSES.length).toBe(10);

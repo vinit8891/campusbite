@@ -84,7 +84,9 @@ describe("KitchenDisplayBoard & Kitchen Audio System", () => {
     expect(screen.getByText("Rahul Sharma")).toBeInTheDocument();
     expect(screen.getByText("Paneer Butter Masala")).toBeInTheDocument();
     expect(screen.getByText("Butter Naan")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /accept order/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /accept & start cooking/i })
+    ).toBeInTheDocument();
 
     // Tap-to-call phone link
     const phoneLink = screen.getByRole("link", { name: /9876543210/i });
@@ -144,10 +146,12 @@ describe("KitchenDisplayBoard & Kitchen Audio System", () => {
       <KitchenDisplayBoard orders={mockOrders} onUpdateStatus={handleUpdate} />
     );
 
-    // Accept pending order
-    const acceptBtn = screen.getByRole("button", { name: /accept order/i });
+    // Accept pending order -> advances directly to Preparing
+    const acceptBtn = screen.getByRole("button", {
+      name: /accept & start cooking/i,
+    });
     await user.click(acceptBtn);
-    expect(handleUpdate).toHaveBeenCalledWith("order-pending-1", "Accepted");
+    expect(handleUpdate).toHaveBeenCalledWith("order-pending-1", "Preparing");
 
     // Mark ready for pickup
     const readyBtn = screen.getByRole("button", {
@@ -157,16 +161,26 @@ describe("KitchenDisplayBoard & Kitchen Audio System", () => {
     expect(handleUpdate).toHaveBeenCalledWith("order-prep-2", "Ready for Pickup");
   });
 
-  it("renders OrderPrepTimer color-coded states and handles >60m delay gracefully", () => {
+  it("renders OrderPrepTimer color-coded states and handles flexible SLA rules and naive UTC dates", () => {
+    // 1. Pending: Placed 2m ago (no delay warning)
     const { rerender } = render(
       <OrderPrepTimer
         createdAt={new Date(Date.now() - 2 * 60 * 1000).toISOString()}
         status="Pending"
       />
     );
-    expect(screen.getByText(/accept in/i)).toBeInTheDocument();
+    expect(screen.getByText(/placed 2m ago/i)).toBeInTheDocument();
 
-    // 0-10m elapsed preparing (Green)
+    // 2. Pending: >10m elapsed shows amber warning
+    rerender(
+      <OrderPrepTimer
+        createdAt={new Date(Date.now() - 15 * 60 * 1000).toISOString()}
+        status="Pending"
+      />
+    );
+    expect(screen.getByText(/waiting >10m/i)).toBeInTheDocument();
+
+    // 3. Preparing: 0-25m elapsed (25m left of 30m SLA - Green)
     rerender(
       <OrderPrepTimer
         createdAt={new Date(Date.now() - 5 * 60 * 1000).toISOString()}
@@ -175,16 +189,25 @@ describe("KitchenDisplayBoard & Kitchen Audio System", () => {
     );
     expect(screen.getByText(/min left/i)).toBeInTheDocument();
 
-    // Overdue (> 15m)
+    // 4. Preparing: 25-30m elapsed (2m left of 30m SLA - Urgent / Amber)
     rerender(
       <OrderPrepTimer
-        createdAt={new Date(Date.now() - 20 * 60 * 1000).toISOString()}
+        createdAt={new Date(Date.now() - 28 * 60 * 1000).toISOString()}
+        status="Preparing"
+      />
+    );
+    expect(screen.getByText(/min left \(urgent\)/i)).toBeInTheDocument();
+
+    // 5. Preparing: Overdue (> 30m) shows delayed
+    rerender(
+      <OrderPrepTimer
+        createdAt={new Date(Date.now() - 35 * 60 * 1000).toISOString()}
         status="Preparing"
       />
     );
     expect(screen.getByText(/delayed by/i)).toBeInTheDocument();
 
-    // Old or mock date (> 60m delay)
+    // 6. Preparing: Old or mock date (> 60m delay)
     rerender(
       <OrderPrepTimer
         createdAt={new Date(Date.now() - 120 * 60 * 1000).toISOString()}
@@ -192,6 +215,15 @@ describe("KitchenDisplayBoard & Kitchen Audio System", () => {
       />
     );
     expect(screen.getByText(/delayed \(>60m\)/i)).toBeInTheDocument();
+
+    // 7. Naive ISO date without 'Z' parsed safely as UTC without throwing
+    rerender(
+      <OrderPrepTimer
+        createdAt="2026-09-05T12:00:00"
+        status="Ready for Pickup"
+      />
+    );
+    expect(screen.getByText(/ready/i)).toBeInTheDocument();
   });
 
   it("toggles sound alert button in standard and compact modes", async () => {

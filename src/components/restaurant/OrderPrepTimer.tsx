@@ -2,6 +2,12 @@
 
 import React, { useState, useEffect } from "react";
 import { Clock, AlertTriangle, CheckCircle2 } from "lucide-react";
+import {
+  isNewOrder,
+  isCookingOrder,
+  isReadyOrder,
+  parseDateSafe,
+} from "@/lib/orderDomain";
 
 type OrderPrepTimerProps = {
   createdAt?: string;
@@ -23,50 +29,41 @@ export function OrderPrepTimer({
     return () => clearInterval(timer);
   }, []);
 
-  const createdTime = createdAt ? new Date(createdAt).getTime() : now;
+  const createdTime = createdAt ? parseDateSafe(createdAt).getTime() : now;
   const elapsedSec = Math.max(0, Math.floor((now - createdTime) / 1000));
   const elapsedMin = Math.floor(elapsedSec / 60);
   const elapsedRemainSec = elapsedSec % 60;
 
-  // 1. Pending Orders: 3-minute acceptance window
-  if (status === "Pending") {
-    const acceptWindowSec = 3 * 60;
-    const remainSec = acceptWindowSec - elapsedSec;
-
-    if (remainSec > 0) {
-      const min = Math.floor(remainSec / 60);
-      const sec = remainSec % 60;
-      const formatted = `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
+  // 1. Pending / New Orders: Show elapsed wait time, amber warning only if > 10m
+  if (isNewOrder(status)) {
+    if (elapsedMin < 10) {
       return (
         <span
           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-50 text-amber-800 border border-amber-200 ${className}`}
         >
           <Clock className="h-3.5 w-3.5 text-amber-600 animate-spin-slow" />
-          <span>Accept in {formatted}</span>
+          <span>⏱️ Placed {elapsedMin}m ago</span>
         </span>
       );
     } else {
-      const overdueMin = Math.floor(Math.abs(remainSec) / 60);
-      const overdueText =
-        overdueMin > 60 ? "Delayed (>60m)" : `Pending Overdue (${overdueMin}m late)`;
       return (
         <span
-          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-rose-50 text-rose-700 border border-rose-200 animate-pulse ${className}`}
+          className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-amber-100 text-amber-900 border border-amber-300 animate-pulse ${className}`}
         >
-          <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
-          <span>⚠️ {overdueText}</span>
+          <AlertTriangle className="h-3.5 w-3.5 text-amber-600" />
+          <span>⚠️ Waiting &gt;10m</span>
         </span>
       );
     }
   }
 
-  // 2. Accepted / Preparing: 15-minute standard prep SLA
-  if (status === "Accepted" || status === "Preparing") {
-    const slaSec = 15 * 60;
+  // 2. Cooking / In Kitchen: 30-minute prep window SLA
+  if (isCookingOrder(status)) {
+    const slaSec = 30 * 60;
     const remainSec = slaSec - elapsedSec;
 
     if (remainSec > 5 * 60) {
-      // 0–10 mins elapsed (Green)
+      // 0–25 mins elapsed (Green)
       const min = Math.floor(remainSec / 60);
       const sec = remainSec % 60;
       const formatted = `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
@@ -79,7 +76,7 @@ export function OrderPrepTimer({
         </span>
       );
     } else if (remainSec > 0) {
-      // 10–15 mins elapsed (Amber)
+      // 25–30 mins elapsed (Amber / Urgent)
       const min = Math.floor(remainSec / 60);
       const sec = remainSec % 60;
       const formatted = `${String(min).padStart(2, "0")}:${String(sec).padStart(2, "0")}`;
@@ -92,7 +89,7 @@ export function OrderPrepTimer({
         </span>
       );
     } else {
-      // > 15 mins elapsed (Red pulse)
+      // > 30 mins elapsed (Red delayed pulse)
       const delayMin = Math.floor(Math.abs(remainSec) / 60);
       const delaySec = Math.abs(remainSec) % 60;
       const formatted = `${String(delayMin).padStart(2, "0")}:${String(delaySec).padStart(2, "0")}`;
@@ -104,14 +101,14 @@ export function OrderPrepTimer({
           className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-extrabold bg-rose-50 text-rose-700 border border-rose-300 animate-pulse shadow-sm ${className}`}
         >
           <AlertTriangle className="h-3.5 w-3.5 text-rose-600" />
-          <span>{delayText}</span>
+          <span>⚠️ {delayText}</span>
         </span>
       );
     }
   }
 
   // 3. Ready for Pickup
-  if (status === "Ready for Pickup") {
+  if (isReadyOrder(status)) {
     const readyText =
       elapsedMin > 60 ? "Ready (>60m ago)" : `Ready (${elapsedMin}m ago)`;
     return (

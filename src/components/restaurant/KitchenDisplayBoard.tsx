@@ -243,11 +243,10 @@ export function KitchenDisplayBoard({
                     <button
                       type="button"
                       disabled={isUnpaidOnline}
-                      onClick={() => onUpdateStatus(order._id, "Accepted")}
+                      onClick={() => onUpdateStatus(order._id, "Preparing")}
                       className="h-12 flex-1 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-sm shadow-sm active:scale-98 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
-                      <CheckCircle2 className="h-4 w-4 shrink-0" />
-                      <span>Accept Order (15m)</span>
+                      <span>🍳 Accept &amp; Start Cooking</span>
                     </button>
                     <button
                       type="button"
@@ -465,7 +464,7 @@ export function KitchenDisplayBoard({
 
                   <div className="mt-3 pt-2.5 border-t border-stone-100 flex items-center justify-between text-xs">
                     <span className="text-xs font-bold text-emerald-700 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-lg">
-                      ⚡ Ready at Counter
+                      ✅ Ready at Counter • Awaiting Runner
                     </span>
                     <span className="font-black text-stone-900 text-sm">
                       ₹{Number(order.total ?? 0).toFixed(2)}

@@ -162,6 +162,14 @@ def _public_order(order: dict) -> dict:
     response.pop("delivery_otp", None)
     # Signature is verification material — do not expose on generic APIs
     response.pop("razorpay_signature", None)
+
+    for date_key in ("created_at", "delivered_at", "paid_at", "accepted_at", "ready_at"):
+        val = response.get(date_key)
+        if isinstance(val, datetime):
+            if val.tzinfo is None:
+                val = val.replace(tzinfo=UTC)
+            response[date_key] = val.isoformat()
+
     return response
 
 
@@ -865,7 +873,33 @@ async def change_status(
         ),
     ],
 ):
-    if status not in VALID_STATUS:
+    canonical_map = {
+        "pending": "Pending",
+        "placed": "Pending",
+        "accepted": "Accepted",
+        "preparing": "Preparing",
+        "cooking": "Preparing",
+        "in_prep": "Preparing",
+        "in prep": "Preparing",
+        "ready": "Ready for Pickup",
+        "ready for pickup": "Ready for Pickup",
+        "ready_for_pickup": "Ready for Pickup",
+        "assigned": "Assigned",
+        "picked up": "Picked Up",
+        "picked_up": "Picked Up",
+        "out for delivery": "Out for Delivery",
+        "out_for_delivery": "Out for Delivery",
+        "delivered": "Delivered",
+        "completed": "Delivered",
+        "cancelled": "Cancelled",
+        "rejected": "Cancelled",
+    }
+    canonical_status = canonical_map.get(
+        status.lower().strip().replace("_", " "),
+        status.strip().title(),
+    )
+
+    if canonical_status not in VALID_STATUS and status not in VALID_STATUS:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid status. Allowed values: {', '.join(VALID_STATUS)}",
@@ -892,7 +926,7 @@ async def change_status(
                 status_code=403,
                 detail="You can only update orders for your restaurant",
             )
-        if status not in RESTAURANT_STATUSES:
+        if canonical_status not in RESTAURANT_STATUSES:
             raise HTTPException(
                 status_code=403,
                 detail="Restaurant owners cannot set this status",
@@ -906,7 +940,7 @@ async def change_status(
                 status_code=403,
                 detail="You can only update orders assigned to you",
             )
-        if status not in DELIVERY_STATUSES:
+        if canonical_status not in DELIVERY_STATUSES:
             raise HTTPException(
                 status_code=403,
                 detail="Delivery partners cannot set this status",
@@ -914,7 +948,7 @@ async def change_status(
 
     # Online orders must be paid before kitchen/processing advances
     restaurant_processing = RESTAURANT_STATUSES - {"Cancelled"}
-    if status in restaurant_processing:
+    if canonical_status in restaurant_processing:
         if (
             order.get("payment_method") == ONLINE_METHOD
             and order.get("payment_status") != "paid"
@@ -929,7 +963,7 @@ async def change_status(
 
     updated = await update_order_status(
         order_id,
-        status,
+        canonical_status,
     )
 
     if not updated:
@@ -938,7 +972,7 @@ async def change_status(
             detail="Invalid status transition for this order.",
         )
 
-    if status == "Accepted":
+    if canonical_status in ["Accepted", "Preparing"]:
         schedule_notification(
             background_tasks,
             notify_order_accepted,
@@ -947,6 +981,6 @@ async def change_status(
 
     return {
         "success": True,
-        "status": status,
-        "message": "Order status updated successfully.",
+        "status": canonical_status,
+        "message": f"Order status updated to {canonical_status}",
     }

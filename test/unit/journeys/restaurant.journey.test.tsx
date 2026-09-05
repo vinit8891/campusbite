@@ -54,6 +54,6 @@ describe("Restaurant Owner User Journey", () => {
     const acceptBtn = screen.getByRole("button", { name: /accept/i });
     expect(acceptBtn).toBeEnabled();
     await user.click(acceptBtn);
-    expect(handleStatusUpdate).toHaveBeenCalledWith("order-rest-1", "Accepted");
+    expect(handleStatusUpdate).toHaveBeenCalledWith("order-rest-1", "Preparing");
   });
 });

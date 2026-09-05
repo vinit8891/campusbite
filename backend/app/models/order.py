@@ -582,31 +582,104 @@ async def update_order_status(
     if not order:
         return False
 
-    current_status = order["status"]
+    current_status = str(order.get("status", "")).strip()
+    norm_current = current_status.lower().replace("_", " ")
+    norm_target = status.lower().strip().replace("_", " ")
 
-    if status == "Delivered":
-        return False
-
-    if current_status == status:
-        return True
-
-    allowed = {
-        "Pending": ["Accepted", "Cancelled"],
-        "Placed": ["Accepted", "Cancelled"],
-        "Accepted": ["Preparing", "Cancelled"],
-        "Preparing": ["Ready for Pickup", "Cancelled"],
-        "Ready for Pickup": [],
-        "Assigned": ["Picked Up"],
-        "Picked Up": ["Out for Delivery"],
-        "Out for Delivery": [],
-        "Delivered": [],
-        "Cancelled": [],
+    canonical_map = {
+        "pending": "Pending",
+        "placed": "Pending",
+        "accepted": "Accepted",
+        "preparing": "Preparing",
+        "cooking": "Preparing",
+        "in prep": "Preparing",
+        "in_prep": "Preparing",
+        "ready": "Ready for Pickup",
+        "ready for pickup": "Ready for Pickup",
+        "ready_for_pickup": "Ready for Pickup",
+        "assigned": "Assigned",
+        "picked up": "Picked Up",
+        "picked_up": "Picked Up",
+        "out for delivery": "Out for Delivery",
+        "out_for_delivery": "Out for Delivery",
+        "delivered": "Delivered",
+        "completed": "Delivered",
+        "cancelled": "Cancelled",
+        "rejected": "Cancelled",
     }
 
-    if status not in allowed.get(current_status, []):
-        return False
+    target_canonical = canonical_map.get(norm_target, status)
 
-    update_data = {"status": status}
+    if norm_current == norm_target or current_status == target_canonical:
+        return True
+
+    # Flexible transition state machine:
+    # pending -> accepted, preparing, ready, cancelled, rejected
+    # accepted -> preparing, ready, cancelled
+    # preparing -> ready, cancelled
+    # ready -> assigned, picked_up, out_for_delivery, delivered
+    allowed_transitions = {
+        "pending": [
+            "accepted",
+            "preparing",
+            "ready",
+            "ready for pickup",
+            "cancelled",
+            "rejected",
+        ],
+        "placed": [
+            "accepted",
+            "preparing",
+            "ready",
+            "ready for pickup",
+            "cancelled",
+            "rejected",
+        ],
+        "accepted": ["preparing", "ready", "ready for pickup", "cancelled", "rejected"],
+        "preparing": ["ready", "ready for pickup", "cancelled", "rejected"],
+        "cooking": ["ready", "ready for pickup", "cancelled", "rejected"],
+        "in prep": ["ready", "ready for pickup", "cancelled", "rejected"],
+        "ready": [
+            "assigned",
+            "picked up",
+            "out for delivery",
+            "delivered",
+            "cancelled",
+        ],
+        "ready for pickup": [
+            "assigned",
+            "picked up",
+            "out for delivery",
+            "delivered",
+            "cancelled",
+        ],
+        "assigned": [
+            "picked up",
+            "out for delivery",
+            "delivered",
+            "cancelled",
+        ],
+        "picked up": ["out for delivery", "delivered", "cancelled"],
+        "out for delivery": ["delivered", "cancelled"],
+        "delivered": [],
+        "cancelled": [],
+        "rejected": [],
+    }
+
+    allowed_for_current = allowed_transitions.get(norm_current, [])
+    if norm_target not in allowed_for_current:
+        canonical_curr_key = (
+            canonical_map.get(norm_current, norm_current)
+            .lower()
+            .replace("_", " ")
+        )
+        if norm_target not in allowed_transitions.get(canonical_curr_key, []):
+            return False
+
+    update_data = {"status": target_canonical}
+
+    if target_canonical == "Delivered" and not order.get("delivered_at"):
+        update_data["delivered_at"] = datetime.now(UTC)
 
     if delivery_partner:
         update_data["delivery_partner"] = delivery_partner

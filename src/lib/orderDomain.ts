@@ -123,14 +123,29 @@ export function isCompletedOrInactiveOrder(status?: string | null): boolean {
   );
 }
 
+/**
+ * Safely parses an ISO date string, treating naive ISO strings without timezone offsets as UTC.
+ */
+export const parseDateSafe = (
+  dateStr?: string | number | Date | null
+): Date => {
+  if (!dateStr) return new Date();
+  if (dateStr instanceof Date) return dateStr;
+  if (typeof dateStr === "number") return new Date(dateStr);
+  const str = String(dateStr).trim();
+  if (!str) return new Date();
+  const hasTimezone = str.endsWith("Z") || /[+-]\d{2}:\d{2}$/.test(str);
+  return new Date(hasTimezone ? str : `${str}Z`);
+};
+
 /** Checks if an order is older than maxAgeHours (default 24h) and thus stale / archived */
 export function isOrderStale(
-  createdAt?: string | null,
+  createdAt?: string | number | Date | null,
   maxAgeHours = 24
 ): boolean {
   if (!createdAt) return false;
   try {
-    const createdTime = new Date(createdAt).getTime();
+    const createdTime = parseDateSafe(createdAt).getTime();
     if (isNaN(createdTime)) return false;
     const now = Date.now();
     const ageHours = (now - createdTime) / (1000 * 60 * 60);
