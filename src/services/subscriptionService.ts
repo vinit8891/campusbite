@@ -380,6 +380,20 @@ export async function skipSubscriptionDate(
   );
 }
 
+export const skipDate = skipSubscriptionDate;
+
+export function getTodayToken(subscriptionId: string, dateStr?: string): string {
+  const targetDate = dateStr || new Date().toISOString().slice(0, 10);
+  let hash = 0;
+  const combined = `${subscriptionId}-${targetDate}`;
+  for (let i = 0; i < combined.length; i++) {
+    hash = (hash << 5) - hash + combined.charCodeAt(i);
+    hash |= 0;
+  }
+  const tokenNum = Math.abs(hash % 9000) + 1000;
+  return `#${tokenNum}`;
+}
+
 export interface MealRedemptionResult {
   success: boolean;
   message: string;

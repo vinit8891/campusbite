@@ -56,6 +56,8 @@ describe("Mess Subscription Dining & Digital Meal Pass", () => {
       expect(screen.getByText(/Daily Meal Pass/i)).toBeInTheDocument();
       expect(screen.getByText(/TOKEN #/i)).toBeInTheDocument();
       expect(screen.getByTestId("meal-pass-qr-code")).toBeInTheDocument();
+      expect(screen.getByTestId("dietary-badge")).toBeInTheDocument();
+      expect(screen.getByText(/VEG 🟢/i)).toBeInTheDocument();
     });
 
     it("displays dynamic service window badge", () => {

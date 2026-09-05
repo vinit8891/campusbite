@@ -147,6 +147,10 @@ export function StudentMealPassCard({
 
   const displayCanteen = canteenName || subscription.restaurant_email?.split("@")[0] || "Campus Mess";
 
+  const isVeg =
+    !subscription.plan_name?.toLowerCase().includes("non-veg") &&
+    !subscription.meal_type?.toLowerCase().includes("non-veg");
+
   return (
     <div className="w-full max-w-md mx-auto overflow-hidden rounded-3xl border-2 border-stone-800/20 bg-gradient-to-b from-stone-900 via-stone-900 to-stone-950 text-white shadow-2xl relative">
       {/* Top Banner Accent */}
@@ -172,9 +176,20 @@ export function StudentMealPassCard({
             </div>
           </div>
 
-          <div className="text-right">
+          <div className="text-right flex flex-col items-end gap-1.5">
             <span className="inline-flex items-center rounded-full bg-stone-800/80 px-2.5 py-1 text-[11px] font-extrabold text-stone-300 border border-stone-700">
               {subscription.subscription_type.toUpperCase()}
+            </span>
+            <span
+              data-testid="dietary-badge"
+              className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] font-black border ${
+                isVeg
+                  ? "bg-emerald-950/60 text-emerald-400 border-emerald-500/40"
+                  : "bg-rose-950/60 text-rose-400 border-rose-500/40"
+              }`}
+            >
+              <span className={`h-1.5 w-1.5 rounded-full ${isVeg ? "bg-emerald-400" : "bg-rose-400"}`} />
+              <span>{isVeg ? "VEG 🟢" : "NON-VEG 🔴"}</span>
             </span>
           </div>
         </div>
