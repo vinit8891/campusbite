@@ -63,6 +63,8 @@ describe("LiveOrderTrackerBar Component & Guards", () => {
     expect(isRestrictedPath("/register")).toBe(true);
     expect(isRestrictedPath("/forgot-password")).toBe(true);
     expect(isRestrictedPath("/reset-password")).toBe(true);
+    expect(isRestrictedPath("/orders/order-101")).toBe(true);
+    expect(isRestrictedPath("/track-order/order-101")).toBe(true);
 
     expect(isRestrictedPath("/")).toBe(false);
     expect(isRestrictedPath("/restaurants")).toBe(false);
@@ -72,7 +74,7 @@ describe("LiveOrderTrackerBar Component & Guards", () => {
     expect(isRestrictedPath("/profile")).toBe(false);
   });
 
-  it("does not render or fetch orders on restricted portal paths (/admin, /restaurant, /delivery, /login)", async () => {
+  it("does not render or fetch orders on restricted portal paths or dedicated tracking pages", async () => {
     const getMyOrdersSpy = vi
       .spyOn(orderService, "getMyOrders")
       .mockResolvedValue([mockActiveOrder]);
@@ -93,6 +95,16 @@ describe("LiveOrderTrackerBar Component & Guards", () => {
     expect(getMyOrdersSpy).not.toHaveBeenCalled();
 
     mockPathname = "/login";
+    rerender(<LiveOrderTrackerBar />);
+    expect(screen.queryByTestId("live-order-tracker-bar")).not.toBeInTheDocument();
+    expect(getMyOrdersSpy).not.toHaveBeenCalled();
+
+    mockPathname = "/orders/order-101";
+    rerender(<LiveOrderTrackerBar />);
+    expect(screen.queryByTestId("live-order-tracker-bar")).not.toBeInTheDocument();
+    expect(getMyOrdersSpy).not.toHaveBeenCalled();
+
+    mockPathname = "/track-order/order-101";
     rerender(<LiveOrderTrackerBar />);
     expect(screen.queryByTestId("live-order-tracker-bar")).not.toBeInTheDocument();
     expect(getMyOrdersSpy).not.toHaveBeenCalled();
@@ -144,5 +156,43 @@ describe("LiveOrderTrackerBar Component & Guards", () => {
 
     await user.click(otpButton);
     expect(screen.getByText("OTP: 4821")).toBeInTheDocument();
+  });
+
+  it("omits OTP pill when active order does not have delivery_otp or otp", async () => {
+    mockIsLoggedIn = true;
+    mockPathname = "/";
+    const orderWithoutOtp: Order = {
+      ...mockActiveOrder,
+      delivery_otp: undefined,
+    };
+    vi.spyOn(orderService, "getMyOrders").mockResolvedValue([orderWithoutOtp]);
+
+    render(<LiveOrderTrackerBar />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("live-order-tracker-bar")).toBeInTheDocument();
+    });
+
+    expect(screen.queryByRole("button", { name: /show handover otp/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/OTP:/i)).not.toBeInTheDocument();
+  });
+
+  it("clears active order and localStorage when all orders are completed or delivered", async () => {
+    mockIsLoggedIn = true;
+    mockPathname = "/";
+    const deliveredOrder: Order = {
+      ...mockActiveOrder,
+      status: "Delivered",
+    };
+    localStorage.setItem("cb_active_order_id", "order-101");
+    vi.spyOn(orderService, "getMyOrders").mockResolvedValue([deliveredOrder]);
+
+    render(<LiveOrderTrackerBar />);
+
+    await waitFor(() => {
+      expect(screen.queryByTestId("live-order-tracker-bar")).not.toBeInTheDocument();
+    });
+
+    expect(localStorage.getItem("cb_active_order_id")).toBeNull();
   });
 });

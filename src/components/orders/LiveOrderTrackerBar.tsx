@@ -23,7 +23,9 @@ export function isRestrictedPath(pathname: string): boolean {
     isPortalOrAuth("/login") ||
     isPortalOrAuth("/register") ||
     isPortalOrAuth("/forgot-password") ||
-    isPortalOrAuth("/reset-password")
+    isPortalOrAuth("/reset-password") ||
+    pathname.startsWith("/orders/") ||
+    pathname.startsWith("/track-order/")
   );
 }
 
@@ -47,13 +49,28 @@ export function LiveOrderTrackerBar() {
   const [showOtp, setShowOtp] = useState(false);
   const [loading, setLoading] = useState(false);
 
-  const isRestricted = useMemo(() => {
-    return isRestrictedPath(pathname) || isNonCustomerRole();
+  const isAlreadyOnTrackingPage = useMemo(() => {
+    return (
+      Boolean(pathname) &&
+      (pathname.startsWith("/orders/") || pathname.startsWith("/track-order/"))
+    );
   }, [pathname]);
+
+  const isRestricted = useMemo(() => {
+    return (
+      isRestrictedPath(pathname) ||
+      isNonCustomerRole() ||
+      isAlreadyOnTrackingPage
+    );
+  }, [pathname, isAlreadyOnTrackingPage]);
 
   const fetchActiveOrders = useCallback(async () => {
     if (!isLoggedIn || isRestricted) {
       setActiveOrder(null);
+      if (typeof window !== "undefined") {
+        localStorage.removeItem("cb_active_order_id");
+        localStorage.removeItem("cb_active_order");
+      }
       return;
     }
 
@@ -64,7 +81,23 @@ export function LiveOrderTrackerBar() {
       const active = (orders || []).find((order) =>
         isActiveOrderStatus(order.status)
       );
-      setActiveOrder(active || null);
+
+      if (active) {
+        setActiveOrder(active);
+        if (typeof window !== "undefined") {
+          localStorage.setItem(
+            "cb_active_order_id",
+            active._id || (active as unknown as { id?: string }).id || ""
+          );
+        }
+      } else {
+        // Clear completed / cancelled orders from active cache and localStorage
+        setActiveOrder(null);
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("cb_active_order_id");
+          localStorage.removeItem("cb_active_order");
+        }
+      }
     } catch {
       // Silently handle background polling error
     } finally {
@@ -118,10 +151,15 @@ export function LiveOrderTrackerBar() {
 
   const orderId = activeOrder?._id || activeOrder?.id || "";
   const trackingUrl = orderId ? trackOrderPath(orderId) : ROUTES.MY_ORDERS;
-  const otpCode = activeOrder?.delivery_otp ? String(activeOrder.delivery_otp) : "4821";
+  const displayOtp =
+    activeOrder?.delivery_otp != null
+      ? String(activeOrder.delivery_otp)
+      : (activeOrder as unknown as { otp?: string | number })?.otp != null
+      ? String((activeOrder as unknown as { otp?: string | number }).otp)
+      : null;
 
-  // Immediate guard: Skip rendering and polling on non-customer / restricted pages
-  if (isRestricted || !isLoggedIn || !activeOrder) {
+  // Immediate guard: Skip rendering and polling on non-customer, restricted, or dedicated order pages
+  if (isRestricted || !isLoggedIn || !activeOrder || isAlreadyOnTrackingPage) {
     return null;
   }
 
@@ -165,19 +203,21 @@ export function LiveOrderTrackerBar() {
 
       {/* Right side: Interactive "Show OTP" Chip & Tracking Navigation Chevron */}
       <div className="flex items-center gap-2 shrink-0">
-        <button
-          type="button"
-          onClick={() => setShowOtp((prev) => !prev)}
-          className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all duration-200 cursor-pointer ${
-            showOtp
-              ? "bg-orange-100 border-orange-300 text-orange-800 ring-2 ring-orange-400/20 shadow-xs"
-              : "bg-orange-50 border-orange-200/80 text-orange-700 hover:bg-orange-100"
-          }`}
-          aria-label={showOtp ? `Handover OTP is ${otpCode}` : "Show Handover OTP"}
-        >
-          <KeyRound className="h-3.5 w-3.5 text-orange-600" />
-          <span>{showOtp ? `OTP: ${otpCode}` : "Show OTP"}</span>
-        </button>
+        {displayOtp ? (
+          <button
+            type="button"
+            onClick={() => setShowOtp((prev) => !prev)}
+            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all duration-200 cursor-pointer ${
+              showOtp
+                ? "bg-orange-100 border-orange-300 text-orange-800 ring-2 ring-orange-400/20 shadow-xs"
+                : "bg-orange-50 border-orange-200/80 text-orange-700 hover:bg-orange-100"
+            }`}
+            aria-label={showOtp ? `Handover OTP is ${displayOtp}` : "Show Handover OTP"}
+          >
+            <KeyRound className="h-3.5 w-3.5 text-orange-600" />
+            <span>{showOtp ? `OTP: ${displayOtp}` : "Show OTP"}</span>
+          </button>
+        ) : null}
 
         <Link
           href={trackingUrl}
