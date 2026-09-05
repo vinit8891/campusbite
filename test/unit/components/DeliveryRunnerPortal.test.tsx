@@ -240,6 +240,26 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
 
       expect(onOpenOtp).toHaveBeenCalledWith("order-201");
     });
+
+    it("immediately triggers onUpdateStatus with Picked Up when Confirm All Items button is clicked", async () => {
+      const user = userEvent.setup();
+      const onUpdateStatus = vi.fn();
+
+      render(
+        <ActiveDeliveryManifest
+          order={mockActiveOrder}
+          onUpdateStatus={onUpdateStatus}
+          onOpenOtp={vi.fn()}
+        />
+      );
+
+      const pickupBtn = screen.getByRole("button", {
+        name: /confirm all items & mark picked up/i,
+      });
+      await user.click(pickupBtn);
+
+      expect(onUpdateStatus).toHaveBeenCalledWith("order-201", "Picked Up");
+    });
   });
 
   describe("DeliveryOtpModal", () => {

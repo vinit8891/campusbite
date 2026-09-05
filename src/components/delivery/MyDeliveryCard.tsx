@@ -55,25 +55,38 @@ export function MyDeliveryCard({
 
       <div className="mt-6 flex flex-wrap gap-3">
         <button
+          type="button"
           disabled={order.status !== "Assigned"}
-          onClick={() => onUpdateStatus(order._id, "Picked Up")}
-          className="rounded-lg bg-orange-600 px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-40"
+          onClick={(e) => {
+            e.stopPropagation();
+            console.log("Pickup button tapped for order:", order._id);
+            onUpdateStatus(order._id, "Picked Up");
+          }}
+          className="relative z-10 rounded-lg bg-orange-600 hover:bg-orange-700 active:bg-orange-800 px-4 py-2 text-white font-bold text-xs select-none cursor-pointer active:scale-[0.98] transition-all disabled:cursor-not-allowed disabled:opacity-40"
         >
           📦 Picked Up
         </button>
 
         <button
+          type="button"
           disabled={order.status !== "Picked Up"}
-          onClick={() => onUpdateStatus(order._id, "Out for Delivery")}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-40"
+          onClick={(e) => {
+            e.stopPropagation();
+            onUpdateStatus(order._id, "Out for Delivery");
+          }}
+          className="relative z-10 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 px-4 py-2 text-white font-bold text-xs select-none cursor-pointer active:scale-[0.98] transition-all disabled:cursor-not-allowed disabled:opacity-40"
         >
           🛵 Out for Delivery
         </button>
 
         <button
+          type="button"
           disabled={order.status !== "Out for Delivery"}
-          onClick={() => onOpenOtp(order._id)}
-          className="rounded-lg bg-green-600 px-4 py-2 text-white disabled:cursor-not-allowed disabled:opacity-40"
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenOtp(order._id);
+          }}
+          className="relative z-10 rounded-lg bg-green-600 hover:bg-green-700 active:bg-green-800 px-4 py-2 text-white font-bold text-xs select-none cursor-pointer active:scale-[0.98] transition-all disabled:cursor-not-allowed disabled:opacity-40"
         >
           ✅ Delivered
         </button>

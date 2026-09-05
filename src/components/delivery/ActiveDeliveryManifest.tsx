@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   CheckCircle2,
   ChevronRight,
@@ -31,6 +31,12 @@ export function ActiveDeliveryManifest({
   onUpdateStatus,
   onOpenOtp,
 }: ActiveDeliveryManifestProps) {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   // Track checked items for canteen pickup validation
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
 
@@ -48,6 +54,10 @@ export function ActiveDeliveryManifest({
     setCheckedItems((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
+  function handleConfirmPickup() {
+    onUpdateStatus(order._id, "Picked Up");
+  }
+
   const canteenName = formatRestaurantName(
     order.restaurant_name || order.restaurant_email
   );
@@ -60,7 +70,7 @@ export function ActiveDeliveryManifest({
         )}`;
 
   return (
-    <div className="w-full max-w-full min-w-0 overflow-hidden box-border rounded-3xl border border-stone-200/90 bg-white p-5 sm:p-7 shadow-xs space-y-5 transition-all hover:shadow-md">
+    <div className="w-full max-w-full min-w-0 box-border rounded-3xl border border-stone-200/90 bg-white p-5 sm:p-7 shadow-xs space-y-5 transition-all hover:shadow-md">
       {/* Manifest Header */}
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-stone-100 pb-4">
         <div className="min-w-0 max-w-full flex-1">
@@ -212,8 +222,15 @@ export function ActiveDeliveryManifest({
             <div className="pt-2">
               <button
                 type="button"
-                onClick={() => onUpdateStatus(order._id, "Picked Up")}
-                className="w-full h-11 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs sm:text-sm shadow-xs active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  console.log(
+                    "Pickup button tapped for order:",
+                    order._id || (order as { id?: string }).id
+                  );
+                  handleConfirmPickup();
+                }}
+                className="relative z-10 w-full h-11 rounded-xl bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white font-extrabold text-xs sm:text-sm shadow-xs active:scale-[0.98] select-none cursor-pointer transition-all flex items-center justify-center gap-2"
               >
                 <span>📦 Confirm All Items &amp; Mark Picked Up</span>
                 <ChevronRight size={16} />
@@ -240,7 +257,7 @@ export function ActiveDeliveryManifest({
             {order.phone && (
               <a
                 href={`tel:${order.phone}`}
-                className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer"
+                className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer select-none"
               >
                 <Phone size={13} />
                 <span>Call {order.phone}</span>
@@ -276,8 +293,11 @@ export function ActiveDeliveryManifest({
           {isPickedUp && (
             <button
               type="button"
-              onClick={() => onUpdateStatus(order._id, "Out for Delivery")}
-              className="flex-1 h-11 rounded-xl bg-blue-600 hover:bg-blue-700 text-white font-extrabold text-xs sm:text-sm shadow-xs active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                onUpdateStatus(order._id, "Out for Delivery");
+              }}
+              className="relative z-10 flex-1 h-11 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs sm:text-sm shadow-xs active:scale-[0.98] select-none cursor-pointer transition-all flex items-center justify-center gap-2"
             >
               <span>🛵 Start Delivery Trip (Out for Delivery)</span>
               <ChevronRight size={16} />
@@ -288,8 +308,11 @@ export function ActiveDeliveryManifest({
           {isOutForDelivery && (
             <button
               type="button"
-              onClick={() => onOpenOtp(order._id)}
-              className="flex-1 h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm sm:text-base shadow-sm active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenOtp(order._id);
+              }}
+              className="relative z-10 flex-1 h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-sm sm:text-base shadow-sm active:scale-[0.98] select-none cursor-pointer transition-all flex items-center justify-center gap-2"
             >
               <KeyRound size={18} />
               <span>🔐 Complete Delivery &amp; Verify OTP</span>
