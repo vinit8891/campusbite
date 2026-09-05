@@ -13,12 +13,12 @@ import { DeliveryHistoryCardList } from "@/components/delivery/DeliveryHistoryCa
 function HistorySkeleton() {
   return (
     <div className="space-y-4">
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid grid-cols-3 gap-2 sm:gap-4">
         {Array.from({ length: 3 }).map((_, index) => (
-          <Skeleton key={index} className="h-28 w-full rounded-2xl" />
+          <Skeleton key={index} className="h-20 sm:h-24 w-full rounded-2xl" />
         ))}
       </div>
-      <Skeleton className="h-24 w-full rounded-2xl" />
+      <Skeleton className="h-14 w-full rounded-2xl" />
       {Array.from({ length: 3 }).map((_, index) => (
         <Skeleton key={index} className="h-36 w-full rounded-2xl" />
       ))}

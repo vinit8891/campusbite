@@ -41,10 +41,10 @@ export function BatchOrderGroupCard({
     .join(" • ");
 
   return (
-    <div className="rounded-2xl sm:rounded-3xl border border-amber-200/80 bg-gradient-to-br from-amber-50/60 via-orange-50/20 to-white p-4 sm:p-6 shadow-xs transition-all hover:shadow-md">
+    <div className="w-full max-w-full min-w-0 overflow-hidden box-border rounded-2xl sm:rounded-3xl border border-amber-200/80 bg-gradient-to-br from-amber-50/60 via-orange-50/20 to-white p-4 sm:p-6 shadow-xs transition-all hover:shadow-md">
       {/* Batch Header */}
-      <div className="flex flex-wrap items-start justify-between gap-3 border-b border-amber-200/60 pb-3.5">
-        <div className="space-y-1">
+      <div className="flex flex-wrap items-start justify-between gap-2 border-b border-amber-200/60 pb-3.5">
+        <div className="space-y-1 min-w-0 max-w-full flex-1">
           <div className="flex items-center gap-2">
             <span className="rounded-xl bg-orange-600 px-2.5 py-1 text-[11px] font-black tracking-wide text-white shadow-xs">
               ⚡ BATCH DROP
@@ -54,26 +54,26 @@ export function BatchOrderGroupCard({
             </span>
           </div>
 
-          <h3 className="flex items-center gap-2 text-lg sm:text-2xl font-black text-stone-900 tracking-tight pt-1">
+          <h3 className="flex items-center gap-2 text-lg sm:text-2xl font-black text-stone-900 tracking-tight pt-1 truncate">
             <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600 shrink-0" />
-            <span>{batch.building}</span>
+            <span className="truncate">{batch.building}</span>
           </h3>
 
-          <div className="flex items-center gap-1.5 text-xs text-stone-600 pt-0.5">
+          <div className="flex items-center gap-1.5 text-xs text-stone-600 pt-0.5 min-w-0">
             <Store className="h-3.5 w-3.5 text-stone-400 shrink-0" />
-            <span className="font-semibold text-stone-700">Pickup:</span>
+            <span className="font-semibold text-stone-700 shrink-0">Pickup:</span>
             <span className="font-medium text-stone-800 truncate">
               {formattedRestaurants || "Campus Eatery"}
             </span>
           </div>
         </div>
 
-        {/* Unclipped Payout Badge */}
-        <div className="rounded-2xl bg-emerald-100/90 border border-emerald-200 px-3.5 py-2 text-right shrink-0">
+        {/* Combined Payout Badge */}
+        <div className="rounded-2xl bg-emerald-100/90 border border-emerald-200 px-2.5 py-1 sm:px-3.5 sm:py-2 text-right shrink-0 max-w-full">
           <span className="block text-[10px] font-extrabold uppercase tracking-wider text-emerald-800">
             Combined Payout
           </span>
-          <div className="text-xl sm:text-2xl font-black text-emerald-900 leading-tight">
+          <div className="text-lg sm:text-2xl font-black text-emerald-900 leading-tight">
             💰 ₹{batch.estimatedPayout}
           </div>
           <span className="block text-[10px] text-emerald-700 font-bold">
@@ -83,7 +83,7 @@ export function BatchOrderGroupCard({
       </div>
 
       {/* Orders List in Batch */}
-      <div className="my-4 space-y-2.5">
+      <div className="my-4 space-y-2.5 min-w-0 max-w-full">
         {batch.orders.map((order) => {
           const isSingleClaiming = claimingIds.includes(order._id);
           const canteenName = formatRestaurantName(
@@ -93,14 +93,14 @@ export function BatchOrderGroupCard({
           return (
             <div
               key={order._id}
-              className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-stone-200/80 bg-white p-3 sm:p-4 shadow-xs"
+              className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-2xl border border-stone-200/80 bg-white p-3 sm:p-4 shadow-xs min-w-0 max-w-full overflow-hidden box-border"
             >
               <div className="min-w-0 space-y-1 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <span className="font-mono text-xs font-bold text-orange-700 bg-orange-50 px-2 py-0.5 rounded-md">
                     #{shortId(order._id)}
                   </span>
-                  <span className="text-xs font-extrabold text-stone-900">
+                  <span className="text-xs font-extrabold text-stone-900 truncate">
                     🏪 {canteenName}
                   </span>
                 </div>
@@ -124,14 +124,16 @@ export function BatchOrderGroupCard({
 
                 {/* Customer Note Callout Bubble if present */}
                 {order.special_instructions || (order as { notes?: string }).notes ? (
-                  <div className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-200/70 px-2.5 py-1 text-[11px] font-medium text-amber-900">
+                  <div className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-200/70 px-2.5 py-1 text-[11px] font-medium text-amber-900 max-w-full truncate">
                     <FileText className="h-3 w-3 text-amber-600 shrink-0" />
-                    <span>Note: {order.special_instructions || (order as { notes?: string }).notes}</span>
+                    <span className="truncate">
+                      Note: {order.special_instructions || (order as { notes?: string }).notes}
+                    </span>
                   </div>
                 ) : null}
               </div>
 
-              <div className="flex items-center justify-between sm:justify-end gap-2.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-100">
+              <div className="flex items-center justify-between sm:justify-end gap-2.5 pt-2 sm:pt-0 border-t sm:border-t-0 border-stone-100 shrink-0">
                 <span className="text-sm font-black text-stone-800">
                   ₹{order.total ?? 0}
                 </span>
@@ -151,7 +153,7 @@ export function BatchOrderGroupCard({
       </div>
 
       {/* Batch Action Footer with 48px Touch Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-2 min-w-0 max-w-full">
         <span className="text-xs font-semibold text-stone-500 flex items-center gap-1">
           <span>💡</span>
           <span>Deliver all {batch.orders.length} orders in a single hostel run</span>
@@ -162,7 +164,7 @@ export function BatchOrderGroupCard({
             <button
               type="button"
               onClick={() => onNavigate(batch.orders[0])}
-              className="h-12 flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white px-4 text-xs font-bold text-stone-700 hover:bg-stone-50 transition-all shadow-xs cursor-pointer active:scale-95"
+              className="h-12 flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white px-4 text-xs font-bold text-stone-700 hover:bg-stone-50 transition-all shadow-xs cursor-pointer active:scale-95 shrink-0"
             >
               <Navigation className="h-4 w-4 text-blue-600" />
               <span className="hidden sm:inline">Map</span>

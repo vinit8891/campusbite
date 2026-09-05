@@ -13,7 +13,7 @@ import {
   FileText,
 } from "lucide-react";
 import { OrderStatusBadge } from "@/components/common";
-import { shortId, formatDateTime } from "@/lib/formatters";
+import { shortId, formatDateTime, formatRestaurantName } from "@/lib/formatters";
 import {
   formatPaymentMethod,
   formatPaymentStatus,
@@ -34,10 +34,11 @@ export function ActiveDeliveryManifest({
   // Track checked items for canteen pickup validation
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
 
-  const isAssigned = order.status === "Assigned";
-  const isPickedUp = order.status === "Picked Up";
-  const isOutForDelivery = order.status === "Out for Delivery";
-  const isDelivered = order.status === "Delivered";
+  const statusLower = (order.status || "").toLowerCase();
+  const isAssigned = statusLower === "assigned";
+  const isPickedUp = statusLower === "picked up";
+  const isOutForDelivery = statusLower === "out for delivery";
+  const isDelivered = statusLower === "delivered";
 
   const totalItemsCount = Array.isArray(order.items) ? order.items.length : 0;
   const checkedCount = Object.values(checkedItems).filter(Boolean).length;
@@ -47,6 +48,10 @@ export function ActiveDeliveryManifest({
     setCheckedItems((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
+  const canteenName = formatRestaurantName(
+    order.restaurant_name || order.restaurant_email
+  );
+
   const mapUrl =
     order.latitude != null && order.longitude != null
       ? `https://www.google.com/maps/dir/?api=1&destination=${order.latitude},${order.longitude}`
@@ -55,10 +60,10 @@ export function ActiveDeliveryManifest({
         )}`;
 
   return (
-    <div className="rounded-3xl border border-stone-200/90 bg-white p-5 sm:p-7 shadow-xs space-y-5 transition-all hover:shadow-md">
+    <div className="w-full max-w-full min-w-0 overflow-hidden box-border rounded-3xl border border-stone-200/90 bg-white p-5 sm:p-7 shadow-xs space-y-5 transition-all hover:shadow-md">
       {/* Manifest Header */}
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-stone-100 pb-4">
-        <div>
+        <div className="min-w-0 max-w-full flex-1">
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs font-bold text-stone-500 bg-stone-100 px-2.5 py-0.5 rounded-md">
               Order #{shortId(order._id)}
@@ -66,18 +71,18 @@ export function ActiveDeliveryManifest({
             <OrderStatusBadge status={order.status} size="sm" />
           </div>
 
-          <h2 className="text-xl sm:text-2xl font-black text-stone-900 tracking-tight pt-1.5 flex items-center gap-2">
+          <h2 className="text-xl sm:text-2xl font-black text-stone-900 tracking-tight pt-1.5 flex items-center gap-2 truncate">
             <Store className="h-5 w-5 text-orange-600 shrink-0" />
-            <span>{order.restaurant_email || "Campus Canteen"}</span>
+            <span className="truncate">{canteenName}</span>
           </h2>
 
           <p className="flex items-center gap-1.5 text-xs text-stone-500 pt-0.5">
-            <Clock3 size={13} className="text-stone-400" />
+            <Clock3 size={13} className="text-stone-400 shrink-0" />
             <span>Assigned at {formatDateTime(order.created_at)}</span>
           </p>
         </div>
 
-        <div className="text-right">
+        <div className="text-right shrink-0">
           <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider">
             Order Total
           </span>
@@ -99,78 +104,119 @@ export function ActiveDeliveryManifest({
         </div>
       </div>
 
-      {/* Stage 1: Canteen Pickup Checklist */}
-      <div className="rounded-2xl border border-amber-200/70 bg-gradient-to-br from-amber-50/50 via-orange-50/20 to-white p-4 sm:p-5 space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-amber-900 flex items-center gap-2">
-            <span>📦 Canteen Item Checklist</span>
-            {totalItemsCount > 0 && (
-              <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[11px] font-bold text-amber-950">
-                {checkedCount}/{totalItemsCount} verified
-              </span>
-            )}
-          </h3>
-
-          {allItemsChecked && (
-            <span className="text-xs font-bold text-emerald-700 flex items-center gap-1">
-              <CheckCircle2 size={14} /> Ready for transit
+      {/* Stage 1: Item Checklist or Completed Banner */}
+      {isDelivered ? (
+        /* Completed Delivery Summary Card */
+        <div className="rounded-2xl border border-emerald-200/80 bg-gradient-to-br from-emerald-50/60 via-emerald-50/30 to-white p-4 sm:p-5 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <h3 className="text-xs sm:text-sm font-extrabold text-emerald-900 flex items-center gap-2">
+              <CheckCircle2 className="h-4 w-4 text-emerald-600 shrink-0" />
+              <span>✅ Delivery Completed • Verified via OTP 🎉</span>
+            </h3>
+            <span className="rounded-full bg-emerald-100 border border-emerald-200 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
+              {totalItemsCount} {totalItemsCount === 1 ? "Item Delivered" : "Items Delivered"}
             </span>
-          )}
-        </div>
+          </div>
 
-        {Array.isArray(order.items) && order.items.length > 0 ? (
-          <div className="space-y-2">
-            {order.items.map((item, index) => {
-              const itemKey = String(item.id || `${item.name}-${index}`);
-              const isChecked = Boolean(checkedItems[itemKey]);
-
-              return (
-                <label
-                  key={itemKey}
-                  onClick={() => toggleItemCheck(itemKey)}
-                  className={`flex items-center justify-between rounded-xl border p-3 text-xs sm:text-sm transition-all cursor-pointer ${
-                    isChecked
-                      ? "border-emerald-300 bg-emerald-50/70 text-emerald-950 font-bold"
-                      : "border-stone-200 bg-white text-stone-800 hover:border-amber-300"
-                  }`}
+          {Array.isArray(order.items) && order.items.length > 0 ? (
+            <div className="rounded-xl border border-emerald-100/80 bg-white/90 p-3 space-y-1.5 text-xs sm:text-sm text-stone-700">
+              {order.items.map((item, index) => (
+                <div
+                  key={item.id || `${item.name}-${index}`}
+                  className="flex justify-between items-center py-1 border-b border-stone-100 last:border-0"
                 >
-                  <div className="flex items-center gap-2.5">
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={() => {}} // handled by label click
-                      className="h-4 w-4 rounded text-orange-600 focus:ring-orange-500 cursor-pointer"
-                    />
-                    <span>
-                      {item.name || "Item"} × {item.quantity || 1}
-                    </span>
-                  </div>
-
-                  <span className="text-xs font-semibold text-stone-500">
+                  <span className="font-medium text-stone-800 truncate pr-2">
+                    {item.name || "Item"} × {item.quantity || 1}
+                  </span>
+                  <span className="font-semibold text-stone-600 shrink-0">
                     ₹{(item.price || 0) * (item.quantity || 1)}
                   </span>
-                </label>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="text-xs text-stone-500 italic">No item details provided.</p>
-        )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p className="text-xs text-stone-500 italic">No item details recorded.</p>
+          )}
+        </div>
+      ) : (
+        /* Active Order Item Packing Checklist */
+        <div className="rounded-2xl border border-amber-200/70 bg-gradient-to-br from-amber-50/50 via-orange-50/20 to-white p-4 sm:p-5 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div className="space-y-0.5">
+              <h3 className="text-xs sm:text-sm font-extrabold uppercase tracking-wider text-amber-900 flex items-center gap-2">
+                <span>📦 ITEM PACKING CHECKLIST</span>
+                {totalItemsCount > 0 && (
+                  <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[11px] font-bold text-amber-950">
+                    {checkedCount}/{totalItemsCount} Checked
+                  </span>
+                )}
+              </h3>
+              <p className="text-[11px] text-amber-800/80 font-medium">
+                Verify and check off each food item at the counter before pickup.
+              </p>
+            </div>
 
-        {/* Pickup Action Button */}
-        {isAssigned && (
-          <div className="pt-2">
-            <button
-              type="button"
-              onClick={() => onUpdateStatus(order._id, "Picked Up")}
-              className="w-full h-11 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs sm:text-sm shadow-xs active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
-            >
-              <span>📦 Confirm All Items &amp; Mark Picked Up</span>
-              <ChevronRight size={16} />
-            </button>
+            {allItemsChecked && (
+              <span className="text-xs font-bold text-emerald-700 flex items-center gap-1 shrink-0">
+                <CheckCircle2 size={14} /> Ready for transit
+              </span>
+            )}
           </div>
-        )}
-      </div>
+
+          {Array.isArray(order.items) && order.items.length > 0 ? (
+            <div className="space-y-2">
+              {order.items.map((item, index) => {
+                const itemKey = String(item.id || `${item.name}-${index}`);
+                const isChecked = Boolean(checkedItems[itemKey]);
+
+                return (
+                  <label
+                    key={itemKey}
+                    onClick={() => toggleItemCheck(itemKey)}
+                    className={`flex items-center justify-between rounded-xl border p-3 text-xs sm:text-sm transition-all cursor-pointer ${
+                      isChecked
+                        ? "border-emerald-300 bg-emerald-50/70 text-emerald-950 font-bold"
+                        : "border-stone-200 bg-white text-stone-800 hover:border-amber-300"
+                    }`}
+                  >
+                    <div className="flex items-center gap-2.5 min-w-0 pr-2">
+                      <input
+                        type="checkbox"
+                        checked={isChecked}
+                        onChange={() => {}} // handled by label click
+                        className="h-4 w-4 rounded text-orange-600 focus:ring-orange-500 cursor-pointer shrink-0"
+                      />
+                      <span className="truncate">
+                        {item.name || "Item"} × {item.quantity || 1}
+                      </span>
+                    </div>
+
+                    <span className="text-xs font-semibold text-stone-500 shrink-0">
+                      ₹{(item.price || 0) * (item.quantity || 1)}
+                    </span>
+                  </label>
+                );
+              })}
+            </div>
+          ) : (
+            <p className="text-xs text-stone-500 italic">No item details provided.</p>
+          )}
+
+          {/* Pickup Action Button */}
+          {isAssigned && (
+            <div className="pt-2">
+              <button
+                type="button"
+                onClick={() => onUpdateStatus(order._id, "Picked Up")}
+                className="w-full h-11 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-xs sm:text-sm shadow-xs active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
+              >
+                <span>📦 Confirm All Items &amp; Mark Picked Up</span>
+                <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stage 2: Destination & Hostel Dropoff Details */}
       <div className="rounded-2xl border border-stone-200/90 bg-stone-50/60 p-4 sm:p-5 space-y-3">
@@ -266,3 +312,5 @@ export function ActiveDeliveryManifest({
     </div>
   );
 }
+
+export default ActiveDeliveryManifest;

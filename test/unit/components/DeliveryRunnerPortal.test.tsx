@@ -1,10 +1,13 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
-import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BatchOrderGroupCard, type BatchGroup } from "@/components/delivery/BatchOrderGroupCard";
 import { AvailableOrderCard } from "@/components/delivery/AvailableOrderCard";
 import { AvailableOrdersFilterBar } from "@/components/delivery/AvailableOrdersFilterBar";
+import { DeliveryOrdersFilterBar } from "@/components/delivery/DeliveryOrdersFilterBar";
+import { DeliveryHistoryFilterBar } from "@/components/delivery/DeliveryHistoryFilterBar";
+import { DeliveryHistoryStatCards } from "@/components/delivery/DeliveryHistoryStatCards";
 import { ActiveDeliveryManifest } from "@/components/delivery/ActiveDeliveryManifest";
 import { DeliveryOtpModal } from "@/components/delivery/DeliveryOtpModal";
 import type { DeliveryOrder } from "@/types";
@@ -51,7 +54,7 @@ const mockBatchGroup: BatchGroup = {
 
 const mockActiveOrder: DeliveryOrder = {
   _id: "order-201",
-  restaurant_email: "Central Canteen",
+  restaurant_email: "owner@test.com",
   customer_name: "Amit Patel",
   customer_email: "amit@campus.edu",
   phone: "9123456780",
@@ -65,6 +68,12 @@ const mockActiveOrder: DeliveryOrder = {
     { id: "dish-1", name: "Special Veg Thali", price: 250, quantity: 1 },
     { id: "dish-2", name: "Lassi", price: 50, quantity: 2 },
   ],
+};
+
+const mockDeliveredOrder: DeliveryOrder = {
+  ...mockActiveOrder,
+  _id: "order-202",
+  status: "Delivered",
 };
 
 describe("Campus Courier & Delivery Runner Portal Components", () => {
@@ -133,7 +142,7 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
   });
 
   describe("ActiveDeliveryManifest", () => {
-    it("renders canteen pickup checklist and hostel drop details", () => {
+    it("renders formatted canteen name, item packing checklist, and hostel drop details for active orders", () => {
       render(
         <ActiveDeliveryManifest
           order={mockActiveOrder}
@@ -142,7 +151,12 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
         />
       );
 
-      expect(screen.getByText("Central Canteen")).toBeInTheDocument();
+      // Formatted canteen name from owner@test.com
+      expect(screen.getByText("Owner Canteen")).toBeInTheDocument();
+      expect(screen.getByText(/ITEM PACKING CHECKLIST/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Verify and check off each food item at the counter before pickup/i)
+      ).toBeInTheDocument();
       expect(screen.getByText(/Special Veg Thali/i)).toBeInTheDocument();
       expect(screen.getByText(/Lassi/i)).toBeInTheDocument();
       expect(screen.getByText(/Room 402, Block B Hostel/i)).toBeInTheDocument();
@@ -159,7 +173,7 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
       ).toBeInTheDocument();
     });
 
-    it("allows checking off canteen items interactively", async () => {
+    it("allows checking off packing checklist items interactively", async () => {
       const user = userEvent.setup();
 
       render(
@@ -170,12 +184,35 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
         />
       );
 
-      expect(screen.getByText("0/2 verified")).toBeInTheDocument();
+      expect(screen.getByText("0/2 Checked")).toBeInTheDocument();
 
       const thaliCheckbox = screen.getByLabelText(/Special Veg Thali × 1/i);
       await user.click(thaliCheckbox);
 
-      expect(screen.getByText("1/2 verified")).toBeInTheDocument();
+      expect(screen.getByText("1/2 Checked")).toBeInTheDocument();
+    });
+
+    it("renders clean completion card for delivered orders without interactive checkboxes", () => {
+      render(
+        <ActiveDeliveryManifest
+          order={mockDeliveredOrder}
+          onUpdateStatus={vi.fn()}
+          onOpenOtp={vi.fn()}
+        />
+      );
+
+      // Clean completion banner
+      expect(
+        screen.getByText(/✅ Delivery Completed • Verified via OTP 🎉/i)
+      ).toBeInTheDocument();
+
+      // Does not show active packing checklist header or checkboxes
+      expect(screen.queryByText(/ITEM PACKING CHECKLIST/i)).not.toBeInTheDocument();
+      expect(screen.queryByRole("checkbox")).not.toBeInTheDocument();
+
+      // Readonly items list is visible
+      expect(screen.getByText(/Special Veg Thali × 1/i)).toBeInTheDocument();
+      expect(screen.getByText(/Lassi × 2/i)).toBeInTheDocument();
     });
 
     it("renders Complete Delivery button and opens OTP modal when Out for Delivery", async () => {
@@ -349,5 +386,134 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
       expect(onRefresh).toHaveBeenCalled();
     });
   });
-});
 
+  describe("DeliveryOrdersFilterBar", () => {
+    it("renders single-row search bar with embedded clear button and collapsible status dropdown", async () => {
+      const user = userEvent.setup();
+      const setQ = vi.fn();
+      const onStatusChange = vi.fn();
+      const onRefresh = vi.fn();
+      const onSubmit = vi.fn();
+
+      const { rerender } = render(
+        <DeliveryOrdersFilterBar
+          q=""
+          setQ={setQ}
+          status=""
+          onStatusChange={onStatusChange}
+          onRefresh={onRefresh}
+          onSubmit={onSubmit}
+        />
+      );
+
+      const input = screen.getByPlaceholderText(/search customer, room, or order ID/i);
+      expect(input).toBeInTheDocument();
+
+      // Clear button shows when q is present
+      rerender(
+        <DeliveryOrdersFilterBar
+          q="Hostel B"
+          setQ={setQ}
+          status=""
+          onStatusChange={onStatusChange}
+          onRefresh={onRefresh}
+          onSubmit={onSubmit}
+        />
+      );
+
+      const clearBtn = screen.getByRole("button", { name: /clear search/i });
+      await user.click(clearBtn);
+      expect(setQ).toHaveBeenCalledWith("");
+
+      // Open collapsible filters
+      const filterToggleBtn = screen.getByRole("button", { name: /filters/i });
+      await user.click(filterToggleBtn);
+
+      expect(screen.getByText("Order Delivery Status")).toBeInTheDocument();
+      expect(screen.getByRole("combobox")).toBeInTheDocument();
+
+      // Refresh button
+      const refreshBtn = screen.getByRole("button", { name: /refresh orders/i });
+      await user.click(refreshBtn);
+      expect(onRefresh).toHaveBeenCalled();
+    });
+  });
+
+  describe("DeliveryHistoryFilterBar", () => {
+    it("renders single-row search bar with embedded clear button and collapsible date pickers", async () => {
+      const user = userEvent.setup();
+      const setQ = vi.fn();
+      const setFromDate = vi.fn();
+      const setToDate = vi.fn();
+      const onRefresh = vi.fn();
+      const onSubmit = vi.fn();
+
+      const { rerender } = render(
+        <DeliveryHistoryFilterBar
+          q=""
+          setQ={setQ}
+          fromDate=""
+          setFromDate={setFromDate}
+          toDate=""
+          setToDate={setToDate}
+          onRefresh={onRefresh}
+          onSubmit={onSubmit}
+        />
+      );
+
+      const input = screen.getByPlaceholderText(/search customer, room, or order ID/i);
+      expect(input).toBeInTheDocument();
+
+      // Clear button shows when q is present
+      rerender(
+        <DeliveryHistoryFilterBar
+          q="Alice"
+          setQ={setQ}
+          fromDate=""
+          setFromDate={setFromDate}
+          toDate=""
+          setToDate={setToDate}
+          onRefresh={onRefresh}
+          onSubmit={onSubmit}
+        />
+      );
+
+      const clearBtn = screen.getByRole("button", { name: /clear search/i });
+      await user.click(clearBtn);
+      expect(setQ).toHaveBeenCalledWith("");
+
+      // Open collapsible filters
+      const filterToggleBtn = screen.getByRole("button", { name: /filters/i });
+      await user.click(filterToggleBtn);
+
+      expect(screen.getByLabelText(/from date/i)).toBeInTheDocument();
+      expect(screen.getByLabelText(/to date/i)).toBeInTheDocument();
+
+      // Refresh button
+      const refreshBtn = screen.getByRole("button", { name: /refresh deliveries/i });
+      await user.click(refreshBtn);
+      expect(onRefresh).toHaveBeenCalled();
+    });
+  });
+
+  describe("DeliveryHistoryStatCards", () => {
+    it("renders compact 3-column stats row for total, weekly, and monthly counts", () => {
+      render(
+        <DeliveryHistoryStatCards
+          totalDeliveries={48}
+          weekDeliveries={14}
+          monthDeliveries={32}
+        />
+      );
+
+      expect(screen.getByText("Total Deliveries")).toBeInTheDocument();
+      expect(screen.getByText("48")).toBeInTheDocument();
+
+      expect(screen.getByText("This Week")).toBeInTheDocument();
+      expect(screen.getByText("14")).toBeInTheDocument();
+
+      expect(screen.getByText("This Month")).toBeInTheDocument();
+      expect(screen.getByText("32")).toBeInTheDocument();
+    });
+  });
+});

@@ -44,6 +44,7 @@ export function useDeliveryOrders() {
   const watchIdRef = useRef<number | null>(null);
   const ordersRef = useRef<DeliveryOrder[]>([]);
   const filtersRef = useRef({ q, status });
+  const isFirstMountRef = useRef(true);
 
   useEffect(() => {
     ordersRef.current = orders;
@@ -52,6 +53,17 @@ export function useDeliveryOrders() {
   useEffect(() => {
     filtersRef.current = { q, status };
   }, [q, status]);
+
+  useEffect(() => {
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      void loadOrders(currentFilters({ q }), { showLoading: false });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [q]);
 
   function currentFilters(
     overrides: Partial<MyDeliveriesQuery> = {}

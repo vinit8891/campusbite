@@ -12,7 +12,7 @@ import { DeliveryOtpModal } from "@/components/delivery/DeliveryOtpModal";
 function OrdersSkeleton() {
   return (
     <div className="space-y-4">
-      <Skeleton className="h-24 w-full rounded-2xl" />
+      <Skeleton className="h-14 w-full rounded-2xl" />
       {Array.from({ length: 4 }).map((_, index) => (
         <Skeleton key={index} className="h-40 w-full rounded-2xl" />
       ))}

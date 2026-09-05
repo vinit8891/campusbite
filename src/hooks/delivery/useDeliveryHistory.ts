@@ -59,10 +59,25 @@ export function useDeliveryHistory() {
   const [toDate, setToDate] = useState("");
 
   const filtersRef = useRef({ q, fromDate, toDate, page });
+  const isFirstMountRef = useRef(true);
 
   useEffect(() => {
     filtersRef.current = { q, fromDate, toDate, page };
   }, [q, fromDate, toDate, page]);
+
+  useEffect(() => {
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false;
+      return;
+    }
+    const timer = setTimeout(() => {
+      setPage(1);
+      void loadPage(currentFilters({ q, fromDate, toDate, page: 1 }), {
+        showLoading: false,
+      });
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [q, fromDate, toDate]);
 
   function currentFilters(
     overrides: Partial<DeliveryHistoryQuery & { fromDate?: string; toDate?: string; page?: number }> = {}

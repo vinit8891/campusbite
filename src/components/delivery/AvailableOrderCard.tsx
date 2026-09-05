@@ -1,6 +1,5 @@
 import {
   Clock3,
-  IndianRupee,
   MapPin,
   Navigation,
   Phone,
@@ -33,10 +32,10 @@ export function AvailableOrderCard({
   );
 
   return (
-    <div className="rounded-2xl sm:rounded-3xl border border-stone-200/90 bg-white p-4 sm:p-6 shadow-xs transition-all hover:shadow-md">
+    <div className="w-full max-w-full min-w-0 overflow-hidden box-border rounded-2xl sm:rounded-3xl border border-stone-200/90 bg-white p-4 sm:p-6 shadow-xs transition-all hover:shadow-md">
       {/* Top Header Row */}
-      <div className="flex flex-wrap items-start justify-between gap-3 pb-3 border-b border-stone-100">
-        <div className="space-y-1">
+      <div className="flex flex-wrap items-start justify-between gap-2 pb-3 border-b border-stone-100">
+        <div className="space-y-1 min-w-0 max-w-full flex-1">
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs font-bold text-stone-500 bg-stone-100 px-2 py-0.5 rounded-md">
               #{shortId(order._id)}
@@ -46,21 +45,21 @@ export function AvailableOrderCard({
             </span>
           </div>
 
-          <h2 className="text-lg sm:text-xl font-black text-stone-900 tracking-tight pt-1">
+          <h2 className="text-lg sm:text-xl font-black text-stone-900 tracking-tight pt-1 truncate">
             🏪 {canteenName}
           </h2>
         </div>
 
-        {/* Unclipped Payout Pill */}
-        <div className="rounded-xl bg-emerald-100/90 border border-emerald-200 px-3 py-1.5 text-right shrink-0">
-          <span className="text-xs sm:text-sm font-black text-emerald-900 flex items-center gap-1">
+        {/* Payout Pill */}
+        <div className="rounded-xl bg-emerald-100/90 border border-emerald-200 px-2.5 py-1 text-xs sm:text-sm max-w-full text-right shrink-0">
+          <span className="font-black text-emerald-900 flex items-center gap-1">
             💰 +₹20 Payout
           </span>
         </div>
       </div>
 
       {/* Middle Destination & Customer Details */}
-      <div className="py-3.5 space-y-2 text-xs sm:text-sm text-stone-600">
+      <div className="py-3.5 space-y-2 text-xs sm:text-sm text-stone-600 min-w-0 max-w-full">
         <div className="flex flex-wrap items-center gap-x-4 gap-y-1">
           <p className="flex items-center gap-1.5 font-semibold text-stone-800">
             <User size={15} className="text-stone-400 shrink-0" />
@@ -82,16 +81,18 @@ export function AvailableOrderCard({
 
         <p className="flex items-start gap-1.5">
           <MapPin size={16} className="text-orange-500 shrink-0 mt-0.5" />
-          <span className="font-semibold text-stone-900">
+          <span className="font-semibold text-stone-900 truncate">
             {order.address || "Campus Hostel Dropoff"}
           </span>
         </p>
 
         {/* Special Instructions / Note */}
         {order.special_instructions || (order as { notes?: string }).notes ? (
-          <div className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-200/70 px-2.5 py-1 text-[11px] font-medium text-amber-900">
+          <div className="inline-flex items-center gap-1.5 rounded-lg bg-amber-50 border border-amber-200/70 px-2.5 py-1 text-[11px] font-medium text-amber-900 max-w-full truncate">
             <FileText className="h-3 w-3 text-amber-600 shrink-0" />
-            <span>Note: {order.special_instructions || (order as { notes?: string }).notes}</span>
+            <span className="truncate">
+              Note: {order.special_instructions || (order as { notes?: string }).notes}
+            </span>
           </div>
         ) : null}
 
@@ -114,7 +115,7 @@ export function AvailableOrderCard({
 
       {/* Food Items Breakdown */}
       {Array.isArray(order.items) && order.items.length > 0 ? (
-        <div className="mb-4 rounded-xl bg-stone-50 border border-stone-200/60 p-3">
+        <div className="mb-4 rounded-xl bg-stone-50 border border-stone-200/60 p-3 min-w-0 max-w-full">
           <div className="flex items-center justify-between mb-1.5">
             <h3 className="text-[11px] font-extrabold uppercase tracking-wider text-stone-500">
               Food Items ({order.items.length})
@@ -129,10 +130,10 @@ export function AvailableOrderCard({
                 key={item.id || `${item.name}-${index}`}
                 className="flex justify-between"
               >
-                <span>
+                <span className="truncate pr-2">
                   {item.name || "Item"} × {item.quantity || 1}
                 </span>
-                <span className="font-semibold text-stone-900">
+                <span className="font-semibold text-stone-900 shrink-0">
                   ₹{(item.price || 0) * (item.quantity || 1)}
                 </span>
               </div>
@@ -142,7 +143,7 @@ export function AvailableOrderCard({
       ) : null}
 
       {/* Bottom Action Footer with 48px Touch Button */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-3 border-t border-stone-100">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pt-3 border-t border-stone-100 min-w-0 max-w-full">
         <div className="flex items-center justify-between sm:justify-start gap-2">
           <span className="text-xs text-stone-500">
             Order Total: <strong className="text-stone-900 font-black">₹{order.total ?? 0}</strong>
@@ -153,7 +154,7 @@ export function AvailableOrderCard({
           <button
             type="button"
             onClick={() => onNavigate(order)}
-            className="h-12 flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 px-4 text-xs font-bold text-stone-700 transition-all shadow-xs active:scale-95 cursor-pointer"
+            className="h-12 flex items-center justify-center gap-1.5 rounded-xl border border-stone-200 bg-white hover:bg-stone-50 px-4 text-xs font-bold text-stone-700 transition-all shadow-xs active:scale-95 cursor-pointer shrink-0"
           >
             <Navigation size={15} className="text-blue-600" />
             <span>Map Route</span>

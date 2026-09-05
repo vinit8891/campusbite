@@ -13,7 +13,7 @@ export function DeliveryOrderCardList({
   onOpenOtp,
 }: DeliveryOrderCardListProps) {
   return (
-    <div className="space-y-6">
+    <div className="space-y-6 w-full max-w-full min-w-0">
       {orders.map((order) => (
         <ActiveDeliveryManifest
           key={order._id}
@@ -25,3 +25,5 @@ export function DeliveryOrderCardList({
     </div>
   );
 }
+
+export default DeliveryOrderCardList;

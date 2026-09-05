@@ -76,6 +76,7 @@ export type DeliveryOrder = {
     quantity?: number;
   }>;
   restaurant_email?: string;
+  restaurant_name?: string;
   latitude?: number | null;
   longitude?: number | null;
   created_at?: string;
