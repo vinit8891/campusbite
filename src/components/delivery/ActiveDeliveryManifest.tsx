@@ -12,26 +12,35 @@ import {
   KeyRound,
   FileText,
 } from "lucide-react";
+import { toast } from "sonner";
 import { OrderStatusBadge } from "@/components/common";
 import { shortId, formatDateTime, formatRestaurantName } from "@/lib/formatters";
 import {
   formatPaymentMethod,
   formatPaymentStatus,
 } from "@/lib/paymentLabels";
+import { useDeliveryOrders } from "@/hooks/delivery/useDeliveryOrders";
 import type { DeliveryOrder } from "@/types";
 
 type ActiveDeliveryManifestProps = {
   order: DeliveryOrder;
-  onUpdateStatus: (id: string, status: string) => void;
-  onOpenOtp: (orderId: string) => void;
+  onUpdateStatus?: (id: string, status: string) => void | Promise<void>;
+  onConfirmPickup?: (id: string) => void | Promise<void>;
+  onPickup?: (id: string) => void | Promise<void>;
+  onOpenOtp?: (orderId: string) => void;
 };
 
 export function ActiveDeliveryManifest({
   order,
   onUpdateStatus,
+  onConfirmPickup,
+  onPickup,
   onOpenOtp,
 }: ActiveDeliveryManifestProps) {
   const [isMounted, setIsMounted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const { updateStatus } = useDeliveryOrders();
 
   useEffect(() => {
     setIsMounted(true);
@@ -46,7 +55,8 @@ export function ActiveDeliveryManifest({
   const isOutForDelivery = statusLower === "out for delivery";
   const isDelivered = statusLower === "delivered";
 
-  const totalItemsCount = Array.isArray(order.items) ? order.items.length : 0;
+  const items = Array.isArray(order.items) ? order.items : [];
+  const totalItemsCount = items.length;
   const checkedCount = Object.values(checkedItems).filter(Boolean).length;
   const allItemsChecked = totalItemsCount > 0 && checkedCount >= totalItemsCount;
 
@@ -54,9 +64,39 @@ export function ActiveDeliveryManifest({
     setCheckedItems((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
-  function handleConfirmPickup() {
-    onUpdateStatus(order._id, "Picked Up");
-  }
+  const handleConfirmPickup = async () => {
+    const orderId = order._id || (order as { id?: string }).id;
+    console.log("handleConfirmPickup initiated for order ID:", orderId);
+
+    if (!orderId) {
+      toast.error("Invalid order ID");
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+      console.log("Sending status update: Picked Up for", orderId);
+
+      if (typeof onConfirmPickup === "function") {
+        await onConfirmPickup(orderId);
+      } else if (typeof onPickup === "function") {
+        await onPickup(orderId);
+      } else if (typeof onUpdateStatus === "function") {
+        await onUpdateStatus(orderId, "Picked Up");
+      } else {
+        await updateStatus(orderId, "Picked Up");
+      }
+
+      toast.success("Order marked as Picked Up!");
+    } catch (err: unknown) {
+      console.error("Failed to mark picked up:", err);
+      toast.error(
+        err instanceof Error ? err.message : "Failed to confirm pickup"
+      );
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
 
   const canteenName = formatRestaurantName(
     order.restaurant_name || order.restaurant_email
@@ -133,9 +173,9 @@ export function ActiveDeliveryManifest({
             </span>
           </div>
 
-          {Array.isArray(order.items) && order.items.length > 0 ? (
+          {items.length > 0 ? (
             <div className="rounded-xl border border-emerald-100/80 bg-white/90 p-3 space-y-1.5 text-xs sm:text-sm text-stone-700">
-              {order.items.map((item, index) => (
+              {items.map((item, index) => (
                 <div
                   key={item.id || `${item.name}-${index}`}
                   className="flex justify-between items-center py-1 border-b border-stone-100 last:border-0"
@@ -178,9 +218,9 @@ export function ActiveDeliveryManifest({
             )}
           </div>
 
-          {Array.isArray(order.items) && order.items.length > 0 ? (
+          {items.length > 0 ? (
             <div className="space-y-2">
-              {order.items.map((item, index) => {
+              {items.map((item, index) => {
                 const itemKey = String(item.id || `${item.name}-${index}`);
                 const isChecked = Boolean(checkedItems[itemKey]);
 
@@ -222,17 +262,22 @@ export function ActiveDeliveryManifest({
             <div className="pt-2">
               <button
                 type="button"
+                disabled={isSubmitting}
                 onClick={(e) => {
                   e.stopPropagation();
                   console.log(
                     "Pickup button tapped for order:",
                     order._id || (order as { id?: string }).id
                   );
-                  handleConfirmPickup();
+                  void handleConfirmPickup();
                 }}
-                className="relative z-10 w-full h-11 rounded-xl bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white font-extrabold text-xs sm:text-sm shadow-xs active:scale-[0.98] select-none cursor-pointer transition-all flex items-center justify-center gap-2"
+                className="relative z-10 w-full h-11 rounded-xl bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white font-extrabold text-xs sm:text-sm shadow-xs active:scale-[0.98] select-none cursor-pointer transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                <span>📦 Confirm All Items &amp; Mark Picked Up</span>
+                <span>
+                  {isSubmitting
+                    ? "Updating..."
+                    : "📦 Confirm All Items & Mark Picked Up"}
+                </span>
                 <ChevronRight size={16} />
               </button>
             </div>
@@ -293,13 +338,31 @@ export function ActiveDeliveryManifest({
           {isPickedUp && (
             <button
               type="button"
-              onClick={(e) => {
+              disabled={isSubmitting}
+              onClick={async (e) => {
                 e.stopPropagation();
-                onUpdateStatus(order._id, "Out for Delivery");
+                const orderId = order._id || (order as { id?: string }).id;
+                if (!orderId) return;
+                try {
+                  setIsSubmitting(true);
+                  if (typeof onUpdateStatus === "function") {
+                    await onUpdateStatus(orderId, "Out for Delivery");
+                  } else {
+                    await updateStatus(orderId, "Out for Delivery");
+                  }
+                } catch (err) {
+                  console.error("Failed to start delivery trip:", err);
+                } finally {
+                  setIsSubmitting(false);
+                }
               }}
-              className="relative z-10 flex-1 h-11 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs sm:text-sm shadow-xs active:scale-[0.98] select-none cursor-pointer transition-all flex items-center justify-center gap-2"
+              className="relative z-10 flex-1 h-11 rounded-xl bg-blue-600 hover:bg-blue-700 active:bg-blue-800 text-white font-extrabold text-xs sm:text-sm shadow-xs active:scale-[0.98] select-none cursor-pointer transition-all flex items-center justify-center gap-2 disabled:opacity-60"
             >
-              <span>🛵 Start Delivery Trip (Out for Delivery)</span>
+              <span>
+                {isSubmitting
+                  ? "Starting trip..."
+                  : "🛵 Start Delivery Trip (Out for Delivery)"}
+              </span>
               <ChevronRight size={16} />
             </button>
           )}
@@ -310,7 +373,10 @@ export function ActiveDeliveryManifest({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onOpenOtp(order._id);
+                const orderId = order._id || (order as { id?: string }).id;
+                if (orderId && typeof onOpenOtp === "function") {
+                  onOpenOtp(orderId);
+                }
               }}
               className="relative z-10 flex-1 h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white font-extrabold text-sm sm:text-base shadow-sm active:scale-[0.98] select-none cursor-pointer transition-all flex items-center justify-center gap-2"
             >
@@ -342,3 +408,4 @@ export function ActiveDeliveryManifest({
 }
 
 export default ActiveDeliveryManifest;
+
