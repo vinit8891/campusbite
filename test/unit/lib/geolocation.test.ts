@@ -84,3 +84,28 @@ describe("getCoordsSafe", () => {
     expect(coords).toEqual({});
   });
 });
+
+describe("getDirectionsUrl", () => {
+  it("uses explicit coordinates when provided", async () => {
+    const { getDirectionsUrl } = await import("@/lib/geolocation");
+    const url = getDirectionsUrl(18.4482, 73.826, "Hostel Block A");
+    expect(url).toBe("https://www.google.com/maps/dir/?api=1&destination=18.4482,73.826");
+  });
+
+  it("extracts coordinates embedded in composite address strings", async () => {
+    const { getDirectionsUrl } = await import("@/lib/geolocation");
+    const address = "Detected Location (18.4381, 73.8300), Flat 201, Ref: Near North Gate";
+    const url = getDirectionsUrl(null, null, address);
+    expect(url).toBe("https://www.google.com/maps/dir/?api=1&destination=18.4381,73.8300");
+  });
+
+  it("falls back to encoded search query when no coordinates are present", async () => {
+    const { getDirectionsUrl } = await import("@/lib/geolocation");
+    const address = "Room 304, Tagore Hostel, North Campus";
+    const url = getDirectionsUrl(null, null, address);
+    expect(url).toBe(
+      `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
+    );
+  });
+});
+

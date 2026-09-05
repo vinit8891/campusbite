@@ -175,6 +175,10 @@ export function useDeliveryOrders() {
 
       await updateDeliveryOrderStatus(id, nextStatus);
       await loadOrders(currentFilters());
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("delivery_state_changed"));
+      }
     } catch (err) {
       console.error(err);
       if (err instanceof AuthHttpError && err.status === 401) return;
@@ -195,6 +199,10 @@ export function useDeliveryOrders() {
       setOtpOrderId(null);
 
       await loadOrders(currentFilters());
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("delivery_state_changed"));
+      }
 
       toast.success("Delivery completed successfully");
     } catch (err: unknown) {

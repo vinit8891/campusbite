@@ -40,6 +40,12 @@ export default function DeliveryLayout({
 
   useEffect(() => {
     void fetchLiveBadgeCounts();
+
+    if (typeof window !== "undefined") {
+      const handleSync = () => void fetchLiveBadgeCounts();
+      window.addEventListener("delivery_state_changed", handleSync);
+      return () => window.removeEventListener("delivery_state_changed", handleSync);
+    }
   }, [fetchLiveBadgeCounts]);
 
   usePolling(fetchLiveBadgeCounts, 10000, {

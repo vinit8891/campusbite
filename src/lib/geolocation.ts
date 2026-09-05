@@ -65,3 +65,33 @@ export async function getCoordsSafe(
     }
   });
 }
+
+/**
+ * Generates an accurate Google Maps navigation intent URL.
+ * Automatically extracts embedded (lat, lng) from composite address strings like:
+ * "Detected Location (18.4381, 73.8300), Room 304, Ref: Near North Gate"
+ */
+export function getDirectionsUrl(
+  lat?: number | null,
+  lng?: number | null,
+  address?: string
+): string {
+  if (
+    lat != null &&
+    lng != null &&
+    !Number.isNaN(Number(lat)) &&
+    !Number.isNaN(Number(lng))
+  ) {
+    return `https://www.google.com/maps/dir/?api=1&destination=${lat},${lng}`;
+  }
+  if (address) {
+    const match = address.match(/\((-?\d+\.\d+),\s*(-?\d+\.\d+)\)/);
+    if (match) {
+      return `https://www.google.com/maps/dir/?api=1&destination=${match[1]},${match[2]}`;
+    }
+  }
+  return `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
+    address || "Campus"
+  )}`;
+}
+

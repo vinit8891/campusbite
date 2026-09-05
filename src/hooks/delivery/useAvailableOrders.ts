@@ -11,6 +11,7 @@ import {
   type AvailableOrdersQuery,
 } from "@/services/deliveryService";
 import { AuthHttpError } from "@/services/authFetch";
+import { getDirectionsUrl } from "@/lib/geolocation";
 
 export type AvailableOrder = {
   _id: string;
@@ -134,6 +135,10 @@ export function useAvailableOrders() {
       });
 
       await loadOrders(currentFilters());
+
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event("delivery_state_changed"));
+      }
     } catch (err) {
       console.error(err);
       if (err instanceof AuthHttpError && err.status === 401) return;
@@ -146,15 +151,12 @@ export function useAvailableOrders() {
   }
 
   function openNavigation(order: AvailableOrder) {
-    if (order.latitude == null || order.longitude == null) {
-      toast.error("Customer location not available.");
-      return;
-    }
-
-    window.open(
-      `https://www.google.com/maps/dir/?api=1&destination=${order.latitude},${order.longitude}`,
-      "_blank"
+    const url = getDirectionsUrl(
+      order.latitude,
+      order.longitude,
+      order.address
     );
+    window.open(url, "_blank");
   }
 
   function handleSearchSubmit(e: React.FormEvent) {

@@ -108,13 +108,18 @@ async def delivery_stats(
         ]:
             pending += 1
 
-        # Completed deliveries (legacy)
+        # Completed deliveries
         if status == "Delivered":
             completed += 1
             total_deliveries += 1
 
-            # Current CampusBite delivery earning
-            earnings += DELIVERY_EARNING_PER_ORDER
+            pricing_breakdown = order.get("pricing_breakdown") or {}
+            earning = float(
+                pricing_breakdown.get("delivery_partner_earning")
+                or order.get("runner_fee")
+                or DELIVERY_EARNING_PER_ORDER
+            )
+            earnings += round(earning, 2)
 
             delivered_at = _as_utc(order.get("delivered_at")) or _as_utc(
                 order.get("created_at")
@@ -122,7 +127,7 @@ async def delivery_stats(
             if delivered_at:
                 if delivered_at >= today_start:
                     delivered_today += 1
-                    earnings_today += DELIVERY_EARNING_PER_ORDER
+                    earnings_today += round(earning, 2)
                 if delivered_at >= week_start:
                     deliveries_this_week += 1
                 if delivered_at >= month_start:

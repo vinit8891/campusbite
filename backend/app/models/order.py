@@ -547,8 +547,12 @@ async def assign_delivery_partner(
     result = await order_collection.update_one(
         {
             "_id": oid,
-            "status": {"$in": ["Ready for Pickup"]},
-            "delivery_partner": {"$exists": False},
+            "status": "Ready for Pickup",
+            "$or": [
+                {"delivery_partner": {"$exists": False}},
+                {"delivery_partner": None},
+                {"delivery_partner.phone": {"$exists": False}},
+            ],
         },
         {
             "$set": {
@@ -816,10 +820,18 @@ async def verify_delivery_otp(order_id: str, otp):
     if order.get("otp_verified") or order.get("status") == "Delivered":
         return False
 
+    # Security Lockout: Max 5 failed attempts
+    if order.get("failed_otp_attempts", 0) >= 5:
+        return False
+
     stored_otp = str(order.get("delivery_otp", "")).strip()
     entered_otp = str(otp).strip()
 
     if not stored_otp or stored_otp != entered_otp:
+        await order_collection.update_one(
+            {"_id": oid},
+            {"$inc": {"failed_otp_attempts": 1}},
+        )
         return False
 
     now = datetime.now(UTC)
@@ -827,6 +839,7 @@ async def verify_delivery_otp(order_id: str, otp):
         "otp_verified": True,
         "status": "Delivered",
         "delivered_at": now,
+        "failed_otp_attempts": 0,
     }
 
     # For COD orders, OTP handover confirms cash collection at the door
@@ -858,6 +871,73 @@ async def verify_delivery_otp(order_id: str, otp):
             "status": "Out for Delivery",
             "otp_verified": False,
         },
+        {
+            "$set": update_fields,
+            "$unset": {
+                "delivery_otp": "",
+            },
+        },
+    )
+
+    return result.modified_count == 1
+
+
+async def emergency_deliver_order(
+    order_id: str,
+    reason: str,
+    actor_email: str = "",
+):
+    oid = get_object_id(order_id)
+
+    if not oid:
+        return False
+
+    order = await order_collection.find_one({"_id": oid})
+
+    if not order:
+        return False
+
+    if order.get("status") == "Delivered" or order.get("otp_verified"):
+        return False
+
+    now = datetime.now(UTC)
+    update_fields = {
+        "status": "Delivered",
+        "otp_verified": True,
+        "delivered_at": now,
+        "failed_otp_attempts": 0,
+        "emergency_delivery": {
+            "bypassed": True,
+            "reason": reason,
+            "authorized_by": actor_email,
+            "bypassed_at": now,
+        },
+    }
+
+    payment_method = (
+        str(order.get("payment_method", ""))
+        .strip()
+        .lower()
+        .replace("-", "_")
+        .replace(" ", "_")
+    )
+    if (
+        payment_method
+        in [
+            "cod",
+            "cash_on_delivery",
+            "cashondelivery",
+            "cash",
+            "cash_on_delivery_(cod)",
+        ]
+        or "cash" in payment_method
+        or not payment_method
+    ):
+        update_fields["payment_status"] = "paid"
+        update_fields["paid_at"] = now
+
+    result = await order_collection.update_one(
+        {"_id": oid},
         {
             "$set": update_fields,
             "$unset": {

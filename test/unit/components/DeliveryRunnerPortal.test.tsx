@@ -324,6 +324,46 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
         screen.getByText("Incorrect 4-digit OTP provided")
       ).toBeInTheDocument();
     });
+
+    it("requires mandatory cash collection confirmation for COD orders before enabling submit", async () => {
+      const user = userEvent.setup();
+      const onVerify = vi.fn();
+
+      const codOrder = {
+        total: 350,
+        payment_method: "cod",
+        payment_status: "pending",
+      };
+
+      render(
+        <DeliveryOtpModal
+          isOpen={true}
+          otp="4321"
+          setOtp={vi.fn()}
+          verifying={false}
+          otpError=""
+          order={codOrder}
+          onVerify={onVerify}
+          onClose={vi.fn()}
+        />
+      );
+
+      // Verify COD warning is rendered with exact amount
+      expect(screen.getByText(/CASH ON DELIVERY: Collect ₹350/i)).toBeInTheDocument();
+
+      // Verify button is initially disabled despite complete 4-digit OTP
+      const verifyBtn = screen.getByRole("button", { name: /verify & complete/i });
+      expect(verifyBtn).toBeDisabled();
+
+      // Check cash collection confirmation checkbox
+      const checkbox = screen.getByLabelText(/I confirm that I have collected ₹350 in cash/i);
+      await user.click(checkbox);
+
+      // Verify button is now enabled and clickable
+      expect(verifyBtn).not.toBeDisabled();
+      await user.click(verifyBtn);
+      expect(onVerify).toHaveBeenCalled();
+    });
   });
 
   describe("AvailableOrderCard", () => {

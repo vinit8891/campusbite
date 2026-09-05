@@ -19,6 +19,7 @@ import {
   formatPaymentMethod,
   formatPaymentStatus,
 } from "@/lib/paymentLabels";
+import { getDirectionsUrl } from "@/lib/geolocation";
 import { useDeliveryOrders } from "@/hooks/delivery/useDeliveryOrders";
 import type { DeliveryOrder } from "@/types";
 
@@ -102,12 +103,11 @@ export function ActiveDeliveryManifest({
     order.restaurant_name || order.restaurant_email
   );
 
-  const mapUrl =
-    order.latitude != null && order.longitude != null
-      ? `https://www.google.com/maps/dir/?api=1&destination=${order.latitude},${order.longitude}`
-      : `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(
-          order.address || ""
-        )}`;
+  const mapUrl = getDirectionsUrl(
+    order.latitude,
+    order.longitude,
+    order.address
+  );
 
   return (
     <div className="w-full max-w-full min-w-0 box-border rounded-3xl border border-stone-200/90 bg-white p-5 sm:p-7 shadow-xs space-y-5 transition-all hover:shadow-md">

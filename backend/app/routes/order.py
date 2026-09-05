@@ -29,6 +29,7 @@ from app.models.order import (
     get_delivery_location,
     get_order_otp,
     verify_delivery_otp,
+    emergency_deliver_order,
     canonicalize_status,
     can_transition_to,
     DISPLAY_STATUS_MAP,
@@ -350,6 +351,7 @@ async def add_order(
     # Order lifecycle status remains independent of payment_status
     data["status"] = "Pending"
     data["delivery_otp"] = random.randint(1000, 9999)
+    data["failed_otp_attempts"] = 0
     data["otp_verified"] = False
     data["review_submitted"] = False
     data["created_at"] = datetime.now(UTC)
@@ -551,6 +553,19 @@ async def accept_delivery(
         raise HTTPException(
             status_code=404,
             detail="Order not found",
+        )
+
+    # Active delivery limit guard: maximum 3 concurrent active deliveries per courier
+    active_count = await database["orders"].count_documents(
+        {
+            "delivery_partner.phone": partner_phone,
+            "status": {"$in": ["Assigned", "Picked Up", "Out for Delivery"]},
+        }
+    )
+    if active_count >= 3:
+        raise HTTPException(
+            status_code=400,
+            detail="Active delivery limit reached (max 3 runs). Complete current orders before accepting new ones.",
         )
 
     # Rider COD floating balance guard: ceiling at ₹1,000
@@ -786,6 +801,12 @@ async def verify_otp(
             detail="OTP can only be verified when order is Out for Delivery.",
         )
 
+    if order.get("failed_otp_attempts", 0) >= 5:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many failed attempts. Order locked for security.",
+        )
+
     otp = body.get("otp")
 
     if otp is None:
@@ -800,6 +821,12 @@ async def verify_otp(
     )
 
     if not success:
+        refreshed = await get_order_by_id(order_id)
+        if (refreshed or {}).get("failed_otp_attempts", 0) >= 5:
+            raise HTTPException(
+                status_code=429,
+                detail="Too many failed attempts. Order locked for security.",
+            )
         raise HTTPException(
             status_code=400,
             detail="Invalid OTP",
@@ -831,6 +858,80 @@ async def verify_otp(
     return {
         "success": True,
         "message": "OTP Verified",
+    }
+
+
+@router.put("/emergency-deliver/{order_id}")
+async def emergency_deliver(
+    order_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: Annotated[
+        dict, Depends(require_roles(RESTAURANT_OWNER, ADMIN))
+    ],
+    body: dict = Body(...),
+):
+    reason = str(body.get("reason", "")).strip()
+    if not reason:
+        raise HTTPException(
+            status_code=400,
+            detail="Emergency delivery reason is required.",
+        )
+
+    order = await get_order_by_id(order_id)
+    if not order:
+        raise HTTPException(
+            status_code=404,
+            detail="Order not found",
+        )
+
+    role = current_user.get("role")
+    actor_email = current_user.get("email") or current_user.get("sub") or "admin"
+    if role == RESTAURANT_OWNER:
+        email = _owner_email(current_user)
+        if (
+            not email
+            or email.lower()
+            != str(order.get("restaurant_email", "")).lower()
+        ):
+            raise HTTPException(
+                status_code=403,
+                detail="You can only emergency deliver orders for your restaurant",
+            )
+
+    success = await emergency_deliver_order(
+        order_id=order_id,
+        reason=reason,
+        actor_email=actor_email,
+    )
+    if not success:
+        raise HTTPException(
+            status_code=400,
+            detail="Unable to complete emergency delivery for this order.",
+        )
+
+    # Increment COD balance if applicable
+    is_cod_order = (
+        _is_cod_method(order.get("payment_method"))
+        or str(order.get("payment_method", "")).lower() == "cod"
+    )
+    if is_cod_order:
+        partner_phone = order.get("delivery_partner", {}).get("phone")
+        if partner_phone:
+            order_total = float(order.get("total") or 0.0)
+            await database["delivery_partners"].update_one(
+                {"phone": partner_phone},
+                {"$inc": {"unremitted_cod_balance": order_total}},
+            )
+
+    schedule_notification(
+        background_tasks,
+        notify_order_delivered,
+        order_id,
+    )
+
+    return {
+        "success": True,
+        "message": "Emergency delivery completed successfully",
     }
 
 

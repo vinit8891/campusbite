@@ -1,5 +1,5 @@
-import { useRef, useEffect } from "react";
-import { KeyRound, X, CheckCircle, ShieldAlert, Sparkles } from "lucide-react";
+import { useRef, useEffect, useState } from "react";
+import { KeyRound, X, CheckCircle, ShieldAlert, Sparkles, Banknote } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 type DeliveryOtpModalProps = {
@@ -10,6 +10,11 @@ type DeliveryOtpModalProps = {
   otpError: string;
   onVerify: () => void;
   onClose: () => void;
+  order?: {
+    total?: number;
+    payment_method?: string;
+    payment_status?: string;
+  } | null;
 };
 
 export function DeliveryOtpModal({
@@ -20,7 +25,10 @@ export function DeliveryOtpModal({
   otpError,
   onVerify,
   onClose,
+  order,
 }: DeliveryOtpModalProps) {
+  const [cashCollected, setCashCollected] = useState(false);
+
   const inputRefs = [
     useRef<HTMLInputElement>(null),
     useRef<HTMLInputElement>(null),
@@ -28,9 +36,10 @@ export function DeliveryOtpModal({
     useRef<HTMLInputElement>(null),
   ];
 
-  // Auto focus first input when opened
+  // Auto focus first input and reset cash checkbox when opened
   useEffect(() => {
     if (isOpen) {
+      setCashCollected(false);
       setTimeout(() => {
         inputRefs[0].current?.focus();
       }, 100);
@@ -38,6 +47,15 @@ export function DeliveryOtpModal({
   }, [isOpen]);
 
   if (!isOpen) return null;
+
+  const isCod =
+    order?.payment_method?.toLowerCase().includes("cod") ||
+    order?.payment_method?.toLowerCase().includes("cash") ||
+    order?.payment_method === "cash_on_delivery";
+  const isPaid =
+    order?.payment_status?.toLowerCase() === "paid" ||
+    order?.payment_status?.toLowerCase() === "completed";
+  const requiresCashCollection = Boolean(isCod && !isPaid);
 
   const digits = [otp[0] || "", otp[1] || "", otp[2] || "", otp[3] || ""];
 
@@ -76,11 +94,20 @@ export function DeliveryOtpModal({
     if (e.key === "Backspace" && !digits[index] && index > 0) {
       inputRefs[index - 1].current?.focus();
     }
-    if (e.key === "Enter" && otp.length === 4) {
+    if (
+      e.key === "Enter" &&
+      otp.length === 4 &&
+      (!requiresCashCollection || cashCollected)
+    ) {
       e.preventDefault();
       onVerify();
     }
   }
+
+  const isSubmitDisabled =
+    verifying ||
+    otp.length !== 4 ||
+    (requiresCashCollection && !cashCollected);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-stone-900/60 p-4 backdrop-blur-xs animate-in fade-in">
@@ -112,6 +139,32 @@ export function DeliveryOtpModal({
             Ask the student recipient for the 4-digit code shown on their live order screen.
           </p>
         </div>
+
+        {/* Mandatory Cash on Delivery Safeguard */}
+        {requiresCashCollection && (
+          <div className="mt-5 rounded-2xl bg-amber-50 border border-amber-300 p-4 space-y-2.5 text-left">
+            <div className="flex items-center gap-2 text-amber-950 font-black text-xs sm:text-sm">
+              <Banknote className="h-5 w-5 text-amber-700 shrink-0" />
+              <span>💵 CASH ON DELIVERY: Collect ₹{order?.total ?? 0}</span>
+            </div>
+
+            <p className="text-xs text-amber-900 font-medium leading-relaxed">
+              Confirm you have collected the cash from the recipient before verifying OTP. Your courier COD balance will be credited.
+            </p>
+
+            <label className="flex items-start gap-2.5 pt-1 cursor-pointer select-none text-xs font-bold text-amber-950">
+              <input
+                type="checkbox"
+                checked={cashCollected}
+                onChange={(e) => setCashCollected(e.target.checked)}
+                className="mt-0.5 h-4 w-4 rounded border-amber-400 text-orange-600 focus:ring-orange-500 cursor-pointer"
+              />
+              <span>
+                I confirm that I have collected ₹{order?.total ?? 0} in cash from the recipient.
+              </span>
+            </label>
+          </div>
+        )}
 
         {/* 4-Digit Box Input */}
         <div className="my-6">
@@ -170,7 +223,7 @@ export function DeliveryOtpModal({
           <Button
             type="button"
             onClick={onVerify}
-            disabled={verifying || otp.length !== 4}
+            disabled={isSubmitDisabled}
             className="flex-1 h-12 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:scale-98 text-white font-extrabold text-sm shadow-sm transition-all disabled:opacity-50 cursor-pointer flex items-center justify-center gap-2"
           >
             {verifying ? (
@@ -187,3 +240,5 @@ export function DeliveryOtpModal({
     </div>
   );
 }
+
+export default DeliveryOtpModal;
