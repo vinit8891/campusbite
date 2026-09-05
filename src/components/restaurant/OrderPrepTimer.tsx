@@ -11,12 +11,16 @@ import {
 
 type OrderPrepTimerProps = {
   createdAt?: string;
+  acceptedAt?: string | null;
+  updatedAt?: string | null;
   status: string;
   className?: string;
 };
 
 export function OrderPrepTimer({
   createdAt,
+  acceptedAt,
+  updatedAt,
   status,
   className = "",
 }: OrderPrepTimerProps) {
@@ -59,8 +63,20 @@ export function OrderPrepTimer({
 
   // 2. Cooking / In Kitchen: 30-minute prep window SLA
   if (isCookingOrder(status)) {
+    const cookingBaseDate = acceptedAt || updatedAt || createdAt;
+    let cookingElapsedSec = 0;
+    if (cookingBaseDate) {
+      const startTime = parseDateSafe(cookingBaseDate).getTime();
+      cookingElapsedSec = Math.max(0, Math.floor((now - startTime) / 1000));
+      // If acceptedAt/updatedAt is missing and createdAt is older than 30m,
+      // provide standard 25-minute SLA timer rather than immediately flagging >60m delayed
+      if (!acceptedAt && !updatedAt && cookingElapsedSec > 30 * 60) {
+        cookingElapsedSec = 5 * 60;
+      }
+    }
+
     const slaSec = 30 * 60;
-    const remainSec = slaSec - elapsedSec;
+    const remainSec = slaSec - cookingElapsedSec;
 
     if (remainSec > 5 * 60) {
       // 0–25 mins elapsed (Green)

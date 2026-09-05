@@ -151,14 +151,14 @@ describe("KitchenDisplayBoard & Kitchen Audio System", () => {
       name: /accept & start cooking/i,
     });
     await user.click(acceptBtn);
-    expect(handleUpdate).toHaveBeenCalledWith("order-pending-1", "preparing");
+    expect(handleUpdate).toHaveBeenCalledWith("order-pending-1", "Preparing");
 
     // Mark ready for pickup
     const readyBtn = screen.getByRole("button", {
       name: /mark ready for pickup/i,
     });
     await user.click(readyBtn);
-    expect(handleUpdate).toHaveBeenCalledWith("order-prep-2", "ready");
+    expect(handleUpdate).toHaveBeenCalledWith("order-prep-2", "Ready for Pickup");
   });
 
   it("renders OrderPrepTimer color-coded states and handles flexible SLA rules and naive UTC dates", () => {
@@ -184,6 +184,7 @@ describe("KitchenDisplayBoard & Kitchen Audio System", () => {
     rerender(
       <OrderPrepTimer
         createdAt={new Date(Date.now() - 5 * 60 * 1000).toISOString()}
+        acceptedAt={new Date(Date.now() - 5 * 60 * 1000).toISOString()}
         status="Preparing"
       />
     );
@@ -193,6 +194,7 @@ describe("KitchenDisplayBoard & Kitchen Audio System", () => {
     rerender(
       <OrderPrepTimer
         createdAt={new Date(Date.now() - 28 * 60 * 1000).toISOString()}
+        acceptedAt={new Date(Date.now() - 28 * 60 * 1000).toISOString()}
         status="Preparing"
       />
     );
@@ -202,6 +204,7 @@ describe("KitchenDisplayBoard & Kitchen Audio System", () => {
     rerender(
       <OrderPrepTimer
         createdAt={new Date(Date.now() - 35 * 60 * 1000).toISOString()}
+        acceptedAt={new Date(Date.now() - 35 * 60 * 1000).toISOString()}
         status="Preparing"
       />
     );
@@ -211,12 +214,22 @@ describe("KitchenDisplayBoard & Kitchen Audio System", () => {
     rerender(
       <OrderPrepTimer
         createdAt={new Date(Date.now() - 120 * 60 * 1000).toISOString()}
+        acceptedAt={new Date(Date.now() - 120 * 60 * 1000).toISOString()}
         status="Preparing"
       />
     );
     expect(screen.getByText(/delayed \(>60m\)/i)).toBeInTheDocument();
 
-    // 7. Naive ISO date without 'Z' parsed safely as UTC without throwing
+    // 7. Preparing: Old mock date without acceptedAt -> standard 25m SLA fallback
+    rerender(
+      <OrderPrepTimer
+        createdAt={new Date(Date.now() - 120 * 60 * 1000).toISOString()}
+        status="Preparing"
+      />
+    );
+    expect(screen.getByText(/25:00 min left/i)).toBeInTheDocument();
+
+    // 8. Naive ISO date without 'Z' parsed safely as UTC without throwing
     rerender(
       <OrderPrepTimer
         createdAt="2026-09-05T12:00:00"

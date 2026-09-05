@@ -203,6 +203,8 @@ export function RestaurantOrderCardList({
                   </span>
                   <OrderPrepTimer
                     createdAt={order.created_at}
+                    acceptedAt={order.accepted_at}
+                    updatedAt={order.updated_at}
                     status={order.status}
                   />
                 </div>

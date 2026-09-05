@@ -605,6 +605,29 @@ DISPLAY_STATUS_MAP: dict[str, str] = {
 }
 
 
+STATUS_NORMALIZATION_MAP: dict[str, str] = {
+    "pending": "Pending",
+    "placed": "Pending",
+    "accepted": "Accepted",
+    "preparing": "Preparing",
+    "cooking": "Preparing",
+    "in_prep": "Preparing",
+    "in prep": "Preparing",
+    "ready": "Ready for Pickup",
+    "ready_for_pickup": "Ready for Pickup",
+    "ready for pickup": "Ready for Pickup",
+    "assigned": "Assigned",
+    "picked_up": "Picked Up",
+    "picked up": "Picked Up",
+    "out_for_delivery": "Out for Delivery",
+    "out for delivery": "Out for Delivery",
+    "delivered": "Delivered",
+    "completed": "Delivered",
+    "cancelled": "Cancelled",
+    "rejected": "Cancelled",
+}
+
+
 async def update_order_status(
     order_id: str,
     status: str,
@@ -624,8 +647,9 @@ async def update_order_status(
     canonical_current = canonicalize_status(current_status)
     canonical_target = canonicalize_status(status)
 
-    target_display = DISPLAY_STATUS_MAP.get(
-        canonical_target, status.strip().title()
+    target_display = STATUS_NORMALIZATION_MAP.get(
+        canonical_target,
+        DISPLAY_STATUS_MAP.get(canonical_target, status.strip().title()),
     )
 
     # Idempotent status update: if already in target canonical state, succeed immediately
@@ -637,6 +661,12 @@ async def update_order_status(
         return False
 
     update_data = {"status": target_display}
+
+    if target_display in ["Accepted", "Preparing"] and not order.get("accepted_at"):
+        update_data["accepted_at"] = datetime.now(UTC)
+
+    if target_display == "Ready for Pickup" and not order.get("ready_at"):
+        update_data["ready_at"] = datetime.now(UTC)
 
     if target_display == "Delivered" and not order.get("delivered_at"):
         update_data["delivered_at"] = datetime.now(UTC)

@@ -31,6 +31,7 @@ from app.models.order import (
     verify_delivery_otp,
     canonicalize_status,
     DISPLAY_STATUS_MAP,
+    STATUS_NORMALIZATION_MAP,
 )
 from app.services.notification_service import (
     notify_delivery_assigned,
@@ -875,9 +876,18 @@ async def change_status(
         ),
     ],
 ):
+    normalized_key = (status or "").lower().strip().replace("-", "_")
+    normalized_status = (
+        STATUS_NORMALIZATION_MAP.get(normalized_key)
+        or STATUS_NORMALIZATION_MAP.get(normalized_key.replace("_", " "))
+    )
+    if normalized_status:
+        status = normalized_status
+
     canonical_target = canonicalize_status(status)
-    target_display = DISPLAY_STATUS_MAP.get(
-        canonical_target, status.strip().title()
+    target_display = STATUS_NORMALIZATION_MAP.get(
+        canonical_target,
+        DISPLAY_STATUS_MAP.get(canonical_target, status.strip().title()),
     )
 
     order = await get_order_by_id(order_id)

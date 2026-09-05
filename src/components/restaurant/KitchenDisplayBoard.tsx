@@ -158,6 +158,8 @@ export function KitchenDisplayBoard({
                     <div className="text-right flex flex-col items-end gap-1">
                       <OrderPrepTimer
                         createdAt={order.created_at}
+                        acceptedAt={order.accepted_at}
+                        updatedAt={order.updated_at}
                         status={order.status}
                       />
                       <span className="text-sm font-black text-orange-600">
@@ -243,14 +245,14 @@ export function KitchenDisplayBoard({
                     <button
                       type="button"
                       disabled={isUnpaidOnline}
-                      onClick={() => onUpdateStatus(order._id, "preparing")}
+                      onClick={() => onUpdateStatus(order._id, "Preparing")}
                       className="h-12 flex-1 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-extrabold text-sm shadow-sm active:scale-98 flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       <span>🍳 Accept &amp; Start Cooking</span>
                     </button>
                     <button
                       type="button"
-                      onClick={() => onUpdateStatus(order._id, "cancelled")}
+                      onClick={() => onUpdateStatus(order._id, "Cancelled")}
                       className="h-12 px-4 rounded-xl bg-stone-100 hover:bg-rose-50 hover:text-rose-700 text-stone-600 font-bold text-xs border border-stone-200 transition-colors cursor-pointer active:scale-98"
                     >
                       Reject
@@ -329,6 +331,8 @@ export function KitchenDisplayBoard({
                     </div>
                     <OrderPrepTimer
                       createdAt={order.created_at}
+                      acceptedAt={order.accepted_at}
+                      updatedAt={order.updated_at}
                       status="Preparing"
                     />
                   </div>
@@ -370,7 +374,7 @@ export function KitchenDisplayBoard({
                   <button
                     type="button"
                     onClick={() =>
-                      onUpdateStatus(order._id, "ready")
+                      onUpdateStatus(order._id, "Ready for Pickup")
                     }
                     className="h-12 w-full mt-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-extrabold text-sm shadow-sm active:scale-98 flex items-center justify-center gap-2 transition-all cursor-pointer"
                   >

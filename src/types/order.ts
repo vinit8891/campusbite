@@ -65,6 +65,11 @@ export type Order = {
   status: string;
   items: OrderItem[];
   created_at?: string;
+  accepted_at?: string;
+  ready_at?: string;
+  paid_at?: string;
+  delivered_at?: string;
+  updated_at?: string;
   delivery_for?: string;
   estimated_delivery?: string;
   estimated_time?: string;
