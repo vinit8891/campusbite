@@ -796,22 +796,25 @@ async def verify_otp(
         )
 
     allowed_otp_statuses = [
+        "Assigned",
+        "assigned",
         "Picked Up",
-        "Out for Delivery",
         "picked_up",
+        "Out for Delivery",
         "out_for_delivery",
         "In Transit",
         "in transit",
     ]
     current_status = order.get("status")
+    canonical = canonicalize_status(current_status)
 
     if (
         current_status not in allowed_otp_statuses
-        and canonicalize_status(current_status) not in ["picked_up", "out_for_delivery"]
+        and canonical not in ["assigned", "picked_up", "out_for_delivery"]
     ):
         raise HTTPException(
             status_code=400,
-            detail="OTP can only be verified when order is Picked Up or Out for Delivery.",
+            detail="OTP can only be verified for active courier deliveries (Assigned, Picked Up, or Out for Delivery).",
         )
 
     if order.get("failed_otp_attempts", 0) >= 5:
@@ -821,6 +824,8 @@ async def verify_otp(
         )
 
     otp = body.get("otp")
+    if otp is None:
+        otp = body.get("delivery_otp")
 
     if otp is None:
         raise HTTPException(
@@ -1041,7 +1046,7 @@ async def change_status(
                 status_code=403,
                 detail="You can only update orders assigned to you",
             )
-        if canonical_target not in {"assigned", "out_for_delivery", "delivered"}:
+        if canonical_target not in {"assigned", "picked_up", "out_for_delivery", "delivered"}:
             raise HTTPException(
                 status_code=403,
                 detail="Delivery partners cannot set this status",

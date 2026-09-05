@@ -18,7 +18,13 @@ def test_canonicalize_status_aliases():
     for s in ["Ready for Pickup", "ready", "ready_for_pickup", "ready%20for%20pickup", "READY"]:
         assert canonicalize_status(s) == "ready"
 
-    for s in ["Assigned", "picked_up", "picked up", "out_for_delivery", "out for delivery", "out-for-delivery"]:
+    assert canonicalize_status("Assigned") == "assigned"
+    assert canonicalize_status("assigned") == "assigned"
+
+    for s in ["picked_up", "picked up", "Picked Up"]:
+        assert canonicalize_status(s) == "picked_up"
+
+    for s in ["out_for_delivery", "out for delivery", "out-for-delivery", "In Transit", "in transit"]:
         assert canonicalize_status(s) == "out_for_delivery"
 
     for s in ["Delivered", "delivered", "Completed", "completed"]:
@@ -35,7 +41,9 @@ def test_can_transition_to_idempotency():
     assert can_transition_to("cooking", "in_prep") is True
     assert can_transition_to("Ready for Pickup", "ready") is True
     assert can_transition_to("ready_for_pickup", "Ready for Pickup") is True
-    assert can_transition_to("out_for_delivery", "picked_up") is True
+    assert can_transition_to("Assigned", "assigned") is True
+    assert can_transition_to("picked_up", "Picked Up") is True
+    assert can_transition_to("out_for_delivery", "out for delivery") is True
     assert can_transition_to("Delivered", "completed") is True
     assert can_transition_to("Cancelled", "rejected") is True
 

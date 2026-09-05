@@ -85,15 +85,13 @@ export function ActiveDeliveryManifest({
       setIsSubmitting(true);
       console.log("Sending status update: Picked Up for", orderId);
 
-      if (typeof onConfirmPickup === "function") {
-        await onConfirmPickup(orderId);
-      } else if (typeof onPickup === "function") {
-        await onPickup(orderId);
-      } else if (typeof onUpdateStatus === "function") {
-        await onUpdateStatus(orderId, "Picked Up");
-      } else {
-        await updateStatus(orderId, "Picked Up");
-      }
+      // Guarantee backend API mutation
+      await updateStatus(orderId, "Picked Up");
+
+      // Call optional parent callbacks if present
+      if (typeof onConfirmPickup === "function") await onConfirmPickup(orderId);
+      if (typeof onPickup === "function") await onPickup(orderId);
+      if (typeof onUpdateStatus === "function") await onUpdateStatus(orderId, "Picked Up");
 
       toast.success("Order marked as Picked Up!");
     } catch (err: unknown) {

@@ -581,12 +581,15 @@ def canonicalize_status(status: str | None) -> str:
         return "preparing"
     if s in ["ready", "ready_for_pickup", "ready for pickup"]:
         return "ready"
+    if s in ["assigned"]:
+        return "assigned"
+    if s in ["picked_up", "picked up"]:
+        return "picked_up"
     if s in [
-        "assigned",
-        "picked_up",
-        "picked up",
         "out_for_delivery",
         "out for delivery",
+        "in transit",
+        "in_transit",
     ]:
         return "out_for_delivery"
     if s in ["delivered", "completed"]:
@@ -612,11 +615,31 @@ def can_transition_to(
         "preparing": {"ready", "preparing", "cancelled"},  # Allow re-cooking
         "ready": {
             "preparing",
+            "assigned",
+            "picked_up",
             "out_for_delivery",
             "delivered",
             "cancelled",
         },  # Allow reverting if marked ready by accident
-        "out_for_delivery": {"delivered", "cancelled"},
+        "assigned": {
+            "assigned",
+            "picked_up",
+            "out_for_delivery",
+            "delivered",
+            "cancelled",
+        },
+        "picked_up": {
+            "picked_up",
+            "out_for_delivery",
+            "delivered",
+            "cancelled",
+        },
+        "out_for_delivery": {
+            "picked_up",
+            "out_for_delivery",
+            "delivered",
+            "cancelled",
+        },
         "delivered": set(),
         "cancelled": set(),
     }
@@ -629,6 +652,7 @@ DISPLAY_STATUS_MAP: dict[str, str] = {
     "preparing": "Preparing",
     "ready": "Ready for Pickup",
     "assigned": "Assigned",
+    "picked_up": "Picked Up",
     "out_for_delivery": "Out for Delivery",
     "delivered": "Delivered",
     "cancelled": "Cancelled",
@@ -816,16 +840,19 @@ async def verify_delivery_otp(order_id: str, otp):
 
     curr_status = order.get("status")
     allowed_otp_statuses = [
+        "Assigned",
+        "assigned",
         "Picked Up",
-        "Out for Delivery",
         "picked_up",
+        "Out for Delivery",
         "out_for_delivery",
         "In Transit",
         "in transit",
     ]
+    canonical = canonicalize_status(curr_status)
     if (
         curr_status not in allowed_otp_statuses
-        and canonicalize_status(curr_status) not in ["picked_up", "out_for_delivery"]
+        and canonical not in ["assigned", "picked_up", "out_for_delivery"]
     ):
         return False
 
