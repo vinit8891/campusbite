@@ -4,6 +4,7 @@ import { useState } from "react";
 import { LayoutGrid, ChefHat, TableProperties } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/common";
+import { shortId } from "@/lib/formatters";
 import { useRestaurantOrders } from "@/hooks/restaurant/useRestaurantOrders";
 import { useKitchenAudio } from "@/hooks/restaurant/useKitchenAudio";
 import { KitchenAudioAlert } from "@/components/restaurant/KitchenAudioAlert";
@@ -74,6 +75,20 @@ export default function OrdersPage() {
         isReadyOrder(o.status)) &&
       !isOrderStale(o.created_at)
   );
+
+  // Client-filtered orders in history mode matching search query
+  const filteredHistoryOrders = orders.filter((order) => {
+    if (!q.trim()) return true;
+    const query = q.toLowerCase().trim();
+    const idMatch =
+      (order._id || "").toLowerCase().includes(query) ||
+      shortId(order._id).toLowerCase().includes(query);
+    const nameMatch = (order.customer_name || "")
+      .toLowerCase()
+      .includes(query);
+    const phoneMatch = (order.phone || "").toLowerCase().includes(query);
+    return idMatch || nameMatch || phoneMatch;
+  });
 
   return (
     <main className="space-y-4 sm:space-y-6">
@@ -245,7 +260,9 @@ export default function OrdersPage() {
 
         {mainTab === "history" && (
           <p className="text-xs text-stone-500 font-medium">
-            Showing all {orders.length} orders chronologically
+            Showing {filteredHistoryOrders.length}{" "}
+            {filteredHistoryOrders.length === 1 ? "order" : "orders"}{" "}
+            chronologically
           </p>
         )}
       </div>
@@ -337,27 +354,57 @@ export default function OrdersPage() {
         )
       ) : (
         /* ALL ORDERS & HISTORY */
-        orders.length === 0 ? (
-          <EmptyState
-            icon="📦"
-            title="No orders found"
-            description="Try clearing search filters, or wait for incoming customer orders."
-          />
-        ) : viewMode === "table" ? (
-          <RestaurantOrderTableView
-            orders={orders}
-            onUpdateStatus={(id, nextStatus) => void updateStatus(id, nextStatus)}
-          />
-        ) : viewMode === "cards" ? (
-          <RestaurantOrderCardList
-            orders={orders}
-            onUpdateStatus={(id, nextStatus) => void updateStatus(id, nextStatus)}
-          />
+        filteredHistoryOrders.length === 0 ? (
+          q.trim() ? (
+            <div className="flex flex-col items-center justify-center py-16 px-6 text-center rounded-3xl border border-stone-200 bg-white shadow-2xs">
+              <div className="text-4xl mb-3">🔍</div>
+              <h2 className="text-xl font-bold text-stone-900">
+                No orders found matching &ldquo;{q}&rdquo;
+              </h2>
+              <p className="text-sm text-stone-500 mt-1 max-w-sm">
+                Check the order ID, customer name, or phone number and try again.
+              </p>
+              <button
+                type="button"
+                onClick={() => setQ("")}
+                className="mt-5 px-5 py-2.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 font-extrabold text-xs transition-colors cursor-pointer border border-orange-200 shadow-xs"
+              >
+                Clear Search
+              </button>
+            </div>
+          ) : (
+            <EmptyState
+              icon="📦"
+              title="No orders found"
+              description="Try clearing search filters, or wait for incoming customer orders."
+            />
+          )
         ) : (
-          <RestaurantOrderTableView
-            orders={orders}
-            onUpdateStatus={(id, nextStatus) => void updateStatus(id, nextStatus)}
-          />
+          <>
+            {/* Mobile View: High-contrast order cards (< md) */}
+            <div className="block md:hidden space-y-3">
+              <RestaurantOrderCardList
+                isHistoryView={true}
+                orders={filteredHistoryOrders}
+                onUpdateStatus={(id, nextStatus) => void updateStatus(id, nextStatus)}
+              />
+            </div>
+
+            {/* Desktop View: Full data table (>= md) */}
+            <div className="hidden md:block">
+              {viewMode === "cards" ? (
+                <RestaurantOrderCardList
+                  orders={filteredHistoryOrders}
+                  onUpdateStatus={(id, nextStatus) => void updateStatus(id, nextStatus)}
+                />
+              ) : (
+                <RestaurantOrderTableView
+                  orders={filteredHistoryOrders}
+                  onUpdateStatus={(id, nextStatus) => void updateStatus(id, nextStatus)}
+                />
+              )}
+            </div>
+          </>
         )
       )}
     </main>

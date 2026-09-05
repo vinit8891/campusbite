@@ -18,7 +18,7 @@ export function RestaurantOrderTableView({
   onUpdateStatus,
 }: RestaurantOrderTableViewProps) {
   return (
-    <div className="hidden overflow-x-auto rounded-2xl border bg-white lg:block">
+    <div className="w-full overflow-x-auto rounded-2xl border border-stone-200/90 bg-white">
       <table className="min-w-full text-left text-sm">
         <thead className="border-b bg-gray-50 text-gray-600">
           <tr>
