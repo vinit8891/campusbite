@@ -85,3 +85,136 @@ def test_can_transition_from_terminal_states():
 def test_can_transition_url_encoded_and_mixed_casing():
     assert can_transition_to("ready%20for%20pickup", "preparing") is True
     assert can_transition_to("in-prep", "READY_FOR_PICKUP") is True
+
+
+@pytest.mark.asyncio
+async def test_update_order_status_simulations():
+    from unittest.mock import AsyncMock, patch
+    from bson import ObjectId
+    from app.models.order import update_order_status
+
+    test_oid = ObjectId()
+
+    # Case 1: Pending -> Preparing
+    mock_order_pending = {
+        "_id": test_oid,
+        "status": "Pending",
+        "payment_method": "cod",
+        "payment_status": "pending",
+    }
+    mock_collection = AsyncMock()
+    mock_collection.find_one = AsyncMock(return_value=mock_order_pending)
+    mock_update_res = AsyncMock()
+    mock_update_res.matched_count = 1
+    mock_collection.update_one = AsyncMock(return_value=mock_update_res)
+
+    with patch("app.models.order.order_collection", mock_collection):
+        res = await update_order_status(str(test_oid), "Preparing")
+        assert res is True
+        mock_collection.update_one.assert_called_once()
+        update_set = mock_collection.update_one.call_args[0][1]["$set"]
+        assert update_set["status"] == "Preparing"
+        assert "accepted_at" in update_set
+
+    # Case 2: Accepted -> Preparing (Idempotent)
+    mock_order_accepted = {
+        "_id": test_oid,
+        "status": "Accepted",
+        "payment_method": "cod",
+        "payment_status": "pending",
+    }
+    mock_collection.find_one = AsyncMock(return_value=mock_order_accepted)
+    with patch("app.models.order.order_collection", mock_collection):
+        res = await update_order_status(str(test_oid), "Preparing")
+        assert res is True  # Idempotent
+
+    # Case 3: in_prep -> Ready for Pickup
+    mock_order_in_prep = {
+        "_id": test_oid,
+        "status": "in_prep",
+        "payment_method": "cod",
+        "payment_status": "pending",
+    }
+    mock_collection.find_one = AsyncMock(return_value=mock_order_in_prep)
+    mock_collection.update_one = AsyncMock(return_value=mock_update_res)
+    with patch("app.models.order.order_collection", mock_collection):
+        res = await update_order_status(str(test_oid), "Ready for Pickup")
+        assert res is True
+        update_set = mock_collection.update_one.call_args[0][1]["$set"]
+        assert update_set["status"] == "Ready for Pickup"
+        assert "ready_at" in update_set
+
+    # Case 4: Ready for Pickup -> Preparing (Revert)
+    mock_order_ready = {
+        "_id": test_oid,
+        "status": "Ready for Pickup",
+        "payment_method": "cod",
+        "payment_status": "pending",
+    }
+    mock_collection.find_one = AsyncMock(return_value=mock_order_ready)
+    mock_collection.update_one = AsyncMock(return_value=mock_update_res)
+    with patch("app.models.order.order_collection", mock_collection):
+        res = await update_order_status(str(test_oid), "Preparing")
+        assert res is True
+        update_set = mock_collection.update_one.call_args[0][1]["$set"]
+        assert update_set["status"] == "Preparing"
+
+
+@pytest.mark.asyncio
+async def test_change_status_endpoint_simulation():
+    from unittest.mock import AsyncMock, patch
+    from fastapi import BackgroundTasks
+    from app.routes.order import change_status
+
+    test_id = "507f1f77bcf86cd799439011"
+    bg = BackgroundTasks()
+
+    # Restaurant owner user mock
+    owner_user = {
+        "sub": "owner_1",
+        "email": "owner@restaurant.com",
+        "role": "RESTAURANT_OWNER",
+    }
+
+    # 1. Simulate order currently "pending" updated to "Preparing"
+    mock_order_1 = {
+        "_id": test_id,
+        "restaurant_email": "owner@restaurant.com",
+        "status": "Pending",
+        "payment_method": "cod",
+        "payment_status": "pending",
+    }
+    with patch("app.routes.order.get_order_by_id", AsyncMock(return_value=mock_order_1)), \
+         patch("app.routes.order.update_order_status", AsyncMock(return_value=True)):
+        res = await change_status(test_id, "Preparing", bg, owner_user)
+        assert res["success"] is True
+        assert res["status"] == "Preparing"
+
+    # 2. Simulate order currently "Accepted" updated to "Ready for Pickup"
+    mock_order_2 = {
+        "_id": test_id,
+        "restaurant_email": "owner@restaurant.com",
+        "status": "Accepted",
+        "payment_method": "cod",
+        "payment_status": "pending",
+    }
+    with patch("app.routes.order.get_order_by_id", AsyncMock(return_value=mock_order_2)), \
+         patch("app.routes.order.update_order_status", AsyncMock(return_value=True)):
+        res = await change_status(test_id, "Ready for Pickup", bg, owner_user)
+        assert res["success"] is True
+        assert res["status"] == "Ready for Pickup"
+
+    # 3. Simulate order currently "in_prep" updated to "Preparing" (idempotent)
+    mock_order_3 = {
+        "_id": test_id,
+        "restaurant_email": "owner@restaurant.com",
+        "status": "in_prep",
+        "payment_method": "cod",
+        "payment_status": "pending",
+    }
+    with patch("app.routes.order.get_order_by_id", AsyncMock(return_value=mock_order_3)), \
+         patch("app.routes.order.update_order_status", AsyncMock(return_value=True)):
+        res = await change_status(test_id, "Preparing", bg, owner_user)
+        assert res["success"] is True
+        assert res["status"] == "Preparing"
+

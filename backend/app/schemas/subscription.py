@@ -1,4 +1,6 @@
-from datetime import date, timedelta
+from __future__ import annotations
+
+from datetime import date as dt_date, timedelta
 
 from pydantic import BaseModel, EmailStr, Field, field_validator, model_validator
 
@@ -16,7 +18,9 @@ VALID_WEEKDAYS = {
 }
 
 
-def compute_subscription_end_date(start_date: date, subscription_type: str) -> date:
+def compute_subscription_end_date(
+    start_date: dt_date, subscription_type: str
+) -> dt_date:
     if subscription_type == "weekly":
         return start_date + timedelta(days=6)
     return start_date + timedelta(days=29)
@@ -27,8 +31,8 @@ class SubscriptionCreate(BaseModel):
     restaurant_email: EmailStr | None = None
     subscription_type: str | None = None
     meal_type: str | None = None
-    start_date: date
-    end_date: date | None = None
+    start_date: dt_date
+    end_date: dt_date | None = None
     delivery_days: list[str] | None = None
     price: float | None = Field(default=None, gt=0)
     payment_status: str = "pending"
@@ -51,15 +55,21 @@ class SubscriptionCreate(BaseModel):
             return value
         normalized = value.strip().lower()
         if normalized not in VALID_MEAL_TYPES:
-            raise ValueError("meal_type must be breakfast, lunch, dinner, or combo")
+            raise ValueError(
+                "meal_type must be breakfast, lunch, dinner, or combo"
+            )
         return normalized
 
     @field_validator("delivery_days")
     @classmethod
-    def validate_delivery_days(cls, value: list[str] | None) -> list[str] | None:
+    def validate_delivery_days(
+        cls, value: list[str] | None
+    ) -> list[str] | None:
         if value is None:
             return value
-        normalized = [day.strip().lower() for day in value if day and day.strip()]
+        normalized = [
+            day.strip().lower() for day in value if day and day.strip()
+        ]
         if not normalized:
             raise ValueError("delivery_days cannot be empty")
         invalid = [day for day in normalized if day not in VALID_WEEKDAYS]
@@ -91,12 +101,12 @@ class SubscriptionCreate(BaseModel):
 
 
 class SubscriptionPauseRequest(BaseModel):
-    pause_from: date
-    pause_to: date
+    pause_from: dt_date
+    pause_to: dt_date
 
     @field_validator("pause_to")
     @classmethod
-    def validate_pause_range(cls, pause_to: date, info):
+    def validate_pause_range(cls, pause_to: dt_date, info):
         pause_from = info.data.get("pause_from")
         if pause_from and pause_to < pause_from:
             raise ValueError("pause_to must be on or after pause_from")
@@ -104,11 +114,12 @@ class SubscriptionPauseRequest(BaseModel):
 
 
 class SubscriptionSkipDateRequest(BaseModel):
-    date: date
+    date: dt_date
 
 
 class SubscriptionRedeemTokenRequest(BaseModel):
     token: str
     restaurant_email: EmailStr | None = None
-    date: date | None = None
+    date: dt_date | None = None
+
 
