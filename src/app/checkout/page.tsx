@@ -14,21 +14,22 @@ export default function CheckoutPage() {
 
   if (cart.length === 0) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-[#fffaf3] px-4">
-        <div className="w-full max-w-md rounded-3xl bg-white p-10 text-center shadow">
+      <main className="flex min-h-screen items-center justify-center bg-stone-50 px-4">
+        <div className="w-full max-w-md rounded-3xl bg-white p-8 text-center shadow-2xs border border-stone-200/80">
           <div className="text-5xl">🛒</div>
 
-          <h2 className="mt-5 text-2xl font-bold">
+          <h2 className="mt-4 text-xl font-bold text-stone-900">
             Your cart is empty
           </h2>
 
-          <p className="mt-2 text-gray-500">
+          <p className="mt-1 text-xs text-stone-500">
             Add some delicious food before checking out.
           </p>
 
           <button
+            type="button"
             onClick={() => router.push(ROUTES.RESTAURANTS)}
-            className="mt-6 rounded-full bg-orange-500 px-6 py-3 font-semibold text-white"
+            className="mt-6 rounded-xl bg-amber-600 hover:bg-amber-700 px-6 py-2.5 text-xs font-bold text-white shadow-xs transition-all cursor-pointer"
           >
             Browse Restaurants
           </button>
@@ -37,60 +38,38 @@ export default function CheckoutPage() {
     );
   }
 
-
   return (
-    <main className="min-h-screen bg-[#fffaf3] px-4 py-10 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-6xl">
+    <main className="w-full max-w-lg mx-auto px-4 pt-4 pb-32 min-h-screen bg-stone-50">
+      {/* Header */}
+      <div className="mb-4">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="mb-2 inline-flex items-center gap-1 text-xs font-semibold text-stone-500 transition hover:text-amber-700 cursor-pointer"
+        >
+          ← Back to Cart
+        </button>
 
-        {/* Header */}
+        <h1 className="text-2xl font-extrabold tracking-tight text-stone-900">
+          Checkout
+        </h1>
+        <p className="mt-0.5 text-xs text-stone-500">
+          Review your order, hostel drop point, and payment method.
+        </p>
+      </div>
 
-        <div className="mb-8">
-          <button
-            onClick={() => router.back()}
-            className="mb-4 text-sm font-medium text-gray-500 transition hover:text-orange-600"
-          >
-            ← Back to Cart
-          </button>
+      {/* Streamlined Checkout Stack */}
+      <div className="space-y-4">
+        {/* 1. Delivery Details (Address, Campus Preset Chips, Recipient Badge) */}
+        <AddressForm />
 
-          <h1 className="text-3xl font-extrabold tracking-tight text-gray-900 sm:text-4xl">
-            Checkout
-          </h1>
+        {/* 2. Payment Method Selector */}
+        <section className="rounded-2xl border border-stone-200 bg-white p-3.5 shadow-2xs">
+          <PaymentMethods />
+        </section>
 
-          <p className="mt-2 text-gray-500">
-            Review your order, enter your delivery details, and complete your payment securely.
-          </p>
-        </div>
-
-        {/* Checkout Layout */}
-
-        <div className="grid items-start gap-8 lg:grid-cols-[1fr_360px]">
-
-          {/* Left Side */}
-
-          <div className="space-y-6">
-
-            {/* Delivery Address */}
-
-            <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
-              <AddressForm />
-            </section>
-
-            {/* Payment */}
-
-            <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
-              <PaymentMethods />
-            </section>
-
-          </div>
-
-          {/* Right Side */}
-
-          <aside className="lg:sticky lg:top-6">
-            <OrderSummary />
-          </aside>
-
-        </div>
-
+        {/* 3. Order Summary, Tipping, and Sticky Bottom CTA Bar */}
+        <OrderSummary />
       </div>
     </main>
   );

@@ -25,47 +25,48 @@ describe("AddressForm Component", () => {
     localStorage.clear();
   });
 
-  it("renders commercial delivery fields and instructions chips without fixed dropdowns", () => {
+  it("renders streamlined delivery mode toggles, campus quick-chips, and address inputs", () => {
     renderAddressForm();
 
     // Header and delivery modes
     expect(screen.getByText("Delivery Details")).toBeInTheDocument();
-    expect(screen.getByText("Hostel Batch Drop")).toBeInTheDocument();
-    expect(screen.getByText("Standard Express")).toBeInTheDocument();
+    expect(screen.getByText(/Hostel Batch/i)).toBeInTheDocument();
+    expect(screen.getByText(/Express Door/i)).toBeInTheDocument();
+    expect(screen.getByText("Save ₹25")).toBeInTheDocument();
 
-    // Flexible inputs
+    // 2 Intuitive Campus fields
     expect(
-      screen.getByLabelText(/building \/ hostel \/ pg \/ society name/i)
+      screen.getByLabelText(/hostel \/ pg \/ building name/i)
     ).toBeInTheDocument();
-    expect(screen.getByLabelText(/recipient name/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/recipient mobile number/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/room \/ flat \/ floor \/ wing/i)).toBeInTheDocument();
-    expect(screen.getByLabelText(/nearby reference \/ landmark/i)).toBeInTheDocument();
     expect(
-      screen.getByLabelText(/delivery notes \/ instructions for courier/i)
+      screen.getByLabelText(/room \/ flat \/ floor/i)
     ).toBeInTheDocument();
 
-    // Redundant dropdowns / rigid fields should NOT be present
-    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/city \/ campus/i)).not.toBeInTheDocument();
-    expect(screen.queryByLabelText(/pin code/i)).not.toBeInTheDocument();
+    // Campus Quick Chips
+    expect(screen.getByRole("button", { name: /Hostel Block A/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Central Library/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Main Canteen/i })).toBeInTheDocument();
 
-    // Quick chips
+    // Collapsible note toggle button
     expect(
-      screen.getByRole("button", { name: /\+ Call when downstairs/i })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", {
-        name: /\+ Leave at hostel security \/ reception/i,
-      })
-    ).toBeInTheDocument();
-    expect(
-      screen.getByRole("button", { name: /\+ Call from main gate/i })
+      screen.getByRole("button", { name: /\+ Add delivery note \/ landmark/i })
     ).toBeInTheDocument();
   });
 
-  it("allows selecting a saved address pill to fill building and address details", async () => {
-    // Pre-populate saved addresses
+  it("allows selecting campus chip to populate hostel / building field", async () => {
+    const user = userEvent.setup();
+    renderAddressForm();
+
+    const libraryChip = screen.getByRole("button", { name: /Central Library/i });
+    await user.click(libraryChip);
+
+    const buildingInput = screen.getByLabelText(
+      /hostel \/ pg \/ building name/i
+    ) as HTMLInputElement;
+    expect(buildingInput.value).toBe("Central Library");
+  });
+
+  it("allows selecting a saved address pill to fill building details", async () => {
     const testSaved = [
       {
         id: "addr-home-1",
@@ -81,29 +82,52 @@ describe("AddressForm Component", () => {
     const user = userEvent.setup();
     renderAddressForm();
 
-    // Pill should be rendered
     const savedPill = screen.getByRole("button", { name: /shree ram pg/i });
     expect(savedPill).toBeInTheDocument();
 
     await user.click(savedPill);
 
     const buildingInput = screen.getByLabelText(
-      /building \/ hostel \/ pg \/ society name/i
+      /hostel \/ pg \/ building name/i
     ) as HTMLInputElement;
     expect(buildingInput.value).toBe("Shree Ram PG");
   });
 
-  it("selects a quick instruction chip and updates delivery notes", () => {
+  it("expands delivery note / landmark inputs and selects quick instruction chip", async () => {
+    const user = userEvent.setup();
     renderAddressForm();
+
+    const expandBtn = screen.getByRole("button", {
+      name: /\+ Add delivery note \/ landmark/i,
+    });
+    await user.click(expandBtn);
+
+    expect(
+      screen.getByLabelText(/nearby landmark/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByLabelText(/courier instructions/i)
+    ).toBeInTheDocument();
 
     const chip = screen.getByRole("button", {
       name: /\+ Call when downstairs/i,
     });
     fireEvent.click(chip);
 
-    const input = screen.getByLabelText(
-      /delivery notes \/ instructions for courier/i
+    const instructionsInput = screen.getByLabelText(
+      /courier instructions/i
     ) as HTMLInputElement;
-    expect(input.value).toBe("Call when downstairs");
+    expect(instructionsInput.value).toBe("Call when downstairs");
+  });
+
+  it("supports toggling between Myself and Someone Else recipient modes", async () => {
+    const user = userEvent.setup();
+    renderAddressForm();
+
+    const someoneElseBtn = screen.getByRole("button", { name: /👤 Someone Else/i });
+    await user.click(someoneElseBtn);
+
+    expect(screen.getByLabelText(/recipient name/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/recipient mobile number/i)).toBeInTheDocument();
   });
 });

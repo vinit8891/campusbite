@@ -48,117 +48,113 @@ export default function PaymentMethods() {
   const isCod = checkout.payment_method === COD_PAYMENT_METHOD;
 
   return (
-    <div>
-      <h2 className="mb-2 text-2xl font-bold">Payment Method</h2>
-      <p className="mb-6 text-sm text-gray-500">
-        Choose how you&apos;d like to pay for your order.
-        {config?.mode === "mock" && onlineEnabled
-          ? " Mock mode is active for local testing."
-          : null}
-      </p>
+    <div className="space-y-3">
+      <div>
+        <h2 className="text-lg font-bold text-stone-900">Payment Method</h2>
+        <p className="text-xs text-stone-500">
+          Choose your preferred mode of payment
+        </p>
+      </div>
 
       {configError ? (
-        <div className="mb-5 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700">
+        <div className="rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700">
           {configError}
         </div>
       ) : null}
 
-      <div className="space-y-4">
+      <div className="space-y-2">
+        {/* COD Option */}
         <label
-          className={`flex cursor-pointer items-start gap-4 rounded-2xl border-2 p-5 transition ${
+          className={`flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-all ${
             isCod
-              ? "border-orange-500 bg-orange-50"
-              : "border-gray-200 bg-white hover:border-orange-300"
+              ? "border-amber-500 bg-amber-50/60 shadow-2xs ring-1 ring-amber-500/20"
+              : "border-stone-200 bg-white hover:border-amber-300"
           }`}
         >
-          <input
-            type="radio"
-            name="payment"
-            className="sr-only"
-            checked={isCod}
-            onChange={() =>
-              setCheckout((prev) => ({
-                ...prev,
-                payment_method: COD_PAYMENT_METHOD,
-                online_confirmed: false,
-              }))
-            }
-          />
-
-          <div className="text-3xl">💵</div>
-
-          <div>
-            <h3 className="font-semibold text-gray-900">
-              Cash on Delivery (COD)
-            </h3>
-            <p className="mt-1 text-sm text-gray-600">
-              Pay in cash directly to the delivery partner when your order is
-              delivered. Payment stays pending until delivery.
-            </p>
-          </div>
-        </label>
-
-        <label
-          className={`flex items-start gap-4 rounded-2xl border-2 p-5 transition ${
-            !onlineEnabled
-              ? "cursor-not-allowed border-dashed border-gray-200 bg-gray-50 opacity-70"
-              : isOnline
-                ? "cursor-pointer border-orange-500 bg-orange-50"
-                : "cursor-pointer border-gray-200 bg-white hover:border-orange-300"
-          }`}
-        >
-          <input
-            type="radio"
-            name="payment"
-            className="sr-only"
-            disabled={!onlineEnabled}
-            checked={isOnline}
-            onChange={() =>
-              setCheckout((prev) => ({
-                ...prev,
-                payment_method: ONLINE_PAYMENT_METHOD,
-                cod_confirmed: false,
-              }))
-            }
-          />
-
-          <div className="text-3xl">💳</div>
-
-          <div>
-            <h3
-              className={`font-semibold ${
-                onlineEnabled ? "text-gray-900" : "text-gray-500"
-              }`}
-            >
-              Online Payment (UPI / Card / Net Banking)
-              {onlineEnabled ? (
-                <span className="ml-2 rounded-full bg-green-100 px-2 py-1 text-[10px] font-bold text-green-700">
-                  Recommended
-                </span>
-              ) : null}
-            </h3>
-            <p className="mt-1 text-sm text-gray-600">
-              {onlineEnabled
-                ? "Pay securely using UPI, Cards, Wallets, or Net Banking via Razorpay. Your order will be confirmed after successful payment verification."
-                : "Online payment is not configured yet. Set Razorpay test keys on the server."}
-            </p>
-            {onlineEnabled && config?.mode === "test" ? (
-              <p className="mt-1 text-xs text-green-700">
-                Razorpay test mode ready (public key loaded
-                {config.webhook_configured
-                  ? "; webhook secret configured on server"
-                  : "; set RAZORPAY_WEBHOOK_SECRET for webhooks"}
-                ).
+          <div className="flex items-center gap-3">
+            <input
+              type="radio"
+              name="payment"
+              className="accent-amber-600"
+              checked={isCod}
+              onChange={() =>
+                setCheckout((prev) => ({
+                  ...prev,
+                  payment_method: COD_PAYMENT_METHOD,
+                  online_confirmed: false,
+                }))
+              }
+            />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-base">💵</span>
+                <h3 className="text-xs font-bold text-stone-900">
+                  Cash on Delivery (COD)
+                </h3>
+              </div>
+              <p className="mt-0.5 text-[11px] text-stone-500">
+                Pay in cash directly to student courier on arrival
               </p>
-            ) : null}
+            </div>
           </div>
         </label>
 
-        {isCod ? (
-          <label className="flex cursor-pointer items-start gap-3 rounded-2xl bg-gray-50 p-4">
+        {/* Online Payment Option */}
+        <label
+          className={`flex items-center justify-between rounded-xl border p-3 transition-all ${
+            !onlineEnabled
+              ? "cursor-not-allowed border-dashed border-stone-200 bg-stone-50 opacity-60"
+              : isOnline
+              ? "cursor-pointer border-amber-500 bg-amber-50/60 shadow-2xs ring-1 ring-amber-500/20"
+              : "cursor-pointer border-stone-200 bg-white hover:border-amber-300"
+          }`}
+        >
+          <div className="flex items-center gap-3">
+            <input
+              type="radio"
+              name="payment"
+              className="accent-amber-600"
+              disabled={!onlineEnabled}
+              checked={isOnline}
+              onChange={() =>
+                setCheckout((prev) => ({
+                  ...prev,
+                  payment_method: ONLINE_PAYMENT_METHOD,
+                  cod_confirmed: false,
+                }))
+              }
+            />
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-base">💳</span>
+                <h3
+                  className={`text-xs font-bold ${
+                    onlineEnabled ? "text-stone-900" : "text-stone-500"
+                  }`}
+                >
+                  Online Payment (UPI / Cards / Net Banking)
+                </h3>
+                {onlineEnabled && (
+                  <span className="rounded-md bg-emerald-100 px-1.5 py-0.2 text-[10px] font-bold text-emerald-800">
+                    Fastest
+                  </span>
+                )}
+              </div>
+              <p className="mt-0.5 text-[11px] text-stone-500">
+                {onlineEnabled
+                  ? "Instant confirmation via Razorpay UPI / Cards"
+                  : "Online payment setup in progress."}
+              </p>
+            </div>
+          </div>
+        </label>
+
+        {/* Confirmation Checkboxes */}
+        {isCod && (
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl bg-stone-50 p-2.5 border border-stone-200/80 text-xs">
             <input
               type="checkbox"
-              className="mt-1"
+              className="mt-0.5 accent-amber-600"
               checked={checkout.cod_confirmed}
               onChange={(e) =>
                 setCheckout((prev) => ({
@@ -168,18 +164,17 @@ export default function PaymentMethods() {
                 }))
               }
             />
-            <span className="text-sm text-gray-700">
-              I confirm I will pay{" "}
-              <strong>Cash on Delivery</strong> when the order arrives.
+            <span className="text-stone-700 text-[11px] leading-tight">
+              I confirm I will pay <strong>Cash on Delivery (₹)</strong> upon courier arrival.
             </span>
           </label>
-        ) : null}
+        )}
 
-        {isOnline && onlineEnabled ? (
-          <label className="flex cursor-pointer items-start gap-3 rounded-2xl bg-gray-50 p-4">
+        {isOnline && onlineEnabled && (
+          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl bg-stone-50 p-2.5 border border-stone-200/80 text-xs">
             <input
               type="checkbox"
-              className="mt-1"
+              className="mt-0.5 accent-amber-600"
               checked={checkout.online_confirmed}
               onChange={(e) =>
                 setCheckout((prev) => ({
@@ -189,12 +184,11 @@ export default function PaymentMethods() {
                 }))
               }
             />
-            <span className="text-sm text-gray-700">
-              I understand payment is confirmed only after Razorpay verification
-              by CampusBite (not by the checkout popup alone).
+            <span className="text-stone-700 text-[11px] leading-tight">
+              I confirm I will complete payment securely via Razorpay.
             </span>
           </label>
-        ) : null}
+        )}
       </div>
     </div>
   );

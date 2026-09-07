@@ -5,7 +5,6 @@ import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useCheckout } from "@/context/CheckoutContext";
@@ -16,7 +15,6 @@ import { calculateOrderPricing } from "@/lib/orderPricing";
 import {
   COD_PAYMENT_METHOD,
   ONLINE_PAYMENT_METHOD,
-  formatPaymentMethod,
 } from "@/lib/paymentLabels";
 import { openRazorpayCheckout } from "@/lib/razorpayCheckout";
 import {
@@ -40,7 +38,12 @@ type PaymentUiState =
   | "failed"
   | "cancelled";
 
-const TIP_OPTIONS = [0, 10, 20, 30];
+const TIP_OPTIONS = [
+  { label: "No Tip", value: 0 },
+  { label: "₹10", value: 10 },
+  { label: "₹20", value: 20 },
+  { label: "₹30", value: 30 },
+];
 
 export default function OrderSummary() {
   const router = useRouter();
@@ -66,6 +69,9 @@ export default function OrderSummary() {
 
   const isCod = checkout.payment_method === COD_PAYMENT_METHOD;
   const isOnline = checkout.payment_method === ONLINE_PAYMENT_METHOD;
+  const paymentMethod = isCod ? "cod" : "online";
+
+  const isSubmitting = loading || paymentState === "processing";
 
   const canSubmit =
     cart.length > 0 &&
@@ -141,31 +147,33 @@ export default function OrderSummary() {
       return;
     }
 
-    if (!user?.phone) {
-      toast.error("Your account is missing a phone number. Please log in again.");
-      return;
-    }
+    const effectiveName =
+      (checkout.delivery_for === "someone_else"
+        ? checkout.customer_name
+        : checkout.customer_name || user?.name || "") || "";
 
-    if (cart.length === 0) {
-      toast.error("Your cart is empty.");
-      return;
-    }
+    const deliveryPhone =
+      (checkout.delivery_for === "someone_else"
+        ? checkout.phone
+        : checkout.phone || user?.phone || "") || "";
 
-    if (!checkout.customer_name.trim()) {
+    if (!effectiveName.trim()) {
       toast.error("Please enter the recipient name.");
       return;
     }
 
-    const deliveryPhone =
-      checkout.delivery_for === "someone_else" ? checkout.phone : user.phone;
-
-    if (!/^[0-9]{10}$/.test(deliveryPhone)) {
+    if (!/^[0-9]{10}$/.test(deliveryPhone.replace(/\D/g, ""))) {
       toast.error("Please enter a valid 10-digit mobile number.");
       return;
     }
 
-    if (!checkout.address.trim()) {
-      toast.error("Please enter the delivery address.");
+    if (!checkout.hostel_block?.trim()) {
+      toast.error("Please enter your hostel or building name.");
+      return;
+    }
+
+    if (!checkout.address?.trim()) {
+      toast.error("Please enter your room or flat number.");
       return;
     }
 
@@ -175,7 +183,9 @@ export default function OrderSummary() {
       "";
 
     if (!restaurantEmail) {
-      toast.error("Restaurant information is missing. Please select items from a restaurant.");
+      toast.error(
+        "Restaurant information is missing. Please select items from a restaurant."
+      );
       return;
     }
 
@@ -197,9 +207,13 @@ export default function OrderSummary() {
       setStatusMessage(isOnline ? "Processing Payment" : "");
 
       let fullAddress = checkout.address.trim();
-      if (checkout.delivery_type === "HOSTEL_BATCH" && checkout.hostel_block) {
-        if (!fullAddress.toLowerCase().includes(checkout.hostel_block.toLowerCase())) {
-          fullAddress = `${fullAddress}, ${checkout.hostel_block}`;
+      if (checkout.hostel_block) {
+        if (
+          !fullAddress
+            .toLowerCase()
+            .includes(checkout.hostel_block.toLowerCase())
+        ) {
+          fullAddress = `${checkout.hostel_block}, ${fullAddress}`;
         }
       }
       if (checkout.landmark?.trim()) {
@@ -211,11 +225,8 @@ export default function OrderSummary() {
 
       const orderData = {
         restaurant_email: restaurantEmail,
-        customer_name:
-          checkout.delivery_for === "someone_else"
-            ? checkout.customer_name
-            : user?.name || checkout.customer_name,
-        phone: deliveryPhone,
+        customer_name: effectiveName.trim(),
+        phone: deliveryPhone.replace(/\D/g, ""),
         address: fullAddress,
         payment_method: isOnline ? ONLINE_PAYMENT_METHOD : COD_PAYMENT_METHOD,
         items: cart,
@@ -223,7 +234,9 @@ export default function OrderSummary() {
         delivery_for: checkout.delivery_for,
         delivery_type: checkout.delivery_type,
         hostel_block:
-          checkout.delivery_type === "HOSTEL_BATCH" ? checkout.hostel_block : null,
+          checkout.delivery_type === "HOSTEL_BATCH"
+            ? checkout.hostel_block
+            : null,
         tip_amount: checkout.tip_amount,
         pricing_breakdown: pricing,
         latitude: checkout.latitude,
@@ -248,7 +261,10 @@ export default function OrderSummary() {
         );
       }
 
-      const payment = await createRazorpayPayment(orderId, pricing.total_payable);
+      const payment = await createRazorpayPayment(
+        orderId,
+        pricing.total_payable
+      );
       setPendingPayment(payment);
 
       if (
@@ -339,161 +355,165 @@ export default function OrderSummary() {
     }
   }
 
-  const buttonLabel = (() => {
-    if (paymentState === "processing" || loading) {
-      return isOnline ? "Processing Payment…" : "Placing Order…";
-    }
+  const finalTotal = pricing.total_payable.toFixed(2);
+
+  const ctaButtonText = (() => {
+    if (isSubmitting) return "Placing Order...";
     if (paymentState === "success") return "Payment Successful";
     if (paymentState === "failed") {
-      return isOnline
-        ? `Retry Pay Online • ₹${pricing.total_payable.toFixed(2)}`
-        : `Place COD Order • ₹${pricing.total_payable.toFixed(2)}`;
+      return isOnline ? "Retry Online Payment" : "Retry COD Order";
     }
-    if (paymentState === "cancelled") {
-      return `Pay Online • ₹${pricing.total_payable.toFixed(2)}`;
-    }
-    if (isOnline) return `Pay Online • ₹${pricing.total_payable.toFixed(2)}`;
-    return `Place COD Order • ₹${pricing.total_payable.toFixed(2)}`;
+    return `Place ${paymentMethod.toUpperCase()} Order`;
   })();
 
   return (
-    <section className="rounded-2xl border bg-white p-6 shadow-sm">
-      <h2 className="mb-5 text-2xl font-bold">Order Summary</h2>
-
-      {/* Cart Items List */}
-      <div className="space-y-3">
-        {cart.map((item) => (
-          <div key={item.id} className="flex justify-between gap-4 text-sm">
-            <span className="text-gray-700">
-              {item.name} × {item.quantity}
-            </span>
-            <span className="font-medium">
-              ₹{(item.price * item.quantity).toFixed(2)}
-            </span>
-          </div>
-        ))}
-      </div>
-
-      <hr className="my-4" />
-
-      {/* Bill Breakdown with Statutory GST & Platform Fee */}
-      <div className="space-y-2.5 text-sm">
-        <div className="flex justify-between">
-          <span className="text-gray-600">Items Total</span>
-          <span className="font-medium">₹{pricing.food_subtotal.toFixed(2)}</span>
-        </div>
-
-        <div className="flex justify-between">
-          <span className="text-gray-600">Restaurant GST (5%)</span>
-          <span className="font-medium">₹{pricing.restaurant_gst.toFixed(2)}</span>
-        </div>
-
+    <>
+      <section className="rounded-2xl border border-stone-200 bg-white p-4 shadow-2xs space-y-4">
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-1.5">
-            <span className="text-gray-600">Delivery Fee</span>
-            {checkout.delivery_type === "HOSTEL_BATCH" && (
-              <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
-                Saved ₹25
-              </span>
-            )}
-          </div>
-          <span className="font-medium">₹{pricing.delivery_fee.toFixed(2)}</span>
+          <h2 className="text-lg font-bold text-stone-900">Order Summary</h2>
+          <span className="text-xs text-stone-500 font-medium">
+            {cart.length} {cart.length === 1 ? "item" : "items"}
+          </span>
         </div>
 
-        <div className="flex justify-between">
-          <span className="text-gray-600">Platform Tech Fee</span>
-          <span className="font-medium">₹{pricing.platform_fee.toFixed(2)}</span>
-        </div>
-
-        {pricing.tip_amount > 0 && (
-          <div className="flex justify-between text-orange-600 font-medium">
-            <span>Rider Tip</span>
-            <span>+₹{pricing.tip_amount.toFixed(2)}</span>
-          </div>
-        )}
-      </div>
-
-      {/* Rider Tip Selector */}
-      <div className="my-4 rounded-xl border border-orange-100 bg-orange-50/60 p-3.5">
-        <div className="flex items-center justify-between">
-          <p className="text-xs font-bold text-gray-800">Support Student Courier</p>
-          <span className="text-[10px] font-semibold text-orange-700">100% tip to rider</span>
-        </div>
-        <div className="mt-2 grid grid-cols-4 gap-2">
-          {TIP_OPTIONS.map((tip) => (
-            <button
-              key={tip}
-              type="button"
-              onClick={() => setCheckout((prev) => ({ ...prev, tip_amount: tip }))}
-              className={`rounded-lg py-1.5 text-xs font-semibold transition ${
-                checkout.tip_amount === tip
-                  ? "bg-orange-600 text-white shadow-sm"
-                  : "bg-white text-gray-700 border border-gray-200 hover:border-orange-300"
-              }`}
+        {/* Cart Items List */}
+        <div className="space-y-2 border-b border-stone-100 pb-3">
+          {cart.map((item) => (
+            <div
+              key={item.id}
+              className="flex justify-between items-center text-xs"
             >
-              {tip === 0 ? "None" : `₹${tip}`}
-            </button>
+              <span className="text-stone-700 font-medium truncate max-w-[220px]">
+                {item.name} × {item.quantity}
+              </span>
+              <span className="font-semibold text-stone-900">
+                ₹{(item.price * item.quantity).toFixed(2)}
+              </span>
+            </div>
           ))}
         </div>
-      </div>
 
-      <hr className="my-4" />
+        {/* Courier Tip Selector - Compact Inline Pills */}
+        <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-stone-800 flex items-center gap-1">
+              🛵 Rider Tip
+            </span>
+            <span className="text-[10px] font-bold text-amber-700">
+              100% to student courier
+            </span>
+          </div>
 
-      {/* Grand Total */}
-      <div className="flex justify-between text-xl font-bold">
-        <span>To Pay</span>
-        <span className="text-orange-600">₹{pricing.total_payable.toFixed(2)}</span>
-      </div>
-
-      {/* Delivering to Box */}
-      <div className="mt-5 rounded-xl bg-gray-50 p-3.5 text-xs">
-        <div className="flex items-center justify-between">
-          <p className="font-semibold text-gray-800">
-            Delivering via {checkout.delivery_type === "HOSTEL_BATCH" ? "Hostel Batch Drop" : "Standard Express"}
-          </p>
-          {checkout.delivery_type === "HOSTEL_BATCH" && (
-            <span className="font-bold text-orange-600">{checkout.hostel_block}</span>
-          )}
+          <div className="grid grid-cols-4 gap-1.5">
+            {TIP_OPTIONS.map((tip) => (
+              <button
+                key={tip.value}
+                type="button"
+                onClick={() =>
+                  setCheckout((prev) => ({ ...prev, tip_amount: tip.value }))
+                }
+                className={`py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                  checkout.tip_amount === tip.value
+                    ? "bg-amber-600 text-white shadow-2xs"
+                    : "bg-white text-stone-700 border border-stone-200 hover:border-amber-300"
+                }`}
+              >
+                {tip.label}
+              </button>
+            ))}
+          </div>
         </div>
-        <p className="mt-1 text-gray-600">
-          {checkout.customer_name || "Recipient"} • {checkout.delivery_for === "self" ? user?.phone : checkout.phone}
-        </p>
-        <p className="mt-1 text-gray-500 font-medium truncate">
-          {checkout.address
-            ? `${checkout.address}${
-                checkout.delivery_type === "HOSTEL_BATCH" && checkout.hostel_block
-                  ? `, ${checkout.hostel_block}`
-                  : ""
-              }${checkout.landmark?.trim() ? `, ${checkout.landmark.trim()}` : ""}`
-            : "Address pending"}
-        </p>
-        {checkout.delivery_instructions?.trim() && (
-          <p className="mt-1 text-[11px] text-orange-700 italic truncate">
-            Note: {checkout.delivery_instructions.trim()}
+
+        {/* Bill Breakdown */}
+        <div className="space-y-2 text-xs text-stone-600">
+          <div className="flex justify-between">
+            <span>Items Total</span>
+            <span className="font-semibold text-stone-900">
+              ₹{pricing.food_subtotal.toFixed(2)}
+            </span>
+          </div>
+
+          <div className="flex justify-between">
+            <span>Restaurant GST (5%)</span>
+            <span className="font-semibold text-stone-900">
+              ₹{pricing.restaurant_gst.toFixed(2)}
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5">
+              <span>Delivery Fee</span>
+              {checkout.delivery_type === "HOSTEL_BATCH" && (
+                <span className="rounded-full bg-emerald-100 px-1.5 py-0.2 text-[10px] font-bold text-emerald-700">
+                  Saved ₹25
+                </span>
+              )}
+            </div>
+            <span className="font-semibold text-stone-900">
+              ₹{pricing.delivery_fee.toFixed(2)}
+            </span>
+          </div>
+
+          <div className="flex justify-between">
+            <span>Platform Tech Fee</span>
+            <span className="font-semibold text-stone-900">
+              ₹{pricing.platform_fee.toFixed(2)}
+            </span>
+          </div>
+
+          {pricing.tip_amount > 0 && (
+            <div className="flex justify-between text-amber-700 font-bold">
+              <span>Rider Tip</span>
+              <span>+₹{pricing.tip_amount.toFixed(2)}</span>
+            </div>
+          )}
+
+          <div className="border-t border-stone-100 pt-2.5 flex justify-between items-center text-sm font-black text-stone-900">
+            <span>Total Payable</span>
+            <span className="text-amber-600 text-base">₹{finalTotal}</span>
+          </div>
+        </div>
+
+        {/* Destination preview badge */}
+        <div className="rounded-xl bg-stone-50 p-2.5 text-[11px] text-stone-600 border border-stone-200/60">
+          <div className="flex items-center justify-between font-bold text-stone-800">
+            <span>
+              {checkout.delivery_type === "HOSTEL_BATCH"
+                ? "🏢 Hostel Batch Drop"
+                : "🚀 Standard Express Door"}
+            </span>
+            <span className="text-amber-700">{checkout.hostel_block}</span>
+          </div>
+          <p className="truncate mt-0.5 text-stone-500">
+            {checkout.address || "Room pending"}
+            {checkout.landmark ? ` • Ref: ${checkout.landmark}` : ""}
           </p>
-        )}
-      </div>
+        </div>
+      </section>
 
-      {/* Payment Notice */}
-      <div className="mt-3 rounded-xl bg-orange-50 p-3.5 text-xs">
-        <p className="font-semibold text-gray-900">{formatPaymentMethod(checkout.payment_method)}</p>
-        <p className="mt-0.5 text-gray-600">
-          {isOnline
-            ? "Pay securely online via Razorpay."
-            : "Pay cash to student courier upon arrival."}
-        </p>
-        {statusMessage && (
-          <p className="mt-2 font-semibold text-orange-700">{statusMessage}</p>
-        )}
+      {/* =========================================================
+          5. STICKY MOBILE BOTTOM CTA BAR
+      ========================================================== */}
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200 p-4 shadow-xl z-50">
+        <div className="max-w-lg mx-auto flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs text-stone-500 font-medium">To Pay</p>
+            <p className="text-xl font-black text-stone-900">₹{finalTotal}</p>
+          </div>
+          <button
+            type="button"
+            onClick={handlePlaceOrder}
+            disabled={isSubmitting}
+            className={`flex-1 py-3.5 px-6 rounded-xl font-bold text-white shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              !canSubmit && !isSubmitting
+                ? "bg-amber-600/90 hover:bg-amber-600"
+                : "bg-amber-600 hover:bg-amber-700"
+            }`}
+          >
+            {ctaButtonText}
+          </button>
+        </div>
       </div>
-
-      <Button
-        className="mt-5 w-full bg-orange-600 hover:bg-orange-700 text-white font-semibold py-2.5"
-        disabled={!canSubmit}
-        onClick={handlePlaceOrder}
-      >
-        {buttonLabel}
-      </Button>
 
       {mockOpen && pendingPayment ? (
         <MockCheckoutModal
@@ -505,6 +525,6 @@ export default function OrderSummary() {
           onDismiss={() => runMockOutcome("dismiss")}
         />
       ) : null}
-    </section>
+    </>
   );
 }

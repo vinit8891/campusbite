@@ -1,9 +1,18 @@
+"use client";
+
 import React from "react";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { Lock } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 
 export default function Footer() {
+  const pathname = usePathname();
+
+  // Hide footer on checkout for a streamlined, mobile-first, distraction-free funnel
+  if (pathname === "/checkout" || pathname?.startsWith("/checkout")) {
+    return null;
+  }
   return (
     <footer className="mt-auto border-t border-stone-800 bg-stone-950 text-stone-300">
       <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 sm:py-10">

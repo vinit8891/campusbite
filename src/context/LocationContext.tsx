@@ -153,6 +153,14 @@ export async function reverseGeocodeCoords(
   areaOrLandmark: string;
   city: string;
 }> {
+  const match = matchNearestCampusLocation(lat, lng);
+  const defaultCampusBuilding = match.isInsideCampus
+    ? match.preset.name
+    : "Detected Campus Location";
+  const defaultArea = match.isInsideCampus
+    ? match.preset.tag
+    : "Campus / Local Area";
+
   try {
     const res = await fetch(
       `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`,
@@ -166,20 +174,24 @@ export async function reverseGeocodeCoords(
     const data = await res.json();
     const addr = data.address || {};
 
-    const buildingOrSociety =
+    const rawBuilding =
       addr.amenity ||
       addr.building ||
       addr.university ||
       addr.college ||
-      addr.road ||
-      `Detected Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+      addr.road;
+
+    const buildingOrSociety =
+      rawBuilding && !rawBuilding.includes("(")
+        ? rawBuilding
+        : defaultCampusBuilding;
 
     const areaOrLandmark =
       addr.suburb ||
       addr.neighbourhood ||
       addr.residential ||
       addr.county ||
-      "Campus / Local Area";
+      defaultArea;
 
     const city =
       addr.city || addr.town || addr.village || addr.state_district || "Pune";
@@ -191,8 +203,8 @@ export async function reverseGeocodeCoords(
     };
   } catch {
     return {
-      buildingOrSociety: `Detected Location (${lat.toFixed(4)}, ${lng.toFixed(4)})`,
-      areaOrLandmark: "Nearby Campus / Area",
+      buildingOrSociety: defaultCampusBuilding,
+      areaOrLandmark: defaultArea,
       city: "Pune",
     };
   }

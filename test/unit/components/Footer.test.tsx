@@ -1,11 +1,25 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import Footer from "@/components/layout/Footer";
 import { ROUTES } from "@/lib/routes";
 
+let mockPath = "/";
+
+vi.mock("next/navigation", () => ({
+  usePathname: () => mockPath,
+  useRouter: () => ({
+    push: vi.fn(),
+    replace: vi.fn(),
+    back: vi.fn(),
+  }),
+}));
+
 describe("Footer Component", () => {
-  it("renders compact, sleek, mobile-friendly 2-to-4 column layout", () => {
-    render(<Footer />);
+  it("renders compact, sleek, mobile-friendly 2-to-4 column layout on normal routes", () => {
+    mockPath = "/";
+    const { container } = render(<Footer />);
+
+    expect(container.firstChild).not.toBeNull();
 
     // Brand & Concise Tagline
     expect(
@@ -75,5 +89,11 @@ describe("Footer Component", () => {
     expect(
       screen.getByText(/razorpay verified & encrypted/i)
     ).toBeInTheDocument();
+  });
+
+  it("unmounts/hides completely on /checkout route for a distraction-free funnel", () => {
+    mockPath = "/checkout";
+    const { container } = render(<Footer />);
+    expect(container.firstChild).toBeNull();
   });
 });

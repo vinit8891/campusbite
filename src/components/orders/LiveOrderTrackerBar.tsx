@@ -24,6 +24,8 @@ export function isRestrictedPath(pathname: string): boolean {
     isPortalOrAuth("/register") ||
     isPortalOrAuth("/forgot-password") ||
     isPortalOrAuth("/reset-password") ||
+    pathname === "/checkout" ||
+    pathname.startsWith("/checkout/") ||
     pathname.startsWith("/orders/") ||
     pathname.startsWith("/track-order/")
   );

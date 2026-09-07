@@ -114,8 +114,8 @@ describe("OrderSummary Component", () => {
     expect(screen.getByText("Saved ₹25")).toBeInTheDocument();
     expect(screen.getByText("Platform Tech Fee")).toBeInTheDocument();
     expect(screen.getByText("₹3.00")).toBeInTheDocument();
-    // Total = 100 + 5 + 15 + 3 = 123.00
-    expect(screen.getByText("₹123.00")).toBeInTheDocument();
+    // Total = 100 + 5 + 15 + 3 = 123.00 (shown in summary breakdown and sticky bottom CTA bar)
+    expect(screen.getAllByText("₹123.00").length).toBeGreaterThanOrEqual(1);
   });
 
   it("allows selecting rider tip and updates checkout state", async () => {
