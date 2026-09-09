@@ -29,6 +29,19 @@ export interface PricingBreakdown {
     totalDisbursal: number;
   };
   allowedDeliveryModes: DeliveryMode[];
+  codRounding?: {
+    roundedTotal: number;
+    roundOff: number;
+  };
+}
+
+/**
+ * Rounds cash-on-delivery payments to the nearest whole rupee and returns the round-off delta.
+ */
+export function calculateCodRounding(total: number): { roundedTotal: number; roundOff: number } {
+  const roundedTotal = Math.round(total);
+  const roundOff = Number((roundedTotal - total).toFixed(2));
+  return { roundedTotal, roundOff };
 }
 
 /**

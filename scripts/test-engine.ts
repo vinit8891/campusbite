@@ -1,5 +1,6 @@
 import {
   calculateCheckoutPricing,
+  calculateCodRounding,
   getCalibratedAppPrice,
   CartItemInput,
 } from '../src/lib/pricingEngine';
@@ -132,6 +133,37 @@ function runTests() {
   assert(
     restrictionThrown,
     'Express Restriction thrown when testing Poha (₹42 subtotal) with EXPRESS_DOOR'
+  );
+  console.log('');
+
+  // --- Test 5: COD Whole-Rupee Rounding ---
+  console.log('--- Test 5: COD Whole-Rupee Rounding Validation ---');
+  const cod1 = calculateCodRounding(64.10);
+  assert(
+    cod1.roundedTotal === 64 && cod1.roundOff === -0.10,
+    'COD rounding down: ₹64.10 -> ₹64 (roundOff: -₹0.10)',
+    `Received: roundedTotal=${cod1.roundedTotal}, roundOff=${cod1.roundOff}`
+  );
+
+  const cod2 = calculateCodRounding(94.55);
+  assert(
+    cod2.roundedTotal === 95 && cod2.roundOff === 0.45,
+    'COD rounding up: ₹94.55 -> ₹95 (roundOff: +₹0.45)',
+    `Received: roundedTotal=${cod2.roundedTotal}, roundOff=${cod2.roundOff}`
+  );
+
+  const cod3 = calculateCodRounding(144.75);
+  assert(
+    cod3.roundedTotal === 145 && cod3.roundOff === 0.25,
+    'COD rounding up: ₹144.75 -> ₹145 (roundOff: +₹0.25)',
+    `Received: roundedTotal=${cod3.roundedTotal}, roundOff=${cod3.roundOff}`
+  );
+
+  const cod4 = calculateCodRounding(80.00);
+  assert(
+    cod4.roundedTotal === 80 && cod4.roundOff === 0.00,
+    'COD exact whole rupee: ₹80.00 -> ₹80 (roundOff: 0)',
+    `Received: roundedTotal=${cod4.roundedTotal}, roundOff=${cod4.roundOff}`
   );
   console.log('');
 

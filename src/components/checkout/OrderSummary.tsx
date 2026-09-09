@@ -13,6 +13,7 @@ import { AuthHttpError } from "@/services/authFetch";
 import { ROUTES } from "@/lib/routes";
 import {
   calculateCheckoutPricing,
+  calculateCodRounding,
   getCalibratedAppPrice,
   type DeliveryMode,
   type CartItemInput,
@@ -267,9 +268,12 @@ export default function OrderSummary() {
         fullAddress += ` (Note: ${checkout.delivery_instructions.trim()})`;
       }
 
-      const finalPayableNum = Number(
+      const unroundedPayable = Number(
         (pricing.totalStudentPayable + Number(checkout.tip_amount || 0)).toFixed(2)
       );
+      const { roundedTotal: codRoundedTotal, roundOff: codRoundOff } =
+        calculateCodRounding(unroundedPayable);
+      const finalPayableNum = isCod ? codRoundedTotal : unroundedPayable;
 
       const orderData = {
         restaurant_email: restaurantEmail,
@@ -286,7 +290,12 @@ export default function OrderSummary() {
             ? checkout.hostel_block
             : null,
         tip_amount: checkout.tip_amount,
-        pricing_breakdown: pricing,
+        pricing_breakdown: {
+          ...pricing,
+          codRounding: isCod
+            ? { roundedTotal: codRoundedTotal, roundOff: codRoundOff }
+            : undefined,
+        },
         latitude: checkout.latitude,
         longitude: checkout.longitude,
         restaurant_latitude: checkout.restaurant_latitude,
@@ -403,9 +412,16 @@ export default function OrderSummary() {
     }
   }
 
-  const finalTotal = (
-    pricing.totalStudentPayable + Number(checkout.tip_amount || 0)
-  ).toFixed(2);
+  const unroundedPayable = Number(
+    (pricing.totalStudentPayable + Number(checkout.tip_amount || 0)).toFixed(2)
+  );
+
+  const { roundedTotal, roundOff } = useMemo(
+    () => calculateCodRounding(unroundedPayable),
+    [unroundedPayable]
+  );
+
+  const formattedFinalTotal = isCod ? `${roundedTotal}` : unroundedPayable.toFixed(2);
 
   const ctaButtonText = (() => {
     if (isSubmitting) return "Placing Order...";
@@ -536,9 +552,26 @@ export default function OrderSummary() {
             </div>
           )}
 
+          {/* COD Round Off Line Item */}
+          {isCod && (
+            <div className="flex justify-between text-stone-600">
+              <div className="flex items-center gap-1">
+                <span>Round Off</span>
+                <span className="text-[10px] text-stone-400">(Cash Payment)</span>
+              </div>
+              <span className="font-semibold text-stone-900">
+                {roundOff > 0
+                  ? `+₹${roundOff.toFixed(2)}`
+                  : roundOff < 0
+                  ? `-₹${Math.abs(roundOff).toFixed(2)}`
+                  : "₹0.00"}
+              </span>
+            </div>
+          )}
+
           <div className="border-t border-stone-100 pt-2.5 flex justify-between items-center text-sm font-black text-stone-900">
             <span>Total Payable</span>
-            <span className="text-amber-600 text-base">₹{finalTotal}</span>
+            <span className="text-amber-600 text-base">₹{formattedFinalTotal}</span>
           </div>
         </div>
 
@@ -572,7 +605,7 @@ export default function OrderSummary() {
         <div className="max-w-lg mx-auto flex items-center justify-between gap-4">
           <div>
             <p className="text-xs text-stone-500 font-medium">To Pay</p>
-            <p className="text-xl font-black text-stone-900">₹{finalTotal}</p>
+            <p className="text-xl font-black text-stone-900">₹{formattedFinalTotal}</p>
           </div>
           <button
             type="button"
