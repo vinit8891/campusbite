@@ -11,7 +11,9 @@ import {
 } from "react";
 
 import type { CartItem } from "@/types";
-import type { DeliveryType } from "@/lib/orderPricing";
+import type { DeliveryMode } from "@/lib/pricingEngine";
+
+export type DeliveryType = DeliveryMode;
 
 type CartContextType = {
   cart: CartItem[];
@@ -57,8 +59,13 @@ export function CartProvider({
     }
 
     const savedDelivery = localStorage.getItem("delivery_type");
-    if (savedDelivery === "STANDARD" || savedDelivery === "HOSTEL_BATCH") {
-      setDeliveryTypeState(savedDelivery);
+    if (
+      savedDelivery === "STANDARD" ||
+      savedDelivery === "HOSTEL_BATCH" ||
+      savedDelivery === "EXPRESS_DOOR" ||
+      savedDelivery === "COUNTER_TAKEAWAY"
+    ) {
+      setDeliveryTypeState(savedDelivery as DeliveryType);
     } else {
       const savedCheckout = localStorage.getItem("checkout");
       if (savedCheckout) {
@@ -66,9 +73,11 @@ export function CartProvider({
           const parsed = JSON.parse(savedCheckout);
           if (
             parsed.delivery_type === "STANDARD" ||
-            parsed.delivery_type === "HOSTEL_BATCH"
+            parsed.delivery_type === "HOSTEL_BATCH" ||
+            parsed.delivery_type === "EXPRESS_DOOR" ||
+            parsed.delivery_type === "COUNTER_TAKEAWAY"
           ) {
-            setDeliveryTypeState(parsed.delivery_type);
+            setDeliveryTypeState(parsed.delivery_type as DeliveryType);
           }
         } catch {
           // ignore

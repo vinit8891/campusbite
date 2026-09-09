@@ -11,7 +11,13 @@ import { useCheckout } from "@/context/CheckoutContext";
 import { placeOrder } from "@/services/orderService";
 import { AuthHttpError } from "@/services/authFetch";
 import { ROUTES } from "@/lib/routes";
-import { calculateOrderPricing } from "@/lib/orderPricing";
+import {
+  calculateCheckoutPricing,
+  getCalibratedAppPrice,
+  type DeliveryMode,
+  type CartItemInput,
+  MICRO_CART_THRESHOLD,
+} from "@/lib/pricingEngine";
 import {
   COD_PAYMENT_METHOD,
   ONLINE_PAYMENT_METHOD,
@@ -25,6 +31,7 @@ import {
   verifyRazorpayPayment,
   type CreatePaymentResponse,
 } from "@/services/paymentService";
+import { useMemo } from "react";
 
 const MockCheckoutModal = dynamic(
   () => import("@/components/checkout/MockCheckoutModal"),
@@ -60,12 +67,49 @@ export default function OrderSummary() {
   const [pendingPayment, setPendingPayment] =
     useState<CreatePaymentResponse | null>(null);
 
-  const pricing = calculateOrderPricing(
-    cart,
-    checkout.delivery_type,
-    checkout.tip_amount,
-    checkout.payment_method
+  const cartInput: CartItemInput[] = useMemo(
+    () =>
+      cart.map((item) => ({
+        id: String(item.id),
+        name: item.name,
+        counterPrice: item.price,
+        quantity: item.quantity,
+      })),
+    [cart]
   );
+
+  const selectedMode: DeliveryMode =
+    checkout.delivery_type === "STANDARD"
+      ? "EXPRESS_DOOR"
+      : (checkout.delivery_type as DeliveryMode);
+
+  const basePricing = useMemo(() => {
+    if (cartInput.length === 0) {
+      return {
+        appSubtotal: 0,
+        gstAmount: 0,
+        platformTechFee: 0,
+        deliveryFee: 0,
+        totalStudentPayable: 0,
+        isMicroCart: true,
+        amountToUnlockExpress: MICRO_CART_THRESHOLD,
+        canteenPayout: { baseFood: 0, gstPassThrough: 0, totalDisbursal: 0 },
+        allowedDeliveryModes: ["HOSTEL_BATCH", "COUNTER_TAKEAWAY"] as DeliveryMode[],
+      };
+    }
+    return calculateCheckoutPricing(cartInput, "HOSTEL_BATCH");
+  }, [cartInput]);
+
+  const effectiveMode: DeliveryMode =
+    basePricing.isMicroCart &&
+    (selectedMode === "EXPRESS_DOOR" || (selectedMode as string) === "STANDARD")
+      ? "HOSTEL_BATCH"
+      : selectedMode;
+
+  const pricing = useMemo(() => {
+    if (cartInput.length === 0) return basePricing;
+    return calculateCheckoutPricing(cartInput, effectiveMode);
+  }, [cartInput, effectiveMode, basePricing]);
 
   const isCod = checkout.payment_method === COD_PAYMENT_METHOD;
   const isOnline = checkout.payment_method === ONLINE_PAYMENT_METHOD;
@@ -223,6 +267,10 @@ export default function OrderSummary() {
         fullAddress += ` (Note: ${checkout.delivery_instructions.trim()})`;
       }
 
+      const finalPayableNum = Number(
+        (pricing.totalStudentPayable + Number(checkout.tip_amount || 0)).toFixed(2)
+      );
+
       const orderData = {
         restaurant_email: restaurantEmail,
         customer_name: effectiveName.trim(),
@@ -230,11 +278,11 @@ export default function OrderSummary() {
         address: fullAddress,
         payment_method: isOnline ? ONLINE_PAYMENT_METHOD : COD_PAYMENT_METHOD,
         items: cart,
-        total: pricing.total_payable,
+        total: finalPayableNum,
         delivery_for: checkout.delivery_for,
-        delivery_type: checkout.delivery_type,
+        delivery_type: effectiveMode,
         hostel_block:
-          checkout.delivery_type === "HOSTEL_BATCH"
+          effectiveMode === "HOSTEL_BATCH"
             ? checkout.hostel_block
             : null,
         tip_amount: checkout.tip_amount,
@@ -263,7 +311,7 @@ export default function OrderSummary() {
 
       const payment = await createRazorpayPayment(
         orderId,
-        pricing.total_payable
+        finalPayableNum
       );
       setPendingPayment(payment);
 
@@ -355,7 +403,9 @@ export default function OrderSummary() {
     }
   }
 
-  const finalTotal = pricing.total_payable.toFixed(2);
+  const finalTotal = (
+    pricing.totalStudentPayable + Number(checkout.tip_amount || 0)
+  ).toFixed(2);
 
   const ctaButtonText = (() => {
     if (isSubmitting) return "Placing Order...";
@@ -378,19 +428,22 @@ export default function OrderSummary() {
 
         {/* Cart Items List */}
         <div className="space-y-2 border-b border-stone-100 pb-3">
-          {cart.map((item) => (
-            <div
-              key={item.id}
-              className="flex justify-between items-center text-xs"
-            >
-              <span className="text-stone-700 font-medium truncate max-w-[220px]">
-                {item.name} × {item.quantity}
-              </span>
-              <span className="font-semibold text-stone-900">
-                ₹{(item.price * item.quantity).toFixed(2)}
-              </span>
-            </div>
-          ))}
+          {cart.map((item) => {
+            const calibratedUnit = getCalibratedAppPrice(item.price);
+            return (
+              <div
+                key={item.id}
+                className="flex justify-between items-center text-xs"
+              >
+                <span className="text-stone-700 font-medium truncate max-w-[220px]">
+                  {item.name} × {item.quantity}
+                </span>
+                <span className="font-semibold text-stone-900">
+                  ₹{(calibratedUnit * item.quantity).toFixed(2)}
+                </span>
+              </div>
+            );
+          })}
         </div>
 
         {/* Courier Tip Selector - Compact Inline Pills */}
@@ -424,47 +477,62 @@ export default function OrderSummary() {
           </div>
         </div>
 
-        {/* Bill Breakdown */}
+        {/* Bill Breakdown from pricingEngine */}
         <div className="space-y-2 text-xs text-stone-600">
           <div className="flex justify-between">
-            <span>Items Total</span>
+            <span>Items Subtotal</span>
             <span className="font-semibold text-stone-900">
-              ₹{pricing.food_subtotal.toFixed(2)}
+              ₹{pricing.appSubtotal.toFixed(2)}
             </span>
           </div>
 
           <div className="flex justify-between">
-            <span>Restaurant GST (5%)</span>
+            <span>Food GST (5%)</span>
             <span className="font-semibold text-stone-900">
-              ₹{pricing.restaurant_gst.toFixed(2)}
+              ₹{pricing.gstAmount.toFixed(2)}
             </span>
           </div>
 
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <span>Delivery Fee</span>
-              {checkout.delivery_type === "HOSTEL_BATCH" && (
+              {effectiveMode === "HOSTEL_BATCH" && (
                 <span className="rounded-full bg-emerald-100 px-1.5 py-0.2 text-[10px] font-bold text-emerald-700">
-                  Saved ₹25
+                  Hostel Batch (₹15)
+                </span>
+              )}
+              {effectiveMode === "COUNTER_TAKEAWAY" && (
+                <span className="rounded-full bg-blue-100 px-1.5 py-0.2 text-[10px] font-bold text-blue-700">
+                  Self Pickup (₹0)
+                </span>
+              )}
+              {effectiveMode === "EXPRESS_DOOR" && (
+                <span className="rounded-full bg-purple-100 px-1.5 py-0.2 text-[10px] font-bold text-purple-700">
+                  Direct Room (₹40)
                 </span>
               )}
             </div>
             <span className="font-semibold text-stone-900">
-              ₹{pricing.delivery_fee.toFixed(2)}
+              ₹{pricing.deliveryFee.toFixed(2)}
             </span>
           </div>
 
           <div className="flex justify-between">
-            <span>Platform Tech Fee</span>
+            <div className="flex items-center gap-1">
+              <span>Platform Tech Fee</span>
+              <span className="text-[10px] text-stone-400">
+                ({effectiveMode === "COUNTER_TAKEAWAY" ? "₹3 pass" : "₹5 delivery"})
+              </span>
+            </div>
             <span className="font-semibold text-stone-900">
-              ₹{pricing.platform_fee.toFixed(2)}
+              ₹{pricing.platformTechFee.toFixed(2)}
             </span>
           </div>
 
-          {pricing.tip_amount > 0 && (
+          {Number(checkout.tip_amount || 0) > 0 && (
             <div className="flex justify-between text-amber-700 font-bold">
               <span>Rider Tip</span>
-              <span>+₹{pricing.tip_amount.toFixed(2)}</span>
+              <span>+₹{Number(checkout.tip_amount || 0).toFixed(2)}</span>
             </div>
           )}
 
@@ -478,15 +546,21 @@ export default function OrderSummary() {
         <div className="rounded-xl bg-stone-50 p-2.5 text-[11px] text-stone-600 border border-stone-200/60">
           <div className="flex items-center justify-between font-bold text-stone-800">
             <span>
-              {checkout.delivery_type === "HOSTEL_BATCH"
+              {effectiveMode === "HOSTEL_BATCH"
                 ? "🏢 Hostel Batch Drop"
-                : "🚀 Standard Express Door"}
+                : effectiveMode === "COUNTER_TAKEAWAY"
+                ? "🏪 Counter Takeaway (Self Pickup)"
+                : "🚀 Direct Room Delivery"}
             </span>
-            <span className="text-amber-700">{checkout.hostel_block}</span>
+            <span className="text-amber-700">
+              {effectiveMode === "COUNTER_TAKEAWAY" ? "Canteen Counter" : checkout.hostel_block}
+            </span>
           </div>
           <p className="truncate mt-0.5 text-stone-500">
-            {checkout.address || "Room pending"}
-            {checkout.landmark ? ` • Ref: ${checkout.landmark}` : ""}
+            {effectiveMode === "COUNTER_TAKEAWAY"
+              ? "Pickup at canteen counter when ready"
+              : checkout.address || "Room pending"}
+            {effectiveMode !== "COUNTER_TAKEAWAY" && checkout.landmark ? ` • Ref: ${checkout.landmark}` : ""}
           </p>
         </div>
       </section>

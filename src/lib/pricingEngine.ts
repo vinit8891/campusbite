@@ -6,7 +6,7 @@ export const BATCH_DELIVERY_FEE = 15.0;
 export const EXPRESS_DELIVERY_FEE = 40.0;
 export const MICRO_CART_THRESHOLD = 80.0;
 
-export type DeliveryMode = 'HOSTEL_BATCH' | 'EXPRESS_DOOR' | 'COUNTER_TAKEAWAY';
+export type DeliveryMode = 'HOSTEL_BATCH' | 'EXPRESS_DOOR' | 'COUNTER_TAKEAWAY' | 'STANDARD';
 
 export interface CartItemInput {
   id: string;
@@ -21,6 +21,8 @@ export interface PricingBreakdown {
   platformTechFee: number;
   deliveryFee: number;
   totalStudentPayable: number;
+  isMicroCart: boolean;
+  amountToUnlockExpress: number;
   canteenPayout: {
     baseFood: number;
     gstPassThrough: number;
@@ -43,8 +45,11 @@ export function getCalibratedAppPrice(counterPrice: number): number {
  */
 export function calculateCheckoutPricing(
   items: CartItemInput[],
-  selectedMode: DeliveryMode
+  selectedMode: DeliveryMode = 'HOSTEL_BATCH'
 ): PricingBreakdown {
+  // Normalize STANDARD to EXPRESS_DOOR
+  const normalizedMode = selectedMode === 'STANDARD' ? 'EXPRESS_DOOR' : selectedMode;
+
   // 1. Calculate Calibrated App Price per item: CounterPrice / 0.85
   let appSubtotal = 0;
   let canteenCounterBase = 0;
@@ -57,11 +62,12 @@ export function calculateCheckoutPricing(
 
   // 2. Enforce Micro-Cart Threshold (< ₹80 locks out Express)
   const isMicroCart = appSubtotal < MICRO_CART_THRESHOLD;
+  const amountToUnlockExpress = Math.max(0, Number((MICRO_CART_THRESHOLD - appSubtotal).toFixed(2)));
   const allowedDeliveryModes: DeliveryMode[] = isMicroCart
     ? ['HOSTEL_BATCH', 'COUNTER_TAKEAWAY']
-    : ['HOSTEL_BATCH', 'EXPRESS_DOOR', 'COUNTER_TAKEAWAY'];
+    : ['HOSTEL_BATCH', 'EXPRESS_DOOR', 'COUNTER_TAKEAWAY', 'STANDARD'];
 
-  if (!allowedDeliveryModes.includes(selectedMode)) {
+  if (!allowedDeliveryModes.includes(normalizedMode)) {
     throw new Error(
       `Selected mode ${selectedMode} is restricted. Orders under ₹${MICRO_CART_THRESHOLD} require Hostel Batch or Counter Pickup.`
     );
@@ -69,12 +75,12 @@ export function calculateCheckoutPricing(
 
   // 3. Compute Fees & Taxes
   const gstAmount = Number((appSubtotal * GST_RATE).toFixed(2));
-  const isTakeaway = selectedMode === 'COUNTER_TAKEAWAY';
+  const isTakeaway = normalizedMode === 'COUNTER_TAKEAWAY';
   const platformTechFee = isTakeaway ? TECH_FEE_TAKEAWAY : TECH_FEE_DELIVERY;
 
   let deliveryFee = 0;
-  if (selectedMode === 'HOSTEL_BATCH') deliveryFee = BATCH_DELIVERY_FEE;
-  if (selectedMode === 'EXPRESS_DOOR') deliveryFee = EXPRESS_DELIVERY_FEE;
+  if (normalizedMode === 'HOSTEL_BATCH') deliveryFee = BATCH_DELIVERY_FEE;
+  if (normalizedMode === 'EXPRESS_DOOR') deliveryFee = EXPRESS_DELIVERY_FEE;
 
   const totalStudentPayable = Number(
     (appSubtotal + gstAmount + platformTechFee + deliveryFee).toFixed(2)
@@ -93,6 +99,8 @@ export function calculateCheckoutPricing(
     platformTechFee,
     deliveryFee,
     totalStudentPayable,
+    isMicroCart,
+    amountToUnlockExpress,
     canteenPayout,
     allowedDeliveryModes,
   };

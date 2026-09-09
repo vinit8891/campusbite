@@ -1,10 +1,17 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { Input } from "@/components/ui/input";
 import { useCheckout } from "@/context/CheckoutContext";
 import { useAuth } from "@/context/AuthContext";
+import { useCart } from "@/context/CartContext";
 import { useLocation } from "@/context/LocationContext";
+import {
+  calculateCheckoutPricing,
+  MICRO_CART_THRESHOLD,
+  type DeliveryMode,
+  type CartItemInput,
+} from "@/lib/pricingEngine";
 
 const QUICK_INSTRUCTIONS = [
   "Call when downstairs",
@@ -31,6 +38,7 @@ function useSafeAuth() {
 
 export default function AddressForm() {
   const { checkout, setCheckout } = useCheckout();
+  const { cart } = useCart();
   const { user } = useSafeAuth();
   const {
     savedAddresses,
@@ -50,7 +58,51 @@ export default function AddressForm() {
     address: "",
   });
 
-  const isBatch = checkout.delivery_type === "HOSTEL_BATCH";
+  const cartInput: CartItemInput[] = useMemo(
+    () =>
+      cart.map((item) => ({
+        id: String(item.id),
+        name: item.name,
+        counterPrice: item.price,
+        quantity: item.quantity,
+      })),
+    [cart]
+  );
+
+  const basePricing = useMemo(() => {
+    if (cartInput.length === 0) {
+      return {
+        appSubtotal: 0,
+        gstAmount: 0,
+        platformTechFee: 0,
+        deliveryFee: 0,
+        totalStudentPayable: 0,
+        isMicroCart: true,
+        amountToUnlockExpress: MICRO_CART_THRESHOLD,
+        canteenPayout: { baseFood: 0, gstPassThrough: 0, totalDisbursal: 0 },
+        allowedDeliveryModes: ["HOSTEL_BATCH", "COUNTER_TAKEAWAY"] as DeliveryMode[],
+      };
+    }
+    return calculateCheckoutPricing(cartInput, "HOSTEL_BATCH");
+  }, [cartInput]);
+
+  const isMicroCart = basePricing.isMicroCart;
+  const amountToUnlockExpress = basePricing.amountToUnlockExpress;
+
+  const currentMode: DeliveryMode =
+    checkout.delivery_type === "STANDARD"
+      ? "EXPRESS_DOOR"
+      : (checkout.delivery_type as DeliveryMode);
+
+  // Auto-fallback if on EXPRESS_DOOR but cart is micro-cart
+  useEffect(() => {
+    if (
+      isMicroCart &&
+      (checkout.delivery_type === "EXPRESS_DOOR" || checkout.delivery_type === "STANDARD")
+    ) {
+      setCheckout((prev) => ({ ...prev, delivery_type: "HOSTEL_BATCH" }));
+    }
+  }, [isMicroCart, checkout.delivery_type, setCheckout]);
 
   // Auto-fill recipient name and phone if ordering for self
   useEffect(() => {
@@ -79,61 +131,108 @@ export default function AddressForm() {
         <div>
           <h2 className="text-lg font-bold text-stone-900">Delivery Details</h2>
           <p className="text-xs text-stone-500">
-            Select delivery mode and campus location
+            Select fulfillment mode and campus location
           </p>
         </div>
       </div>
 
+      {/* Dynamic Micro-Cart Nudge Banner */}
+      {isMicroCart && (
+        <div className="rounded-xl bg-amber-50 p-2.5 text-xs text-amber-800 border border-amber-200">
+          Add <span className="font-bold text-amber-950">₹{amountToUnlockExpress.toFixed(2)}</span> more to unlock 🚀 Direct Room Delivery.
+        </div>
+      )}
+
       {/* =========================================================
-          1. COMPACT HORIZONTAL SEGMENTED DELIVERY MODE TOGGLE
+          1. COMPACT HORIZONTAL SEGMENTED DELIVERY MODE TOGGLE (3 MODES)
       ========================================================== */}
       <div className="rounded-2xl bg-stone-100 p-1.5 border border-stone-200/80">
         <div
-          className="grid grid-cols-2 gap-1"
+          className="grid grid-cols-3 gap-1"
           role="group"
           aria-label="Delivery mode"
         >
-          {/* Hostel Batch Drop */}
+          {/* 1. Hostel Batch Drop */}
           <button
             type="button"
-            aria-pressed={isBatch}
+            aria-pressed={currentMode === "HOSTEL_BATCH"}
             onClick={() =>
               setCheckout((prev) => ({
                 ...prev,
                 delivery_type: "HOSTEL_BATCH",
               }))
             }
-            className={`relative flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              isBatch
+            className={`relative flex flex-col items-center justify-center py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              currentMode === "HOSTEL_BATCH"
                 ? "bg-white text-stone-900 shadow-sm border border-stone-200"
                 : "text-stone-600 hover:text-stone-900"
             }`}
           >
-            <span>🏢 Hostel Batch</span>
-            <span className="font-extrabold text-amber-600">₹15</span>
-            <span className="ml-0.5 rounded-full bg-emerald-100 px-1.5 py-0.2 text-[10px] font-bold text-emerald-700">
-              Save ₹25
-            </span>
+            <span className="truncate">🏢 Hostel Batch</span>
+            <div className="flex items-center gap-1 mt-0.5">
+              <span className="font-extrabold text-amber-600">₹15</span>
+              <span className="rounded-full bg-emerald-100 px-1 py-0.2 text-[9px] font-bold text-emerald-700">
+                Popular
+              </span>
+            </div>
           </button>
 
-          {/* Standard Express */}
+          {/* 2. Counter Takeaway */}
           <button
             type="button"
-            aria-pressed={!isBatch}
+            aria-pressed={currentMode === "COUNTER_TAKEAWAY"}
             onClick={() =>
               setCheckout((prev) => ({
                 ...prev,
-                delivery_type: "STANDARD",
+                delivery_type: "COUNTER_TAKEAWAY",
               }))
             }
-            className={`flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl text-xs font-bold transition-all cursor-pointer ${
-              !isBatch
+            className={`relative flex flex-col items-center justify-center py-2 px-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+              currentMode === "COUNTER_TAKEAWAY"
                 ? "bg-white text-stone-900 shadow-sm border border-stone-200"
                 : "text-stone-600 hover:text-stone-900"
             }`}
           >
-            <span>🚀 Express Door</span>
-            <span className="font-bold text-stone-700">₹40</span>
+            <span className="truncate">🏪 Takeaway</span>
+            <div className="flex items-center gap-1 mt-0.5">
+              <span className="font-extrabold text-blue-600">₹0</span>
+              <span className="rounded-full bg-blue-100 px-1 py-0.2 text-[9px] font-bold text-blue-700">
+                Pickup
+              </span>
+            </div>
+          </button>
+
+          {/* 3. Direct Room Delivery (Express Door) */}
+          <button
+            type="button"
+            disabled={isMicroCart}
+            aria-pressed={currentMode === "EXPRESS_DOOR"}
+            onClick={() => {
+              if (isMicroCart) return;
+              setCheckout((prev) => ({
+                ...prev,
+                delivery_type: "EXPRESS_DOOR",
+              }));
+            }}
+            className={`flex flex-col items-center justify-center py-2 px-1 rounded-xl text-xs font-bold transition-all ${
+              isMicroCart
+                ? "opacity-50 cursor-not-allowed bg-stone-100 text-stone-400"
+                : currentMode === "EXPRESS_DOOR"
+                ? "bg-white text-stone-900 shadow-sm border border-stone-200 cursor-pointer"
+                : "text-stone-600 hover:text-stone-900 cursor-pointer"
+            }`}
+          >
+            <span className="truncate">🚀 Direct Room</span>
+            <div className="flex items-center gap-1 mt-0.5">
+              <span className={`font-bold ${isMicroCart ? "text-stone-400" : "text-stone-700"}`}>
+                ₹40
+              </span>
+              {isMicroCart && (
+                <span className="rounded-full bg-stone-200 px-1 py-0.2 text-[9px] font-bold text-stone-600">
+                  +₹{amountToUnlockExpress.toFixed(0)}
+                </span>
+              )}
+            </div>
           </button>
         </div>
       </div>

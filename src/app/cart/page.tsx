@@ -1,14 +1,21 @@
 "use client";
 
+import { useMemo } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Minus, Plus, Trash2 } from "lucide-react";
+import { ArrowLeft, Minus, Plus, Trash2, Zap, Building2, Store } from "lucide-react";
 
 import { useCart } from "@/context/CartContext";
 import { useCheckout } from "@/context/CheckoutContext";
 import { Button } from "@/components/ui/button";
 import { ROUTES } from "@/lib/routes";
-import type { DeliveryType } from "@/lib/orderPricing";
+import {
+  calculateCheckoutPricing,
+  getCalibratedAppPrice,
+  type DeliveryMode,
+  type CartItemInput,
+  MICRO_CART_THRESHOLD,
+} from "@/lib/pricingEngine";
 
 export default function CartPage() {
   const router = useRouter();
@@ -29,23 +36,59 @@ export default function CartPage() {
     0
   );
 
-  const subtotal = cart.reduce(
-    (sum, item) => sum + item.price * item.quantity,
-    0
+  const cartInput: CartItemInput[] = useMemo(
+    () =>
+      cart.map((item) => ({
+        id: String(item.id),
+        name: item.name,
+        counterPrice: item.price,
+        quantity: item.quantity,
+      })),
+    [cart]
   );
 
-  const gst = Math.round(subtotal * 0.05 * 100) / 100;
-  const deliveryFee =
-    cart.length > 0 ? (deliveryType === "HOSTEL_BATCH" ? 15 : 40) : 0;
-  const platformFee = subtotal > 0 ? 3 : 0;
-  const grandTotal =
-    Math.round((subtotal + gst + deliveryFee + platformFee) * 100) / 100;
+  const activeDeliveryMode: DeliveryMode =
+    deliveryType === "STANDARD" ? "EXPRESS_DOOR" : (deliveryType as DeliveryMode);
 
-  function handleDeliveryModeChange(type: DeliveryType) {
-    setDeliveryType(type);
+  // Determine micro-cart status and threshold amount
+  const basePricing = useMemo(() => {
+    if (cartInput.length === 0) {
+      return {
+        appSubtotal: 0,
+        gstAmount: 0,
+        platformTechFee: 0,
+        deliveryFee: 0,
+        totalStudentPayable: 0,
+        isMicroCart: true,
+        amountToUnlockExpress: MICRO_CART_THRESHOLD,
+        canteenPayout: { baseFood: 0, gstPassThrough: 0, totalDisbursal: 0 },
+        allowedDeliveryModes: ["HOSTEL_BATCH", "COUNTER_TAKEAWAY"] as DeliveryMode[],
+      };
+    }
+    return calculateCheckoutPricing(cartInput, "HOSTEL_BATCH");
+  }, [cartInput]);
+
+  const isMicroCart = basePricing.isMicroCart;
+  const amountToUnlockExpress = basePricing.amountToUnlockExpress;
+
+  // Auto-fallback if currently on EXPRESS_DOOR but cart is micro-cart
+  const effectiveMode: DeliveryMode =
+    isMicroCart &&
+    (activeDeliveryMode === "EXPRESS_DOOR" || (activeDeliveryMode as string) === "STANDARD")
+      ? "HOSTEL_BATCH"
+      : activeDeliveryMode;
+
+  const pricing = useMemo(() => {
+    if (cartInput.length === 0) return basePricing;
+    return calculateCheckoutPricing(cartInput, effectiveMode);
+  }, [cartInput, effectiveMode, basePricing]);
+
+  function handleDeliveryModeChange(mode: DeliveryMode) {
+    if (isMicroCart && mode === "EXPRESS_DOOR") return;
+    setDeliveryType(mode);
     setCheckout((prev) => ({
       ...prev,
-      delivery_type: type,
+      delivery_type: mode,
     }));
   }
 
@@ -105,202 +148,289 @@ export default function CartPage() {
           </p>
         </header>
 
-        <div className="grid gap-8 lg:grid-cols-[1fr_380px]">
+        <div className="grid gap-8 lg:grid-cols-[1fr_400px]">
           {/* Cart Items */}
           <section>
             <div className="space-y-4">
-              {cart.map((item) => (
-                <div
-                  key={item.id}
-                  className="group relative flex gap-4 rounded-3xl border border-gray-100 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg sm:p-5"
-                >
-                  {/* Food Image */}
-                  <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-2xl bg-orange-50 sm:h-32 sm:w-32">
-                    {item.image ? (
-                      <Image
-                        src={item.image}
-                        alt={item.name}
-                        fill
-                        sizes="(max-width: 640px) 112px, 128px"
-                        className="object-cover transition-transform duration-300 group-hover:scale-105"
-                        unoptimized={
-                          item.image.startsWith("http") ||
-                          item.image.startsWith("data:")
-                        }
-                      />
-                    ) : (
-                      <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-orange-100 to-orange-50 text-4xl">
-                        🍽️
-                      </div>
-                    )}
-                  </div>
+              {cart.map((item) => {
+                const calibratedUnit = getCalibratedAppPrice(item.price);
+                const itemTotal = calibratedUnit * item.quantity;
 
-                  {/* Remove */}
-                  <button
-                    onClick={() => {
-                      removeFromCart(item.id);
-                    }}
-                    aria-label={`Remove ${item.name}`}
-                    className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-gray-400 transition-all duration-200 hover:bg-red-50 hover:text-red-500"
+                return (
+                  <div
+                    key={item.id}
+                    className="group relative flex gap-4 rounded-3xl border border-gray-100 bg-white p-4 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:shadow-lg sm:p-5"
                   >
-                    <Trash2 className="h-4 w-4" />
-                  </button>
+                    {/* Food Image */}
+                    <div className="relative h-28 w-28 shrink-0 overflow-hidden rounded-2xl bg-orange-50 sm:h-32 sm:w-32">
+                      {item.image ? (
+                        <Image
+                          src={item.image}
+                          alt={item.name}
+                          fill
+                          sizes="(max-width: 640px) 112px, 128px"
+                          className="object-cover transition-transform duration-300 group-hover:scale-105"
+                          unoptimized={
+                            item.image.startsWith("http") ||
+                            item.image.startsWith("data:")
+                          }
+                        />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-orange-100 to-orange-50 text-4xl">
+                          🍽️
+                        </div>
+                      )}
+                    </div>
 
-                  {/* Item Details */}
-                  <div className="min-w-0 flex-1 pr-10">
-                    <h2 className="text-lg font-bold tracking-tight text-gray-900 sm:text-xl">
-                      {item.name}
-                    </h2>
+                    {/* Remove */}
+                    <button
+                      onClick={() => {
+                        removeFromCart(item.id);
+                      }}
+                      aria-label={`Remove ${item.name}`}
+                      className="absolute right-4 top-4 flex h-9 w-9 items-center justify-center rounded-full text-gray-400 transition-all duration-200 hover:bg-red-50 hover:text-red-500 cursor-pointer"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
 
-                    <p className="mt-1 text-sm text-gray-500">
-                      Freshly prepared with premium ingredients.
-                    </p>
+                    {/* Item Details */}
+                    <div className="min-w-0 flex-1 pr-10">
+                      <h2 className="text-lg font-bold tracking-tight text-gray-900 sm:text-xl">
+                        {item.name}
+                      </h2>
 
-                    <p className="mt-3 text-lg font-extrabold text-orange-600">
-                      ₹{item.price}
-                    </p>
+                      <p className="mt-1 text-sm text-gray-500">
+                        Freshly prepared canteen meal
+                      </p>
 
-                    <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
-                      {/* Quantity Stepper */}
-                      <div className="flex items-center rounded-full border border-gray-200 bg-gray-50 p-1">
-                        <button
-                          type="button"
-                          onClick={() => decreaseQuantity(item.id)}
-                          aria-label={`Decrease ${item.name} quantity`}
-                          className="flex h-8 w-8 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-orange-100 hover:text-orange-600"
-                        >
-                          <Minus className="h-4 w-4" />
-                        </button>
+                      <p className="mt-3 text-lg font-extrabold text-orange-600">
+                        ₹{calibratedUnit}
+                      </p>
 
-                        <span className="w-9 text-center text-sm font-bold text-gray-900">
-                          {item.quantity}
+                      <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
+                        {/* Quantity Stepper */}
+                        <div className="flex items-center rounded-full border border-gray-200 bg-gray-50 p-1">
+                          <button
+                            type="button"
+                            onClick={() => decreaseQuantity(item.id)}
+                            aria-label={`Decrease ${item.name} quantity`}
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-orange-100 hover:text-orange-600 cursor-pointer"
+                          >
+                            <Minus className="h-4 w-4" />
+                          </button>
+
+                          <span className="w-9 text-center text-sm font-bold text-gray-900">
+                            {item.quantity}
+                          </span>
+
+                          <button
+                            type="button"
+                            onClick={() => increaseQuantity(item.id)}
+                            aria-label={`Increase ${item.name} quantity`}
+                            className="flex h-8 w-8 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-orange-100 hover:text-orange-600 cursor-pointer"
+                          >
+                            <Plus className="h-4 w-4" />
+                          </button>
+                        </div>
+
+                        {/* Item Total */}
+                        <span className="text-lg font-extrabold text-gray-900">
+                          ₹{itemTotal.toFixed(2)}
                         </span>
-
-                        <button
-                          type="button"
-                          onClick={() => increaseQuantity(item.id)}
-                          aria-label={`Increase ${item.name} quantity`}
-                          className="flex h-8 w-8 items-center justify-center rounded-full text-gray-600 transition-colors hover:bg-orange-100 hover:text-orange-600"
-                        >
-                          <Plus className="h-4 w-4" />
-                        </button>
                       </div>
-
-                      {/* Item Total */}
-                      <span className="text-lg font-extrabold text-gray-900">
-                        ₹{(item.price * item.quantity).toFixed(2)}
-                      </span>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           </section>
 
           {/* Order Summary */}
           <aside className="h-fit lg:sticky lg:top-6">
-            <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-lg">
+            <div className="rounded-3xl border border-gray-100 bg-white p-6 shadow-lg space-y-5">
               <h2 className="text-xl font-extrabold text-gray-900">
                 Order Summary
               </h2>
 
-              {/* Delivery Mode Selection */}
-              <div className="mt-5">
-                <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-gray-500">
-                  Select Delivery Mode
+              {/* Dynamic Micro-Cart Nudge Banner */}
+              {isMicroCart && (
+                <div className="rounded-2xl bg-amber-50 p-3 text-xs text-amber-800 border border-amber-200 space-y-1">
+                  <div className="flex items-center justify-between font-bold text-amber-900">
+                    <span className="flex items-center gap-1">
+                      <Zap className="h-3.5 w-3.5 text-amber-600" />
+                      Unlock Express Delivery
+                    </span>
+                    <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px]">
+                      Min ₹{MICRO_CART_THRESHOLD}
+                    </span>
+                  </div>
+                  <p className="text-[11px] text-amber-700">
+                    Add <span className="font-extrabold text-amber-950">₹{amountToUnlockExpress.toFixed(2)}</span> more to unlock 🚀 Direct Room Delivery.
+                  </p>
+                </div>
+              )}
+
+              {/* 3 Fulfillment Modes Selection */}
+              <div>
+                <label className="mb-2.5 block text-xs font-bold uppercase tracking-wider text-gray-500">
+                  Select Fulfillment Mode
                 </label>
                 <div
-                  className="grid grid-cols-2 gap-2"
+                  className="grid grid-cols-3 gap-2"
                   role="radiogroup"
-                  aria-label="Select Delivery Mode"
+                  aria-label="Select Fulfillment Mode"
                 >
-                  {/* Hostel Batch Drop */}
+                  {/* 1. Hostel Batch Drop */}
                   <button
                     type="button"
                     role="radio"
-                    aria-checked={deliveryType === "HOSTEL_BATCH"}
+                    aria-checked={effectiveMode === "HOSTEL_BATCH"}
                     onClick={() => handleDeliveryModeChange("HOSTEL_BATCH")}
-                    className={`relative rounded-2xl border-2 p-3 text-left transition ${
-                      deliveryType === "HOSTEL_BATCH"
+                    className={`relative flex flex-col justify-between rounded-2xl border-2 p-3 text-left transition cursor-pointer ${
+                      effectiveMode === "HOSTEL_BATCH"
                         ? "border-orange-500 bg-orange-50/70 shadow-sm"
                         : "border-gray-200 bg-white hover:border-orange-200"
                     }`}
                   >
-                    <span className="inline-block rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
-                      Save ₹25
-                    </span>
-                    <p className="mt-1 text-xs font-bold text-gray-900">
-                      Hostel Batch Drop
-                    </p>
-                    <p className="text-sm font-extrabold text-orange-600">
+                    <div>
+                      <span className="inline-block rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
+                        Popular
+                      </span>
+                      <div className="mt-1.5 flex items-center gap-1 text-xs font-bold text-gray-900">
+                        <Building2 className="h-3.5 w-3.5 text-orange-600 shrink-0" />
+                        <span className="truncate">Hostel Batch</span>
+                      </div>
+                      <p className="text-[10px] text-gray-500 leading-tight mt-0.5">
+                        Lobby Drop
+                      </p>
+                    </div>
+                    <p className="mt-2 text-sm font-extrabold text-orange-600">
                       ₹15
                     </p>
                   </button>
 
-                  {/* Direct Room Delivery */}
+                  {/* 2. Counter Takeaway (Self Pickup) */}
                   <button
                     type="button"
                     role="radio"
-                    aria-checked={deliveryType === "STANDARD"}
-                    onClick={() => handleDeliveryModeChange("STANDARD")}
-                    className={`relative rounded-2xl border-2 p-3 text-left transition ${
-                      deliveryType === "STANDARD"
-                        ? "border-orange-500 bg-orange-50/70 shadow-sm"
-                        : "border-gray-200 bg-white hover:border-orange-200"
+                    aria-checked={effectiveMode === "COUNTER_TAKEAWAY"}
+                    onClick={() => handleDeliveryModeChange("COUNTER_TAKEAWAY")}
+                    className={`relative flex flex-col justify-between rounded-2xl border-2 p-3 text-left transition cursor-pointer ${
+                      effectiveMode === "COUNTER_TAKEAWAY"
+                        ? "border-blue-600 bg-blue-50/70 shadow-sm"
+                        : "border-gray-200 bg-white hover:border-blue-200"
                     }`}
                   >
-                    <span className="inline-block rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">
-                      Direct
-                    </span>
-                    <p className="mt-1 text-xs font-bold text-gray-900">
-                      Direct Room Delivery
+                    <div>
+                      <span className="inline-block rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">
+                        Skip Queue
+                      </span>
+                      <div className="mt-1.5 flex items-center gap-1 text-xs font-bold text-gray-900">
+                        <Store className="h-3.5 w-3.5 text-blue-600 shrink-0" />
+                        <span className="truncate">Takeaway</span>
+                      </div>
+                      <p className="text-[10px] text-gray-500 leading-tight mt-0.5">
+                        Counter Pass
+                      </p>
+                    </div>
+                    <p className="mt-2 text-sm font-extrabold text-blue-600">
+                      ₹0
                     </p>
-                    <p className="text-sm font-extrabold text-gray-900">
+                  </button>
+
+                  {/* 3. Direct Room Delivery (Express Door) */}
+                  <button
+                    type="button"
+                    role="radio"
+                    disabled={isMicroCart}
+                    aria-checked={effectiveMode === "EXPRESS_DOOR"}
+                    onClick={() => handleDeliveryModeChange("EXPRESS_DOOR")}
+                    className={`relative flex flex-col justify-between rounded-2xl border-2 p-3 text-left transition ${
+                      isMicroCart
+                        ? "opacity-50 cursor-not-allowed bg-gray-50 border-gray-200"
+                        : effectiveMode === "EXPRESS_DOOR"
+                        ? "border-purple-600 bg-purple-50/70 shadow-sm cursor-pointer"
+                        : "border-gray-200 bg-white hover:border-purple-200 cursor-pointer"
+                    }`}
+                  >
+                    <div>
+                      <span
+                        className={`inline-block rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
+                          isMicroCart
+                            ? "bg-stone-200 text-stone-600"
+                            : "bg-purple-100 text-purple-700"
+                        }`}
+                      >
+                        {isMicroCart ? `+₹${amountToUnlockExpress.toFixed(0)}` : "Direct"}
+                      </span>
+                      <div className="mt-1.5 flex items-center gap-1 text-xs font-bold text-gray-900">
+                        <Zap className="h-3.5 w-3.5 text-purple-600 shrink-0" />
+                        <span className="truncate">Direct Room</span>
+                      </div>
+                      <p className="text-[10px] text-gray-500 leading-tight mt-0.5">
+                        {isMicroCart ? "Locked" : "Door Drop"}
+                      </p>
+                    </div>
+                    <p
+                      className={`mt-2 text-sm font-extrabold ${
+                        isMicroCart ? "text-gray-400" : "text-purple-600"
+                      }`}
+                    >
                       ₹40
                     </p>
                   </button>
                 </div>
               </div>
 
-              {/* Price Breakdown */}
-              <div className="mt-6 space-y-3.5 text-sm">
+              {/* Price Breakdown from pricingEngine */}
+              <div className="space-y-3 border-t border-gray-100 pt-4 text-sm">
                 <div className="flex items-center justify-between text-gray-600">
-                  <span>Items</span>
-                  <span className="font-medium text-gray-900">{itemCount}</span>
-                </div>
-
-                <div className="flex items-center justify-between text-gray-600">
-                  <span>Subtotal</span>
-                  <span className="font-medium text-gray-900">
-                    ₹{subtotal.toFixed(2)}
+                  <span>Items Subtotal</span>
+                  <span className="font-semibold text-gray-900">
+                    ₹{pricing.appSubtotal.toFixed(2)}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between text-gray-600">
-                  <span>Restaurant GST (5%)</span>
-                  <span className="font-medium text-gray-900">
-                    ₹{gst.toFixed(2)}
+                  <span>Food GST (5%)</span>
+                  <span className="font-semibold text-gray-900">
+                    ₹{pricing.gstAmount.toFixed(2)}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between text-gray-600">
                   <div className="flex items-center gap-1.5">
                     <span>Delivery Fee</span>
-                    {deliveryType === "HOSTEL_BATCH" && (
-                      <span className="rounded-full bg-green-100 px-1.5 py-0.5 text-[10px] font-bold text-green-700">
+                    {effectiveMode === "HOSTEL_BATCH" && (
+                      <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
                         Hostel Batch
                       </span>
                     )}
+                    {effectiveMode === "COUNTER_TAKEAWAY" && (
+                      <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">
+                        Self Pickup
+                      </span>
+                    )}
+                    {effectiveMode === "EXPRESS_DOOR" && (
+                      <span className="rounded-full bg-purple-100 px-1.5 py-0.5 text-[10px] font-bold text-purple-700">
+                        Direct Room
+                      </span>
+                    )}
                   </div>
-                  <span className="font-medium text-gray-900">
-                    ₹{deliveryFee.toFixed(2)}
+                  <span className="font-semibold text-gray-900">
+                    ₹{pricing.deliveryFee.toFixed(2)}
                   </span>
                 </div>
 
                 <div className="flex items-center justify-between text-gray-600">
-                  <span>Platform Fee</span>
-                  <span className="font-medium text-gray-900">
-                    ₹{platformFee.toFixed(2)}
+                  <div className="flex items-center gap-1">
+                    <span>Platform Tech Fee</span>
+                    <span className="text-[10px] text-gray-400">
+                      ({effectiveMode === "COUNTER_TAKEAWAY" ? "₹3 pass" : "₹5 delivery"})
+                    </span>
+                  </div>
+                  <span className="font-semibold text-gray-900">
+                    ₹{pricing.platformTechFee.toFixed(2)}
                   </span>
                 </div>
 
@@ -311,7 +441,7 @@ export default function CartPage() {
                     </span>
 
                     <span className="text-2xl font-extrabold text-orange-600">
-                      ₹{grandTotal.toFixed(2)}
+                      ₹{pricing.totalStudentPayable.toFixed(2)}
                     </span>
                   </div>
                 </div>
@@ -319,14 +449,14 @@ export default function CartPage() {
 
               <Button
                 disabled={cart.length === 0}
-                className="mt-6 w-full rounded-2xl bg-orange-500 py-6 text-base font-bold shadow-md transition-all duration-200 hover:scale-[1.02] hover:bg-orange-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60"
+                className="w-full rounded-2xl bg-orange-500 py-6 text-base font-bold shadow-md transition-all duration-200 hover:scale-[1.02] hover:bg-orange-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                 onClick={() => router.push(ROUTES.CHECKOUT)}
               >
                 Proceed to Checkout →
               </Button>
 
-              <p className="mt-4 text-center text-xs text-gray-400">
-                Secure checkout • COD & Razorpay Test Mode
+              <p className="text-center text-xs text-gray-400">
+                Guaranteed fresh canteen delivery • COD & UPI Ready
               </p>
             </div>
           </aside>

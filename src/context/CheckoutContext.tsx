@@ -7,7 +7,9 @@ import {
   useEffect,
   ReactNode,
 } from "react";
-import type { DeliveryType } from "@/lib/orderPricing";
+import type { DeliveryMode } from "@/lib/pricingEngine";
+
+export type DeliveryType = DeliveryMode;
 
 type CheckoutData = {
   customer_name: string;
@@ -28,7 +30,7 @@ type CheckoutData = {
   delivery_for: "self" | "someone_else";
 
   // Delivery Type & Hostel Details
-  delivery_type: DeliveryType;
+  delivery_type: DeliveryMode;
   hostel_block: string;
   tip_amount: number;
 
@@ -103,6 +105,16 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
       try {
         const parsed = JSON.parse(saved);
 
+        let parsedDeliveryType: DeliveryMode = "HOSTEL_BATCH";
+        if (
+          parsed.delivery_type === "STANDARD" ||
+          parsed.delivery_type === "EXPRESS_DOOR" ||
+          parsed.delivery_type === "COUNTER_TAKEAWAY" ||
+          parsed.delivery_type === "HOSTEL_BATCH"
+        ) {
+          parsedDeliveryType = parsed.delivery_type;
+        }
+
         setCheckout({
           customer_name: parsed.customer_name || "",
           phone: parsed.phone || "",
@@ -115,8 +127,7 @@ export function CheckoutProvider({ children }: { children: ReactNode }) {
           cod_confirmed: false,
           online_confirmed: false,
           delivery_for: parsed.delivery_for || "self",
-          delivery_type:
-            parsed.delivery_type === "STANDARD" ? "STANDARD" : "HOSTEL_BATCH",
+          delivery_type: parsedDeliveryType,
           hostel_block: parsed.hostel_block || "Hostel Block A",
           tip_amount: Number(parsed.tip_amount || 0),
           latitude: parsed.latitude ?? null,

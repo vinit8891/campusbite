@@ -1,7 +1,8 @@
 import type { DeliveryPartner } from "./delivery";
 import type { OrderPricingBreakdown } from "@/lib/orderPricing";
+import type { DeliveryMode, PricingBreakdown } from "@/lib/pricingEngine";
 
-export type { OrderPricingBreakdown };
+export type { OrderPricingBreakdown, DeliveryMode, PricingBreakdown };
 
 export type OrderItem = {
   id: string | number;
@@ -29,10 +30,10 @@ export type PlaceOrderPayload = {
   payment_status?: string;
   total: number;
   delivery_for?: string;
-  delivery_type?: "HOSTEL_BATCH" | "STANDARD";
+  delivery_type?: DeliveryMode | "HOSTEL_BATCH" | "STANDARD";
   hostel_block?: string | null;
   tip_amount?: number;
-  pricing_breakdown?: OrderPricingBreakdown;
+  pricing_breakdown?: OrderPricingBreakdown | PricingBreakdown;
   restaurant_latitude?: number | null;
   restaurant_longitude?: number | null;
   latitude?: number | null;
@@ -58,10 +59,10 @@ export type Order = {
   payment_method: string;
   payment_status?: string;
   total: number;
-  delivery_type?: "HOSTEL_BATCH" | "STANDARD";
+  delivery_type?: DeliveryMode | "HOSTEL_BATCH" | "STANDARD";
   hostel_block?: string | null;
   tip_amount?: number;
-  pricing_breakdown?: OrderPricingBreakdown;
+  pricing_breakdown?: OrderPricingBreakdown | PricingBreakdown;
   status: string;
   items: OrderItem[];
   created_at?: string;
