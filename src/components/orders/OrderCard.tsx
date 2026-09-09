@@ -5,10 +5,10 @@ import Link from "next/link";
 import type { Order, OrderOtp } from "@/types/orders";
 import { isActiveStatus } from "@/lib/orderDomain";
 import { formatOrderDate } from "@/lib/formatters";
+import { getCalibratedAppPrice } from "@/lib/pricingEngine";
 
 import { formatPaymentMethod } from "@/lib/paymentLabels";
 import { ROUTES, orderDetailsPath, trackOrderPath } from "@/lib/routes";
-
 
 import dynamic from "next/dynamic";
 import OrderNotification from "@/components/notifications/OrderNotification";
@@ -40,6 +40,7 @@ export function OrderCard({
   const active = isActiveStatus(order.status);
   const restaurantName = order.restaurant_name ?? "Campus Restaurant";
   const restaurantCuisine = order.restaurant_cuisine ?? "Campus Dining";
+  const orderId = order._id || (order as unknown as { id?: string }).id || "";
 
   const itemCount = order.items.reduce(
     (sum, item) => sum + item.quantity,
@@ -92,7 +93,7 @@ export function OrderCard({
           <div className="shrink-0 sm:text-right">
             <p className="text-xs font-medium text-gray-400">Order #</p>
             <p className="font-bold text-gray-900">
-              {order._id.slice(-8).toUpperCase()}
+              {orderId ? orderId.slice(-8).toUpperCase() : "N/A"}
             </p>
             <p className="mt-1 text-xs text-gray-500">
               Placed {formatOrderDate(order.created_at)}
@@ -108,42 +109,46 @@ export function OrderCard({
           <h3 className="mb-3 font-bold text-gray-900">Ordered Items</h3>
 
           <div className="space-y-2">
-            {order.items.map((item) => (
-              <div
-                key={item.id}
-                className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 p-3"
-              >
-                <div className="flex min-w-0 items-center gap-3">
-                  {item.image ? (
-                    <Image
-                      src={item.image}
-                      alt={item.name}
-                      width={44}
-                      height={44}
-                      className="h-11 w-11 shrink-0 rounded-xl object-cover"
-                      unoptimized={item.image.startsWith("http")}
-                    />
-                  ) : (
-                    <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-lg">
-                      🍴
+            {order.items.map((item, idx) => {
+              const calibratedUnit = getCalibratedAppPrice(item.price);
+              const itemTotal = calibratedUnit * item.quantity;
+              return (
+                <div
+                  key={item.id ? `${item.id}-${idx}` : `item-${idx}`}
+                  className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 p-3"
+                >
+                  <div className="flex min-w-0 items-center gap-3">
+                    {item.image ? (
+                      <Image
+                        src={item.image}
+                        alt={item.name}
+                        width={44}
+                        height={44}
+                        className="h-11 w-11 shrink-0 rounded-xl object-cover"
+                        unoptimized={item.image.startsWith("http")}
+                      />
+                    ) : (
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-lg">
+                        🍴
+                      </div>
+                    )}
+
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-gray-900">
+                        {item.name}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        ₹{calibratedUnit} × {item.quantity}
+                      </p>
                     </div>
-                  )}
-
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-gray-900">
-                      {item.name}
-                    </p>
-                    <p className="text-sm text-gray-500">
-                      ₹{item.price} × {item.quantity}
-                    </p>
                   </div>
-                </div>
 
-                <p className="shrink-0 font-semibold text-gray-900">
-                  ₹{item.price * item.quantity}
-                </p>
-              </div>
-            ))}
+                  <p className="shrink-0 font-semibold text-gray-900">
+                    ₹{itemTotal}
+                  </p>
+                </div>
+              );
+            })}
           </div>
 
           {/* Timeline */}
@@ -162,8 +167,8 @@ export function OrderCard({
                 vehicle={order.delivery_partner.vehicle}
                 showCallButton={false}
                 trackOrderHref={
-                  order.status === "Out for Delivery"
-                    ? `/track-order/${order._id}`
+                  order.status === "Out for Delivery" && orderId
+                    ? `/track-order/${orderId}`
                     : undefined
                 }
               />
@@ -187,7 +192,7 @@ export function OrderCard({
             !order.review_submitted && (
               <div className="mt-4">
                 <ReviewModal
-                  orderId={order._id}
+                  orderId={orderId}
                   restaurantEmail={order.restaurant_email}
                   deliveryPartnerPhone={
                     order.delivery_partner?.phone || ""
@@ -265,7 +270,7 @@ export function OrderCard({
       {/* Actions */}
       <div className="flex flex-col gap-2 border-t border-gray-100 p-5 sm:flex-row sm:justify-end">
         <Link
-          href={orderDetailsPath(order._id)}
+          href={orderId ? orderDetailsPath(orderId) : ROUTES.MY_ORDERS}
           className="rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-center text-sm font-semibold text-gray-700 transition hover:border-orange-300 hover:text-orange-600"
         >
           View Details
@@ -273,7 +278,7 @@ export function OrderCard({
 
         {active && (
           <Link
-            href={trackOrderPath(order._id)}
+            href={orderId ? trackOrderPath(orderId) : ROUTES.MY_ORDERS}
             className="rounded-xl bg-blue-600 px-5 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
           >
             📍 Track Order
@@ -293,3 +298,4 @@ export function OrderCard({
     </article>
   );
 }
+

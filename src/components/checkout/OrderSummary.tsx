@@ -132,8 +132,10 @@ export default function OrderSummary() {
       description: "We'll notify you as your order progresses.",
     });
     clearCart();
-    router.push(`${ROUTES.ORDER_SUCCESS}?orderId=${orderId}`);
+    const safeId = orderId && orderId !== "undefined" ? orderId : "";
+    router.push(safeId ? `${ROUTES.ORDER_SUCCESS}?orderId=${safeId}` : ROUTES.ORDER_SUCCESS);
   }
+
 
   async function handleVerifiedOnline(orderId: string) {
     setMockOpen(false);
@@ -305,9 +307,21 @@ export default function OrderSummary() {
       const response = await placeOrder(orderData);
       const orderId = response._id || response.id || "";
 
+      if (typeof window !== "undefined") {
+        try {
+          localStorage.setItem("cb_last_order", JSON.stringify(response));
+          if (orderId) {
+            localStorage.setItem("cb_active_order_id", orderId);
+          }
+        } catch {
+          // ignore
+        }
+      }
+
       if (isCod) {
         clearCart();
-        router.push(`${ROUTES.ORDER_SUCCESS}?orderId=${orderId}`);
+        const safeId = orderId && orderId !== "undefined" ? orderId : "";
+        router.push(safeId ? `${ROUTES.ORDER_SUCCESS}?orderId=${safeId}` : ROUTES.ORDER_SUCCESS);
         return;
       }
 

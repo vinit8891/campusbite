@@ -6,6 +6,12 @@ import {
   type DeliveryMode,
 } from "@/lib/pricingEngine";
 import { isCodPayment, COD_PAYMENT_METHOD, ONLINE_PAYMENT_METHOD } from "@/lib/paymentLabels";
+import { saveInMemoryOrder, getAllInMemoryOrders } from "@/lib/inMemoryOrders";
+
+export async function GET() {
+  const orders = getAllInMemoryOrders();
+  return NextResponse.json(orders, { status: 200 });
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -102,9 +108,13 @@ export async function POST(req: NextRequest) {
       restaurant_longitude: body.restaurant_longitude ?? 73.856743,
     };
 
+    // Save to in-memory store for session access
+    saveInMemoryOrder(orderRecord as any);
+
     return NextResponse.json(orderRecord, { status: 201 });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Failed to process order.";
     return NextResponse.json({ error: message }, { status: 400 });
   }
 }
+

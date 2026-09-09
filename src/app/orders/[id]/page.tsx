@@ -42,18 +42,80 @@ export default function OrderDetailsPage() {
     hasRestaurantLocation,
   } = useOrderStatus(order);
 
+  // Instant mount cache check for zero-latency initial render
+  useEffect(() => {
+    if (order || !orderId || typeof window === "undefined") return;
+    try {
+      const cachedRaw = localStorage.getItem("cb_last_order");
+      if (cachedRaw) {
+        const cached: Order = JSON.parse(cachedRaw);
+        if (
+          cached &&
+          (cached._id === orderId ||
+            (cached as unknown as { id?: string }).id === orderId ||
+            cached._id?.slice(-8) === orderId ||
+            orderId === "latest" ||
+            orderId === "last")
+        ) {
+          setOrder(cached);
+          setLoading(false);
+        }
+      }
+    } catch {
+      // ignore JSON parse error
+    }
+  }, [orderId, order]);
+
   const loadOrder = useCallback(async () => {
     if (!orderId) {
       setLoading(false);
       return;
     }
 
+    // 1. Check if already loaded in state
+    if (
+      order &&
+      (order._id === orderId ||
+        (order as unknown as { id?: string }).id === orderId)
+    ) {
+      setLoading(false);
+      return;
+    }
+
     try {
+      // 2. Fetch from backend / GET /api/orders/[id]
       const data = await getOrderById(orderId);
-      setOrder(data);
-      setError("");
+      if (data) {
+        setOrder(data);
+        setError("");
+        return;
+      }
     } catch (err) {
-      console.error(err);
+      console.warn("Primary order fetch failed, attempting local fallback:", err);
+
+      // 3. Fallback: If the API returns 404, fails, or is in mock mode, read localStorage.getItem('cb_last_order')
+      if (typeof window !== "undefined") {
+        try {
+          const cachedRaw = localStorage.getItem("cb_last_order");
+          if (cachedRaw) {
+            const cached: Order = JSON.parse(cachedRaw);
+            if (
+              cached &&
+              (cached._id === orderId ||
+                (cached as unknown as { id?: string }).id === orderId ||
+                cached._id?.slice(-8) === orderId ||
+                orderId === "latest" ||
+                orderId === "last")
+            ) {
+              setOrder(cached);
+              setError("");
+              return;
+            }
+          }
+        } catch {
+          // ignore
+        }
+      }
 
       if (err instanceof AuthHttpError && err.status === 401) {
         return;
@@ -72,13 +134,14 @@ export default function OrderDetailsPage() {
     } finally {
       setLoading(false);
     }
-  }, [orderId]);
+  }, [orderId, order]);
 
   // Poll only while the order is active (5s interval, in-flight guard, auto-cleanup on unmount).
   usePolling(loadOrder, 5000, {
     enabled: Boolean(orderId) && isOrderActive,
     runImmediately: true,
   });
+
 
   // Guarded IntersectionObserver and auto-scroll for active order status
   useEffect(() => {
