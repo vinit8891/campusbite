@@ -6,6 +6,7 @@ import {
   isActiveStatus,
   isPickupStatus,
   hasValidCoordinates,
+  normalizeOrderStatus,
 } from "@/lib/orderDomain";
 
 export const ORDER_STATUSES = [
@@ -40,33 +41,44 @@ export function useOrderStatus(order: Order | null) {
       };
     }
 
-    const currentIndex = ORDER_STATUS_FLOW.indexOf(
-      order.status as (typeof ORDER_STATUS_FLOW)[number]
-    );
-    const isPending = order.status === "Pending";
-    const isDelivered = order.status === "Delivered";
-    const isCancelled = order.status === "Cancelled";
-    const isRejected = order.status === "Rejected";
-    const isPickedUp = order.status === "Picked Up";
-    const isOutForDelivery = order.status === "Out for Delivery";
+    const norm = normalizeOrderStatus(order.status);
+    const isPending = norm === "pending";
+    const isDelivered = norm === "delivered" || norm === "completed";
+    const isCancelled = norm === "cancelled";
+    const isRejected = norm === "rejected";
+    const isPickedUp = norm === "picked up" || norm === "picked_up";
+    const isOutForDelivery =
+      norm === "out for delivery" || norm === "out_for_delivery";
 
-    const isOrderActive = isActiveStatus(order.status);
-    const showRestaurantMap = isPickupStatus(order.status);
+    const flowLowercase = ORDER_STATUS_FLOW.map((item) =>
+      item.toLowerCase().trim()
+    );
+    const currentIndex = isDelivered
+      ? ORDER_STATUS_FLOW.length - 1
+      : flowLowercase.indexOf(norm.replace(/_/g, " "));
+
+    const isOrderActive = isActiveStatus(order.status) && !isDelivered;
+    const showRestaurantMap =
+      !isDelivered && !isCancelled && !isRejected && isPickupStatus(order.status);
 
     const estimatedDelivery =
       order.estimated_delivery ||
       order.estimated_time ||
-      "22–28 mins";
+      (isDelivered ? "Delivered" : "22–28 mins");
 
-    const hasDeliveryLocation = hasValidCoordinates(
-      order.delivery_partner?.latitude,
-      order.delivery_partner?.longitude
-    );
+    const hasDeliveryLocation =
+      !isDelivered &&
+      hasValidCoordinates(
+        order.delivery_partner?.latitude,
+        order.delivery_partner?.longitude
+      );
 
-    const hasRestaurantLocation = hasValidCoordinates(
-      order.restaurant_latitude,
-      order.restaurant_longitude
-    );
+    const hasRestaurantLocation =
+      !isDelivered &&
+      hasValidCoordinates(
+        order.restaurant_latitude,
+        order.restaurant_longitude
+      );
 
     return {
       isOrderActive,
@@ -84,3 +96,4 @@ export function useOrderStatus(order: Order | null) {
     };
   }, [order]);
 }
+
