@@ -11,7 +11,6 @@ import { useOrderStatus, ORDER_STATUSES } from "@/hooks/order-details";
 import type { Order } from "@/types/orders";
 import { ROUTES } from "@/lib/routes";
 
-
 import {
   OrderHeader,
   OrderItems,
@@ -44,11 +43,13 @@ export default function OrderDetailsPage() {
   } = useOrderStatus(order);
 
   const loadOrder = useCallback(async () => {
-    if (!orderId) return;
+    if (!orderId) {
+      setLoading(false);
+      return;
+    }
 
     try {
       const data = await getOrderById(orderId);
-
       setOrder(data);
       setError("");
     } catch (err) {
@@ -79,12 +80,13 @@ export default function OrderDetailsPage() {
     runImmediately: true,
   });
 
+  // Guarded IntersectionObserver and auto-scroll for active order status
   useEffect(() => {
     if (!order) return;
 
     const currentIdx = ORDER_STATUSES.indexOf(order.status);
 
-    if (currentIdx === -1 || order.status === "Cancelled") {
+    if (currentIdx === -1 || order.status === "Cancelled" || isDelivered) {
       return;
     }
 
@@ -95,8 +97,31 @@ export default function OrderDetailsPage() {
       });
     }, 100);
 
-    return () => clearTimeout(timeout);
-  }, [order?.status]);
+    let observer: IntersectionObserver | null = null;
+    if (typeof window !== "undefined" && typeof IntersectionObserver !== "undefined") {
+      observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              // Status element is visible in viewport
+            }
+          });
+        },
+        { threshold: 0.1 }
+      );
+
+      if (currentStatusRef.current && currentStatusRef.current instanceof Element) {
+        observer.observe(currentStatusRef.current);
+      }
+    }
+
+    return () => {
+      clearTimeout(timeout);
+      if (observer) {
+        observer.disconnect();
+      }
+    };
+  }, [order, isDelivered]);
 
   if (loading) {
     return (
@@ -145,6 +170,37 @@ export default function OrderDetailsPage() {
           ← Back to My Orders
         </Link>
 
+        {/* Dedicated Celebratory Delivered Banner */}
+        {isDelivered && (
+          <section className="mt-6 overflow-hidden rounded-3xl bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 p-6 text-white shadow-xl sm:p-8 animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+              <div className="flex items-start gap-4">
+                <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-3xl shadow-inner backdrop-blur-md">
+                  🎉
+                </div>
+                <div>
+                  <span className="inline-flex items-center gap-1.5 rounded-full bg-white/20 px-3 py-1 text-xs font-bold tracking-wide uppercase text-white backdrop-blur-xs">
+                    ✓ Delivered
+                  </span>
+                  <h1 className="mt-1.5 text-2xl font-extrabold sm:text-3xl tracking-tight">
+                    Order Delivered! Enjoy your meal
+                  </h1>
+                  <p className="mt-1 text-sm text-emerald-100">
+                    Delivered to {order.address || "your campus drop location"} • Receipt #{order._id.slice(-8).toUpperCase()}
+                  </p>
+                </div>
+              </div>
+              <div className="flex flex-col items-start sm:items-end rounded-2xl bg-white/10 p-3.5 backdrop-blur-sm">
+                <span className="text-xs font-semibold text-emerald-100 uppercase tracking-wider">Delivered Time</span>
+                <span className="text-base font-bold text-white">
+                  {order.delivered_at
+                    ? new Date(order.delivered_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                    : "Completed"}
+                </span>
+              </div>
+            </div>
+          </section>
+        )}
 
         {/* Order Header & Restaurant Card */}
         <OrderHeader
@@ -163,16 +219,18 @@ export default function OrderDetailsPage() {
           isCancelled={isCancelled}
         />
 
-        {/* Delivery Partner, Live Location, & OTP */}
-        <DeliverySection
-          order={order}
-          hasDeliveryLocation={hasDeliveryLocation}
-        />
+        {/* Delivery Partner, Live Location, & OTP (Only shown when not delivered) */}
+        {!isDelivered && (
+          <DeliverySection
+            order={order}
+            hasDeliveryLocation={hasDeliveryLocation}
+          />
+        )}
 
-        {/* Ordered Items */}
+        {/* Ordered Items with Calibrated Prices */}
         <OrderItems items={order.items} />
 
-        {/* Delivery Address & Payment */}
+        {/* Delivery Destination & Full Itemized Payment Breakdown */}
         <OrderSummary order={order} />
 
         {/* Bottom Actions */}

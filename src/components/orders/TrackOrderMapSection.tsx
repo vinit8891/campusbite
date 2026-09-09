@@ -22,6 +22,13 @@ export function TrackOrderMapSection({
   partnerHasLocation,
   lastUpdated,
 }: TrackOrderMapSectionProps) {
+  const normStatus = (location.status || "").toLowerCase().trim();
+  const isDelivered = normStatus === "delivered" || normStatus === "completed";
+
+  if (isDelivered) {
+    return null;
+  }
+
   return (
     <section className="mt-4 overflow-hidden rounded-3xl border border-gray-100 bg-white p-2 shadow-sm sm:p-3">
       <div className="rounded-2xl bg-gray-50 p-4">

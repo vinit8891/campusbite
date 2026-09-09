@@ -131,7 +131,7 @@ export function OrderHeader({
         )}
 
         {/* Restaurant location before pickup */}
-        {showRestaurantMap && (
+        {showRestaurantMap && !isDelivered && (
           <div className="mt-6">
             <h3 className="text-sm font-bold text-gray-900">
               Restaurant Location

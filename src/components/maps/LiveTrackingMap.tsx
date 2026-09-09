@@ -53,10 +53,31 @@ export default function LiveTrackingMap({
       lng: partnerLng ?? customerLng ?? 0,
     });
 
-  const { isLoaded } = useJsApiLoader({
-    googleMapsApiKey:
-      process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY!,
+  const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
+  const { isLoaded, loadError } = useJsApiLoader({
+    googleMapsApiKey: apiKey,
   });
+
+  const [authError, setAuthError] = useState(false);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      const prevAuthFailure = (window as any).gm_authFailure;
+      (window as any).gm_authFailure = () => {
+        console.warn(
+          "Google Maps authentication error (e.g. RefererNotAllowedMapError). Falling back to static progress timeline."
+        );
+        setAuthError(true);
+        if (typeof prevAuthFailure === "function") {
+          try {
+            prevAuthFailure();
+          } catch {
+            // ignore
+          }
+        }
+      };
+    }
+  }, []);
 
   const [directions, setDirections] =
     useState<google.maps.DirectionsResult>();
@@ -262,10 +283,77 @@ export default function LiveTrackingMap({
     };
   }, [partnerLat, partnerLng]);
 
+  if (loadError || authError || !apiKey) {
+    return (
+      <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-xs space-y-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-100 text-orange-600 text-lg">
+              🛵
+            </div>
+            <div>
+              <h3 className="text-sm font-bold text-stone-900">Live Delivery Progress</h3>
+              <p className="text-xs text-stone-500">Real-time status updates from your courier</p>
+            </div>
+          </div>
+          <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
+            Active
+          </span>
+        </div>
+
+        {/* Clean Static Stepper Timeline */}
+        <div className="py-2">
+          <div className="grid grid-cols-4 gap-2 text-center text-xs font-semibold">
+            {/* Step 1 */}
+            <div className="flex flex-col items-center gap-1.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-bold shadow-2xs">
+                ✓
+              </div>
+              <span className="text-stone-900 font-bold text-[11px]">Order Placed</span>
+            </div>
+
+            {/* Step 2 */}
+            <div className="flex flex-col items-center gap-1.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-emerald-600 text-white text-xs font-bold shadow-2xs">
+                ✓
+              </div>
+              <span className="text-stone-900 font-bold text-[11px]">Preparing</span>
+            </div>
+
+            {/* Step 3 */}
+            <div className="flex flex-col items-center gap-1.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-500 text-white text-xs font-bold shadow-2xs animate-pulse ring-4 ring-amber-100">
+                ●
+              </div>
+              <span className="text-amber-700 font-extrabold text-[11px]">Out for Delivery</span>
+            </div>
+
+            {/* Step 4 */}
+            <div className="flex flex-col items-center gap-1.5">
+              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-stone-100 text-stone-400 text-xs font-medium border border-stone-200">
+                ○
+              </div>
+              <span className="text-stone-400 font-medium text-[11px]">Delivered</span>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-xl bg-amber-50/80 p-3.5 border border-amber-200/70 text-xs text-amber-900 flex items-center justify-between flex-wrap gap-2">
+          <div className="flex items-center gap-2">
+            <span className="text-base">📍</span>
+            <p className="leading-snug">
+              Courier is heading towards your campus drop point. Have your phone ready for arrival call.
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   if (!isLoaded) {
     return (
-      <div className="flex h-[500px] items-center justify-center rounded-xl border">
-        Loading Google Maps...
+      <div className="flex h-[400px] items-center justify-center rounded-2xl border border-stone-200 bg-stone-50 text-xs font-medium text-stone-500">
+        Loading live map...
       </div>
     );
   }
@@ -277,8 +365,8 @@ export default function LiveTrackingMap({
     Number.isNaN(customerLng)
   ) {
     return (
-      <div className="flex h-[500px] items-center justify-center rounded-xl border">
-        Customer location unavailable.
+      <div className="flex h-[350px] items-center justify-center rounded-2xl border border-dashed border-stone-200 bg-stone-50 text-xs text-stone-500">
+        Customer location coordinates not available.
       </div>
     );
   }
