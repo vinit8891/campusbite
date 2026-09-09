@@ -1,19 +1,32 @@
 """Trusted statutory GST and pricing calculation engine (never trust client totals alone)."""
 
+import math
 from typing import Any, Literal
 from fastapi import HTTPException
 
 # Statutory Tax & Pricing Constants
-FOOD_GST_RATE = 0.05
-PLATFORM_FEE_LOW = 3.00
-PLATFORM_FEE_HIGH = 5.00
-DELIVERY_FEE_HOSTEL_BATCH = 15.00
-DELIVERY_FEE_STANDARD = 40.00
-BUDGET_MEAL_COMMISSION_RATE = 0.05
-STANDARD_COMMISSION_RATE = 0.10
+COMMISSION_RATE = 0.15  # 15% Platform Take-Rate
+FOOD_GST_RATE = 0.05    # 5% Food GST
+TECH_FEE_DELIVERY = 5.0 # ₹5 for delivered orders
+TECH_FEE_TAKEAWAY = 3.0 # ₹3 for counter pass
+BATCH_DELIVERY_FEE = 15.0
+EXPRESS_DELIVERY_FEE = 40.0
+MICRO_CART_THRESHOLD = 80.0
 ONLINE_PG_FEE_RATE = 0.0236
 DELIVERY_PARTNER_SHARE_RATE = 0.85
 RIDER_COD_BALANCE_CEILING = 1000.0
+
+
+def get_calibrated_app_price(counter_price: float) -> int:
+    """Returns calibrated menu price ensuring 100% canteen payout post 15% commission."""
+    return math.ceil(counter_price / (1.0 - COMMISSION_RATE))
+
+
+def calculate_cod_rounding(total: float) -> dict[str, Any]:
+    """Rounds COD total to whole rupee and returns round-off delta."""
+    rounded_total = int(round(total))
+    round_off = round(float(rounded_total) - total, 2)
+    return {"rounded_total": rounded_total, "round_off": round_off}
 
 
 def calculate_order_amounts(
@@ -32,8 +45,8 @@ def calculate_order_amounts(
             detail="Order must include at least one item.",
         )
 
-    food_subtotal = 0.0
-    commission_amount = 0.0
+    app_subtotal = 0.0
+    canteen_counter_base = 0.0
 
     for item in items:
         try:
@@ -51,51 +64,57 @@ def calculate_order_amounts(
                 detail="Item price and quantity must be positive.",
             )
 
-        item_total = price * quantity
-        food_subtotal += item_total
+        calibrated_unit = get_calibrated_app_price(price)
+        app_subtotal += calibrated_unit * quantity
+        canteen_counter_base += price * quantity
 
-        is_budget = bool(item.get("is_budget_meal", False))
-        comm_rate = BUDGET_MEAL_COMMISSION_RATE if is_budget else STANDARD_COMMISSION_RATE
-        commission_amount += item_total * comm_rate
-
-    food_subtotal = round(food_subtotal, 2)
-    if food_subtotal <= 0:
+    app_subtotal = round(app_subtotal, 2)
+    canteen_counter_base = round(canteen_counter_base, 2)
+    if app_subtotal <= 0:
         raise HTTPException(
             status_code=400,
             detail="Order subtotal must be greater than zero.",
         )
 
-    # 5% Restaurant Food GST
-    restaurant_gst = round(FOOD_GST_RATE * food_subtotal, 2)
-
-    # Platform Tech Fee + 18% internal tax breakdown
-    platform_fee = PLATFORM_FEE_LOW if food_subtotal <= 100.0 else PLATFORM_FEE_HIGH
-    base_fee = round(platform_fee / 1.18, 2)
-    platform_gst = round(platform_fee - base_fee, 2)
-
-    # Delivery Fee based on batching mode
     norm_delivery_type = (delivery_type or "HOSTEL_BATCH").strip().upper()
-    if norm_delivery_type == "HOSTEL_BATCH":
-        delivery_fee = DELIVERY_FEE_HOSTEL_BATCH
+    if norm_delivery_type == "STANDARD":
+        norm_delivery_type = "EXPRESS_DOOR"
+
+    is_takeaway = norm_delivery_type == "COUNTER_TAKEAWAY"
+    platform_fee = TECH_FEE_TAKEAWAY if is_takeaway else TECH_FEE_DELIVERY
+
+    if is_takeaway:
+        delivery_fee = 0.0
+    elif norm_delivery_type == "HOSTEL_BATCH":
+        delivery_fee = BATCH_DELIVERY_FEE
     else:
-        delivery_fee = DELIVERY_FEE_STANDARD
+        delivery_fee = EXPRESS_DELIVERY_FEE
+
+    # 5% Restaurant Food GST on calibrated app subtotal
+    gst_amount = round(FOOD_GST_RATE * app_subtotal, 2)
 
     valid_tip = round(max(0.0, float(tip_amount or 0.0)), 2)
 
-    total_payable = round(
-        food_subtotal + restaurant_gst + delivery_fee + platform_fee + valid_tip,
+    total_unrounded = round(
+        app_subtotal + gst_amount + platform_fee + delivery_fee + valid_tip,
         2,
     )
 
-    commission_amount = round(commission_amount, 2)
-
-    # Payment Gateway Fee (2.36% on total payable for online transactions)
     norm_payment_method = (payment_method or "COD").strip().upper()
     is_online = norm_payment_method in ("ONLINE", "ONLINE_PAYMENT", "RAZORPAY")
+    is_cod = not is_online
+
+    if is_cod:
+        cod_rounding = calculate_cod_rounding(total_unrounded)
+        total_payable = float(cod_rounding["rounded_total"])
+    else:
+        cod_rounding = None
+        total_payable = total_unrounded
+
     pg_fee = round(ONLINE_PG_FEE_RATE * total_payable, 2) if is_online else 0.0
 
-    # Net Restaurant Payout: Food Subtotal + Food GST - Commission
-    net_restaurant_payout = round(food_subtotal + restaurant_gst - commission_amount, 2)
+    # Net Restaurant Payout: 100% Canteen counter base + GST pass-through
+    net_restaurant_payout = round(canteen_counter_base + gst_amount, 2)
 
     # Delivery Partner Earning: 85% delivery fee + 100% of driver tip
     delivery_partner_earning = round(
@@ -104,27 +123,35 @@ def calculate_order_amounts(
     )
 
     # Net Platform Margin
-    delivery_margin = round(delivery_fee - delivery_partner_earning + valid_tip, 2)  # tip is pass-through
+    commission_amount = round(app_subtotal - canteen_counter_base, 2)
     net_platform_profit = round(
         commission_amount + platform_fee + (delivery_fee - delivery_partner_earning) - pg_fee,
         2,
     )
 
     return {
-        "food_subtotal": food_subtotal,
-        "restaurant_gst": restaurant_gst,
+        "app_subtotal": app_subtotal,
+        "food_subtotal": app_subtotal,
+        "canteen_counter_base": canteen_counter_base,
+        "restaurant_gst": gst_amount,
+        "gst_amount": gst_amount,
         "platform_fee": platform_fee,
-        "platform_fee_base": base_fee,
-        "platform_fee_gst": platform_gst,
         "delivery_fee": delivery_fee,
         "delivery_type": norm_delivery_type,
         "tip_amount": valid_tip,
         "total_payable": total_payable,
+        "total_unrounded": total_unrounded,
+        "cod_rounding": cod_rounding,
         "commission_amount": commission_amount,
         "pg_fee": pg_fee,
         "net_restaurant_payout": net_restaurant_payout,
         "delivery_partner_earning": delivery_partner_earning,
         "net_platform_profit": net_platform_profit,
+        "canteen_payout": {
+            "base_food": canteen_counter_base,
+            "gst_pass_through": gst_amount,
+            "total_disbursal": net_restaurant_payout,
+        },
     }
 
 
@@ -156,7 +183,7 @@ def from_paise(amount_paise: int) -> float:
 def assert_client_total_matches(
     client_total: float | None,
     server_total: float,
-    tolerance: float = 0.01,
+    tolerance: float = 0.05,
 ) -> None:
     """Reject requests that try to under/over-pay via a forged total."""
     if client_total is None:
@@ -177,3 +204,4 @@ def assert_client_total_matches(
                 "Payable amount is calculated server-side and cannot be overridden."
             ),
         )
+

@@ -1,9 +1,17 @@
 import { http, HttpResponse } from "msw";
 import { API_URL } from "@/services/apiConfig";
+import {
+  calculateCheckoutPricing,
+  calculateCodRounding,
+  type CartItemInput,
+  type DeliveryMode,
+} from "@/lib/pricingEngine";
+import { isCodPayment } from "@/lib/paymentLabels";
 
 const url = (path: string) => `${API_URL}${path.startsWith("/") ? path : `/${path}`}`;
 
 export const orderHandlers = [
+
   http.get(url("/orders/my"), () => {
     return HttpResponse.json([
       {
@@ -78,12 +86,55 @@ export const orderHandlers = [
     });
   }),
 
-  http.post(url("/orders/"), () => {
-    return HttpResponse.json({
-      _id: "order-1",
-      status: "Pending",
-      total: 250,
-    });
+  http.post(url("/orders/"), async ({ request }) => {
+    try {
+      const body = (await request.json().catch(() => ({}))) as any;
+      const items = Array.isArray(body?.items) ? body.items : [];
+      let total = body?.total ?? 250;
+      let pricing = body?.pricing_breakdown;
+
+      if (items.length > 0) {
+        const cartItems: CartItemInput[] = items.map((i: any) => ({
+          id: String(i.id),
+          name: i.name,
+          counterPrice: Number(i.price),
+          quantity: Number(i.quantity || 1),
+        }));
+        const mode: DeliveryMode =
+          body.delivery_type === "EXPRESS_DOOR" ||
+          body.delivery_type === "STANDARD" ||
+          body.delivery_type === "COUNTER_TAKEAWAY"
+            ? body.delivery_type === "STANDARD"
+              ? "EXPRESS_DOOR"
+              : body.delivery_type
+            : "HOSTEL_BATCH";
+        const calcPricing = calculateCheckoutPricing(cartItems, mode);
+        const isCod = isCodPayment(body.payment_method);
+        const tip = Number(body.tip_amount || 0);
+        const unrounded = Number(
+          (calcPricing.totalStudentPayable + tip).toFixed(2)
+        );
+        const expectedTotal = isCod
+          ? calculateCodRounding(unrounded).roundedTotal
+          : unrounded;
+        total = expectedTotal;
+        pricing = calcPricing;
+      }
+
+      return HttpResponse.json({
+        _id: "order-1",
+        id: "order-1",
+        status: "Pending",
+        total,
+        pricing_breakdown: pricing,
+      });
+    } catch {
+      return HttpResponse.json({
+        _id: "order-1",
+        status: "Pending",
+        total: 250,
+      });
+    }
   }),
 
   http.get(url("/orders/delivery/location/:id"), () => {
