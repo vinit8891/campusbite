@@ -2,7 +2,7 @@ import React from "react";
 import Link from "next/link";
 import dynamic from "next/dynamic";
 import type { Order } from "@/types/orders";
-import { ROUTES, orderDetailsPath, restaurantDetailsPath } from "@/lib/routes";
+import { ROUTES, trackOrderPath, restaurantDetailsPath } from "@/lib/routes";
 
 const ReviewModal = dynamic(
   () => import("@/components/reviews/ReviewModal"),
@@ -24,6 +24,8 @@ export function OrderActions({
   isCancelled,
   onRefreshOrder,
 }: OrderActionsProps) {
+  const orderId = order._id || (order as unknown as { id?: string }).id || "";
+
   return (
     <section className="mt-10 flex flex-col gap-3 pb-10 sm:flex-row sm:justify-center">
       {isPending && (
@@ -37,7 +39,7 @@ export function OrderActions({
 
       {!isDelivered && !isCancelled && (
         <Link
-          href={orderDetailsPath(order._id)}
+          href={orderId ? trackOrderPath(orderId) : ROUTES.MY_ORDERS}
           className="rounded-full bg-blue-600 px-7 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
         >
           Track Order
@@ -59,7 +61,7 @@ export function OrderActions({
 
           {!order.review_submitted ? (
             <ReviewModal
-              orderId={order._id}
+              orderId={orderId}
               restaurantEmail={order.restaurant_email}
               deliveryPartnerPhone={order.delivery_partner?.phone || ""}
               customerName={order.customer_name}
