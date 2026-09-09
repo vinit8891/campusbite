@@ -54,27 +54,31 @@ export default function TrackOrderPage() {
 
   if (!location) {
     return (
-      <main className="min-h-screen bg-gray-50 px-4 py-10 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-xl">
+      <main className="min-h-screen bg-gray-50 px-4 py-10 sm:px-6 lg:px-8 flex items-center justify-center">
+        <div className="w-full max-w-md">
           <section className="rounded-3xl border border-gray-100 bg-white p-8 text-center shadow-sm">
             <div className="text-5xl">📍</div>
             <h1 className="mt-4 text-2xl font-bold text-gray-900">
-              Tracking unavailable
+              Order Details Unavailable
             </h1>
             <p className="mt-2 text-sm text-gray-500">
-              Live tracking information is not available right now.
+              We couldn't retrieve the live tracking details for this order.
             </p>
-            <button
-              type="button"
-              onClick={() => {
-                setError("");
-                setLoading(true);
-                void loadLocation();
-              }}
-              className="mt-6 rounded-xl bg-orange-500 px-6 py-3 text-sm font-semibold text-white transition hover:bg-orange-600"
-            >
-              Retry
-            </button>
+            <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                type="button"
+                onClick={() => (window.location.href = "/")}
+                className="px-5 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium text-sm transition cursor-pointer"
+              >
+                Return to Home
+              </button>
+              <Link
+                href={ROUTES.MY_ORDERS}
+                className="px-5 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg font-medium text-sm transition text-center"
+              >
+                My Orders
+              </Link>
+            </div>
           </section>
         </div>
       </main>

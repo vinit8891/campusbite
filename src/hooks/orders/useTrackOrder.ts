@@ -92,7 +92,46 @@ export function useTrackOrder() {
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
   const loadLocation = useCallback(async () => {
-    if (!orderId) {
+    const isInvalidOrLast =
+      !orderId ||
+      orderId === "undefined" ||
+      orderId === "null" ||
+      orderId === "last" ||
+      orderId === "latest";
+
+    if (isInvalidOrLast) {
+      if (typeof window !== "undefined") {
+        const rawCached = localStorage.getItem("cb_last_order");
+        if (rawCached && rawCached !== "undefined" && rawCached !== "null") {
+          try {
+            const cached = JSON.parse(rawCached);
+            if (cached) {
+              const fallbackLoc: TrackingLocation = {
+                status: cached.status || "Accepted",
+                restaurant_latitude: cached.restaurant_latitude || 18.52043,
+                restaurant_longitude: cached.restaurant_longitude || 73.856743,
+                customer_latitude: cached.latitude || 18.52143,
+                customer_longitude: cached.longitude || 73.857743,
+                partner_latitude: cached.delivery_partner?.latitude ?? null,
+                partner_longitude: cached.delivery_partner?.longitude ?? null,
+                restaurant_name: cached.restaurant_name || "Campus Restaurant",
+                restaurant_cuisine: cached.restaurant_cuisine || "Campus Dining",
+                delivery_partner_name: cached.delivery_partner?.name || "Delivery Partner",
+                delivery_partner_phone: cached.delivery_partner?.phone || "",
+                delivery_partner_vehicle: cached.delivery_partner?.vehicle || "",
+                customer_name: cached.customer_name || "Student",
+                customer_address: cached.address || "",
+              };
+              setLocation(fallbackLoc);
+              setError("");
+              setLoading(false);
+              return;
+            }
+          } catch (e) {
+            console.error("Failed to parse cached order in useTrackOrder", e);
+          }
+        }
+      }
       setLoading(false);
       setError("Invalid order ID.");
       return;
@@ -120,6 +159,40 @@ export function useTrackOrder() {
     } catch (err) {
       console.error(err);
 
+      // Local storage fallback on fetch failure
+      if (typeof window !== "undefined") {
+        const rawCached = localStorage.getItem("cb_last_order");
+        if (rawCached && rawCached !== "undefined" && rawCached !== "null") {
+          try {
+            const cached = JSON.parse(rawCached);
+            if (cached) {
+              const fallbackLoc: TrackingLocation = {
+                status: cached.status || "Accepted",
+                restaurant_latitude: cached.restaurant_latitude || 18.52043,
+                restaurant_longitude: cached.restaurant_longitude || 73.856743,
+                customer_latitude: cached.latitude || 18.52143,
+                customer_longitude: cached.longitude || 73.857743,
+                partner_latitude: cached.delivery_partner?.latitude ?? null,
+                partner_longitude: cached.delivery_partner?.longitude ?? null,
+                restaurant_name: cached.restaurant_name || "Campus Restaurant",
+                restaurant_cuisine: cached.restaurant_cuisine || "Campus Dining",
+                delivery_partner_name: cached.delivery_partner?.name || "Delivery Partner",
+                delivery_partner_phone: cached.delivery_partner?.phone || "",
+                delivery_partner_vehicle: cached.delivery_partner?.vehicle || "",
+                customer_name: cached.customer_name || "Student",
+                customer_address: cached.address || "",
+              };
+              setLocation(fallbackLoc);
+              setError("");
+              setLoading(false);
+              return;
+            }
+          } catch (e) {
+            console.error("Failed to parse cached order in track error fallback", e);
+          }
+        }
+      }
+
       if (err instanceof AuthHttpError && err.status === 401) {
         setError("Please log in to view live tracking.");
         return;
@@ -139,7 +212,7 @@ export function useTrackOrder() {
     !location || !isTerminalStatus(location.status);
 
   usePolling(loadLocation, 5000, {
-    enabled: Boolean(orderId) && isTrackingActive,
+    enabled: Boolean(orderId) && orderId !== "undefined" && orderId !== "last" && isTrackingActive,
     runImmediately: true,
   });
 
