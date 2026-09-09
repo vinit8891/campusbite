@@ -1,6 +1,8 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
+import { toast } from "sonner";
+import { Loader2, Navigation } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useCheckout } from "@/context/CheckoutContext";
 import { useAuth } from "@/context/AuthContext";
@@ -12,6 +14,7 @@ import {
   type DeliveryMode,
   type CartItemInput,
 } from "@/lib/pricingEngine";
+import { findClosestZone } from "@/lib/geoZones";
 
 const HOSTEL_PILLS = [
   { label: "Block A", value: "Hostel Block A", icon: "🏢" },
@@ -62,6 +65,8 @@ export default function AddressForm() {
   });
 
   const [isEditingRecipient, setIsEditingRecipient] = useState(false);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [snappedBadge, setSnappedBadge] = useState<string | null>(null);
   const [showNotes, setShowNotes] = useState(
     Boolean(checkout.landmark?.trim() || checkout.delivery_instructions?.trim())
   );
@@ -72,6 +77,68 @@ export default function AddressForm() {
     hostel_block: "",
     address: "",
   });
+
+  // Pre-fill form from localStorage ('cb_last_address') on mount
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem("cb_last_address");
+      if (cached) {
+        const data = JSON.parse(cached);
+        if (data.locationTab === "HOSTEL" || data.locationTab === "OUTSIDE") {
+          setLocationTab(data.locationTab);
+        }
+        setCheckout((prev) => ({
+          ...prev,
+          hostel_block: prev.hostel_block || data.hostel_block || "Hostel Block A",
+          address: prev.address || data.address || "",
+          landmark: prev.landmark || data.landmark || "",
+          delivery_instructions:
+            prev.delivery_instructions || data.delivery_instructions || "",
+          delivery_for: prev.delivery_for || data.delivery_for || "self",
+          customer_name: prev.customer_name || data.customer_name || "",
+          phone: prev.phone || data.phone || "",
+          latitude: prev.latitude ?? data.latitude ?? null,
+          longitude: prev.longitude ?? data.longitude ?? null,
+        }));
+      }
+    } catch {
+      // ignore
+    }
+  }, [setCheckout]);
+
+  // Persist address fields to localStorage on change
+  useEffect(() => {
+    if (checkout.hostel_block || checkout.address) {
+      const cacheData = {
+        locationTab,
+        hostel_block: checkout.hostel_block,
+        address: checkout.address,
+        landmark: checkout.landmark,
+        delivery_instructions: checkout.delivery_instructions,
+        delivery_for: checkout.delivery_for,
+        customer_name: checkout.customer_name,
+        phone: checkout.phone,
+        latitude: checkout.latitude,
+        longitude: checkout.longitude,
+      };
+      try {
+        localStorage.setItem("cb_last_address", JSON.stringify(cacheData));
+      } catch {
+        // ignore
+      }
+    }
+  }, [
+    locationTab,
+    checkout.hostel_block,
+    checkout.address,
+    checkout.landmark,
+    checkout.delivery_instructions,
+    checkout.delivery_for,
+    checkout.customer_name,
+    checkout.phone,
+    checkout.latitude,
+    checkout.longitude,
+  ]);
 
   const cartInput: CartItemInput[] = useMemo(
     () =>
@@ -138,6 +205,7 @@ export default function AddressForm() {
 
   function handleTabChange(tab: "HOSTEL" | "OUTSIDE") {
     setLocationTab(tab);
+    setSnappedBadge(null);
     if (tab === "HOSTEL") {
       const isAlreadyHostel = HOSTEL_PILLS.some(
         (p) => p.value === checkout.hostel_block
@@ -159,6 +227,44 @@ export default function AddressForm() {
         }));
       }
     }
+  }
+
+  function handleAutoDetectLocation() {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    setIsDetectingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        const lat = pos.coords.latitude;
+        const lng = pos.coords.longitude;
+        const { zone } = findClosestZone({ lat, lng });
+
+        setLocationTab(zone.category);
+        setCheckout((prev) => ({
+          ...prev,
+          hostel_block: zone.name,
+          latitude: lat,
+          longitude: lng,
+        }));
+
+        setSnappedBadge(`✓ Snapped to ${zone.name}`);
+        toast.success(`Location detected: ${zone.name}`);
+        setIsDetectingLocation(false);
+
+        setTimeout(() => {
+          setSnappedBadge(null);
+        }, 5000);
+      },
+      (err) => {
+        console.warn("GPS auto-detect error:", err);
+        toast.error("Unable to get GPS location. Please select your block manually.");
+        setIsDetectingLocation(false);
+      },
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
+    );
   }
 
   return (
@@ -417,21 +523,62 @@ export default function AddressForm() {
       ========================================================== */}
       {currentMode !== "COUNTER_TAKEAWAY" && (
         <div className="rounded-2xl border border-stone-200 bg-white p-3.5 shadow-2xs space-y-3.5">
-          {/* 2-Way Tab Switcher */}
+          {/* Top Bar with Auto-Detect Button */}
           <div>
-            <div className="flex items-center justify-between mb-2">
+            <div className="flex items-center justify-between mb-2 gap-2 flex-wrap">
               <label className="text-xs font-bold uppercase tracking-wider text-stone-600">
                 Delivery Location
               </label>
-              <button
-                type="button"
-                onClick={openLocationModal}
-                className="text-[11px] font-bold text-amber-600 hover:text-amber-700 cursor-pointer"
-              >
-                📍 GPS / Map
-              </button>
+
+              <div className="flex items-center gap-2">
+                {/* Auto-Detect Location Button */}
+                <button
+                  type="button"
+                  onClick={handleAutoDetectLocation}
+                  disabled={isDetectingLocation}
+                  className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-amber-50 hover:bg-amber-100 text-amber-800 border border-amber-200/80 text-[11px] font-bold transition-all shadow-2xs cursor-pointer disabled:opacity-60"
+                >
+                  {isDetectingLocation ? (
+                    <>
+                      <Loader2 className="h-3 w-3 animate-spin text-amber-700" />
+                      <span>Detecting...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Navigation className="h-3 w-3 text-amber-700" />
+                      <span>📍 Auto-Detect Location</span>
+                    </>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={openLocationModal}
+                  className="text-[11px] font-bold text-stone-500 hover:text-stone-800 transition cursor-pointer"
+                >
+                  GPS Map
+                </button>
+              </div>
             </div>
 
+            {/* Temporary Snapped Green Badge */}
+            {snappedBadge && (
+              <div className="mb-2.5 rounded-xl bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-800 border border-emerald-200/80 flex items-center justify-between animate-in fade-in duration-200">
+                <span className="flex items-center gap-1.5">
+                  <span className="font-bold text-emerald-600">✓</span>
+                  <span>{snappedBadge}</span>
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setSnappedBadge(null)}
+                  className="text-[11px] text-emerald-600 hover:text-emerald-900 font-bold cursor-pointer"
+                >
+                  ✕
+                </button>
+              </div>
+            )}
+
+            {/* 2-Way Tab Switcher */}
             <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-stone-100 p-1 border border-stone-200/60">
               <button
                 type="button"

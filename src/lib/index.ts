@@ -7,3 +7,4 @@ export * from "./menuDomain";
 export * from "./pagination";
 export * from "./authTokens";
 export * from "./pricingEngine";
+export * from "./geoZones";
