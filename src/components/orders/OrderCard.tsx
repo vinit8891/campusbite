@@ -40,7 +40,11 @@ export function OrderCard({
   const active = isActiveStatus(order.status);
   const restaurantName = order.restaurant_name ?? "Campus Restaurant";
   const restaurantCuisine = order.restaurant_cuisine ?? "Campus Dining";
-  const orderId = order._id || (order as unknown as { id?: string }).id || "";
+  const rawId = order._id || (order as unknown as { id?: string }).id;
+  if (!rawId) {
+    console.warn("OrderCard: order.id and order._id are undefined, falling back to /orders/last");
+  }
+  const orderId = rawId || "last";
 
   const itemCount = order.items.reduce(
     (sum, item) => sum + item.quantity,
@@ -270,7 +274,7 @@ export function OrderCard({
       {/* Actions */}
       <div className="flex flex-col gap-2 border-t border-gray-100 p-5 sm:flex-row sm:justify-end">
         <Link
-          href={orderId ? orderDetailsPath(orderId) : ROUTES.MY_ORDERS}
+          href={rawId ? orderDetailsPath(rawId) : "/orders/last"}
           className="rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-center text-sm font-semibold text-gray-700 transition hover:border-orange-300 hover:text-orange-600"
         >
           View Details
@@ -278,7 +282,7 @@ export function OrderCard({
 
         {active && (
           <Link
-            href={orderId ? trackOrderPath(orderId) : ROUTES.MY_ORDERS}
+            href={rawId ? trackOrderPath(rawId) : "/orders/last"}
             className="rounded-xl bg-blue-600 px-5 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
           >
             📍 Track Order

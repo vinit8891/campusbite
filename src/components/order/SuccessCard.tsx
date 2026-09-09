@@ -40,10 +40,11 @@ export default function SuccessCard() {
   }, [searchParams]);
 
   const handleViewDetails = () => {
-    if (resolvedOrderId) {
+    if (resolvedOrderId && resolvedOrderId !== "undefined" && resolvedOrderId !== "null") {
       router.push(orderDetailsPath(resolvedOrderId));
     } else {
-      router.push(ROUTES.MY_ORDERS);
+      console.warn("SuccessCard: order.id and order._id are undefined, routing to /orders/last");
+      router.push("/orders/last");
     }
   };
 

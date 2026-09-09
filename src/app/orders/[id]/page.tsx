@@ -44,41 +44,63 @@ export default function OrderDetailsPage() {
 
   // Instant mount cache check for zero-latency initial render
   useEffect(() => {
-    if (order || !orderId || typeof window === "undefined") return;
+    if (order || typeof window === "undefined") return;
     try {
-      const cachedRaw = localStorage.getItem("cb_last_order");
-      if (cachedRaw) {
-        const cached: Order = JSON.parse(cachedRaw);
-        if (
-          cached &&
-          (cached._id === orderId ||
-            (cached as unknown as { id?: string }).id === orderId ||
-            cached._id?.slice(-8) === orderId ||
+      const rawCached = localStorage.getItem("cb_last_order");
+      if (rawCached && rawCached !== "undefined" && rawCached !== "null") {
+        const cached: Order = JSON.parse(rawCached);
+        if (cached) {
+          // Unconditional fallback if orderId is missing, undefined, 'last', or matching
+          if (
+            !orderId ||
+            orderId === "undefined" ||
+            orderId === "null" ||
+            orderId === "last" ||
             orderId === "latest" ||
-            orderId === "last")
-        ) {
-          setOrder(cached);
-          setLoading(false);
+            cached._id === orderId ||
+            (cached as unknown as { id?: string }).id === orderId ||
+            cached._id?.slice(-8) === orderId
+          ) {
+            setOrder(cached);
+            setLoading(false);
+          }
         }
       }
-    } catch {
-      // ignore JSON parse error
+    } catch (e) {
+      console.error("Failed to parse cached order on mount", e);
     }
   }, [orderId, order]);
 
   const loadOrder = useCallback(async () => {
-    if (!orderId) {
+    // Check if orderId is invalid or missing
+    const isInvalidId = !orderId || orderId === "undefined" || orderId === "null" || orderId === "last" || orderId === "latest";
+
+    // 1. If already loaded in state
+    if (order && !isInvalidId && (order._id === orderId || (order as unknown as { id?: string }).id === orderId)) {
       setLoading(false);
       return;
     }
 
-    // 1. Check if already loaded in state
-    if (
-      order &&
-      (order._id === orderId ||
-        (order as unknown as { id?: string }).id === orderId)
-    ) {
+    if (isInvalidId) {
+      // Unconditional fallback for invalid or 'last' ID
+      if (typeof window !== "undefined") {
+        const rawCached = localStorage.getItem("cb_last_order");
+        if (rawCached && rawCached !== "undefined" && rawCached !== "null") {
+          try {
+            const cached = JSON.parse(rawCached);
+            if (cached) {
+              setOrder(cached);
+              setError("");
+              setLoading(false);
+              return;
+            }
+          } catch (e) {
+            console.error("Failed to parse cached order", e);
+          }
+        }
+      }
       setLoading(false);
+      setError("Order not found.");
       return;
     }
 
@@ -91,29 +113,23 @@ export default function OrderDetailsPage() {
         return;
       }
     } catch (err) {
-      console.warn("Primary order fetch failed, attempting local fallback:", err);
+      console.warn("Primary order fetch failed, attempting unconditional local fallback:", err);
 
-      // 3. Fallback: If the API returns 404, fails, or is in mock mode, read localStorage.getItem('cb_last_order')
+      // 3. Unconditional local fallback: If API returns 404, fails, or is in mock mode
       if (typeof window !== "undefined") {
-        try {
-          const cachedRaw = localStorage.getItem("cb_last_order");
-          if (cachedRaw) {
-            const cached: Order = JSON.parse(cachedRaw);
-            if (
-              cached &&
-              (cached._id === orderId ||
-                (cached as unknown as { id?: string }).id === orderId ||
-                cached._id?.slice(-8) === orderId ||
-                orderId === "latest" ||
-                orderId === "last")
-            ) {
+        const rawCached = localStorage.getItem("cb_last_order");
+        if (rawCached && rawCached !== "undefined" && rawCached !== "null") {
+          try {
+            const cached = JSON.parse(rawCached);
+            if (cached) {
               setOrder(cached);
               setError("");
+              setLoading(false);
               return;
             }
+          } catch (e) {
+            console.error("Failed to parse cached order", e);
           }
-        } catch {
-          // ignore
         }
       }
 
@@ -138,10 +154,9 @@ export default function OrderDetailsPage() {
 
   // Poll only while the order is active (5s interval, in-flight guard, auto-cleanup on unmount).
   usePolling(loadOrder, 5000, {
-    enabled: Boolean(orderId) && isOrderActive,
+    enabled: Boolean(orderId) && orderId !== "undefined" && orderId !== "last" && isOrderActive,
     runImmediately: true,
   });
-
 
   // Guarded IntersectionObserver and auto-scroll for active order status
   useEffect(() => {
@@ -186,41 +201,47 @@ export default function OrderDetailsPage() {
     };
   }, [order, isDelivered]);
 
+  // Split Loading from Missing Order (Prevents Render Trap)
   if (loading) {
     return (
-      <main className="min-h-screen bg-gray-50 px-4 py-12">
-        <div className="mx-auto max-w-5xl rounded-3xl border border-gray-100 bg-white p-10 text-center shadow-sm">
-          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-gray-200 border-t-orange-500" />
-          <p className="mt-4 font-medium text-gray-600">Loading order...</p>
+      <main className="min-h-screen bg-stone-50 px-4 py-12 flex items-center justify-center">
+        <div className="flex flex-col items-center justify-center p-8 bg-white rounded-2xl shadow-sm border border-stone-200/80 max-w-md w-full text-center">
+          <div className="h-10 w-10 animate-spin rounded-full border-4 border-stone-200 border-t-orange-600" />
+          <p className="mt-2 text-sm text-gray-500">Loading order...</p>
         </div>
       </main>
     );
   }
 
-  if (error || !order) {
+  if (!order) {
     return (
-      <main className="min-h-screen bg-gray-50 px-4 py-12">
-        <div className="mx-auto max-w-5xl rounded-3xl border border-gray-100 bg-white p-10 text-center shadow-sm">
-          <div className="text-5xl">😕</div>
-
-          <h1 className="mt-4 text-2xl font-bold text-gray-900">
-            Order Not Found
-          </h1>
-
-          <p className="mt-2 text-gray-500">
-            {error || "We couldn't find this order."}
+      <main className="min-h-screen bg-stone-50 px-4 py-12 flex items-center justify-center">
+        <div className="p-8 text-center bg-white rounded-2xl shadow-sm border border-stone-200/80 max-w-md w-full">
+          <div className="text-4xl mb-3">😕</div>
+          <h3 className="text-lg font-bold text-gray-900">Order Not Found</h3>
+          <p className="mt-1 text-sm text-gray-500">
+            {error || "We couldn't retrieve this order's details."}
           </p>
-
-          <Link
-            href={ROUTES.MY_ORDERS}
-            className="mt-6 inline-block rounded-full bg-orange-500 px-6 py-3 font-semibold text-white transition hover:bg-orange-600"
-          >
-            Back to My Orders
-          </Link>
+          <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
+            <button
+              type="button"
+              onClick={() => (window.location.href = "/")}
+              className="mt-4 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium text-sm transition cursor-pointer"
+            >
+              Return to Home
+            </button>
+            <Link
+              href={ROUTES.MY_ORDERS}
+              className="mt-4 px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg font-medium text-sm transition text-center"
+            >
+              My Orders
+            </Link>
+          </div>
         </div>
       </main>
     );
   }
+
 
   return (
     <main className="min-h-screen bg-gray-50">
