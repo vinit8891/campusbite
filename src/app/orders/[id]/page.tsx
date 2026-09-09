@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 
-import { getOrderById } from "@/services/orderService";
+import { getOrderById, findOrderInStorage } from "@/services/orderService";
 import { AuthHttpError } from "@/services/authFetch";
 import { usePolling } from "@/hooks/usePolling";
 import { useOrderStatus, ORDER_STATUSES } from "@/hooks/order-details";
@@ -22,10 +22,20 @@ import {
 
 export default function OrderDetailsPage() {
   const params = useParams();
-  const orderId = params.id as string;
+  const orderId = (params?.id as string) || "";
 
-  const [order, setOrder] = useState<Order | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [order, setOrder] = useState<Order | null>(() => {
+    if (typeof window !== "undefined") {
+      return findOrderInStorage(orderId);
+    }
+    return null;
+  });
+  const [loading, setLoading] = useState<boolean>(() => {
+    if (typeof window !== "undefined" && findOrderInStorage(orderId)) {
+      return false;
+    }
+    return true;
+  });
   const [error, setError] = useState("");
 
   const currentStatusRef = useRef<HTMLDivElement | null>(null);
@@ -44,60 +54,55 @@ export default function OrderDetailsPage() {
 
   // Instant mount cache check for zero-latency initial render
   useEffect(() => {
-    if (order || typeof window === "undefined") return;
-    try {
-      const rawCached = localStorage.getItem("cb_last_order");
-      if (rawCached && rawCached !== "undefined" && rawCached !== "null") {
-        const cached: Order = JSON.parse(rawCached);
-        if (cached) {
-          // Unconditional fallback if orderId is missing, undefined, 'last', or matching
-          if (
-            !orderId ||
-            orderId === "undefined" ||
-            orderId === "null" ||
-            orderId === "last" ||
-            orderId === "latest" ||
-            cached._id === orderId ||
-            (cached as unknown as { id?: string }).id === orderId ||
-            cached._id?.slice(-8) === orderId
-          ) {
-            setOrder(cached);
+    if (typeof window === "undefined") return;
+
+    // Check storage synchronously
+    const cached = findOrderInStorage(orderId);
+    if (cached) {
+      setOrder(cached);
+      setLoading(false);
+      return;
+    }
+
+    // Fallback: If orderId is empty, hydrating, or 'last', load cb_last_order
+    if (!orderId || orderId === "undefined" || orderId === "null" || orderId === "last" || orderId === "latest") {
+      try {
+        const lastRaw = localStorage.getItem("cb_last_order");
+        if (lastRaw && lastRaw !== "undefined" && lastRaw !== "null") {
+          const last = JSON.parse(lastRaw);
+          if (last) {
+            setOrder(last);
             setLoading(false);
           }
         }
-      }
-    } catch (e) {
-      console.error("Failed to parse cached order on mount", e);
+      } catch (_) {}
     }
-  }, [orderId, order]);
+  }, [orderId]);
 
   const loadOrder = useCallback(async () => {
-    // Check if orderId is invalid or missing
     const isInvalidId = !orderId || orderId === "undefined" || orderId === "null" || orderId === "last" || orderId === "latest";
 
-    // 1. If already loaded in state
+    // 1. If already loaded and matching in state
     if (order && !isInvalidId && (order._id === orderId || (order as unknown as { id?: string }).id === orderId)) {
       setLoading(false);
       return;
     }
 
+    // 2. Synchronous storage check first
+    const cached = findOrderInStorage(orderId);
+    if (cached) {
+      setOrder(cached);
+      setError("");
+      setLoading(false);
+      if (isInvalidId) return;
+    }
+
     if (isInvalidId) {
-      // Unconditional fallback for invalid or 'last' ID
-      if (typeof window !== "undefined") {
-        const rawCached = localStorage.getItem("cb_last_order");
-        if (rawCached && rawCached !== "undefined" && rawCached !== "null") {
-          try {
-            const cached = JSON.parse(rawCached);
-            if (cached) {
-              setOrder(cached);
-              setError("");
-              setLoading(false);
-              return;
-            }
-          } catch (e) {
-            console.error("Failed to parse cached order", e);
-          }
-        }
+      if (cached) {
+        setOrder(cached);
+        setError("");
+        setLoading(false);
+        return;
       }
       setLoading(false);
       setError("Order not found.");
@@ -105,7 +110,7 @@ export default function OrderDetailsPage() {
     }
 
     try {
-      // 2. Fetch from backend / GET /api/orders/[id]
+      // 3. Fetch from backend with strict 2-second timeout
       const data = await getOrderById(orderId);
       if (data) {
         setOrder(data);
@@ -113,24 +118,14 @@ export default function OrderDetailsPage() {
         return;
       }
     } catch (err) {
-      console.warn("Primary order fetch failed, attempting unconditional local fallback:", err);
+      console.warn("Primary order fetch failed, attempting storage fallback:", err);
 
-      // 3. Unconditional local fallback: If API returns 404, fails, or is in mock mode
-      if (typeof window !== "undefined") {
-        const rawCached = localStorage.getItem("cb_last_order");
-        if (rawCached && rawCached !== "undefined" && rawCached !== "null") {
-          try {
-            const cached = JSON.parse(rawCached);
-            if (cached) {
-              setOrder(cached);
-              setError("");
-              setLoading(false);
-              return;
-            }
-          } catch (e) {
-            console.error("Failed to parse cached order", e);
-          }
-        }
+      const fallback = findOrderInStorage(orderId);
+      if (fallback) {
+        setOrder(fallback);
+        setError("");
+        setLoading(false);
+        return;
       }
 
       if (err instanceof AuthHttpError && err.status === 401) {

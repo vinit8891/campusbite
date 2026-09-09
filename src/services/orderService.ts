@@ -121,6 +121,38 @@ export async function getCustomerOrders(phone: string): Promise<Order[]> {
   );
 }
 
+export function findOrderInStorage(targetId: string): Order | null {
+  if (typeof window === "undefined") return null;
+  const keys = ["cb_orders", "orders", "cb_last_order", "cb_active_order"];
+  for (const key of keys) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw || raw === "undefined" || raw === "null") continue;
+      const parsed = JSON.parse(raw);
+      const list = Array.isArray(parsed) ? parsed : [parsed];
+      const found = list.find((o: any) =>
+        o && (
+          o.id === targetId ||
+          o._id === targetId ||
+          (typeof targetId === "string" && targetId && (
+            targetId.includes(o.id) ||
+            o.id?.includes(targetId) ||
+            targetId.includes(o._id) ||
+            o._id?.includes(targetId)
+          ))
+        )
+      );
+      if (found) return found;
+    } catch (_) {}
+  }
+  // Fallback: if user just came from checkout or my-orders, return cb_last_order
+  try {
+    const last = localStorage.getItem("cb_last_order");
+    if (last && last !== "undefined" && last !== "null") return JSON.parse(last);
+  } catch (_) {}
+  return null;
+}
+
 export async function getOrderById(orderId: string): Promise<Order> {
   const isInvalidOrLast =
     !orderId ||
@@ -130,31 +162,35 @@ export async function getOrderById(orderId: string): Promise<Order> {
     orderId === "latest";
 
   if (isInvalidOrLast) {
-    if (typeof window !== "undefined") {
-      try {
-        const cachedRaw = localStorage.getItem("cb_last_order");
-        if (cachedRaw && cachedRaw !== "undefined" && cachedRaw !== "null") {
-          const cached = JSON.parse(cachedRaw);
-          if (cached) return cached;
-        }
-      } catch {
-        // ignore
-      }
-    }
+    const cached = findOrderInStorage(orderId);
+    if (cached) return cached;
     throw new Error("Order ID is required");
   }
 
+  // Strict 2-second abort timeout on network calls
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 2000);
+
   try {
-    return await authJson<Order>(`/orders/${encodeURIComponent(orderId)}`, {
+    const data = await authJson<Order>(`/orders/${encodeURIComponent(orderId)}`, {
       role: "customer",
       cache: "no-store",
+      signal: controller.signal,
     });
+    clearTimeout(timeoutId);
+    return data;
   } catch (err) {
-    // Fallback 1: Next.js internal /api/orders/[id] route
+    clearTimeout(timeoutId);
+
+    // Fallback 1: Next.js internal /api/orders/[id] route with abort signal
     try {
+      const internalController = new AbortController();
+      const internalTimeout = setTimeout(() => internalController.abort(), 1000);
       const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}`, {
         cache: "no-store",
+        signal: internalController.signal,
       });
+      clearTimeout(internalTimeout);
       if (res.ok) {
         const data = await res.json();
         if (data && (data._id || data.id)) return data;
@@ -163,19 +199,10 @@ export async function getOrderById(orderId: string): Promise<Order> {
       // ignore
     }
 
-    // Fallback 2: localStorage 'cb_last_order' (unconditional return of latest valid order)
-    if (typeof window !== "undefined") {
-      try {
-        const cachedRaw = localStorage.getItem("cb_last_order");
-        if (cachedRaw && cachedRaw !== "undefined" && cachedRaw !== "null") {
-          const cached = JSON.parse(cachedRaw);
-          if (cached) {
-            return cached;
-          }
-        }
-      } catch {
-        // ignore
-      }
+    // Fallback 2: Comprehensive storage lookup via findOrderInStorage
+    const stored = findOrderInStorage(orderId);
+    if (stored) {
+      return stored;
     }
 
     throw err;
