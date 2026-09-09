@@ -13,19 +13,23 @@ import {
   type CartItemInput,
 } from "@/lib/pricingEngine";
 
-const QUICK_INSTRUCTIONS = [
-  "Call when downstairs",
-  "Leave at hostel security / reception",
-  "Call from main gate",
+const HOSTEL_PILLS = [
+  { label: "Block A", value: "Hostel Block A", icon: "🏢" },
+  { label: "Block B", value: "Hostel Block B", icon: "🏢" },
+  { label: "Block C", value: "Hostel Block C", icon: "🌸" },
+  { label: "Library / Main Gate", value: "Library / Main Gate", icon: "📚" },
 ];
 
-const CAMPUS_CHIPS = [
-  { name: "Hostel Block A", icon: "🏢" },
-  { name: "Hostel Block B", icon: "🏢" },
-  { name: "Hostel Block C", icon: "🌸" },
-  { name: "Central Library", icon: "📚" },
-  { name: "Main Canteen", icon: "🍽️" },
-  { name: "Main Gate", icon: "🚀" },
+const OUTSIDE_AREAS = [
+  { label: "College Road", value: "College Road", icon: "🛣️" },
+  { label: "Back Gate Area", value: "Back Gate Area", icon: "🚪" },
+  { label: "Main Road", value: "Main Road", icon: "📍" },
+];
+
+const QUICK_INSTRUCTIONS = [
+  "Call when downstairs",
+  "Leave at reception / gate",
+  "Call upon arrival",
 ];
 
 function useSafeAuth() {
@@ -40,11 +44,22 @@ export default function AddressForm() {
   const { checkout, setCheckout } = useCheckout();
   const { cart } = useCart();
   const { user } = useSafeAuth();
-  const {
-    savedAddresses,
-    setActiveAddress,
-    openLocationModal,
-  } = useLocation();
+  const { openLocationModal } = useLocation();
+
+  // 2-Way Tab Switcher: "Campus Hostel" vs "Outside (PG / Flat)"
+  const [locationTab, setLocationTab] = useState<"HOSTEL" | "OUTSIDE">(() => {
+    const block = checkout.hostel_block || "";
+    if (
+      block.includes("College Road") ||
+      block.includes("Back Gate") ||
+      block.includes("Main Road") ||
+      block.includes("PG") ||
+      block.includes("Flat")
+    ) {
+      return "OUTSIDE";
+    }
+    return "HOSTEL";
+  });
 
   const [isEditingRecipient, setIsEditingRecipient] = useState(false);
   const [showNotes, setShowNotes] = useState(
@@ -115,14 +130,36 @@ export default function AddressForm() {
     }
   }, [user, checkout.delivery_for, setCheckout]);
 
-  const recipientName =
-    checkout.customer_name || user?.name || "Self";
-  const recipientPhone =
-    checkout.phone || user?.phone || "";
+  const recipientName = checkout.customer_name || user?.name || "Self";
+  const recipientPhone = checkout.phone || user?.phone || "";
   const hasSelfRecipientDetails = Boolean(
-    (checkout.customer_name || user?.name) &&
-      (checkout.phone || user?.phone)
+    (checkout.customer_name || user?.name) && (checkout.phone || user?.phone)
   );
+
+  function handleTabChange(tab: "HOSTEL" | "OUTSIDE") {
+    setLocationTab(tab);
+    if (tab === "HOSTEL") {
+      const isAlreadyHostel = HOSTEL_PILLS.some(
+        (p) => p.value === checkout.hostel_block
+      );
+      if (!isAlreadyHostel) {
+        setCheckout((prev) => ({
+          ...prev,
+          hostel_block: "Hostel Block A",
+        }));
+      }
+    } else {
+      const isAlreadyOutside = OUTSIDE_AREAS.some(
+        (p) => p.value === checkout.hostel_block
+      );
+      if (!isAlreadyOutside) {
+        setCheckout((prev) => ({
+          ...prev,
+          hostel_block: "College Road",
+        }));
+      }
+    }
+  }
 
   return (
     <section className="space-y-4">
@@ -131,7 +168,7 @@ export default function AddressForm() {
         <div>
           <h2 className="text-lg font-bold text-stone-900">Delivery Details</h2>
           <p className="text-xs text-stone-500">
-            Select fulfillment mode and campus location
+            Select fulfillment mode and drop location
           </p>
         </div>
       </div>
@@ -241,7 +278,6 @@ export default function AddressForm() {
           2. RECIPIENT DETAILS (PROGRESSIVE DISCLOSURE)
       ========================================================== */}
       <div className="rounded-2xl border border-stone-200 bg-white p-3.5 shadow-2xs space-y-3">
-        {/* Recipient Segmented Selector: Myself vs Someone Else */}
         <div className="flex items-center justify-between gap-2">
           <div className="flex rounded-xl bg-stone-100 p-1 border border-stone-200/60 text-xs font-semibold">
             <button
@@ -310,7 +346,6 @@ export default function AddressForm() {
             </button>
           </div>
         ) : (
-          /* Expanded Name and Phone Inputs */
           <div className="grid gap-2.5 pt-1 sm:grid-cols-2">
             <div>
               <label
@@ -378,243 +413,300 @@ export default function AddressForm() {
       </div>
 
       {/* =========================================================
-          3. STREAMLINED 2-FIELD CAMPUS ADDRESS
+          3. 2-TAB LOCATION SELECTOR (CAMPUS HOSTEL vs OUTSIDE PG/FLAT)
       ========================================================== */}
-      <div className="rounded-2xl border border-stone-200 bg-white p-3.5 shadow-2xs space-y-3">
-        {/* Saved Addresses & Campus Quick Chips */}
-        <div>
-          <div className="flex items-center justify-between mb-1.5">
-            <label className="text-xs font-bold uppercase tracking-wider text-stone-600">
-              Quick Select Campus Location
-            </label>
-            <button
-              type="button"
-              onClick={openLocationModal}
-              className="text-[11px] font-bold text-amber-600 hover:text-amber-700 cursor-pointer"
-            >
-              📍 GPS / Map
-            </button>
-          </div>
-
-          <div className="flex flex-wrap gap-1.5">
-            {/* Campus preset chips */}
-            {CAMPUS_CHIPS.map((chip) => {
-              const isSelected = checkout.hostel_block === chip.name;
-              return (
-                <button
-                  key={chip.name}
-                  type="button"
-                  onClick={() => {
-                    setCheckout((prev) => ({
-                      ...prev,
-                      hostel_block: chip.name,
-                    }));
-                  }}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                    isSelected
-                      ? "bg-amber-600 text-white font-bold shadow-2xs"
-                      : "bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200/60"
-                  }`}
-                >
-                  <span>{chip.icon}</span>
-                  <span>{chip.name}</span>
-                </button>
-              );
-            })}
-
-            {/* Saved addresses (if any) */}
-            {savedAddresses.map((saved) => {
-              const isSelected =
-                checkout.hostel_block === saved.buildingOrSociety;
-              return (
-                <button
-                  key={saved.id}
-                  type="button"
-                  onClick={() => {
-                    setActiveAddress(saved);
-                    setCheckout((prev) => ({
-                      ...prev,
-                      hostel_block: saved.buildingOrSociety,
-                      address: saved.roomOrFlat || prev.address,
-                      landmark: saved.areaOrLandmark || prev.landmark,
-                      latitude: saved.lat ?? prev.latitude,
-                      longitude: saved.lng ?? prev.longitude,
-                    }));
-                  }}
-                  className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-medium transition-all cursor-pointer ${
-                    isSelected
-                      ? "bg-amber-600 text-white font-bold shadow-2xs"
-                      : "bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80"
-                  }`}
-                >
-                  <span>🏠</span>
-                  <span className="truncate max-w-[120px]">
-                    {saved.buildingOrSociety}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* 2 Simple Campus Delivery Inputs */}
-        <div className="grid gap-2.5">
+      {currentMode !== "COUNTER_TAKEAWAY" && (
+        <div className="rounded-2xl border border-stone-200 bg-white p-3.5 shadow-2xs space-y-3.5">
+          {/* 2-Way Tab Switcher */}
           <div>
-            <label
-              htmlFor="checkout-building"
-              className="mb-1 block text-xs font-bold text-stone-700"
-            >
-              Hostel / PG / Building Name
-            </label>
-            <Input
-              id="checkout-building"
-              placeholder="e.g. Hostel Block A, Balaji PG"
-              value={checkout.hostel_block}
-              className="h-9 text-xs"
-              onChange={(e) => {
-                const val = e.target.value;
-                setCheckout((prev) => ({ ...prev, hostel_block: val }));
-                setErrors((prev) => ({
-                  ...prev,
-                  hostel_block:
-                    val.trim().length >= 2 ? "" : "Building name is required.",
-                }));
-              }}
-            />
-            {errors.hostel_block && (
-              <p className="mt-1 text-[11px] text-red-500">
-                {errors.hostel_block}
-              </p>
-            )}
+            <div className="flex items-center justify-between mb-2">
+              <label className="text-xs font-bold uppercase tracking-wider text-stone-600">
+                Delivery Location
+              </label>
+              <button
+                type="button"
+                onClick={openLocationModal}
+                className="text-[11px] font-bold text-amber-600 hover:text-amber-700 cursor-pointer"
+              >
+                📍 GPS / Map
+              </button>
+            </div>
+
+            <div className="grid grid-cols-2 gap-1.5 rounded-xl bg-stone-100 p-1 border border-stone-200/60">
+              <button
+                type="button"
+                onClick={() => handleTabChange("HOSTEL")}
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  locationTab === "HOSTEL"
+                    ? "bg-white text-amber-700 shadow-2xs font-extrabold"
+                    : "text-stone-600 hover:text-stone-900"
+                }`}
+              >
+                <span>🏫</span>
+                <span>Campus Hostel</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => handleTabChange("OUTSIDE")}
+                className={`py-2 px-3 rounded-lg text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+                  locationTab === "OUTSIDE"
+                    ? "bg-white text-amber-700 shadow-2xs font-extrabold"
+                    : "text-stone-600 hover:text-stone-900"
+                }`}
+              >
+                <span>🏠</span>
+                <span>Outside (PG / Flat)</span>
+              </button>
+            </div>
           </div>
 
-          <div>
-            <label
-              htmlFor="checkout-address"
-              className="mb-1 block text-xs font-bold text-stone-700"
-            >
-              Room / Flat / Floor
-            </label>
-            <Input
-              id="checkout-address"
-              placeholder="e.g. Room 304, Flat 201, 2nd Floor"
-              value={checkout.address}
-              className="h-9 text-xs"
-              onChange={(e) => {
-                const val = e.target.value;
-                setCheckout((prev) => ({ ...prev, address: val }));
-                setErrors((prev) => ({
-                  ...prev,
-                  address:
-                    val.trim().length >= 1 ? "" : "Room/Flat is required.",
-                }));
-              }}
-            />
-            {errors.address && (
-              <p className="mt-1 text-[11px] text-red-500">{errors.address}</p>
-            )}
-          </div>
-        </div>
-
-        {/* =========================================================
-            4. PROGRESSIVE DISCLOSURE: NOTE / LANDMARK TOGGLE
-        ========================================================== */}
-        <div className="pt-1 border-t border-stone-100">
-          {!showNotes ? (
-            <button
-              type="button"
-              onClick={() => setShowNotes(true)}
-              className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 hover:text-amber-700 hover:underline cursor-pointer py-1"
-            >
-              + Add delivery note / landmark
-            </button>
-          ) : (
-            <div className="space-y-2.5 pt-2 animate-in fade-in duration-200">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-stone-700">
-                  Delivery Note & Landmark
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setShowNotes(false)}
-                  className="text-[11px] font-medium text-stone-400 hover:text-stone-600 cursor-pointer"
-                >
-                  Hide
-                </button>
-              </div>
-
+          {/* Dynamic Fields Based on Tab */}
+          {locationTab === "HOSTEL" ? (
+            /* TAB A: Campus Hostel */
+            <div className="space-y-3">
               <div>
-                <label
-                  htmlFor="checkout-landmark"
-                  className="mb-1 block text-[11px] font-semibold text-stone-600"
-                >
-                  Nearby Landmark{" "}
-                  <span className="font-normal text-stone-400">(Optional)</span>
+                <label className="mb-1.5 block text-xs font-semibold text-stone-700">
+                  Select Hostel Block
                 </label>
-                <Input
-                  id="checkout-landmark"
-                  placeholder="e.g. Opp. Campus Canteen, Wing B"
-                  value={checkout.landmark}
-                  className="h-8 text-xs"
-                  onChange={(e) =>
-                    setCheckout((prev) => ({
-                      ...prev,
-                      landmark: e.target.value,
-                    }))
-                  }
-                />
-              </div>
-
-              <div>
-                <label
-                  htmlFor="checkout-delivery-instructions"
-                  className="mb-1 block text-[11px] font-semibold text-stone-600"
-                >
-                  Courier Instructions{" "}
-                  <span className="font-normal text-stone-400">(Optional)</span>
-                </label>
-                <Input
-                  id="checkout-delivery-instructions"
-                  placeholder="e.g. Call when downstairs..."
-                  value={checkout.delivery_instructions}
-                  className="h-8 text-xs"
-                  onChange={(e) =>
-                    setCheckout((prev) => ({
-                      ...prev,
-                      delivery_instructions: e.target.value,
-                    }))
-                  }
-                />
-
-                <div className="mt-1.5 flex flex-wrap gap-1.5">
-                  {QUICK_INSTRUCTIONS.map((instruction) => (
-                    <button
-                      key={instruction}
-                      type="button"
-                      onClick={() =>
-                        setCheckout((prev) => ({
-                          ...prev,
-                          delivery_instructions:
-                            prev.delivery_instructions === instruction
-                              ? ""
-                              : instruction,
-                        }))
-                      }
-                      className={`rounded-md border px-2 py-0.5 text-[11px] font-medium transition cursor-pointer ${
-                        checkout.delivery_instructions === instruction
-                          ? "border-amber-500 bg-amber-50 text-amber-900 font-bold"
-                          : "border-stone-200 bg-stone-50 text-stone-600 hover:bg-stone-100"
-                      }`}
-                    >
-                      + {instruction}
-                    </button>
-                  ))}
+                <div className="flex flex-wrap gap-1.5">
+                  {HOSTEL_PILLS.map((pill) => {
+                    const isSelected = checkout.hostel_block === pill.value;
+                    return (
+                      <button
+                        key={pill.value}
+                        type="button"
+                        onClick={() => {
+                          setCheckout((prev) => ({
+                            ...prev,
+                            hostel_block: pill.value,
+                          }));
+                        }}
+                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-amber-600 text-white font-bold shadow-2xs"
+                            : "bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200/60"
+                        }`}
+                      >
+                        <span>{pill.icon}</span>
+                        <span>{pill.label}</span>
+                      </button>
+                    );
+                  })}
                 </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="checkout-room-number"
+                  className="mb-1 block text-xs font-bold text-stone-700"
+                >
+                  Room Number
+                </label>
+                <Input
+                  id="checkout-room-number"
+                  placeholder="e.g. Room 204"
+                  value={checkout.address}
+                  className="h-9 text-xs"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCheckout((prev) => ({ ...prev, address: val }));
+                    setErrors((prev) => ({
+                      ...prev,
+                      address:
+                        val.trim().length >= 1 ? "" : "Room number is required.",
+                    }));
+                  }}
+                />
+                {errors.address && (
+                  <p className="mt-1 text-[11px] text-red-500">{errors.address}</p>
+                )}
+              </div>
+            </div>
+          ) : (
+            /* TAB B: Outside (PG / Flat) */
+            <div className="space-y-3">
+              <div>
+                <label className="mb-1.5 block text-xs font-semibold text-stone-700">
+                  Select Area
+                </label>
+                <div className="flex flex-wrap gap-1.5">
+                  {OUTSIDE_AREAS.map((area) => {
+                    const isSelected = checkout.hostel_block === area.value;
+                    return (
+                      <button
+                        key={area.value}
+                        type="button"
+                        onClick={() => {
+                          setCheckout((prev) => ({
+                            ...prev,
+                            hostel_block: area.value,
+                          }));
+                        }}
+                        className={`inline-flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium transition-all cursor-pointer ${
+                          isSelected
+                            ? "bg-amber-600 text-white font-bold shadow-2xs"
+                            : "bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200/60"
+                        }`}
+                      >
+                        <span>{area.icon}</span>
+                        <span>{area.label}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
+              <div>
+                <label
+                  htmlFor="checkout-outside-building"
+                  className="mb-1 block text-xs font-bold text-stone-700"
+                >
+                  Building / PG Name & Flat/Room
+                </label>
+                <Input
+                  id="checkout-outside-building"
+                  placeholder="e.g. Shivam PG, Room 102"
+                  value={checkout.address}
+                  className="h-9 text-xs"
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCheckout((prev) => ({ ...prev, address: val }));
+                    setErrors((prev) => ({
+                      ...prev,
+                      address:
+                        val.trim().length >= 1
+                          ? ""
+                          : "Building / PG name & room is required.",
+                    }));
+                  }}
+                />
+                {errors.address && (
+                  <p className="mt-1 text-[11px] text-red-500">{errors.address}</p>
+                )}
               </div>
             </div>
           )}
+
+          {/* Batch Notice (Always visible under inputs) */}
+          <div className="flex items-center gap-2 rounded-xl bg-amber-50/90 px-3 py-2 text-xs text-amber-900 border border-amber-200/80">
+            <span className="text-sm shrink-0">📍</span>
+            <p className="text-[11px] leading-tight">
+              <strong className="font-bold">Batch Drop:</strong> Courier meets you at your building gate or reception.
+            </p>
+          </div>
+
+          {/* Progressive Disclosure: Delivery Note / Landmark Toggle */}
+          <div className="pt-1 border-t border-stone-100">
+            {!showNotes ? (
+              <button
+                type="button"
+                onClick={() => setShowNotes(true)}
+                className="inline-flex items-center gap-1.5 text-xs font-bold text-amber-600 hover:text-amber-700 hover:underline cursor-pointer py-1"
+              >
+                + Add delivery note / landmark
+              </button>
+            ) : (
+              <div className="space-y-2.5 pt-2 animate-in fade-in duration-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-bold text-stone-700">
+                    Delivery Note & Landmark
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowNotes(false)}
+                    className="text-[11px] font-medium text-stone-400 hover:text-stone-600 cursor-pointer"
+                  >
+                    Hide
+                  </button>
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="checkout-landmark"
+                    className="mb-1 block text-[11px] font-semibold text-stone-600"
+                  >
+                    Nearby Landmark{" "}
+                    <span className="font-normal text-stone-400">(Optional)</span>
+                  </label>
+                  <Input
+                    id="checkout-landmark"
+                    placeholder="e.g. Opp. Campus Canteen, Wing B"
+                    value={checkout.landmark}
+                    className="h-8 text-xs"
+                    onChange={(e) =>
+                      setCheckout((prev) => ({
+                        ...prev,
+                        landmark: e.target.value,
+                      }))
+                    }
+                  />
+                </div>
+
+                <div>
+                  <label
+                    htmlFor="checkout-delivery-instructions"
+                    className="mb-1 block text-[11px] font-semibold text-stone-600"
+                  >
+                    Courier Instructions{" "}
+                    <span className="font-normal text-stone-400">(Optional)</span>
+                  </label>
+                  <Input
+                    id="checkout-delivery-instructions"
+                    placeholder="e.g. Call when downstairs..."
+                    value={checkout.delivery_instructions}
+                    className="h-8 text-xs"
+                    onChange={(e) =>
+                      setCheckout((prev) => ({
+                        ...prev,
+                        delivery_instructions: e.target.value,
+                      }))
+                    }
+                  />
+
+                  <div className="mt-1.5 flex flex-wrap gap-1.5">
+                    {QUICK_INSTRUCTIONS.map((instruction) => (
+                      <button
+                        key={instruction}
+                        type="button"
+                        onClick={() =>
+                          setCheckout((prev) => ({
+                            ...prev,
+                            delivery_instructions:
+                              prev.delivery_instructions === instruction
+                                ? ""
+                                : instruction,
+                          }))
+                        }
+                        className={`rounded-md border px-2 py-0.5 text-[11px] font-medium transition cursor-pointer ${
+                          checkout.delivery_instructions === instruction
+                            ? "border-amber-500 bg-amber-50 text-amber-900 font-bold"
+                            : "border-stone-200 bg-stone-50 text-stone-600 hover:bg-stone-100"
+                        }`}
+                      >
+                        + {instruction}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* Takeaway notice if Counter Takeaway is active */}
+      {currentMode === "COUNTER_TAKEAWAY" && (
+        <div className="rounded-2xl border border-blue-200 bg-blue-50/70 p-4 shadow-2xs space-y-1">
+          <div className="flex items-center gap-2 text-xs font-bold text-blue-900">
+            <span className="text-base">🏪</span>
+            <span>Counter Pickup Token</span>
+          </div>
+          <p className="text-xs text-blue-700 leading-relaxed">
+            No delivery address required. Collect your food directly from the canteen counter when your token is ready.
+          </p>
+        </div>
+      )}
     </section>
   );
 }
