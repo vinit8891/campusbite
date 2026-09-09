@@ -6,6 +6,7 @@ import { ShoppingCart } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
 import { ROUTES } from "@/lib/routes";
+import { getCalibratedAppPrice } from "@/lib/pricingEngine";
 
 export default function FloatingCart() {
   const { cart } = useCart();
@@ -18,7 +19,7 @@ export default function FloatingCart() {
   );
 
   const total = cart.reduce(
-    (sum, item) => sum + item.price * item.quantity,
+    (sum, item) => sum + getCalibratedAppPrice(item.price) * item.quantity,
     0
   );
 
@@ -43,7 +44,7 @@ export default function FloatingCart() {
         <Link href={ROUTES.CART} className="shrink-0">
           <Button
             variant="ghost"
-            className="font-semibold text-white transition-all duration-200 hover:translate-x-1 hover:bg-transparent hover:text-white"
+            className="font-semibold text-white transition-all duration-200 hover:translate-x-1 hover:bg-transparent hover:text-white cursor-pointer"
           >
             View Cart →
           </Button>
@@ -51,4 +52,4 @@ export default function FloatingCart() {
       </div>
     </div>
   );
-}
+}

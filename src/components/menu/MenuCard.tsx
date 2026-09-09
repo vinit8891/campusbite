@@ -5,6 +5,7 @@ import Image from "next/image";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useCart } from "@/context/CartContext";
+import { getCalibratedAppPrice } from "@/lib/pricingEngine";
 
 export type MenuCardProps = {
   item: {
@@ -151,7 +152,7 @@ function MenuCard({ item, restaurant }: MenuCardProps) {
         <div className="mt-6 flex items-center justify-between border-t border-gray-100 pt-5">
           {/* Price */}
           <span className="text-3xl font-extrabold tracking-tight text-orange-600">
-            ₹{item.price}
+            ₹{getCalibratedAppPrice(item.price)}
           </span>
 
           {/* Cart Controls */}

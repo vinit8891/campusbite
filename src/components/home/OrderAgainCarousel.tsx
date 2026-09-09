@@ -9,6 +9,7 @@ import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { getMyOrders } from "@/services/orderService";
 import type { CartItem, Order } from "@/types";
+import { getCalibratedAppPrice } from "@/lib/pricingEngine";
 
 interface ReorderDish {
   id: string;
@@ -228,13 +229,13 @@ export function OrderAgainCarousel() {
             {/* Bottom Bar: Single Price & Swiggy-style '+ ADD' Button */}
             <div className="flex items-center justify-between pt-1 border-t border-stone-100">
               <span className="text-sm font-bold text-stone-900">
-                ₹{dish.price}
+                ₹{getCalibratedAppPrice(dish.price)}
               </span>
               <button
                 type="button"
                 onClick={() => handleReorder(dish)}
                 className="h-7 px-3 rounded-lg bg-orange-50 border border-orange-200 text-orange-600 font-bold text-xs hover:bg-orange-600 hover:text-white shadow-xs flex items-center justify-center uppercase transition-all duration-200 active:scale-95 cursor-pointer"
-                aria-label={`Reorder ${dish.name} for ₹${dish.price}`}
+                aria-label={`Reorder ${dish.name} for ₹${getCalibratedAppPrice(dish.price)}`}
               >
                 + ADD
               </button>
