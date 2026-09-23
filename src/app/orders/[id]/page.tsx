@@ -1,4 +1,4 @@
-"use client";
+'use client';
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
@@ -36,7 +36,7 @@ export default function OrderDetailsPage() {
     }
     return true;
   });
-  const [error, setError] = useState("");
+  const [error, setError] = useState<string>("");
 
   const currentStatusRef = useRef<HTMLDivElement | null>(null);
 
@@ -52,38 +52,42 @@ export default function OrderDetailsPage() {
     hasRestaurantLocation,
   } = useOrderStatus(order);
 
-  // Instant mount cache check for zero-latency initial render
+  // Synchronous local cache lookup on mount and 2000ms safety timeout
   useEffect(() => {
     if (typeof window === "undefined") return;
 
-    // Check storage synchronously
+    // Check storage synchronously immediately before any network fetch
     const cached = findOrderInStorage(orderId);
     if (cached) {
       setOrder(cached);
       setLoading(false);
-      return;
     }
 
-    // Fallback: If orderId is empty, hydrating, or 'last', load cb_last_order
-    if (!orderId || orderId === "undefined" || orderId === "null" || orderId === "last" || orderId === "latest") {
-      try {
-        const lastRaw = localStorage.getItem("cb_last_order");
-        if (lastRaw && lastRaw !== "undefined" && lastRaw !== "null") {
-          const last = JSON.parse(lastRaw);
-          if (last) {
-            setOrder(last);
-            setLoading(false);
-          }
-        }
-      } catch (_) {}
-    }
+    // Enforce 2000ms safety timeout that forces setLoading(false) under all conditions
+    const safetyTimer = setTimeout(() => {
+      setLoading(false);
+    }, 2000);
+
+    return () => clearTimeout(safetyTimer);
   }, [orderId]);
 
   const loadOrder = useCallback(async () => {
-    const isInvalidId = !orderId || orderId === "undefined" || orderId === "null" || orderId === "last" || orderId === "latest";
+    const isInvalidId =
+      !orderId ||
+      orderId === "undefined" ||
+      orderId === "null" ||
+      orderId === "last" ||
+      orderId === "latest";
 
-    // 1. If already loaded and matching in state
-    if (order && !isInvalidId && (order._id === orderId || (order as unknown as { id?: string }).id === orderId)) {
+    // 1. If already loaded in state with matching ID
+    if (
+      order &&
+      !isInvalidId &&
+      (order._id === orderId ||
+        (order as unknown as { id?: string }).id === orderId ||
+        order._id?.toLowerCase().endsWith(orderId.toLowerCase()) ||
+        orderId.toLowerCase().endsWith(order._id?.toLowerCase() || ""))
+    ) {
       setLoading(false);
       return;
     }
@@ -98,24 +102,19 @@ export default function OrderDetailsPage() {
     }
 
     if (isInvalidId) {
-      if (cached) {
-        setOrder(cached);
-        setError("");
-        setLoading(false);
-        return;
-      }
       setLoading(false);
-      setError("Order not found.");
+      if (!cached) {
+        setError("Order not found.");
+      }
       return;
     }
 
     try {
-      // 3. Fetch from backend with strict 2-second timeout
+      // 3. Fetch from backend / internal route with 1500ms AbortController timeout
       const data = await getOrderById(orderId);
       if (data) {
         setOrder(data);
         setError("");
-        return;
       }
     } catch (err) {
       console.warn("Primary order fetch failed, attempting storage fallback:", err);
@@ -147,10 +146,17 @@ export default function OrderDetailsPage() {
     }
   }, [orderId, order]);
 
+  // Initial fetch trigger
+  useEffect(() => {
+    if (orderId && orderId !== "undefined" && orderId !== "null") {
+      loadOrder();
+    }
+  }, [orderId, loadOrder]);
+
   // Poll only while the order is active (5s interval, in-flight guard, auto-cleanup on unmount).
   usePolling(loadOrder, 5000, {
     enabled: Boolean(orderId) && orderId !== "undefined" && orderId !== "last" && isOrderActive,
-    runImmediately: true,
+    runImmediately: false,
   });
 
   // Guarded IntersectionObserver and auto-scroll for active order status
@@ -196,40 +202,40 @@ export default function OrderDetailsPage() {
     };
   }, [order, isDelivered]);
 
-  // Split Loading from Missing Order (Prevents Render Trap)
+  // Loading shell - only displayed while actively loading
   if (loading) {
     return (
       <main className="min-h-screen bg-stone-50 px-4 py-12 flex items-center justify-center">
         <div className="flex flex-col items-center justify-center p-8 bg-white rounded-2xl shadow-sm border border-stone-200/80 max-w-md w-full text-center">
           <div className="h-10 w-10 animate-spin rounded-full border-4 border-stone-200 border-t-orange-600" />
-          <p className="mt-2 text-sm text-gray-500">Loading order...</p>
+          <p className="mt-4 text-sm font-medium text-stone-600">Loading order details...</p>
         </div>
       </main>
     );
   }
 
+  // Never render a blank or infinite spinner if order is null after loading finishes
   if (!order) {
     return (
       <main className="min-h-screen bg-stone-50 px-4 py-12 flex items-center justify-center">
         <div className="p-8 text-center bg-white rounded-2xl shadow-sm border border-stone-200/80 max-w-md w-full">
-          <div className="text-4xl mb-3">😕</div>
-          <h3 className="text-lg font-bold text-gray-900">Order Not Found</h3>
-          <p className="mt-1 text-sm text-gray-500">
-            {error || "We couldn't retrieve this order's details."}
+          <div className="text-4xl mb-3">📦</div>
+          <h1 className="text-lg font-bold text-gray-900">Order Details Unavailable</h1>
+          <p className="mt-2 text-sm text-gray-500">
+            {error || "We couldn't retrieve this order's details. It may still be syncing or was not found."}
           </p>
           <div className="mt-6 flex flex-col sm:flex-row gap-3 justify-center">
-            <button
-              type="button"
-              onClick={() => (window.location.href = "/")}
-              className="mt-4 px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium text-sm transition cursor-pointer"
-            >
-              Return to Home
-            </button>
             <Link
               href={ROUTES.MY_ORDERS}
-              className="mt-4 px-4 py-2 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg font-medium text-sm transition text-center"
+              className="px-4 py-2.5 bg-orange-600 hover:bg-orange-700 text-white rounded-lg font-medium text-sm transition text-center shadow-sm"
             >
-              My Orders
+              Back to My Orders
+            </Link>
+            <Link
+              href="/"
+              className="px-4 py-2.5 bg-stone-100 hover:bg-stone-200 text-stone-700 rounded-lg font-medium text-sm transition text-center"
+            >
+              Return to Home
             </Link>
           </div>
         </div>
@@ -237,6 +243,7 @@ export default function OrderDetailsPage() {
     );
   }
 
+  const receiptId = ((order._id || (order as unknown as { id?: string }).id || orderId || "").slice(-8)).toUpperCase();
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -265,7 +272,7 @@ export default function OrderDetailsPage() {
                     Order Delivered! Enjoy your meal
                   </h1>
                   <p className="mt-1 text-sm text-emerald-100">
-                    Delivered to {order.address || "your campus drop location"} • Receipt #{order._id.slice(-8).toUpperCase()}
+                    Delivered to {order.address || "your campus drop location"} • Receipt #{receiptId}
                   </p>
                 </div>
               </div>

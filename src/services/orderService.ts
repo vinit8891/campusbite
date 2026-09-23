@@ -121,35 +121,56 @@ export async function getCustomerOrders(phone: string): Promise<Order[]> {
   );
 }
 
+function matchesOrderId(targetId: string, order: any): boolean {
+  if (!order || !targetId) return false;
+  const tid = String(targetId).toLowerCase().trim();
+  if (!tid) return false;
+  const oId = String(order.id || "").toLowerCase().trim();
+  const oMongoId = String(order._id || "").toLowerCase().trim();
+
+  if (oId === tid || oMongoId === tid) return true;
+  if (oId && (oId.endsWith(tid) || tid.endsWith(oId) || oId.includes(tid) || tid.includes(oId))) return true;
+  if (oMongoId && (oMongoId.endsWith(tid) || tid.endsWith(oMongoId) || oMongoId.includes(tid) || tid.includes(oMongoId))) return true;
+  return false;
+}
+
 export function findOrderInStorage(targetId: string): Order | null {
   if (typeof window === "undefined") return null;
-  const keys = ["cb_orders", "orders", "cb_last_order", "cb_active_order"];
-  for (const key of keys) {
+  const isInvalidOrLast =
+    !targetId ||
+    targetId === "undefined" ||
+    targetId === "null" ||
+    targetId === "last" ||
+    targetId === "latest";
+
+  const storageKeys = ["cb_last_order", "cb_orders", "orders", "cb_active_order"];
+  for (const key of storageKeys) {
     try {
       const raw = localStorage.getItem(key);
       if (!raw || raw === "undefined" || raw === "null") continue;
       const parsed = JSON.parse(raw);
       const list = Array.isArray(parsed) ? parsed : [parsed];
-      const found = list.find((o: any) =>
-        o && (
-          o.id === targetId ||
-          o._id === targetId ||
-          (typeof targetId === "string" && targetId && (
-            targetId.includes(o.id) ||
-            o.id?.includes(targetId) ||
-            targetId.includes(o._id) ||
-            o._id?.includes(targetId)
-          ))
-        )
-      );
+
+      if (isInvalidOrLast && list.length > 0 && list[0]) {
+        return list[0];
+      }
+
+      const found = list.find((item: any) => matchesOrderId(targetId, item));
       if (found) return found;
     } catch (_) {}
   }
-  // Fallback: if user just came from checkout or my-orders, return cb_last_order
+
+  // Fallback: check cb_last_order directly
   try {
-    const last = localStorage.getItem("cb_last_order");
-    if (last && last !== "undefined" && last !== "null") return JSON.parse(last);
+    const lastRaw = localStorage.getItem("cb_last_order");
+    if (lastRaw && lastRaw !== "undefined" && lastRaw !== "null") {
+      const last = JSON.parse(lastRaw);
+      if (last && (isInvalidOrLast || matchesOrderId(targetId, last))) {
+        return last;
+      }
+    }
   } catch (_) {}
+
   return null;
 }
 
@@ -167,9 +188,9 @@ export async function getOrderById(orderId: string): Promise<Order> {
     throw new Error("Order ID is required");
   }
 
-  // Strict 2-second abort timeout on network calls
+  // Strict 1500ms max timeout on network calls using AbortController
   const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), 2000);
+  const timeoutId = setTimeout(() => controller.abort(), 1500);
 
   try {
     const data = await authJson<Order>(`/orders/${encodeURIComponent(orderId)}`, {
@@ -182,10 +203,10 @@ export async function getOrderById(orderId: string): Promise<Order> {
   } catch (err) {
     clearTimeout(timeoutId);
 
-    // Fallback 1: Next.js internal /api/orders/[id] route with abort signal
+    // Fallback 1: Next.js internal /api/orders/[id] route with abort signal (1500ms timeout max)
     try {
       const internalController = new AbortController();
-      const internalTimeout = setTimeout(() => internalController.abort(), 1000);
+      const internalTimeout = setTimeout(() => internalController.abort(), 1500);
       const res = await fetch(`/api/orders/${encodeURIComponent(orderId)}`, {
         cache: "no-store",
         signal: internalController.signal,
