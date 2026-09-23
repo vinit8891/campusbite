@@ -13,6 +13,7 @@ import {
   verifyDeliveryOTP,
   type MyDeliveriesQuery,
 } from "@/services/deliveryService";
+import { recordDeliveredOrderCash } from "@/services/deliveryPartnerService";
 import type { DeliveryOrder } from "@/types";
 
 export const DELIVERY_STATUS_OPTIONS = [
@@ -189,6 +190,17 @@ export function useDeliveryOrders() {
       // 2. Call backend API
       await updateDeliveryOrderStatus(id, nextStatus);
 
+      // Record COD collection & wages into CIH ledger if status is Delivered
+      if (nextStatus === "Delivered") {
+        const deliveredOrder = orders.find(
+          (o) => o._id === id || (o as { id?: string }).id === id
+        );
+        if (deliveredOrder) {
+          const partner = getDeliveryPartnerSession();
+          recordDeliveredOrderCash(deliveredOrder, partner?.phone);
+        }
+      }
+
       // 3. Trigger global sync and refetch to guarantee persistence
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("delivery_state_changed"));
@@ -216,6 +228,15 @@ export function useDeliveryOrders() {
       setOtpError("");
 
       await verifyDeliveryOTP(otpOrderId, Number(otp));
+
+      // Record COD collection & rider wages upon OTP verification
+      const deliveredOrder = orders.find(
+        (o) => o._id === otpOrderId || (o as { id?: string }).id === otpOrderId
+      );
+      if (deliveredOrder) {
+        const partner = getDeliveryPartnerSession();
+        recordDeliveredOrderCash(deliveredOrder, partner?.phone);
+      }
 
       setOtp("");
       setOtpOrderId(null);

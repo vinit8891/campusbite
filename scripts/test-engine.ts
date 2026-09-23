@@ -4,6 +4,10 @@ import {
   getCalibratedAppPrice,
   CartItemInput,
 } from '../src/lib/pricingEngine';
+import {
+  calculateOrderPricing,
+  RIDER_BASE_PAYOUT,
+} from '../src/lib/orderPricing';
 
 function runTests() {
   console.log('====================================================');
@@ -164,6 +168,46 @@ function runTests() {
     cod4.roundedTotal === 80 && cod4.roundOff === 0.00,
     'COD exact whole rupee: ₹80.00 -> ₹80 (roundOff: 0)',
     `Received: roundedTotal=${cod4.roundedTotal}, roundOff=${cod4.roundOff}`
+  );
+  console.log('');
+
+  // --- Test 6: Flat ₹20 Rider Base Payout & Tip Tracking ---
+  console.log('--- Test 6: Flat ₹20 Rider Payout & Tip Validation ---');
+  const orderPricingNoTip = calculateOrderPricing(
+    [{ price: 42, quantity: 1 }],
+    'HOSTEL_BATCH',
+    0,
+    'COD'
+  );
+  assert(
+    orderPricingNoTip.delivery_partner_earning === 20.00,
+    'Rider Flat Base Payout is ₹20.00 (without tip)',
+    `Expected: 20.00, Received: ${orderPricingNoTip.delivery_partner_earning}`
+  );
+
+  const orderPricingWithTip = calculateOrderPricing(
+    [{ price: 42, quantity: 1 }],
+    'HOSTEL_BATCH',
+    10.00,
+    'COD'
+  );
+  assert(
+    orderPricingWithTip.delivery_partner_earning === 30.00,
+    'Rider Flat Base Payout with ₹10 tip is ₹30.00 (₹20 base + ₹10 tip)',
+    `Expected: 30.00, Received: ${orderPricingWithTip.delivery_partner_earning}`
+  );
+  console.log('');
+
+  // --- Test 7: Cash-in-Hand (CIH) Reconciliation Arithmetic ---
+  console.log('--- Test 7: Cash-in-Hand (CIH) Reconciliation Ledger ---');
+  const collectedCodCash = 64.00; // e.g. Poha COD total
+  const riderPayout = RIDER_BASE_PAYOUT; // ₹20 flat
+  const netDue = Number((collectedCodCash - riderPayout).toFixed(2));
+
+  assert(
+    netDue === 44.00,
+    'Net Due to CampusBite is ₹44.00 (₹64 cash collected - ₹20 wage earned)',
+    `Expected: 44.00, Received: ${netDue}`
   );
   console.log('');
 

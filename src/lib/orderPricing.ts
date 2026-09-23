@@ -10,7 +10,8 @@ export const DELIVERY_FEE_STANDARD = 40.00;
 export const BUDGET_MEAL_COMMISSION_RATE = 0.05;
 export const STANDARD_COMMISSION_RATE = 0.10;
 export const ONLINE_PG_FEE_RATE = 0.0236;
-export const DELIVERY_PARTNER_SHARE_RATE = 0.85;
+export const RIDER_BASE_PAYOUT = 20.00; // Flat ₹20 per fulfilled order
+export const DELIVERY_PARTNER_SHARE_RATE = 0.85; // Legacy / reference rate
 
 export type DeliveryType = "HOSTEL_BATCH" | "STANDARD";
 
@@ -39,7 +40,7 @@ export interface OrderPricingBreakdown {
 
 /**
  * Calculates complete order pricing including statutory GST, platform tech fee,
- * batch/standard delivery fees, rider tips, and partner splits.
+ * batch/standard delivery fees, flat rider payout (₹20), tips, and partner splits.
  */
 export function calculateOrderPricing(
   items: PricingItem[],
@@ -91,8 +92,9 @@ export function calculateOrderPricing(
     (food_subtotal + restaurant_gst - commission_amount).toFixed(2)
   );
 
+  // Flat ₹20 Base Payout + 100% Customer Tip for Courier
   const delivery_partner_earning = Number(
-    (Number((delivery_fee * DELIVERY_PARTNER_SHARE_RATE).toFixed(2)) + valid_tip).toFixed(2)
+    (RIDER_BASE_PAYOUT + valid_tip).toFixed(2)
   );
 
   const net_platform_profit = Number(

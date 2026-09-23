@@ -12,8 +12,16 @@ export type DeliveryPartner = {
   vehicle_number?: string;
   latitude?: number | null;
   longitude?: number | null;
+  cash_in_hand?: number;
+  total_payout_earned?: number;
+  net_cash_due?: number;
 };
 
+export type RiderCashReconciliation = {
+  cash_in_hand: number;
+  total_payout_earned: number;
+  net_cash_due: number;
+};
 
 export type DeliveryPartnerProfile = {
   id: string;
@@ -25,6 +33,9 @@ export type DeliveryPartnerProfile = {
   vehicle_number: string;
   profile_image?: string;
   online: boolean;
+  cash_in_hand?: number;
+  total_payout_earned?: number;
+  net_cash_due?: number;
   created_at?: string;
 };
 
@@ -35,6 +46,9 @@ export type DeliveryPartnerInfo = {
   phone: string;
   vehicle: string;
   vehicle_number: string;
+  cash_in_hand?: number;
+  total_payout_earned?: number;
+  net_cash_due?: number;
 };
 
 export type DeliveryLoginResponse = {
@@ -69,6 +83,9 @@ export type DeliveryOrder = {
   payment_status?: string;
   total?: number;
   status?: string;
+  cash_in_hand?: number;
+  total_payout_earned?: number;
+  net_cash_due?: number;
   items?: Array<{
     id?: number | string;
     name?: string;
@@ -84,6 +101,9 @@ export type DeliveryOrder = {
     accepted_at?: string;
     phone?: string;
     name?: string;
+    cash_in_hand?: number;
+    total_payout_earned?: number;
+    net_cash_due?: number;
   };
 };
 
@@ -117,6 +137,9 @@ export type DeliveryDashboardStats = {
   total_deliveries?: number;
   deliveries_this_week?: number;
   deliveries_this_month?: number;
+  cash_in_hand?: number;
+  total_payout_earned?: number;
+  net_cash_due?: number;
   recent_assigned_orders?: DeliveryDashboardOrder[];
 };
 
