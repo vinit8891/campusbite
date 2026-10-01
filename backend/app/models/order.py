@@ -10,10 +10,23 @@ order_collection = database["orders"]
 
 
 def get_object_id(order_id: str):
-    try:
-        return ObjectId(order_id)
-    except InvalidId:
+    if not order_id:
         return None
+    try:
+        return ObjectId(str(order_id).strip())
+    except (InvalidId, TypeError, ValueError):
+        return None
+
+
+def get_order_query(order_id: str) -> dict:
+    if not order_id:
+        return {"_id": None}
+    raw = str(order_id).strip()
+    try:
+        oid = ObjectId(raw)
+        return {"$or": [{"_id": oid}, {"_id": raw}, {"id": raw}]}
+    except (InvalidId, TypeError, ValueError, Exception):
+        return {"$or": [{"_id": raw}, {"id": raw}]}
 
 
 def parse_date_bound(value: str | None, *, end_of_day: bool = False) -> datetime | None:
@@ -108,12 +121,10 @@ async def get_last_subscription_order_for_customer(customer_email: str) -> dict 
 
 
 async def get_order_by_id(order_id: str):
-    oid = get_object_id(order_id)
-
-    if not oid:
+    if not order_id:
         return None
 
-    order = await order_collection.find_one({"_id": oid})
+    order = await order_collection.find_one(get_order_query(order_id))
 
     if not order:
         return None
@@ -539,14 +550,18 @@ async def assign_delivery_partner(
     partner_phone: str,
     partner_vehicle: str = "",
 ):
-    oid = get_object_id(order_id)
-
-    if not oid:
+    if not order_id:
         return False
+
+    order = await order_collection.find_one(get_order_query(order_id))
+    if not order:
+        return False
+
+    db_id = order["_id"]
 
     result = await order_collection.update_one(
         {
-            "_id": oid,
+            "_id": db_id,
             "status": "Ready for Pickup",
             "$or": [
                 {"delivery_partner": {"$exists": False}},
@@ -568,7 +583,7 @@ async def assign_delivery_partner(
         },
     )
 
-    return result.modified_count == 1
+    return result.modified_count == 1 or result.matched_count == 1
 
 
 def canonicalize_status(status: str | None) -> str:
@@ -688,16 +703,15 @@ async def update_order_status(
     status: str,
     delivery_partner=None,
 ):
-    oid = get_object_id(order_id)
-
-    if not oid:
+    if not order_id:
         return False
 
-    order = await order_collection.find_one({"_id": oid})
+    order = await order_collection.find_one(get_order_query(order_id))
 
     if not order:
         return False
 
+    db_id = order["_id"]
     current_status = str(order.get("status", "")).strip()
     canonical_current = canonicalize_status(current_status)
     canonical_target = canonicalize_status(status)
@@ -735,11 +749,11 @@ async def update_order_status(
         update_data["delivery_partner"] = delivery_partner
 
     result = await order_collection.update_one(
-        {"_id": oid},
+        {"_id": db_id},
         {"$set": update_data},
     )
 
-    return result.matched_count > 0
+    return result.matched_count > 0 or result.modified_count > 0
 
 
 async def update_delivery_location(
@@ -747,14 +761,18 @@ async def update_delivery_location(
     latitude: float,
     longitude: float,
 ):
-    oid = get_object_id(order_id)
-
-    if not oid:
+    if not order_id:
         return False
+
+    order = await order_collection.find_one(get_order_query(order_id))
+    if not order:
+        return False
+
+    db_id = order["_id"]
 
     result = await order_collection.update_one(
         {
-            "_id": oid,
+            "_id": db_id,
             "status": {
                 "$in": ["Assigned", "Picked Up", "Out for Delivery"]
             },
@@ -770,16 +788,14 @@ async def update_delivery_location(
         },
     )
 
-    return result.modified_count == 1
+    return result.modified_count == 1 or result.matched_count == 1
 
 
 async def get_delivery_location(order_id: str):
-    oid = get_object_id(order_id)
-
-    if not oid:
+    if not order_id:
         return None
 
-    order = await order_collection.find_one({"_id": oid})
+    order = await order_collection.find_one(get_order_query(order_id))
 
     if not order:
         return None
@@ -799,13 +815,11 @@ async def get_delivery_location(order_id: str):
 
 
 async def get_order_otp(order_id: str):
-    oid = get_object_id(order_id)
-
-    if not oid:
+    if not order_id:
         return None
 
     order = await order_collection.find_one(
-        {"_id": oid},
+        get_order_query(order_id),
         {
             "delivery_otp": 1,
             "otp_verified": 1,
@@ -828,16 +842,15 @@ async def get_order_otp(order_id: str):
 
 
 async def verify_delivery_otp(order_id: str, otp):
-    oid = get_object_id(order_id)
-
-    if not oid:
+    if not order_id:
         return False
 
-    order = await order_collection.find_one({"_id": oid})
+    order = await order_collection.find_one(get_order_query(order_id))
 
     if not order:
         return False
 
+    db_id = order["_id"]
     curr_status = order.get("status")
     allowed_otp_statuses = [
         "Assigned",
@@ -868,7 +881,7 @@ async def verify_delivery_otp(order_id: str, otp):
 
     if not stored_otp or stored_otp != entered_otp:
         await order_collection.update_one(
-            {"_id": oid},
+            {"_id": db_id},
             {"$inc": {"failed_otp_attempts": 1}},
         )
         return False
@@ -906,7 +919,7 @@ async def verify_delivery_otp(order_id: str, otp):
 
     result = await order_collection.update_one(
         {
-            "_id": oid,
+            "_id": db_id,
             "otp_verified": False,
         },
         {
@@ -917,7 +930,7 @@ async def verify_delivery_otp(order_id: str, otp):
         },
     )
 
-    return result.modified_count == 1
+    return result.modified_count == 1 or result.matched_count == 1
 
 
 async def emergency_deliver_order(
@@ -925,15 +938,15 @@ async def emergency_deliver_order(
     reason: str,
     actor_email: str = "",
 ):
-    oid = get_object_id(order_id)
-
-    if not oid:
+    if not order_id:
         return False
 
-    order = await order_collection.find_one({"_id": oid})
+    order = await order_collection.find_one(get_order_query(order_id))
 
     if not order:
         return False
+
+    db_id = order["_id"]
 
     if order.get("status") == "Delivered" or order.get("otp_verified"):
         return False
@@ -975,7 +988,7 @@ async def emergency_deliver_order(
         update_fields["paid_at"] = now
 
     result = await order_collection.update_one(
-        {"_id": oid},
+        {"_id": db_id},
         {
             "$set": update_fields,
             "$unset": {
@@ -984,4 +997,4 @@ async def emergency_deliver_order(
         },
     )
 
-    return result.modified_count == 1
+    return result.modified_count == 1 or result.matched_count == 1

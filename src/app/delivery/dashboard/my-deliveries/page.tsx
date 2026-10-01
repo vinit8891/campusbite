@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useDeliveryOrders } from "@/hooks/delivery/useDeliveryOrders";
 import { MyDeliveryCard } from "@/components/delivery/MyDeliveryCard";
 import { DeliveryOtpModal } from "@/components/delivery/DeliveryOtpModal";
@@ -7,6 +8,12 @@ import { EmptyState } from "@/components/common";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function MyDeliveriesPage() {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const {
     orders,
     loading,
@@ -20,6 +27,14 @@ export default function MyDeliveriesPage() {
     updateStatus,
     verifyOTP,
   } = useDeliveryOrders();
+
+  if (!isMounted) {
+    return (
+      <main className="p-8 text-center text-gray-400">
+        <div className="py-12">Loading deliveries...</div>
+      </main>
+    );
+  }
 
   if (loading) {
     return (

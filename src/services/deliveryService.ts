@@ -95,6 +95,50 @@ export function saveLocalDelivery(order: DeliveryOrder, phone?: string): void {
   } catch {}
 }
 
+// Local helper to find rich order data across all storage layers
+export function findRichOrder(orderId: string): DeliveryOrder | null {
+  if (typeof window === "undefined" || !orderId) return null;
+  const tid = String(orderId).toLowerCase().trim();
+
+  // 1. Check inMemoryOrders
+  const mem = getInMemoryOrder(orderId) as unknown as DeliveryOrder;
+  if (mem && Array.isArray(mem.items) && mem.items.length > 0) {
+    return mem;
+  }
+
+  // 2. Check localStorage keys: cb_orders, orders, cb_accepted_deliveries, cb_last_order, cb_active_order
+  const storageKeys = [
+    "cb_orders",
+    "orders",
+    "cb_accepted_deliveries",
+    "cb_last_order",
+    "cb_active_order",
+  ];
+
+  for (const key of storageKeys) {
+    try {
+      const raw = localStorage.getItem(key);
+      if (!raw) continue;
+      const parsed = JSON.parse(raw);
+      const list = Array.isArray(parsed) ? parsed : [parsed];
+      for (const item of list) {
+        if (!item) continue;
+        const iId = String(item._id || item.id || "").toLowerCase().trim();
+        if (
+          iId === tid ||
+          (iId && (iId.includes(tid) || tid.includes(iId)))
+        ) {
+          if (Array.isArray(item.items) && item.items.length > 0) {
+            return item as DeliveryOrder;
+          }
+        }
+      }
+    } catch {}
+  }
+
+  return mem || null;
+}
+
 export async function getAvailableOrders(
   filters: AvailableOrdersQuery = {}
 ): Promise<Paginated<DeliveryOrder>> {
@@ -112,6 +156,13 @@ export async function getAvailableOrders(
       cache: "no-store",
     });
     const paginated = asPaginated<DeliveryOrder>(data);
+
+    // Cache available orders into inMemoryOrders so details are available on claim
+    for (const item of paginated.items) {
+      if (item._id && Array.isArray(item.items) && item.items.length > 0) {
+        saveInMemoryOrder(item as unknown as Order);
+      }
+    }
 
     // Filter out any orders that are already locally accepted/assigned
     const localAccepted = getLocalDeliveries();
@@ -170,16 +221,18 @@ export async function acceptDelivery(
       }
     );
 
-    // Synchronize local store with accepted order
+    // Synchronize local store with accepted order with rich metadata
     if (partner) {
-      const existing = getInMemoryOrder(orderId) as unknown as DeliveryOrder;
+      const rich = findRichOrder(orderId);
       const acceptedOrder: DeliveryOrder = {
-        ...(existing || {
+        ...(rich || {
           _id: orderId,
           total: 0,
         }),
         _id: orderId,
         status: "Assigned",
+        total: rich?.total ?? 0,
+        items: rich?.items ?? [],
         delivery_partner: {
           name: partner.name,
           phone: partner.phone,
@@ -209,14 +262,16 @@ export async function acceptDelivery(
         errorMsg.includes("Bad Request"))
     ) {
       if (partner) {
-        const existing = getInMemoryOrder(orderId) as unknown as DeliveryOrder;
+        const rich = findRichOrder(orderId);
         const acceptedOrder: DeliveryOrder = {
-          ...(existing || {
+          ...(rich || {
             _id: orderId,
             total: 0,
           }),
           _id: orderId,
           status: "Assigned",
+          total: rich?.total ?? 0,
+          items: rich?.items ?? [],
           delivery_partner: {
             name: partner.name,
             phone: partner.phone,
@@ -265,37 +320,68 @@ export async function getMyDeliveries(
     backendOrders = [];
   }
 
-  // Merge with locally accepted deliveries
+  // Merge with locally accepted deliveries and enrich with full batch metadata
   const localOrders = getLocalDeliveries(phone);
   const combinedMap = new Map<string, DeliveryOrder>();
 
   // Backend orders first
   for (const bo of backendOrders) {
     const id = bo._id || (bo as { id?: string }).id;
-    if (id) combinedMap.set(id, bo);
+    if (id) {
+      const rich = findRichOrder(id);
+      combinedMap.set(id, {
+        ...(rich || {}),
+        ...bo,
+        items: (bo.items && bo.items.length > 0) ? bo.items : (rich?.items || []),
+        total: bo.total || rich?.total || 0,
+      });
+    }
   }
 
   // Local orders override or supplement
   for (const lo of localOrders) {
     const id = lo._id || (lo as { id?: string }).id;
     if (id) {
+      const rich = findRichOrder(id);
+      const mergedLo: DeliveryOrder = {
+        ...(rich || {}),
+        ...lo,
+        items: (lo.items && lo.items.length > 0) ? lo.items : (rich?.items || []),
+        total: lo.total || rich?.total || 0,
+      };
+
       if (!combinedMap.has(id)) {
-        combinedMap.set(id, lo);
+        combinedMap.set(id, mergedLo);
       } else {
-        // If local order has active status, merge metadata
         const existing = combinedMap.get(id)!;
         if (
           ["Assigned", "Picked Up", "Out for Delivery", "Delivered"].includes(
-            lo.status || ""
+            mergedLo.status || ""
           )
         ) {
-          combinedMap.set(id, { ...existing, ...lo });
+          combinedMap.set(id, {
+            ...rich,
+            ...existing,
+            ...mergedLo,
+            items:
+              (existing.items && existing.items.length > 0)
+                ? existing.items
+                : (mergedLo.items || []),
+            total: existing.total || mergedLo.total || 0,
+          });
         }
       }
     }
   }
 
   let result = Array.from(combinedMap.values());
+
+  // Filter out any ghost/empty stub orders with no total and no items
+  result = result.filter((o) => {
+    const hasItems = Array.isArray(o.items) && o.items.length > 0;
+    const hasTotal = typeof o.total === "number" && o.total > 0;
+    return hasItems || hasTotal;
+  });
 
   // Apply filters if needed
   if (filters.status) {

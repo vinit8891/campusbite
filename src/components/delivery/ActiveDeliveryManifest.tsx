@@ -21,7 +21,7 @@ import {
 } from "@/lib/paymentLabels";
 import { getDirectionsUrl } from "@/lib/geolocation";
 import { useDeliveryOrders } from "@/hooks/delivery/useDeliveryOrders";
-import { saveLocalDelivery } from "@/services/deliveryService";
+import { saveLocalDelivery, findRichOrder } from "@/services/deliveryService";
 import type { DeliveryOrder } from "@/types";
 
 type ActiveDeliveryManifestProps = {
@@ -55,10 +55,39 @@ export function ActiveDeliveryManifest({
     }
   }, [order.status]);
 
+  // Enrich order from local storage layers if initial object is missing details
+  const rich = isMounted
+    ? findRichOrder(order._id || (order as { id?: string }).id || "")
+    : null;
+  const effectiveOrder: DeliveryOrder = {
+    ...(rich || {}),
+    ...order,
+    items:
+      order.items && order.items.length > 0
+        ? order.items
+        : rich?.items || [],
+    total: order.total || rich?.total || 0,
+    address: order.address || rich?.address || "",
+    customer_name: order.customer_name || rich?.customer_name || "",
+    phone: order.phone || rich?.phone || "",
+    restaurant_name:
+      order.restaurant_name || rich?.restaurant_name || "",
+    restaurant_email:
+      order.restaurant_email || rich?.restaurant_email || "",
+  };
+
   // Track checked items for canteen pickup validation
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
 
-  const effectiveStatus = localStatus || order.status || "";
+  if (!isMounted) {
+    return (
+      <div className="w-full max-w-full min-w-0 box-border rounded-3xl border border-stone-200/90 bg-white p-6 sm:p-8 text-center text-stone-400">
+        Loading delivery manifest...
+      </div>
+    );
+  }
+
+  const effectiveStatus = localStatus || effectiveOrder.status || "";
   const currentStatus = effectiveStatus
     .toLowerCase()
     .replace(/[-_]/g, " ")
@@ -72,7 +101,7 @@ export function ActiveDeliveryManifest({
   ].includes(currentStatus);
   const isDelivered = ["delivered", "completed"].includes(currentStatus);
 
-  const items = Array.isArray(order.items) ? order.items : [];
+  const items = Array.isArray(effectiveOrder.items) ? effectiveOrder.items : [];
   const totalItemsCount = items.length;
   const checkedCount = Object.values(checkedItems).filter(Boolean).length;
   const allItemsChecked = totalItemsCount > 0 && checkedCount >= totalItemsCount;
@@ -81,58 +110,59 @@ export function ActiveDeliveryManifest({
     setCheckedItems((prev) => ({ ...prev, [key]: !prev[key] }));
   }
 
-  const handleConfirmPickup = async () => {
-    const orderId = order._id || (order as { id?: string }).id;
+  const handleConfirmPickup = () => {
+    const orderId = effectiveOrder._id || (effectiveOrder as { id?: string }).id;
     if (!orderId) {
       toast.error("Invalid order ID");
       return;
     }
 
-    try {
-      setIsSubmitting(true);
-      // Immediately progress UI status locally to Picked Up
-      setLocalStatus("Picked Up");
+    // 1. Synchronous optimistic UI update (instant transition to drop-off / OTP view)
+    setLocalStatus("Picked Up");
+    toast.success("Items confirmed! Out for delivery.");
 
-      const partner =
-        typeof window !== "undefined"
-          ? JSON.parse(localStorage.getItem("cb_delivery_partner") || "null")
-          : null;
-      const updatedOrder = {
-        ...order,
-        _id: orderId,
-        status: "Picked Up",
-      };
-      saveLocalDelivery(updatedOrder, partner?.phone);
+    // 2. Persist local state across storage layers immediately
+    const partner =
+      typeof window !== "undefined"
+        ? JSON.parse(localStorage.getItem("cb_delivery_partner") || "null")
+        : null;
+    const updatedOrder = {
+      ...effectiveOrder,
+      _id: orderId,
+      status: "Picked Up",
+    };
+    saveLocalDelivery(updatedOrder, partner?.phone);
 
-      if (typeof window !== "undefined") {
-        window.dispatchEvent(new Event("delivery_state_changed"));
-      }
-
-      // Trigger status update hook (guarantees local + backend sync)
-      await updateStatus(orderId, "Picked Up");
-
-      // Call optional parent callbacks if present
-      if (typeof onConfirmPickup === "function") await onConfirmPickup(orderId);
-      if (typeof onPickup === "function") await onPickup(orderId);
-      if (typeof onUpdateStatus === "function") await onUpdateStatus(orderId, "Picked Up");
-
-      toast.success("Items confirmed! Out for delivery.");
-    } catch (err: unknown) {
-      console.warn("Pickup local fallback progression handled:", err);
-      toast.success("Items confirmed! Out for delivery.");
-    } finally {
-      setIsSubmitting(false);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("delivery_state_changed"));
     }
+
+    // 3. Parent callbacks
+    if (typeof onConfirmPickup === "function") void onConfirmPickup(orderId);
+    if (typeof onPickup === "function") void onPickup(orderId);
+    if (typeof onUpdateStatus === "function") void onUpdateStatus(orderId, "Picked Up");
+
+    // 4. Background network calls (fire & forget, non-blocking)
+    void (async () => {
+      try {
+        setIsSubmitting(true);
+        await updateStatus(orderId, "Picked Up");
+      } catch (err) {
+        console.debug("Background pickup update handled silently:", err);
+      } finally {
+        setIsSubmitting(false);
+      }
+    })();
   };
 
   const canteenName = formatRestaurantName(
-    order.restaurant_name || order.restaurant_email
+    effectiveOrder.restaurant_name || effectiveOrder.restaurant_email
   );
 
   const mapUrl = getDirectionsUrl(
-    order.latitude,
-    order.longitude,
-    order.address
+    effectiveOrder.latitude,
+    effectiveOrder.longitude,
+    effectiveOrder.address
   );
 
   return (
@@ -142,9 +172,9 @@ export function ActiveDeliveryManifest({
         <div className="min-w-0 max-w-full flex-1">
           <div className="flex items-center gap-2">
             <span className="font-mono text-xs font-bold text-stone-500 bg-stone-100 px-2.5 py-0.5 rounded-md">
-              Order #{shortId(order._id)}
+              Order #{shortId(effectiveOrder._id)}
             </span>
-            <OrderStatusBadge status={order.status} size="sm" />
+            <OrderStatusBadge status={effectiveOrder.status} size="sm" />
           </div>
 
           <h2 className="text-xl sm:text-2xl font-black text-stone-900 tracking-tight pt-1.5 flex items-center gap-2 truncate">
@@ -158,7 +188,7 @@ export function ActiveDeliveryManifest({
           >
             <Clock3 size={13} className="text-stone-400 shrink-0" />
             <span suppressHydrationWarning>
-              Assigned at {formatDateTime(order.created_at)}
+              Assigned at {formatDateTime(effectiveOrder.created_at)}
             </span>
           </p>
         </div>
@@ -169,16 +199,16 @@ export function ActiveDeliveryManifest({
           </span>
           <div className="flex items-center justify-end text-2xl sm:text-3xl font-black text-stone-900">
             <IndianRupee size={22} className="text-stone-400" />
-            <span>{order.total ?? 0}</span>
+            <span>{effectiveOrder.total ?? 0}</span>
           </div>
           <div className="flex items-center justify-end gap-1.5 text-xs font-bold text-emerald-800">
-            <span>{formatPaymentMethod(order.payment_method)}</span>
+            <span>{formatPaymentMethod(effectiveOrder.payment_method)}</span>
             <span>•</span>
             <span>
               {formatPaymentStatus(
-                order.payment_status,
-                order.payment_method,
-                order.status
+                effectiveOrder.payment_status,
+                effectiveOrder.payment_method,
+                effectiveOrder.status
               )}
             </span>
           </div>
@@ -324,10 +354,6 @@ export function ActiveDeliveryManifest({
                 disabled={isSubmitting}
                 onClick={(e) => {
                   e.stopPropagation();
-                  console.log(
-                    "Pickup button tapped for order:",
-                    order._id || (order as { id?: string }).id
-                  );
                   void handleConfirmPickup();
                 }}
                 className="relative z-10 w-full h-11 rounded-xl bg-orange-600 hover:bg-orange-700 active:bg-orange-800 text-white font-extrabold text-xs sm:text-sm shadow-xs active:scale-[0.98] select-none cursor-pointer transition-all flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
@@ -355,39 +381,39 @@ export function ActiveDeliveryManifest({
           <div className="flex items-center justify-between">
             <p className="flex items-center gap-2 font-bold text-stone-900 text-sm sm:text-base">
               <User size={16} className="text-stone-400" />
-              <span>{order.customer_name || "Student Customer"}</span>
+              <span>{effectiveOrder.customer_name || "Student Customer"}</span>
             </p>
 
-            {order.phone && (
+            {effectiveOrder.phone && (
               <a
-                href={`tel:${order.phone}`}
+                href={`tel:${effectiveOrder.phone}`}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-emerald-300 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-800 hover:bg-emerald-100 transition-colors cursor-pointer select-none"
               >
                 <Phone size={13} />
-                <span>Call {order.phone}</span>
+                <span>Call {effectiveOrder.phone}</span>
               </a>
             )}
           </div>
 
           <div className="rounded-xl bg-white border border-stone-200 p-3 space-y-1">
             <p className="font-bold text-stone-900 text-sm">
-              📍 {order.address || "Campus Hostel Drop Location"}
+              📍 {effectiveOrder.address || "Campus Hostel Drop Location"}
             </p>
-            {order.customer_email && (
+            {effectiveOrder.customer_email && (
               <p className="text-xs text-stone-500">
-                Email: {order.customer_email}
+                Email: {effectiveOrder.customer_email}
               </p>
             )}
           </div>
 
           {/* COD Cash Collection Indicator */}
-          {formatPaymentMethod(order.payment_method).toLowerCase().includes("cod") && (
+          {formatPaymentMethod(effectiveOrder.payment_method).toLowerCase().includes("cod") && (
             <div className="flex items-center justify-between rounded-xl bg-amber-500/10 border border-amber-300 p-3 text-xs sm:text-sm font-bold text-amber-900">
               <span className="flex items-center gap-1.5">
                 <IndianRupee size={16} className="text-amber-700" />
                 <span>Cash to Collect on Delivery:</span>
               </span>
-              <span className="text-base font-black text-amber-950">₹{order.total ?? 0}</span>
+              <span className="text-base font-black text-amber-950">₹{effectiveOrder.total ?? 0}</span>
             </div>
           )}
 
@@ -410,7 +436,7 @@ export function ActiveDeliveryManifest({
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                const orderId = order._id || (order as { id?: string }).id;
+                const orderId = effectiveOrder._id || (effectiveOrder as { id?: string }).id;
                 if (orderId && typeof onOpenOtp === "function") {
                   onOpenOtp(orderId);
                 }

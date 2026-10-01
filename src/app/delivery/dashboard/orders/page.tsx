@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { Package } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/common";
@@ -21,6 +22,12 @@ function OrdersSkeleton() {
 }
 
 export default function DeliveryOrdersPage() {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const {
     orders,
     loading,
@@ -42,6 +49,14 @@ export default function DeliveryOrdersPage() {
     verifyOTP,
     handleSearchSubmit,
   } = useDeliveryOrders();
+
+  if (!isMounted) {
+    return (
+      <div className="p-6 text-center text-gray-400">
+        <OrdersSkeleton />
+      </div>
+    );
+  }
 
   return (
     <>
