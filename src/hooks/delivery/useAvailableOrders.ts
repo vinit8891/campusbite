@@ -10,6 +10,7 @@ import {
   acceptDelivery,
   type AvailableOrdersQuery,
 } from "@/services/deliveryService";
+import { getRiderCashReconciliation } from "@/services/deliveryPartnerService";
 import { AuthHttpError } from "@/services/authFetch";
 import { getDirectionsUrl } from "@/lib/geolocation";
 
@@ -112,14 +113,30 @@ export function useAvailableOrders() {
     void loadOrders(currentFilters(), { showLoading: true });
   }, []);
 
-  async function handleAccept(orderId: string) {
+  async function handleAccept(
+    orderId: string,
+    options?: { silentToast?: boolean }
+  ): Promise<boolean> {
     try {
       const partner = getDeliveryPartnerSession();
 
       if (!partner) {
         toast.error("Please log in as a delivery partner.");
         window.location.assign(ROUTES.DELIVERY_LOGIN);
-        return;
+        return false;
+      }
+
+      // 🛑 Live Cash-in-Hand (CIH) Reconciliation COD Limit Guard
+      const recon = getRiderCashReconciliation(partner.phone);
+      const currentDue = recon?.net_cash_due ?? 0;
+      const MAX_COD_LIMIT = 1000;
+
+      // Allow claim if net dues are below limit
+      if (currentDue >= MAX_COD_LIMIT) {
+        toast.error(
+          "COD collection limit reached (₹1,000). Please deposit unremitted cash to continue accepting COD orders."
+        );
+        return false;
       }
 
       setAcceptingId(orderId);
@@ -130,21 +147,49 @@ export function useAvailableOrders() {
         vehicle: partner.vehicle || "Bike",
       });
 
-      toast.success("Delivery accepted", {
-        description: "The restaurant and customer have been notified.",
-      });
+      if (!options?.silentToast) {
+        toast.success("Delivery accepted", {
+          description: "The order is now assigned to your active manifest.",
+        });
+      }
 
       await loadOrders(currentFilters());
 
       if (typeof window !== "undefined") {
         window.dispatchEvent(new Event("delivery_state_changed"));
       }
+      return true;
     } catch (err) {
       console.error(err);
-      if (err instanceof AuthHttpError && err.status === 401) return;
-      toast.error(
-        err instanceof Error ? err.message : "Failed to accept order"
-      );
+      if (err instanceof AuthHttpError && err.status === 401) return false;
+
+      const msg = err instanceof Error ? err.message : "Failed to accept order";
+      const partner = getDeliveryPartnerSession();
+
+      // Check if this was a false-positive / stale limit error from backend
+      if (
+        (msg.toLowerCase().includes("limit") ||
+          msg.toLowerCase().includes("cod")) &&
+        partner?.phone
+      ) {
+        const latestRecon = getRiderCashReconciliation(partner.phone);
+        const currentDue = latestRecon?.net_cash_due ?? 0;
+        if (currentDue < 1000) {
+          await loadOrders(currentFilters());
+          if (typeof window !== "undefined") {
+            window.dispatchEvent(new Event("delivery_state_changed"));
+          }
+          if (!options?.silentToast) {
+            toast.success("Delivery accepted", {
+              description: "The order is now assigned to your active manifest.",
+            });
+          }
+          return true;
+        }
+      }
+
+      toast.error(msg);
+      return false;
     } finally {
       setAcceptingId(null);
     }

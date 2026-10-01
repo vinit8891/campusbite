@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { Bike, Layers, ListFilter } from "lucide-react";
 import { toast } from "sonner";
 import { DeliveryPagination } from "@/components/delivery/DeliveryPagination";
@@ -10,6 +11,9 @@ import { useAvailableOrders } from "@/hooks/delivery/useAvailableOrders";
 import { AvailableOrdersFilterBar } from "@/components/delivery/AvailableOrdersFilterBar";
 import { AvailableOrderCard } from "@/components/delivery/AvailableOrderCard";
 import { BatchOrderGroupCard, type BatchGroup } from "@/components/delivery/BatchOrderGroupCard";
+import { getDeliveryPartnerSession } from "@/lib/authTokens";
+import { getRiderCashReconciliation } from "@/services/deliveryPartnerService";
+import { ROUTES } from "@/lib/routes";
 
 function OrdersSkeleton() {
   return (
@@ -38,6 +42,7 @@ function extractBuilding(address?: string): string {
 }
 
 export default function AvailableOrdersPage() {
+  const router = useRouter();
   const {
     orders,
     restaurantOptions,
@@ -94,14 +99,40 @@ export default function AvailableOrdersPage() {
 
   async function handleClaimBatch(orderIds: string[]) {
     if (!orderIds.length) return;
+
+    // Check COD limit once before batch claim
+    const partner = getDeliveryPartnerSession();
+    const recon = getRiderCashReconciliation(partner?.phone);
+    const currentDue = recon?.net_cash_due ?? 0;
+    const MAX_COD_LIMIT = 1000;
+
+    if (currentDue >= MAX_COD_LIMIT) {
+      toast.error(
+        "COD collection limit reached (₹1,000). Please deposit unremitted cash to continue accepting COD orders."
+      );
+      return;
+    }
+
     setClaimingBatchIds(orderIds);
     try {
+      let successCount = 0;
       for (const id of orderIds) {
-        await handleAccept(id);
+        const ok = await handleAccept(id, { silentToast: true });
+        if (ok) successCount++;
       }
-      toast.success(
-        `⚡ Batch claimed! ${orderIds.length} orders added to your active manifest.`
-      );
+
+      if (successCount > 0) {
+        toast.success(
+          `⚡ Batch claimed! ${successCount} orders added to your active manifest.`,
+          {
+            description: "The orders are now Assigned in your runs.",
+            action: {
+              label: "View Runs",
+              onClick: () => router.push(ROUTES.DELIVERY_ORDERS),
+            },
+          }
+        );
+      }
     } catch {
       toast.error("Failed to claim some orders in this batch.");
     } finally {
