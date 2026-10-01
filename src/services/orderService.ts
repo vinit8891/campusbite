@@ -273,4 +273,10 @@ export async function getDeliveryLocation(orderId: string): Promise<TrackingLoca
 }
 
 export { deleteAdminOrder } from "@/services/adminService";
+export {
+  updateDeliveryOrderStatus,
+  updateOrderStatus,
+} from "@/services/deliveryService";
+
+
 

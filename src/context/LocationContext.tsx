@@ -538,7 +538,7 @@ export function LocationProvider({ children }: { children: ReactNode }) {
           toast.info("GPS unavailable: Set to Hostel Block A");
           resolve(fallbackAddr);
         },
-        { enableHighAccuracy: true, timeout: 8000, maximumAge: 10000 }
+        { enableHighAccuracy: false, timeout: 10000, maximumAge: 30000 }
       );
     });
   }, [activeAddress.roomOrFlat, setActiveAddress]);

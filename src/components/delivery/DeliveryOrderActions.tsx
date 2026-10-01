@@ -11,6 +11,8 @@ export function DeliveryOrderActions({
   onUpdateStatus,
   onOpenOtp,
 }: DeliveryOrderActionsProps) {
+  const orderId = order._id || (order as { id?: string }).id || "";
+
   return (
     <div className="flex flex-wrap gap-3">
       <button
@@ -18,8 +20,7 @@ export function DeliveryOrderActions({
         disabled={order.status !== "Assigned"}
         onClick={(e) => {
           e.stopPropagation();
-          console.log("Pickup button tapped for order:", order._id);
-          onUpdateStatus(order._id, "Picked Up");
+          onUpdateStatus(orderId, "Picked Up");
         }}
         className="relative z-10 rounded-lg bg-orange-600 hover:bg-orange-700 active:bg-orange-800 px-4 py-2 text-white font-bold text-xs select-none cursor-pointer active:scale-[0.98] transition-all disabled:cursor-not-allowed disabled:opacity-40"
       >
@@ -31,7 +32,7 @@ export function DeliveryOrderActions({
         disabled={order.status !== "Picked Up"}
         onClick={(e) => {
           e.stopPropagation();
-          onUpdateStatus(order._id, "Out for Delivery");
+          onUpdateStatus(orderId, "Out for Delivery");
         }}
         className="relative z-10 rounded-lg bg-blue-600 hover:bg-blue-700 active:bg-blue-800 px-4 py-2 text-white font-bold text-xs select-none cursor-pointer active:scale-[0.98] transition-all disabled:cursor-not-allowed disabled:opacity-40"
       >
@@ -43,7 +44,7 @@ export function DeliveryOrderActions({
         disabled={order.status !== "Out for Delivery"}
         onClick={(e) => {
           e.stopPropagation();
-          onOpenOtp(order._id);
+          onOpenOtp(orderId);
         }}
         className="relative z-10 rounded-lg bg-green-600 hover:bg-green-700 active:bg-green-800 px-4 py-2 text-white font-bold text-xs select-none cursor-pointer active:scale-[0.98] transition-all disabled:cursor-not-allowed disabled:opacity-40"
       >

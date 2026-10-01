@@ -991,6 +991,42 @@ async def fetch_order(
     return _public_order(order)
 
 
+@router.put("/{order_id}/status")
+@router.patch("/{order_id}")
+@router.patch("/{order_id}/status")
+async def update_status_body(
+    order_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: Annotated[
+        dict,
+        Depends(
+            require_roles(
+                RESTAURANT_OWNER,
+                DELIVERY_PARTNER,
+                ADMIN,
+            )
+        ),
+    ],
+    body: dict = Body(...),
+):
+    status = (
+        body.get("status")
+        or body.get("delivery_status")
+        or body.get("next_status")
+    )
+    if not status:
+        raise HTTPException(
+            status_code=400,
+            detail="Status field is required in request body",
+        )
+    return await change_status(
+        order_id=order_id,
+        status=str(status),
+        background_tasks=background_tasks,
+        current_user=current_user,
+    )
+
+
 @router.put("/{order_id}/{status}")
 async def change_status(
     order_id: str,
