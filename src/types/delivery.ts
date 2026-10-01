@@ -101,6 +101,7 @@ export type DeliveryOrder = {
     accepted_at?: string;
     phone?: string;
     name?: string;
+    vehicle?: string;
     cash_in_hand?: number;
     total_payout_earned?: number;
     net_cash_due?: number;

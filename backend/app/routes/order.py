@@ -568,7 +568,7 @@ async def accept_delivery(
             detail="Active delivery limit reached (max 3 runs). Complete current orders before accepting new ones.",
         )
 
-    # Rider COD floating balance guard: ceiling at ₹1,000
+    # Rider COD floating balance guard: ceiling at ₹1,000 net dues
     is_cod_order = (
         _is_cod_method(target_order.get("payment_method"))
         or str(target_order.get("payment_method", "")).lower() == "cod"
@@ -578,7 +578,18 @@ async def accept_delivery(
         unremitted_balance = float(
             (partner_doc or {}).get("unremitted_cod_balance") or 0.0
         )
-        if unremitted_balance >= RIDER_COD_BALANCE_CEILING:
+        total_payout_earned = float(
+            (partner_doc or {}).get("total_payout_earned")
+            or (partner_doc or {}).get("earnings")
+            or 0.0
+        )
+        total_remitted = float(
+            (partner_doc or {}).get("total_remitted") or 0.0
+        )
+        net_cash_due = max(
+            0.0, unremitted_balance - total_payout_earned - total_remitted
+        )
+        if net_cash_due >= RIDER_COD_BALANCE_CEILING:
             raise HTTPException(
                 status_code=400,
                 detail="COD collection limit reached (₹1,000). Please deposit unremitted cash to continue accepting COD orders.",
