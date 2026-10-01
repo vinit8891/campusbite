@@ -257,6 +257,7 @@ export function middleware(request: NextRequest) {
 
   if (
     (pathname.startsWith(ROUTES.DELIVERY_DASHBOARD) ||
+      pathname.startsWith(ROUTES.DELIVERY_EARNINGS) ||
       pathname.startsWith("/courier")) &&
     pathname !== ROUTES.DELIVERY_LOGIN &&
     pathname !== "/courier/login"
@@ -289,6 +290,8 @@ export const config = {
     "/admin/:path*",
     "/restaurant/dashboard/:path*",
     "/delivery/dashboard/:path*",
+    "/delivery/earnings/:path*",
+    "/delivery/earnings",
     "/courier/:path*",
     "/checkout/:path*",
     "/my-orders/:path*",

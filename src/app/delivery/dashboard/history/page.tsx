@@ -5,6 +5,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { DeliveryPagination } from "@/components/delivery/DeliveryPagination";
 import { EmptyState } from "@/components/common";
 import { useDeliveryHistory } from "@/hooks/delivery/useDeliveryHistory";
+import { DeliveryCashReconciliation } from "@/components/delivery/DeliveryCashReconciliation";
 import { DeliveryHistoryStatCards } from "@/components/delivery/DeliveryHistoryStatCards";
 import { DeliveryHistoryFilterBar } from "@/components/delivery/DeliveryHistoryFilterBar";
 import { DeliveryHistoryTableView } from "@/components/delivery/DeliveryHistoryTableView";
@@ -53,11 +54,20 @@ export default function DeliveryHistoryPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-4xl font-bold">Delivery History</h1>
-        <p className="mt-2 text-gray-500">
-          Review your completed deliveries.
+        <h1 className="text-3xl sm:text-4xl font-black text-stone-900 tracking-tight">
+          Delivery History & Earnings
+        </h1>
+        <p className="mt-1 text-sm text-stone-500">
+          Review your completed runs, track COD cash collected, and settle dues with CampusBite.
         </p>
       </div>
+
+      {/* 🎯 Cash-in-Hand (CIH) Reconciliation block at the VERY TOP of the screen */}
+      <DeliveryCashReconciliation
+        onRemitSuccess={() => {
+          void loadPage(currentFilters(), { showLoading: false });
+        }}
+      />
 
       {loading ? (
         <HistorySkeleton />

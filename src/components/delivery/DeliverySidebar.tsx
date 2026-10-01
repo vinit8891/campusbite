@@ -66,8 +66,8 @@ export function DeliverySidebar({
       badge: activeRunsCount,
     },
     {
-      name: "History & Earnings",
-      href: ROUTES.DELIVERY_HISTORY,
+      name: "Earnings & CIH",
+      href: ROUTES.DELIVERY_EARNINGS,
       icon: IndianRupee,
     },
     {
@@ -106,7 +106,10 @@ export function DeliverySidebar({
             const isActive =
               pathname === item.href ||
               (item.href !== ROUTES.DELIVERY_DASHBOARD &&
-                pathname.startsWith(item.href));
+                pathname.startsWith(item.href)) ||
+              (item.href === ROUTES.DELIVERY_EARNINGS &&
+                (pathname === ROUTES.DELIVERY_HISTORY ||
+                  pathname.startsWith(ROUTES.DELIVERY_HISTORY)));
             const Icon = item.icon;
 
             return (

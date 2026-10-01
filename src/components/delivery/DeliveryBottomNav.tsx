@@ -30,7 +30,7 @@ export function DeliveryBottomNav({
     },
     {
       label: "Earnings",
-      href: ROUTES.DELIVERY_HISTORY,
+      href: ROUTES.DELIVERY_EARNINGS,
       icon: "💰",
     },
     {
@@ -47,7 +47,11 @@ export function DeliveryBottomNav({
     >
       {tabs.map((tab) => {
         const isActive =
-          pathname === tab.href || pathname.startsWith(tab.href);
+          pathname === tab.href ||
+          pathname.startsWith(tab.href) ||
+          (tab.href === ROUTES.DELIVERY_EARNINGS &&
+            (pathname === ROUTES.DELIVERY_HISTORY ||
+              pathname.startsWith(ROUTES.DELIVERY_HISTORY)));
 
         return (
           <Link
