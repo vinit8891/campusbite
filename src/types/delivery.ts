@@ -148,7 +148,50 @@ export type AdminDeliveryPartner = {
   id: string;
   name: string;
   email: string;
+  phone?: string;
+  vehicle?: string;
+  vehicle_number?: string;
   status: string;
+  cash_in_hand?: number;
+  total_payout_earned?: number;
+  net_cash_due?: number;
+};
+
+export type RiderReconciliationItem = {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  vehicle?: string;
+  vehicle_number?: string;
+  status: string;
+  orders_delivered: number;
+  cash_collected: number;
+  wages_kept: number;
+  net_due: number;
+  remittance_status: "CLEAR" | "DUES_PENDING";
+};
+
+export type RiderReconciliationSummary = {
+  total_cash_collected: number;
+  total_wages_kept: number;
+  net_unremitted_dues: number;
+  riders: RiderReconciliationItem[];
+};
+
+export type CanteenDailySettlement = {
+  restaurant_email: string;
+  restaurant_name: string;
+  upi_id: string;
+  orders_count: number;
+  gross_food_sales: number;
+  commission_deducted: number;
+  net_payable_subtotal: number;
+  status: "Settled" | "Pending";
+  settled_at?: string;
+  settled_by?: string;
+  transaction_ref?: string;
+  settlement_date: string;
 };
 
 export type TrackingLocation = {
@@ -167,5 +210,6 @@ export type TrackingLocation = {
   customer_name?: string;
   customer_address?: string;
 };
+
 
 

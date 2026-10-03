@@ -179,14 +179,14 @@ export function AdminFinancialSummaryCards({
                 <div className="flex items-center gap-2 text-teal-800">
                   <Bike className="h-4 w-4 text-teal-600" />
                   <span className="text-xs font-semibold uppercase tracking-wider">
-                    Delivery Pool
+                    Delivery Pool (Rider Wages)
                   </span>
                 </div>
                 <p className="mt-2 text-2xl font-bold text-teal-700">
                   ₹{courierPayouts.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </p>
                 <p className="mt-1 text-xs text-teal-600/80">
-                  Rider delivery fees (batch & standard)
+                  Total rider wages earned (fulfilled × ₹20.00 + tips)
                 </p>
               </div>
 

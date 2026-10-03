@@ -293,11 +293,17 @@ async def get_admin_financial_analytics() -> dict:
             if order_total <= 0:
                 p_fee = 0.0
 
-        # Delivery fee
-        if doc.get("delivery_fee") is not None:
-            d_fee = float(doc.get("delivery_fee") or 0.0)
+        # Courier earnings (Canonical RIDER_BASE_PAYOUT = 20.00 + tips)
+        if doc.get("delivery_partner_earning") is not None:
+            courier_payout = float(doc.get("delivery_partner_earning") or 0.0)
+        elif doc.get("courier_earning") is not None:
+            courier_payout = float(doc.get("courier_earning") or 0.0)
+        elif doc.get("delivery_fee") is not None:
+            # Legacy fallback if explicitly provided in fixture/doc
+            courier_payout = float(doc.get("delivery_fee") or 0.0)
         else:
-            d_fee = 15.00 if order_total > 0 else 0.0
+            tip = float(doc.get("tip_amount") or doc.get("tip") or 0.0)
+            courier_payout = (20.00 + tip) if order_total > 0 else 0.0
 
         # GST (5%)
         if doc.get("restaurant_gst") is not None:
@@ -313,7 +319,7 @@ async def get_admin_financial_analytics() -> dict:
         total_revenue += order_total
         platform_earnings += p_fee + comm
         restaurant_settlements += settlement
-        courier_payouts += d_fee
+        courier_payouts += courier_payout
         gst_pool += gst
 
     average_order_value = (

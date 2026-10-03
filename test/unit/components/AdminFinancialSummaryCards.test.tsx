@@ -52,7 +52,7 @@ describe("AdminFinancialSummaryCards component", () => {
     expect(screen.getByText("Restaurant Subtotal Net")).toBeInTheDocument();
     expect(screen.getByText("₹9,320.50")).toBeInTheDocument();
 
-    expect(screen.getByText("Delivery Pool")).toBeInTheDocument();
+    expect(screen.getByText(/Delivery Pool/i)).toBeInTheDocument();
     expect(screen.getByText("₹1,275.00")).toBeInTheDocument();
 
     expect(screen.getByText("Statutory GST (5%)")).toBeInTheDocument();

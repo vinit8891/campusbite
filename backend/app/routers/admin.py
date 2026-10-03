@@ -502,3 +502,134 @@ async def delete_subscription(
 
     return {"success": True, "message": "Subscription deleted successfully"}
 
+
+@router.put("/riders/remit/{phone}")
+async def acknowledge_rider_remittance(
+    phone: str,
+    current_user: Annotated[dict, Depends(require_roles(ADMIN))],
+    payload: dict | None = None,
+):
+    """
+    Admin acknowledges / marks courier cash-in-hand remittance received.
+    Resets courier cash-in-hand to 0 or deducts remitted amount, clears dues, and logs audit action.
+    """
+    admin_email = (
+        current_user.get("email") or current_user.get("sub") or ""
+    ).strip().lower()
+
+    partner_doc = await database["delivery_partners"].find_one({"phone": phone})
+    amount_remitted = float(payload.get("amount") or 0.0) if payload else 0.0
+
+    if partner_doc:
+        current_cih = float(partner_doc.get("cash_in_hand") or 0.0)
+        remitted = amount_remitted if amount_remitted > 0 else current_cih
+        new_cih = max(0.0, current_cih - remitted)
+        total_payout = float(partner_doc.get("total_payout_earned") or 0.0)
+        new_due = max(0.0, new_cih - total_payout)
+
+        await database["delivery_partners"].update_one(
+            {"_id": partner_doc["_id"]},
+            {"$set": {"cash_in_hand": new_cih, "net_cash_due": new_due}},
+        )
+
+    await log_admin_action(
+        admin_email=admin_email,
+        action="acknowledge_rider_remittance",
+        resource="delivery_partners",
+        resource_id=phone,
+        metadata={"phone": phone, "amount_remitted": amount_remitted},
+    )
+
+    return {
+        "success": True,
+        "message": f"Remittance acknowledged for courier {phone}",
+        "phone": phone,
+    }
+
+
+@router.post("/canteen-settlements")
+async def record_canteen_settlement(
+    payload: dict,
+    current_user: Annotated[dict, Depends(require_roles(ADMIN))],
+):
+    """
+    Records a completed 9:00 PM consolidated UPI daily settlement for a canteen/restaurant.
+    """
+    import datetime
+
+    admin_email = (
+        current_user.get("email") or current_user.get("sub") or ""
+    ).strip().lower()
+
+    restaurant_email = payload.get("restaurant_email") or ""
+    restaurant_name = payload.get("restaurant_name") or ""
+    settlement_date = payload.get("settlement_date") or datetime.date.today().isoformat()
+    amount = float(payload.get("amount") or 0.0)
+    orders_count = int(payload.get("orders_count") or 0)
+    transaction_ref = payload.get("transaction_ref") or f"UPI/{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}"
+    upi_id = payload.get("upi_id") or ""
+
+    record = {
+        "restaurant_email": restaurant_email,
+        "restaurant_name": restaurant_name,
+        "settlement_date": settlement_date,
+        "amount": amount,
+        "orders_count": orders_count,
+        "transaction_ref": transaction_ref,
+        "upi_id": upi_id,
+        "settled_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "settled_by": admin_email,
+        "status": "Settled",
+    }
+
+    # Upsert daily settlement record
+    await database["canteen_settlements"].update_one(
+        {
+            "restaurant_email": restaurant_email,
+            "settlement_date": settlement_date,
+        },
+        {"$set": record},
+        upsert=True,
+    )
+
+    await log_admin_action(
+        admin_email=admin_email,
+        action="settle_canteen_daily_upi",
+        resource="canteen_settlements",
+        resource_id=restaurant_email,
+        metadata={
+            "restaurant_email": restaurant_email,
+            "amount": amount,
+            "transaction_ref": transaction_ref,
+            "settlement_date": settlement_date,
+        },
+    )
+
+    return {
+        "success": True,
+        "message": f"Settlement recorded for {restaurant_name or restaurant_email}",
+        "settlement": record,
+    }
+
+
+@router.get("/canteen-settlements")
+async def list_canteen_settlements(
+    _: Annotated[dict, Depends(require_roles(ADMIN))],
+    date: Annotated[str | None, Query()] = None,
+):
+    """
+    Lists canteen daily settlement records.
+    """
+    query = {}
+    if date:
+        query["settlement_date"] = date
+
+    cursor = database["canteen_settlements"].find(query).sort("settled_at", -1)
+    settlements = []
+    async for doc in cursor:
+        doc["_id"] = str(doc.get("_id", ""))
+        settlements.append(doc)
+
+    return {"settlements": settlements}
+
+
