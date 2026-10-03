@@ -152,7 +152,7 @@ export function OrderSummary({ order }: OrderSummaryProps) {
           {order.created_at && (
             <div>
               <span className="font-semibold text-gray-700">Ordered: </span>
-              <span>{new Date(order.created_at).toLocaleString()}</span>
+              <span suppressHydrationWarning>{new Date(order.created_at).toLocaleString()}</span>
             </div>
           )}
         </div>

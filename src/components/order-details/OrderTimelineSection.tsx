@@ -26,8 +26,9 @@ export function OrderTimelineSection({
 
       <div className="mt-8">
         {ORDER_STATUSES.map((status, index) => {
-          const completed = currentIndex > index;
-          const current = currentIndex === index;
+          const isDelivered = currentIndex >= ORDER_STATUSES.length - 1;
+          const completed = isDelivered || currentIndex > index;
+          const current = !isDelivered && currentIndex === index;
 
           return (
             <div

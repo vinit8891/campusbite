@@ -26,6 +26,7 @@ export function TrackOrderHeader({
         </Link>
 
         <span
+          suppressHydrationWarning
           className="text-xs font-medium text-gray-400"
           aria-live="polite"
         >

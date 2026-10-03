@@ -99,7 +99,7 @@ export function OrderCard({
             <p className="font-bold text-gray-900">
               {orderId ? orderId.slice(-8).toUpperCase() : "N/A"}
             </p>
-            <p className="mt-1 text-xs text-gray-500">
+            <p suppressHydrationWarning className="mt-1 text-xs text-gray-500">
               Placed {formatOrderDate(order.created_at)}
             </p>
           </div>

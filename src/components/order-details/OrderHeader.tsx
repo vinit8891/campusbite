@@ -51,7 +51,7 @@ export function OrderHeader({
               </h1>
 
               {order.created_at && (
-                <p className="mt-2 text-sm text-orange-100">
+                <p suppressHydrationWarning className="mt-2 text-sm text-orange-100">
                   {new Date(order.created_at).toLocaleString()}
                 </p>
               )}

@@ -20,16 +20,16 @@ export function DeliveryOrderActions({
         disabled={order.status !== "Assigned"}
         onClick={(e) => {
           e.stopPropagation();
-          onUpdateStatus(orderId, "Picked Up");
+          onUpdateStatus(orderId, "Out for Delivery");
         }}
         className="relative z-10 rounded-lg bg-orange-600 hover:bg-orange-700 active:bg-orange-800 px-4 py-2 text-white font-bold text-xs select-none cursor-pointer active:scale-[0.98] transition-all disabled:cursor-not-allowed disabled:opacity-40"
       >
-        📦 Picked Up
+        📦 Pick Up &amp; Transit
       </button>
 
       <button
         type="button"
-        disabled={order.status !== "Picked Up"}
+        disabled={order.status !== "Picked Up" && order.status !== "Assigned"}
         onClick={(e) => {
           e.stopPropagation();
           onUpdateStatus(orderId, "Out for Delivery");

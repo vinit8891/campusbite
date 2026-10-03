@@ -136,9 +136,9 @@ export function ActiveDeliveryManifest({
       return;
     }
 
-    // 1. Synchronous optimistic UI update (instant transition to drop-off / OTP view)
-    setLocalStatus("Picked Up");
-    toast.success("Items confirmed! Out for delivery.");
+    // 1. Synchronous optimistic UI update (transition directly to Out for Delivery)
+    setLocalStatus("Out for Delivery");
+    toast.success("Items confirmed! Out for delivery to hostel.");
 
     // 2. Persist local state across storage layers immediately
     const partner =
@@ -148,7 +148,7 @@ export function ActiveDeliveryManifest({
     const updatedOrder = {
       ...effectiveOrder,
       _id: orderId,
-      status: "Picked Up",
+      status: "Out for Delivery",
     };
     saveLocalDelivery(updatedOrder, partner?.phone);
 
@@ -159,13 +159,13 @@ export function ActiveDeliveryManifest({
     // 3. Parent callbacks
     if (typeof onConfirmPickup === "function") void onConfirmPickup(orderId);
     if (typeof onPickup === "function") void onPickup(orderId);
-    if (typeof onUpdateStatus === "function") void onUpdateStatus(orderId, "Picked Up");
+    if (typeof onUpdateStatus === "function") void onUpdateStatus(orderId, "Out for Delivery");
 
     // 4. Background network calls (fire & forget, non-blocking)
     void (async () => {
       try {
         setIsSubmitting(true);
-        await updateStatus(orderId, "Picked Up");
+        await updateStatus(orderId, "Out for Delivery");
       } catch (err) {
         console.debug("Background pickup update handled silently:", err);
       } finally {
@@ -257,7 +257,7 @@ export function ActiveDeliveryManifest({
           >
             <Clock3 size={13} className="text-stone-400 shrink-0" />
             <span suppressHydrationWarning>
-              Assigned at {formatDateTime(effectiveOrder.created_at)}
+              Assigned at {isMounted && effectiveOrder.created_at ? formatDateTime(effectiveOrder.created_at) : "recently"}
             </span>
           </p>
         </div>

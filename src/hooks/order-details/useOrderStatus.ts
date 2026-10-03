@@ -42,20 +42,34 @@ export function useOrderStatus(order: Order | null) {
     }
 
     const norm = normalizeOrderStatus(order.status);
-    const isPending = norm === "pending";
+    const isPending = norm === "pending" || norm === "placed";
     const isDelivered = norm === "delivered" || norm === "completed";
     const isCancelled = norm === "cancelled";
     const isRejected = norm === "rejected";
     const isPickedUp = norm === "picked up" || norm === "picked_up";
     const isOutForDelivery =
-      norm === "out for delivery" || norm === "out_for_delivery";
+      norm === "out for delivery" ||
+      norm === "out_for_delivery" ||
+      norm === "in transit" ||
+      norm === "in_transit" ||
+      norm === "on the way";
 
-    const flowLowercase = ORDER_STATUS_FLOW.map((item) =>
-      item.toLowerCase().trim()
-    );
-    const currentIndex = isDelivered
-      ? ORDER_STATUS_FLOW.length - 1
-      : flowLowercase.indexOf(norm.replace(/_/g, " "));
+    let currentIndex = 0;
+    if (isDelivered) {
+      currentIndex = ORDER_STATUSES.length - 1; // 7 (Delivered)
+    } else if (isPickedUp || isOutForDelivery) {
+      currentIndex = 6; // Out for Delivery (completes Picked Up index 5)
+    } else if (norm === "assigned") {
+      currentIndex = 4;
+    } else if (["ready", "ready for pickup", "ready_for_pickup"].includes(norm)) {
+      currentIndex = 3;
+    } else if (["preparing", "cooking", "in_prep", "in prep"].includes(norm)) {
+      currentIndex = 2;
+    } else if (norm === "accepted") {
+      currentIndex = 1;
+    } else {
+      currentIndex = 0;
+    }
 
     const isOrderActive = isActiveStatus(order.status) && !isDelivered;
     const showRestaurantMap =

@@ -225,11 +225,15 @@ export function isPickupStatus(status?: string | null): boolean {
 /** Returns the 0-based step index in the standard order progression, or -1 if unknown/terminal. */
 export function getOrderStatusIndex(status?: string | null): number {
   if (!status) return -1;
-  const s = normalizeOrderStatus(status);
-  const flowLowercase = ORDER_STATUS_FLOW.map((item) =>
-    item.toLowerCase().trim()
-  );
-  return flowLowercase.indexOf(s);
+  const s = normalizeOrderStatus(status).replace(/[-_]/g, " ");
+  if (s === "pending" || s === "placed") return 0;
+  if (s === "accepted") return 1;
+  if (["preparing", "cooking", "in prep"].includes(s)) return 2;
+  if (["ready", "ready for pickup"].includes(s)) return 3;
+  if (s === "assigned") return 4;
+  if (["picked up", "out for delivery", "in transit", "on the way"].includes(s)) return 6;
+  if (s === "delivered" || s === "completed") return 7;
+  return -1;
 }
 
 /** Validates whether given latitude and longitude coordinates are finite numeric values. */
