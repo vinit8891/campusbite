@@ -21,6 +21,9 @@ export type RiderCashReconciliation = {
   cash_in_hand: number;
   total_payout_earned: number;
   net_cash_due: number;
+  total_cod_collected?: number;
+  total_remitted?: number;
+  completed_deliveries?: number;
 };
 
 export type DeliveryPartnerProfile = {
