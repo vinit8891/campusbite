@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { ChefHat, ArrowRight, Bell, Sparkles } from "lucide-react";
+import { ChefHat, ArrowRight, Bell, Sparkles, Wallet } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRestaurantDashboard } from "@/hooks/restaurant/useRestaurantDashboard";
 import { DashboardMetricCards } from "@/components/restaurant/DashboardMetricCards";
@@ -119,6 +119,13 @@ export default function DashboardPage() {
                   {pendingCount}
                 </span>
               )}
+            </Link>
+            <Link
+              href={ROUTES.RESTAURANT_SETTLEMENTS}
+              className="inline-flex h-11 sm:h-12 w-full md:w-auto items-center justify-center gap-2 rounded-xl sm:rounded-2xl border border-amber-300/80 bg-white hover:bg-amber-50 active:scale-98 px-4 sm:px-5 text-xs sm:text-sm font-extrabold text-amber-900 shadow-xs transition-all cursor-pointer"
+            >
+              <Wallet className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600" />
+              <span>Settlements & Payouts 💳</span>
             </Link>
           </div>
         </div>

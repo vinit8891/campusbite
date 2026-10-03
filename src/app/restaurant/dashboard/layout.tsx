@@ -14,6 +14,7 @@ import {
   Store,
   ChevronRight,
   QrCode,
+  Wallet,
 } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 import {
@@ -126,6 +127,11 @@ export default function RestaurantDashboardLayout({
       icon: UtensilsCrossed,
     },
     {
+      label: "Settlements & Payouts",
+      href: ROUTES.RESTAURANT_SETTLEMENTS,
+      icon: Wallet,
+    },
+    {
       label: "Subscriptions",
       href: ROUTES.RESTAURANT_SUBSCRIPTIONS,
       icon: CalendarDays,
@@ -160,9 +166,9 @@ export default function RestaurantDashboardLayout({
       icon: "🍱",
     },
     {
-      label: "Earnings",
-      href: ROUTES.RESTAURANT_DASHBOARD,
-      icon: "📈",
+      label: "Payouts",
+      href: ROUTES.RESTAURANT_SETTLEMENTS,
+      icon: "💳",
     },
     {
       label: "Profile",
@@ -316,7 +322,7 @@ export default function RestaurantDashboardLayout({
         {mobileNavTabs.map((tab) => {
           const isActive =
             pathname === tab.href ||
-            (tab.href !== ROUTES.RESTAURANT_DASHBOARD &&
+            ((tab.href as string) !== ROUTES.RESTAURANT_DASHBOARD &&
               pathname.startsWith(tab.href));
 
           return (

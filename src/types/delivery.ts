@@ -195,7 +195,9 @@ export type CanteenDailySettlement = {
   orders_count: number;
   gross_food_sales: number;
   commission_deducted: number;
+  gst_amount?: number;
   net_payable_subtotal: number;
+  net_disbursed?: number;
   status: "Settled" | "Pending";
   settled_at?: string;
   settled_by?: string;

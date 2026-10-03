@@ -181,3 +181,41 @@ async def remove_restaurant(
     return {
         "message": "Restaurant deleted successfully"
     }
+
+
+@router.get("/settlements/my")
+@router.get("/settlements")
+async def fetch_restaurant_settlements(
+    current_user: Annotated[
+        dict, Depends(require_roles(ADMIN, RESTAURANT_OWNER))
+    ],
+    date: Annotated[str | None, Query()] = None,
+    restaurant_email: Annotated[str | None, Query()] = None,
+):
+    """
+    Fetches daily settlement records for a restaurant/canteen.
+    """
+    from app.core.database import database
+
+    role = current_user.get("role")
+    user_email = (
+        current_user.get("email") or current_user.get("sub") or ""
+    ).strip().lower()
+
+    query = {}
+    if role == RESTAURANT_OWNER:
+        query["restaurant_email"] = user_email
+    elif restaurant_email:
+        query["restaurant_email"] = restaurant_email.strip().lower()
+
+    if date:
+        query["settlement_date"] = date
+
+    cursor = database["canteen_settlements"].find(query).sort("settled_at", -1)
+    settlements = []
+    async for doc in cursor:
+        doc["_id"] = str(doc.get("_id", ""))
+        settlements.append(doc)
+
+    return {"settlements": settlements}
+
