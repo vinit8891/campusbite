@@ -65,6 +65,45 @@ describe("deliveryPartnerService rider earnings and CIH calculations", () => {
       expect(recon.net_cash_due).toBe(200);
     });
 
+    it("eliminates stale fractional legacy payout (e.g. 12.75 from 15*0.85) and enforces ₹20 flat", () => {
+      const phone = "9998887770";
+      // Simulate stale legacy cache with 12.75
+      localStorage.setItem(
+        `cb_cih_${phone}`,
+        JSON.stringify({
+          cash_in_hand: 0,
+          total_payout_earned: 12.75,
+          net_cash_due: 0,
+          completed_deliveries: 1,
+        })
+      );
+
+      const recon = getRiderCashReconciliation(phone);
+      // 1 completed delivery must be exactly ₹20.00, not ₹12.75
+      expect(recon.total_payout_earned).toBe(20.0);
+    });
+
+    it("dynamically recalculates wages from delivered runs and overwrites cache", () => {
+      const phone = "9998887770";
+      localStorage.setItem(
+        `cb_my_deliveries_${phone}`,
+        JSON.stringify([
+          { _id: "ord-1", status: "Delivered", total: 180, payment_method: "COD", tip_amount: 5 },
+          { _id: "ord-2", status: "Delivered", total: 120, payment_method: "ONLINE" },
+          { _id: "ord-3", status: "Assigned", total: 90, payment_method: "COD" }, // not delivered yet
+        ])
+      );
+
+      const recon = getRiderCashReconciliation(phone);
+      // 2 delivered runs = 2 * 20 + 5 tip = 45
+      expect(recon.completed_deliveries).toBe(2);
+      expect(recon.total_payout_earned).toBe(45.0);
+      // COD collected = 180 from ord-1
+      expect(recon.cash_in_hand).toBe(180.0);
+      // net_cash_due = Math.max(0, 180 - 45) = 135
+      expect(recon.net_cash_due).toBe(135.0);
+    });
+
     it("never returns negative net_cash_due when wages exceed collected cash", () => {
       localStorage.setItem(
         "cb_cih_9998887770",

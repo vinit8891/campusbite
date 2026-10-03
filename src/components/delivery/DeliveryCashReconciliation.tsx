@@ -45,14 +45,18 @@ export function DeliveryCashReconciliation({
   showViewOrdersLink = true,
   className = "",
 }: DeliveryCashReconciliationProps) {
-  const [partner, setPartner] = useState<DeliveryPartner | null>(() =>
-    getDeliveryPartnerSession()
+  const [isMounted, setIsMounted] = useState(false);
+  const [partner, setPartner] = useState<DeliveryPartner | null>(null);
+  const [cih, setCih] = useState<RiderCashReconciliation>(
+    initialCih || {
+      cash_in_hand: 0,
+      total_payout_earned: 0,
+      net_cash_due: 0,
+      total_cod_collected: 0,
+      total_remitted: 0,
+      completed_deliveries: 0,
+    }
   );
-  const [cih, setCih] = useState<RiderCashReconciliation>(() => {
-    if (initialCih) return initialCih;
-    const session = getDeliveryPartnerSession();
-    return getRiderCashReconciliation(session?.phone);
-  });
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   // Remittance Modal State
@@ -61,13 +65,17 @@ export function DeliveryCashReconciliation({
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [isSubmittingRemit, setIsSubmittingRemit] = useState(false);
 
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   const syncBalances = useCallback(async () => {
     try {
       const current = getDeliveryPartnerSession();
       if (current) setPartner(current);
       const phone = current?.phone;
 
-      // 1. Fetch local storage reconciliation
+      // 1. Fetch local storage reconciliation (forces dynamic re-scan & ₹20 recalculation)
       const localCih = getRiderCashReconciliation(phone);
       let nextCih = localCih;
 
@@ -85,6 +93,9 @@ export function DeliveryCashReconciliation({
               cash_in_hand: cash,
               total_payout_earned: wage,
               net_cash_due: stats.net_cash_due !== undefined ? Math.max(0, stats.net_cash_due) : Math.max(0, Number((cash - wage).toFixed(2))),
+              total_cod_collected: localCih.total_cod_collected,
+              total_remitted: localCih.total_remitted,
+              completed_deliveries: localCih.completed_deliveries,
             };
           }
         } catch {
@@ -105,6 +116,7 @@ export function DeliveryCashReconciliation({
   }, [initialCih]);
 
   useEffect(() => {
+    if (!isMounted) return;
     void syncBalances();
 
     if (typeof window !== "undefined") {
@@ -114,7 +126,16 @@ export function DeliveryCashReconciliation({
         window.removeEventListener("delivery_state_changed", handleSync);
       };
     }
-  }, [syncBalances]);
+  }, [isMounted, syncBalances]);
+
+  if (!isMounted) {
+    return (
+      <div className={`bg-neutral-900 rounded-3xl p-6 text-white text-center animate-pulse ${className}`}>
+        <div className="h-6 w-48 bg-neutral-800 rounded mx-auto mb-2"></div>
+        <div className="h-10 w-32 bg-neutral-800 rounded mx-auto"></div>
+      </div>
+    );
+  }
 
   function handleOpenRemitModal() {
     setRemitAmount(Math.max(0, cih.net_cash_due).toFixed(2));
@@ -237,7 +258,12 @@ export function DeliveryCashReconciliation({
             <button
               onClick={() => {
                 setIsRefreshing(true);
-                void syncBalances();
+                void syncBalances().then(() => {
+                  if (typeof window !== "undefined") {
+                    window.dispatchEvent(new Event("delivery_state_changed"));
+                  }
+                  toast.success("Reconciliation balances synced & refreshed!");
+                });
               }}
               disabled={isRefreshing}
               title="Refresh live reconciliation balances"
