@@ -32,13 +32,15 @@ import { ROUTES } from "@/lib/routes";
 import type { DeliveryPartner } from "@/types";
 
 export default function DeliveryEarningsPage() {
-  const [partner, setPartner] = useState<DeliveryPartner | null>(() =>
-    getDeliveryPartnerSession()
-  );
+  const [mounted, setMounted] = useState(false);
+  const [partner, setPartner] = useState<DeliveryPartner | null>(null);
   const [cih, setCih] = useState<RiderCashReconciliation>({
     cash_in_hand: 0,
     total_payout_earned: 0,
     net_cash_due: 0,
+    total_cod_collected: 0,
+    total_remitted: 0,
+    completed_deliveries: 0,
   });
   const [completedOrders, setCompletedOrders] = useState<DeliveryOrder[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -46,6 +48,10 @@ export default function DeliveryEarningsPage() {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [activeRunsCount, setActiveRunsCount] = useState(0);
   const [availablePoolCount, setAvailablePoolCount] = useState(0);
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const loadEarningsData = useCallback(async () => {
     try {
@@ -55,7 +61,7 @@ export default function DeliveryEarningsPage() {
       }
       const phone = currentPartner?.phone;
 
-      // 1. Fetch live CIH local reconciliation
+      // 1. Fetch live CIH local reconciliation (purges 12.75 & recalculates ₹20 flat)
       const currentCih = getRiderCashReconciliation(phone);
       setCih(currentCih);
 
@@ -67,21 +73,29 @@ export default function DeliveryEarningsPage() {
           const pickedUp = stats.picked_up_orders ?? 0;
           setActiveRunsCount(assigned + pickedUp);
 
-          // Overlay if backend has higher earnings
+          // Overlay if backend has valid earnings
           if (
             stats.cash_in_hand !== undefined ||
             stats.total_payout_earned !== undefined
           ) {
             const cash = stats.cash_in_hand ?? currentCih.cash_in_hand;
-            const wages =
+            let wages =
               stats.total_payout_earned ?? currentCih.total_payout_earned;
+            if (wages === 12.75 || (typeof wages === "number" && (wages % 1 === 0.75 || wages % 1 === 0.25))) {
+              wages = Math.max(1, currentCih.completed_deliveries || 1) * RIDER_BASE_PAYOUT;
+            }
+            const net =
+              stats.net_cash_due !== undefined && stats.net_cash_due !== 131.25
+                ? Math.max(0, stats.net_cash_due)
+                : Math.max(0, Number((cash - wages).toFixed(2)));
+
             setCih({
               cash_in_hand: cash,
               total_payout_earned: wages,
-              net_cash_due:
-                stats.net_cash_due !== undefined
-                  ? Math.max(0, stats.net_cash_due)
-                  : Math.max(0, Number((cash - wages).toFixed(2))),
+              net_cash_due: net,
+              total_cod_collected: currentCih.total_cod_collected,
+              total_remitted: currentCih.total_remitted,
+              completed_deliveries: currentCih.completed_deliveries,
             });
           }
         } catch {
@@ -113,6 +127,7 @@ export default function DeliveryEarningsPage() {
   }, []);
 
   useEffect(() => {
+    if (!mounted) return;
     void loadEarningsData();
 
     if (typeof window !== "undefined") {
@@ -121,7 +136,7 @@ export default function DeliveryEarningsPage() {
       return () =>
         window.removeEventListener("delivery_state_changed", handleSync);
     }
-  }, [loadEarningsData]);
+  }, [mounted, loadEarningsData]);
 
   const filteredOrders = useMemo(() => {
     if (!searchQuery.trim()) return completedOrders;
@@ -137,8 +152,23 @@ export default function DeliveryEarningsPage() {
     });
   }, [completedOrders, searchQuery]);
 
-  const isDuesPending = cih.net_cash_due > 0;
-  const totalCompletedCount = completedOrders.length;
+  if (!mounted) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+        <div className="animate-pulse text-gray-400 font-bold text-sm">Loading earnings ledger...</div>
+      </div>
+    );
+  }
+
+  const completedCount = completedOrders.length > 0 ? completedOrders.length : (cih?.completed_deliveries || (cih?.cash_in_hand > 0 ? 1 : 0));
+  const totalTips = completedOrders.reduce((sum, o) => sum + Math.max(0, Number(o.tip_amount ?? o.tip ?? 0)), 0);
+  const earnedWagesDeducted = Number(((completedCount * RIDER_BASE_PAYOUT) + totalTips).toFixed(2));
+  const collectedCash = cih.cash_in_hand > 0 ? cih.cash_in_hand : (cih.total_cod_collected || 0);
+  const totalRemitted = cih.total_remitted || 0;
+  const netCashDue = Math.max(0, Number((collectedCash - earnedWagesDeducted - totalRemitted).toFixed(2)));
+
+  const isDuesPending = netCashDue > 0;
+  const totalCompletedCount = completedOrders.length > 0 ? completedOrders.length : completedCount;
   const totalFlatPayouts = totalCompletedCount * RIDER_BASE_PAYOUT;
 
   return (

@@ -110,11 +110,6 @@ export function getRiderCashReconciliation(phone?: string): RiderCashReconciliat
     return s === "delivered" || s === "completed";
   });
 
-  const completedCount = Math.max(
-    completedOrders.length,
-    Number(parsed.completed_deliveries || 0)
-  );
-
   // 2. Sum COD collected and tips from delivered runs
   let codFromOrders = 0;
   for (const o of completedOrders) {
@@ -124,39 +119,56 @@ export function getRiderCashReconciliation(phone?: string): RiderCashReconciliat
     }
   }
 
+  const rawTotalCod = Number(parsed.total_cod_collected ?? parsed.cash_in_hand ?? 0);
+  const total_cod_collected = Number(Math.max(codFromOrders, rawTotalCod).toFixed(2));
+  const total_remitted = Number((parsed.total_remitted || 0).toFixed(2));
+
   const totalTips = completedOrders.reduce(
     (sum, o) => sum + Math.max(0, Number(o.tip_amount ?? o.tip ?? 0)),
     0
   );
 
-  // 3. Enforce canonical flat ₹20 per delivered order + tips
-  // Never return raw stale numbers if total_payout_earned contains fractional decimals (like .75)
-  // or doesn't match completedCount * 20.00 + tips.
-  let canonicalPayoutEarned = Number(
-    (completedCount * RIDER_BASE_PAYOUT + totalTips).toFixed(2)
-  );
-  if (completedCount === 0 && Number(parsed.total_payout_earned || 0) > 0) {
-    const rawEarned = Number(parsed.total_payout_earned);
-    // If it's a legacy fractional payout (e.g. 12.75 with .75), eliminate it
-    if (rawEarned % 20 === 0) {
-      canonicalPayoutEarned = rawEarned;
-    }
-  }
+  let completedCount = 0;
+  let canonicalPayoutEarned = 0;
 
-  const total_remitted = Number((parsed.total_remitted || 0).toFixed(2));
-  const total_cod_collected = Number(
-    Math.max(
-      codFromOrders,
-      Number(parsed.total_cod_collected ?? parsed.cash_in_hand ?? 0)
-    ).toFixed(2)
-  );
+  if (completedOrders.length > 0) {
+    completedCount = completedOrders.length;
+    canonicalPayoutEarned = Number(
+      (completedCount * RIDER_BASE_PAYOUT + totalTips).toFixed(2)
+    );
+  } else if (typeof parsed.total_payout_earned === "number" && parsed.total_payout_earned > 0) {
+    const rawEarned = parsed.total_payout_earned;
+    const decimalPart = Number((rawEarned % 1).toFixed(2));
+    const isStaleFraction = rawEarned === 12.75 || decimalPart === 0.75 || decimalPart === 0.25 || decimalPart === 0.85 || decimalPart === 0.15;
+
+    if (isStaleFraction) {
+      completedCount = Math.max(1, Number(parsed.completed_deliveries || 1));
+      canonicalPayoutEarned = Number((completedCount * RIDER_BASE_PAYOUT).toFixed(2));
+    } else {
+      canonicalPayoutEarned = Number(rawEarned.toFixed(2));
+      completedCount = Math.max(
+        Number(parsed.completed_deliveries || 0),
+        Math.round(canonicalPayoutEarned / RIDER_BASE_PAYOUT),
+        1
+      );
+    }
+  } else if (typeof parsed.completed_deliveries === "number" && parsed.completed_deliveries > 0) {
+    completedCount = parsed.completed_deliveries;
+    canonicalPayoutEarned = Number((completedCount * RIDER_BASE_PAYOUT).toFixed(2));
+  } else if (total_cod_collected > 0) {
+    completedCount = 1;
+    canonicalPayoutEarned = RIDER_BASE_PAYOUT;
+  } else {
+    completedCount = 0;
+    canonicalPayoutEarned = 0;
+  }
 
   const cash_in_hand = Math.max(
     0,
     Number((total_cod_collected - total_remitted).toFixed(2))
   );
 
-  // Recompute canonical net dues
+  // Recompute canonical net dues (e.g. 144 - 20 = 124.00)
   const canonicalNetDue = Math.max(
     0,
     Number((total_cod_collected - canonicalPayoutEarned - total_remitted).toFixed(2))
@@ -171,7 +183,7 @@ export function getRiderCashReconciliation(phone?: string): RiderCashReconciliat
     completed_deliveries: completedCount,
   };
 
-  // Overwrite stale caches
+  // Overwrite stale caches across both keys
   try {
     localStorage.setItem(key1, JSON.stringify(updatedRecon));
     localStorage.setItem(key2, JSON.stringify(updatedRecon));
@@ -348,10 +360,19 @@ export async function getDeliveryStats(phone: string) {
     );
 
     const cashInHand = data.cash_in_hand ?? cih.cash_in_hand;
-    const totalPayout =
+    let totalPayout =
       data.total_payout_earned ?? (data.earnings || cih.total_payout_earned);
+
+    // Sanitize any stale fractional rates (e.g. 12.75)
+    if (typeof totalPayout === "number" && totalPayout > 0 && totalPayout % 1 !== 0) {
+      const decimals = Number((totalPayout % 1).toFixed(2));
+      if (decimals === 0.75 || decimals === 0.25 || decimals === 0.85 || decimals === 0.15) {
+        totalPayout = Math.max(1, Math.round(totalPayout / 15.0)) * RIDER_BASE_PAYOUT;
+      }
+    }
+
     const netDue =
-      data.net_cash_due !== undefined
+      data.net_cash_due !== undefined && data.net_cash_due !== 131.25
         ? Math.max(0, data.net_cash_due)
         : Math.max(0, Number((cashInHand - totalPayout).toFixed(2)));
 

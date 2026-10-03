@@ -85,6 +85,9 @@ export type DeliveryOrder = {
   payment_method?: string;
   payment_status?: string;
   total?: number;
+  tip_amount?: number;
+  tip?: number;
+  delivery_fee?: number;
   status?: string;
   cash_in_hand?: number;
   total_payout_earned?: number;
@@ -118,6 +121,9 @@ export type DeliveryDashboardOrder = {
   phone?: string;
   address?: string;
   total?: number;
+  tip_amount?: number;
+  tip?: number;
+  delivery_fee?: number;
   status?: string;
   items?: Array<{
     id?: string;

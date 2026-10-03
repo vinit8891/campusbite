@@ -17,7 +17,8 @@ logger = get_logger(__name__)
 
 orders = database["orders"]
 
-DELIVERY_EARNING_PER_ORDER = 50
+RIDER_BASE_PAYOUT = 20.0
+DELIVERY_EARNING_PER_ORDER = 20.0
 ASSIGNED_STATUSES = ["Assigned"]
 PICKED_UP_STATUSES = ["Picked Up", "Out for Delivery"]
 
@@ -80,12 +81,13 @@ async def delivery_stats(
 
     pending = 0
     completed = 0
-    earnings = 0
+    earnings = 0.0
+    total_cod_collected = 0.0
 
     assigned_orders = 0
     picked_up_orders = 0
     delivered_today = 0
-    earnings_today = 0
+    earnings_today = 0.0
     total_deliveries = 0
     deliveries_this_week = 0
     deliveries_this_month = 0
@@ -114,12 +116,22 @@ async def delivery_stats(
             total_deliveries += 1
 
             pricing_breakdown = order.get("pricing_breakdown") or {}
+            tip_amount = float(
+                pricing_breakdown.get("tip_amount")
+                or order.get("tip_amount")
+                or order.get("tip")
+                or 0.0
+            )
+            # Enforce canonical flat ₹20 payout + tip
             earning = float(
                 pricing_breakdown.get("delivery_partner_earning")
-                or order.get("runner_fee")
-                or DELIVERY_EARNING_PER_ORDER
+                or (RIDER_BASE_PAYOUT + tip_amount)
             )
             earnings += round(earning, 2)
+
+            pm = str(order.get("payment_method") or "").lower().strip()
+            if "cod" in pm or "cash" in pm:
+                total_cod_collected += float(order.get("total") or 0.0)
 
             delivered_at = _as_utc(order.get("delivered_at")) or _as_utc(
                 order.get("created_at")
@@ -146,6 +158,10 @@ async def delivery_stats(
         (partner_doc or {}).get("unremitted_cod_balance") or 0.0
     )
 
+    earnings = round(earnings, 2)
+    total_cod_collected = round(total_cod_collected, 2)
+    net_cash_due = max(0.0, round(total_cod_collected - earnings - unremitted_cod_balance, 2))
+
     result = {
         # Legacy fields (unchanged)
         "phone": phone,
@@ -153,6 +169,10 @@ async def delivery_stats(
         "completed": completed,
         "earnings": earnings,
         "rating": 4.9,
+        "cash_in_hand": total_cod_collected,
+        "total_payout_earned": earnings,
+        "earned_wages": earnings,
+        "net_cash_due": net_cash_due,
         "unremitted_cod_balance": unremitted_cod_balance,
         # Extended read-only dashboard fields
         "assigned_orders": assigned_orders,
