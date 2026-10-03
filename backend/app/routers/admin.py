@@ -4,7 +4,7 @@ import re
 from fastapi import APIRouter, Depends, Query
 
 from app.auth.auth import require_roles
-from app.auth.roles import ADMIN
+from app.auth.roles import ADMIN, RESTAURANT_OWNER
 from app.core.logging import get_logger
 from app.core.sanitize import sanitize_search_query
 from app.db.database import database
@@ -614,13 +614,22 @@ async def record_canteen_settlement(
 
 @router.get("/canteen-settlements")
 async def list_canteen_settlements(
-    _: Annotated[dict, Depends(require_roles(ADMIN))],
+    current_user: Annotated[
+        dict, Depends(require_roles(ADMIN, RESTAURANT_OWNER))
+    ],
     date: Annotated[str | None, Query()] = None,
 ):
     """
     Lists canteen daily settlement records.
     """
+    role = current_user.get("role")
+    user_email = (
+        current_user.get("email") or current_user.get("sub") or ""
+    ).strip().lower()
+
     query = {}
+    if role == RESTAURANT_OWNER:
+        query["restaurant_email"] = user_email
     if date:
         query["settlement_date"] = date
 

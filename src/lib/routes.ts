@@ -27,6 +27,7 @@ export const ROUTES = {
   RESTAURANT_MENU: "/restaurant/dashboard/menu",
   RESTAURANT_MENU_ADD: "/restaurant/dashboard/menu/add",
   RESTAURANT_PROFILE: "/restaurant/dashboard/profile",
+  RESTAURANT_SETTLEMENTS: "/restaurant/dashboard/settlements",
   RESTAURANT_SUBSCRIPTION_PLANS: "/restaurant/dashboard/subscription-plans",
   RESTAURANT_SUBSCRIPTIONS: "/restaurant/dashboard/subscriptions",
 
