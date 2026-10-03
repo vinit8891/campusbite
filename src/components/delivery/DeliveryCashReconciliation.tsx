@@ -84,7 +84,7 @@ export function DeliveryCashReconciliation({
             nextCih = {
               cash_in_hand: cash,
               total_payout_earned: wage,
-              net_cash_due: stats.net_cash_due ?? Number((cash - wage).toFixed(2)),
+              net_cash_due: stats.net_cash_due !== undefined ? Math.max(0, stats.net_cash_due) : Math.max(0, Number((cash - wage).toFixed(2))),
             };
           }
         } catch {

@@ -79,7 +79,9 @@ export default function DeliveryEarningsPage() {
               cash_in_hand: cash,
               total_payout_earned: wages,
               net_cash_due:
-                stats.net_cash_due ?? Number((cash - wages).toFixed(2)),
+                stats.net_cash_due !== undefined
+                  ? Math.max(0, stats.net_cash_due)
+                  : Math.max(0, Number((cash - wages).toFixed(2))),
             });
           }
         } catch {

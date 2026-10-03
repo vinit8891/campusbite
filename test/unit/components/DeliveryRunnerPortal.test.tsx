@@ -233,10 +233,10 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
         />
       );
 
-      const completeBtn = screen.getByRole("button", {
-        name: /enter delivery otp to complete|complete delivery/i,
+      const openDialogBtn = screen.getByRole("button", {
+        name: /open dialog/i,
       });
-      await user.click(completeBtn);
+      await user.click(openDialogBtn);
 
       expect(onOpenOtp).toHaveBeenCalledWith("order-201");
     });
@@ -273,17 +273,17 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
         })
       ).not.toBeInTheDocument();
 
-      // OTP button is available
-      const otpBtn = screen.getByRole("button", {
-        name: /enter delivery otp to complete/i,
+      // OTP button or Open Dialog is available
+      const openDialogBtn = screen.getByRole("button", {
+        name: /open dialog/i,
       });
-      expect(otpBtn).toBeInTheDocument();
-      await user.click(otpBtn);
+      expect(openDialogBtn).toBeInTheDocument();
+      await user.click(openDialogBtn);
 
       expect(onOpenOtp).toHaveBeenCalledWith("order-201");
     });
 
-    it("immediately triggers onUpdateStatus with Picked Up when Confirm All Items button is clicked", async () => {
+    it("immediately triggers onUpdateStatus with Out for Delivery when Confirm All Items button is clicked", async () => {
       const user = userEvent.setup();
       const onUpdateStatus = vi.fn();
 
@@ -300,7 +300,7 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
       });
       await user.click(pickupBtn);
 
-      expect(onUpdateStatus).toHaveBeenCalledWith("order-201", "Picked Up");
+      expect(onUpdateStatus).toHaveBeenCalledWith("order-201", "Out for Delivery");
     });
   });
 
