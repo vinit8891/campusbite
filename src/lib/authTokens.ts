@@ -54,13 +54,26 @@ export function getTokenForRole(role: AuthRole): string | null {
 
   switch (role) {
     case "customer":
-      return localStorage.getItem(AUTH_STORAGE_KEYS.customerToken);
+      return (
+        localStorage.getItem(AUTH_STORAGE_KEYS.customerToken) ||
+        localStorage.getItem("token")
+      );
     case "restaurant_owner":
-      return localStorage.getItem(AUTH_STORAGE_KEYS.restaurantToken);
+      return (
+        localStorage.getItem(AUTH_STORAGE_KEYS.restaurantToken) ||
+        localStorage.getItem("token")
+      );
     case "delivery_partner":
-      return localStorage.getItem(AUTH_STORAGE_KEYS.deliveryToken);
+      return (
+        localStorage.getItem(AUTH_STORAGE_KEYS.deliveryToken) ||
+        localStorage.getItem("token") ||
+        localStorage.getItem(AUTH_STORAGE_KEYS.customerToken)
+      );
     case "admin":
-      return localStorage.getItem(AUTH_STORAGE_KEYS.adminToken);
+      return (
+        localStorage.getItem(AUTH_STORAGE_KEYS.adminToken) ||
+        localStorage.getItem("token")
+      );
     default:
       return null;
   }
@@ -137,13 +150,32 @@ export function getDeliveryPartnerSession(): DeliveryPartnerSession | null {
   if (typeof window === "undefined") return null;
 
   try {
-    const raw = localStorage.getItem(AUTH_STORAGE_KEYS.deliveryPartner);
-    if (!raw) return null;
+    const raw =
+      localStorage.getItem(AUTH_STORAGE_KEYS.deliveryPartner) ||
+      localStorage.getItem("cb_delivery_partner");
+    if (raw) {
+      const partner = JSON.parse(raw) as DeliveryPartnerSession;
+      if (partner?.phone) return partner;
+    }
 
-    const partner = JSON.parse(raw) as DeliveryPartnerSession;
-    if (!partner.phone) return null;
+    const token =
+      localStorage.getItem(AUTH_STORAGE_KEYS.deliveryToken) ||
+      localStorage.getItem("token");
+    if (!token) return null;
 
-    return partner;
+    const payload = decodeJwtPayload(token);
+    if (payload?.phone) {
+      return {
+        id: String(payload.sub || ""),
+        name: String(payload.name || "Delivery Partner"),
+        email: payload.email ? String(payload.email) : undefined,
+        phone: String(payload.phone),
+        vehicle: payload.vehicle ? String(payload.vehicle) : "Bike",
+        vehicle_number: payload.vehicle_number ? String(payload.vehicle_number) : undefined,
+      };
+    }
+
+    return null;
   } catch {
     return null;
   }

@@ -627,7 +627,14 @@ def can_transition_to(
     # 2. Flexible transition matrix
     ALLOWED_TRANSITIONS = {
         "pending": {"preparing", "ready", "cancelled"},
-        "preparing": {"ready", "preparing", "cancelled"},  # Allow re-cooking
+        "preparing": {
+            "ready",
+            "preparing",
+            "assigned",
+            "picked_up",
+            "out_for_delivery",
+            "cancelled",
+        },
         "ready": {
             "preparing",
             "assigned",
@@ -635,7 +642,7 @@ def can_transition_to(
             "out_for_delivery",
             "delivered",
             "cancelled",
-        },  # Allow reverting if marked ready by accident
+        },
         "assigned": {
             "assigned",
             "picked_up",

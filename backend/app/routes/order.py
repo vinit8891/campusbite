@@ -258,7 +258,7 @@ def _assert_order_access(order: dict, user: dict):
     if role == DELIVERY_PARTNER:
         partner = order.get("delivery_partner") or {}
         token_phone = user.get("phone")
-        if token_phone and str(partner.get("phone")) == str(token_phone):
+        if not partner.get("phone") or (token_phone and str(partner.get("phone")) == str(token_phone)):
             return
         raise HTTPException(
             status_code=403,
@@ -656,7 +656,7 @@ async def assign_delivery(
 @router.put("/delivery/location/{order_id}")
 async def update_location(
     order_id: str,
-    current_user: Annotated[dict, Depends(require_roles(DELIVERY_PARTNER))],
+    current_user: Annotated[dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))],
     location: dict = Body(...),
 ):
     order = await get_order_by_id(order_id)
@@ -669,10 +669,25 @@ async def update_location(
 
     partner = order.get("delivery_partner") or {}
     token_phone = current_user.get("phone")
-    if not token_phone or str(partner.get("phone")) != str(token_phone):
+    partner_phone = partner.get("phone")
+
+    if partner_phone and token_phone and str(partner_phone) != str(token_phone) and current_user.get("role") != ADMIN:
         raise HTTPException(
             status_code=403,
             detail="You can only update location for your assigned orders",
+        )
+
+    if not partner_phone and token_phone:
+        partner_bind = {
+            "name": current_user.get("name") or "Delivery Partner",
+            "phone": token_phone,
+            "vehicle": current_user.get("vehicle") or "Bike",
+            "accepted_at": datetime.now(UTC),
+        }
+        await update_order_status(
+            order_id,
+            order.get("status", "Assigned"),
+            delivery_partner=partner_bind,
         )
 
     latitude = location.get("latitude")
@@ -1067,6 +1082,7 @@ async def change_status(
         )
 
     role = current_user.get("role")
+    partner_to_bind = None
 
     if role == RESTAURANT_OWNER:
         email = _owner_email(current_user)
@@ -1088,7 +1104,9 @@ async def change_status(
     elif role == DELIVERY_PARTNER:
         partner = order.get("delivery_partner") or {}
         token_phone = current_user.get("phone")
-        if not token_phone or str(partner.get("phone")) != str(token_phone):
+        partner_phone = partner.get("phone")
+
+        if partner_phone and token_phone and str(partner_phone) != str(token_phone):
             raise HTTPException(
                 status_code=403,
                 detail="You can only update orders assigned to you",
@@ -1098,6 +1116,14 @@ async def change_status(
                 status_code=403,
                 detail="Delivery partners cannot set this status",
             )
+
+        if not partner_phone and token_phone:
+            partner_to_bind = {
+                "name": current_user.get("name") or "Delivery Partner",
+                "phone": token_phone,
+                "vehicle": current_user.get("vehicle") or "Bike",
+                "accepted_at": datetime.now(UTC),
+            }
 
     # Online orders must be paid before kitchen/processing advances
     if canonical_target in {"preparing", "ready"}:
@@ -1115,15 +1141,24 @@ async def change_status(
 
     current_canonical = canonicalize_status(order.get("status", ""))
     if current_canonical == canonical_target:
+        if partner_to_bind:
+            await update_order_status(
+                order_id,
+                status,
+                delivery_partner=partner_to_bind,
+            )
+        refreshed = await get_order_by_id(order_id) or order
         return {
             "success": True,
             "status": target_display,
             "message": f"Order status is already {target_display}",
+            "order": _public_order(refreshed),
         }
 
     updated = await update_order_status(
         order_id,
         status,
+        delivery_partner=partner_to_bind,
     )
 
     if not updated:
@@ -1139,8 +1174,10 @@ async def change_status(
             order_id,
         )
 
+    refreshed_order = await get_order_by_id(order_id) or order
     return {
         "success": True,
         "status": target_display,
         "message": f"Order status updated to {target_display}",
+        "order": _public_order(refreshed_order),
     }

@@ -12,6 +12,32 @@ import type {
 
 export type { AvailableOrdersQuery, MyDeliveriesQuery, DeliveryOrder };
 
+export const STATUS_PROGRESSION: Record<string, number> = {
+  'Pending': 1,
+  'Placed': 1,
+  'Accepted': 2,
+  'Preparing': 3,
+  'Cooking': 3,
+  'Ready for Pickup': 4,
+  'Ready': 4,
+  'Assigned': 5,
+  'Picked Up': 6,
+  'Out for Delivery': 6,
+  'In Transit': 6,
+  'Delivered': 7,
+  'Completed': 7,
+  'Cancelled': 0,
+};
+
+export function getStatusProgressionRank(status?: string | null): number {
+  if (!status) return 0;
+  const normalized = status.trim().toLowerCase();
+  for (const [key, val] of Object.entries(STATUS_PROGRESSION)) {
+    if (key.toLowerCase() === normalized) return val;
+  }
+  return 0;
+}
+
 // Local helper to read accepted deliveries from localStorage
 export function getLocalDeliveries(phone?: string): DeliveryOrder[] {
   if (typeof window === "undefined") return [];
@@ -338,7 +364,7 @@ export async function getMyDeliveries(
     }
   }
 
-  // Local orders override or supplement
+  // Local orders override or supplement with status progression protection
   for (const lo of localOrders) {
     const id = lo._id || (lo as { id?: string }).id;
     if (id) {
@@ -354,22 +380,26 @@ export async function getMyDeliveries(
         combinedMap.set(id, mergedLo);
       } else {
         const existing = combinedMap.get(id)!;
-        if (
-          ["Assigned", "Picked Up", "Out for Delivery", "Delivered"].includes(
-            mergedLo.status || ""
-          )
-        ) {
-          combinedMap.set(id, {
-            ...rich,
-            ...existing,
-            ...mergedLo,
-            items:
-              (existing.items && existing.items.length > 0)
-                ? existing.items
-                : (mergedLo.items || []),
-            total: existing.total || mergedLo.total || 0,
-          });
-        }
+        const localRank = getStatusProgressionRank(mergedLo.status);
+        const remoteRank = getStatusProgressionRank(existing.status);
+
+        // Keep the local status if local has higher or equal progression rank
+        const bestStatus =
+          localRank >= remoteRank
+            ? (mergedLo.status || existing.status)
+            : (existing.status || mergedLo.status);
+
+        combinedMap.set(id, {
+          ...rich,
+          ...existing,
+          ...mergedLo,
+          status: bestStatus,
+          items:
+            (existing.items && existing.items.length > 0)
+              ? existing.items
+              : (mergedLo.items || []),
+          total: existing.total || mergedLo.total || 0,
+        });
       }
     }
   }

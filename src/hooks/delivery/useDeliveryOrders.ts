@@ -8,6 +8,7 @@ import { AuthHttpError } from "@/services/authFetch";
 import { getCoordsSafe } from "@/lib/geolocation";
 import {
   getMyDeliveries,
+  getStatusProgressionRank,
   updateDeliveryOrderStatus,
   updateLiveLocation,
   verifyDeliveryOTP,
@@ -97,7 +98,26 @@ export function useDeliveryOrders() {
       }
 
       const data = await getMyDeliveries(partner.phone, filters);
-      setOrders(data);
+      setOrders((prevOrders) => {
+        const prevMap = new Map(
+          prevOrders.map((o) => [o._id || (o as { id?: string }).id, o])
+        );
+        return data.map((newOrder) => {
+          const id = newOrder._id || (newOrder as { id?: string }).id;
+          const existing = id ? prevMap.get(id) : null;
+          if (existing) {
+            const prevRank = getStatusProgressionRank(existing.status);
+            const newRank = getStatusProgressionRank(newOrder.status);
+            if (prevRank > newRank) {
+              return {
+                ...newOrder,
+                status: existing.status,
+              };
+            }
+          }
+          return newOrder;
+        });
+      });
       setError("");
     } catch (err) {
       console.error(err);
