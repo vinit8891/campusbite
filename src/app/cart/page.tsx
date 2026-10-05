@@ -459,12 +459,7 @@ export default function CartPage() {
                 </div>
 
                 <div className="flex items-center justify-between text-gray-600">
-                  <div className="flex items-center gap-1">
-                    <span>Platform Tech Fee</span>
-                    <span className="text-[10px] text-gray-400">
-                      ({effectiveMode === "COUNTER_TAKEAWAY" ? "₹3 pass" : "₹5 delivery"})
-                    </span>
-                  </div>
+                  <span>Platform Tech Fee</span>
                   <span className="font-semibold text-gray-900">
                     ₹{pricing.platformTechFee.toFixed(2)}
                   </span>

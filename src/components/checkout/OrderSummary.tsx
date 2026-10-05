@@ -597,12 +597,7 @@ export default function OrderSummary() {
           </div>
 
           <div className="flex justify-between">
-            <div className="flex items-center gap-1">
-              <span>Platform Tech Fee</span>
-              <span className="text-[10px] text-stone-400">
-                ({effectiveMode === "COUNTER_TAKEAWAY" ? "₹3 pass" : "₹5 delivery"})
-              </span>
-            </div>
+            <span>Platform Tech Fee</span>
             <span className="font-semibold text-stone-900">
               ₹{pricing.platformTechFee.toFixed(2)}
             </span>

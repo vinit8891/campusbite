@@ -3,6 +3,8 @@
  */
 
 export const FOOD_GST_RATE = 0.05;
+export const PLATFORM_FEE_TAKEAWAY = 3.00;
+export const PLATFORM_FEE_DELIVERY = 5.00;
 export const PLATFORM_FEE_LOW = 3.00;
 export const PLATFORM_FEE_HIGH = 5.00;
 export const DELIVERY_FEE_HOSTEL_BATCH = 15.00;
@@ -25,7 +27,9 @@ export type DeliveryType =
   | "EXPRESS_DOOR"
   | "COUNTER_TAKEAWAY"
   | "DELIVERY"
-  | "TAKEAWAY";
+  | "TAKEAWAY"
+  | "PICKUP"
+  | "DIRECT_ROOM";
 
 export interface PricingItem {
   price: number;
@@ -37,6 +41,7 @@ export interface OrderPricingBreakdown {
   food_subtotal: number;
   restaurant_gst: number;
   platform_fee: number;
+  fee_name: string;
   platform_fee_base: number;
   platform_fee_gst: number;
   delivery_fee: number;
@@ -72,22 +77,19 @@ export function calculateOrderPricing(
   );
 
   const isTakeaway =
-    deliveryType === "COUNTER_TAKEAWAY" || (deliveryType as string) === "TAKEAWAY";
+    deliveryType === "COUNTER_TAKEAWAY" ||
+    (deliveryType as string) === "TAKEAWAY" ||
+    (deliveryType as string) === "PICKUP";
   const isDelivery = !isTakeaway;
 
   // 5% Restaurant GST
   const restaurant_gst = Number((FOOD_GST_RATE * food_subtotal).toFixed(2));
 
-  // Platform Tech Fee: ₹3 if subtotal <= 100 or takeaway else ₹5
-  const platform_fee = isTakeaway
-    ? 3.00
-    : food_subtotal > 0 && food_subtotal <= 100.0
-    ? PLATFORM_FEE_LOW
-    : food_subtotal > 0
-    ? PLATFORM_FEE_HIGH
-    : 0;
+  // Platform Tech Fee: 2-Tier Structure (₹3 Takeaway / ₹5 Delivery)
+  const platform_fee = isTakeaway ? PLATFORM_FEE_TAKEAWAY : PLATFORM_FEE_DELIVERY;
   const platform_fee_base = Number((platform_fee / 1.18).toFixed(2));
   const platform_fee_gst = Number((platform_fee - platform_fee_base).toFixed(2));
+  const fee_name = "Platform Tech Fee";
 
   // Delivery Fee
   const isBatch = deliveryType === "HOSTEL_BATCH" || (deliveryType as string) === "DELIVERY";
@@ -149,6 +151,7 @@ export function calculateOrderPricing(
     food_subtotal,
     restaurant_gst,
     platform_fee,
+    fee_name,
     platform_fee_base,
     platform_fee_gst,
     delivery_fee,

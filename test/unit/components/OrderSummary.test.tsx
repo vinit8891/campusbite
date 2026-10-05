@@ -36,8 +36,8 @@ let mockCheckoutState = {
   payment_method: "cod",
   cod_confirmed: true,
   online_confirmed: false,
-  delivery_for: "self" as const,
-  delivery_type: "HOSTEL_BATCH" as const,
+  delivery_for: "self" as "self" | "friend",
+  delivery_type: "HOSTEL_BATCH" as "HOSTEL_BATCH" | "COUNTER_TAKEAWAY" | "EXPRESS_DOOR" | "STANDARD",
   hostel_block: "Hostel Block A",
   tip_amount: 0,
   latitude: 18.52,
@@ -119,6 +119,32 @@ describe("OrderSummary Component", () => {
     expect(screen.getByText("₹5.00")).toBeInTheDocument();
     // Total = 122 + 6.10 + 15 + 5 = 148.10 -> 148 (COD rounded)
     expect(screen.getAllByText("₹148").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("renders ₹3 platform tech fee when takeaway is selected and calculates Veg Thali takeaway total", () => {
+    // Veg Thali with counter price ₹80 -> calibrated app price ₹98
+    currentCart = [
+      { id: "veg_thali", name: "Veg Thali", price: 80, quantity: 1, restaurant_email: "rest@campus.in" },
+    ];
+    mockCheckoutState = {
+      ...mockCheckoutState,
+      delivery_type: "COUNTER_TAKEAWAY",
+      payment_method: "online",
+    };
+
+    render(<OrderSummary />);
+
+    expect(screen.getByText("Veg Thali × 1")).toBeInTheDocument();
+    expect(screen.getAllByText("₹98.00").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Food GST (5%)")).toBeInTheDocument();
+    expect(screen.getByText("₹4.90")).toBeInTheDocument();
+    expect(screen.getByText("Delivery Fee")).toBeInTheDocument();
+    expect(screen.getByText("Self Pickup (₹0)")).toBeInTheDocument();
+    expect(screen.getByText("₹0.00")).toBeInTheDocument();
+    expect(screen.getByText("Platform Tech Fee")).toBeInTheDocument();
+    expect(screen.getByText("₹3.00")).toBeInTheDocument();
+    // Online total = 98 + 4.90 + 0 + 3 = 105.90
+    expect(screen.getAllByText("₹105.90").length).toBeGreaterThanOrEqual(1);
   });
 
   it("displays amber banner and disables checkout button when delivery subtotal is below ₹35", async () => {

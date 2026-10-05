@@ -4,6 +4,8 @@ import {
   MIN_DELIVERY_SUBTOTAL,
   SMALL_ORDER_THRESHOLD,
   SMALL_ORDER_FEE,
+  PLATFORM_FEE_TAKEAWAY,
+  PLATFORM_FEE_DELIVERY,
   RESTAURANT_COMMISSION_RATE,
   FOOD_GST_RATE,
   DELIVERY_FEE_HOSTEL_BATCH,
@@ -12,19 +14,25 @@ import {
 import {
   calculateCheckoutPricing,
   getCalibratedAppPrice,
+  PLATFORM_FEE_TAKEAWAY as ENGINE_PLATFORM_FEE_TAKEAWAY,
+  PLATFORM_FEE_DELIVERY as ENGINE_PLATFORM_FEE_DELIVERY,
   MIN_DELIVERY_SUBTOTAL as ENGINE_MIN_DELIVERY,
   SMALL_ORDER_THRESHOLD as ENGINE_SMALL_ORDER_THRESHOLD,
   SMALL_ORDER_FEE as ENGINE_SMALL_ORDER_FEE,
 } from "@/lib/pricingEngine";
 
 describe("orderPricing and pricingEngine thresholds & calculations", () => {
-  it("exports canonical threshold constants with correct values", () => {
+  it("exports canonical threshold and 2-tier platform fee constants with correct values", () => {
     expect(MIN_DELIVERY_SUBTOTAL).toBe(35.0);
     expect(SMALL_ORDER_THRESHOLD).toBe(50.0);
     expect(SMALL_ORDER_FEE).toBe(5.0);
+    expect(PLATFORM_FEE_TAKEAWAY).toBe(3.0);
+    expect(PLATFORM_FEE_DELIVERY).toBe(5.0);
     expect(ENGINE_MIN_DELIVERY).toBe(35.0);
     expect(ENGINE_SMALL_ORDER_THRESHOLD).toBe(50.0);
     expect(ENGINE_SMALL_ORDER_FEE).toBe(5.0);
+    expect(ENGINE_PLATFORM_FEE_TAKEAWAY).toBe(3.0);
+    expect(ENGINE_PLATFORM_FEE_DELIVERY).toBe(5.0);
   });
 
   describe("calculateOrderPricing", () => {
@@ -43,9 +51,11 @@ describe("orderPricing and pricingEngine thresholds & calculations", () => {
         "Minimum cart for hostel delivery is ₹35.00. Add items or switch to Counter Takeaway."
       );
       expect(breakdown.small_order_fee).toBe(0.0);
+      expect(breakdown.platform_fee).toBe(5.0);
+      expect(breakdown.fee_name).toBe("Platform Tech Fee");
     });
 
-    it("permits takeaway when cart is below ₹35 without surcharge fees", () => {
+    it("permits takeaway when cart is below ₹35 with ₹3 takeaway tech fee and zero delivery fee", () => {
       const items = [{ price: 20, quantity: 1 }];
       const breakdown = calculateOrderPricing(items, "COUNTER_TAKEAWAY");
 
@@ -55,12 +65,13 @@ describe("orderPricing and pricingEngine thresholds & calculations", () => {
       expect(breakdown.min_delivery_error).toBeUndefined();
       expect(breakdown.delivery_fee).toBe(0.0);
       expect(breakdown.platform_fee).toBe(3.0);
+      expect(breakdown.fee_name).toBe("Platform Tech Fee");
       expect(breakdown.small_order_fee).toBe(0.0);
       // Food GST (5% of 20 = 1.00) + Subtotal (20) + Tech fee (3) = 24.00
       expect(breakdown.total_payable).toBe(24.0);
     });
 
-    it("applies ₹5 small order fee when delivery cart is ₹35 to ₹49.99", () => {
+    it("applies ₹5 delivery tech fee and ₹5 small order fee when delivery cart is ₹35 to ₹49.99", () => {
       const items = [{ price: 35, quantity: 1 }];
       const breakdown = calculateOrderPricing(items, "HOSTEL_BATCH", 0, "COD");
 
@@ -69,12 +80,12 @@ describe("orderPricing and pricingEngine thresholds & calculations", () => {
       expect(breakdown.small_order_fee).toBe(5.0);
       expect(breakdown.restaurant_gst).toBe(1.75); // 5% of 35
       expect(breakdown.delivery_fee).toBe(15.0);
-      expect(breakdown.platform_fee).toBe(3.0); // <= 100 subtotal
-      // Total = 35 + 1.75 + 15 + 3 + 5 = 59.75
-      expect(breakdown.total_payable).toBe(59.75);
+      expect(breakdown.platform_fee).toBe(5.0); // ₹5 for delivery
+      // Total = 35 + 1.75 + 15 + 5 + 5 = 61.75
+      expect(breakdown.total_payable).toBe(61.75);
     });
 
-    it("removes ₹5 small order fee when delivery cart reaches ₹50.00", () => {
+    it("applies ₹5 delivery tech fee and waives small order fee when delivery cart reaches ₹50.00", () => {
       const items = [{ price: 50, quantity: 1 }];
       const breakdown = calculateOrderPricing(items, "HOSTEL_BATCH", 0, "COD");
 
@@ -83,9 +94,31 @@ describe("orderPricing and pricingEngine thresholds & calculations", () => {
       expect(breakdown.small_order_fee).toBe(0.0);
       expect(breakdown.restaurant_gst).toBe(2.5); // 5% of 50
       expect(breakdown.delivery_fee).toBe(15.0);
-      expect(breakdown.platform_fee).toBe(3.0);
-      // Total = 50 + 2.5 + 15 + 3 + 0 = 70.50
-      expect(breakdown.total_payable).toBe(70.5);
+      expect(breakdown.platform_fee).toBe(5.0);
+      // Total = 50 + 2.5 + 15 + 5 + 0 = 72.50
+      expect(breakdown.total_payable).toBe(72.5);
+    });
+
+    it("calculates Veg Thali delivery vs takeaway exact totals dynamically", () => {
+      const vegThali = [{ price: 98, quantity: 1 }];
+
+      // 1. Delivery: ₹98 food + ₹4.90 GST + ₹15 delivery + ₹5 tech = ₹122.90
+      const deliveryOrder = calculateOrderPricing(vegThali, "HOSTEL_BATCH", 0, "ONLINE");
+      expect(deliveryOrder.food_subtotal).toBe(98.0);
+      expect(deliveryOrder.restaurant_gst).toBe(4.90);
+      expect(deliveryOrder.delivery_fee).toBe(15.0);
+      expect(deliveryOrder.platform_fee).toBe(5.0);
+      expect(deliveryOrder.small_order_fee).toBe(0.0);
+      expect(deliveryOrder.total_payable).toBe(122.90);
+
+      // 2. Takeaway: ₹98 food + ₹4.90 GST + ₹0 delivery + ₹3 tech = ₹105.90
+      const takeawayOrder = calculateOrderPricing(vegThali, "COUNTER_TAKEAWAY", 0, "ONLINE");
+      expect(takeawayOrder.food_subtotal).toBe(98.0);
+      expect(takeawayOrder.restaurant_gst).toBe(4.90);
+      expect(takeawayOrder.delivery_fee).toBe(0.0);
+      expect(takeawayOrder.platform_fee).toBe(3.0);
+      expect(takeawayOrder.small_order_fee).toBe(0.0);
+      expect(takeawayOrder.total_payable).toBe(105.90);
     });
 
     it("correctly includes tip and calculates net platform profit with small order surcharge", () => {
@@ -95,8 +128,9 @@ describe("orderPricing and pricingEngine thresholds & calculations", () => {
 
       expect(breakdown.small_order_fee).toBe(5.0);
       expect(breakdown.tip_amount).toBe(10.0);
-      // Total = 40 + 2.0 (gst) + 15 (del) + 3 (tech) + 5 (small order) + 10 (tip) = 75.00
-      expect(breakdown.total_payable).toBe(75.0);
+      expect(breakdown.platform_fee).toBe(5.0);
+      // Total = 40 + 2.0 (gst) + 15 (del) + 5 (tech) + 5 (small order) + 10 (tip) = 77.00
+      expect(breakdown.total_payable).toBe(77.0);
       // Commission 18% of 40 = 7.20
       expect(breakdown.commission_amount).toBe(7.2);
     });
