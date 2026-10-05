@@ -43,9 +43,17 @@ function useSafeAuth() {
   }
 }
 
+function useSafeCart() {
+  try {
+    return useCart();
+  } catch {
+    return { cart: [], deliveryType: "HOSTEL_BATCH", setDeliveryType: () => {} };
+  }
+}
+
 export default function AddressForm() {
   const { checkout, setCheckout } = useCheckout();
-  const { cart } = useCart();
+  const { cart } = useSafeCart();
   const { user } = useSafeAuth();
   const { openLocationModal } = useLocation();
 

@@ -7,6 +7,10 @@ export const BATCH_DELIVERY_FEE = 15.0;
 export const EXPRESS_DELIVERY_FEE = 40.0;
 export const MICRO_CART_THRESHOLD = 80.0;
 
+export const MIN_DELIVERY_SUBTOTAL = 35.00;
+export const SMALL_ORDER_THRESHOLD = 50.00;
+export const SMALL_ORDER_FEE = 5.00;
+
 export type DeliveryMode = 'HOSTEL_BATCH' | 'EXPRESS_DOOR' | 'COUNTER_TAKEAWAY' | 'STANDARD';
 
 export interface CartItemInput {
@@ -21,6 +25,12 @@ export interface PricingBreakdown {
   gstAmount: number;
   platformTechFee: number;
   deliveryFee: number;
+  smallOrderFee: number;
+  small_order_fee: number;
+  isBelowMinDelivery: boolean;
+  minDeliveryError?: string;
+  is_below_min_delivery: boolean;
+  min_delivery_error?: string;
   totalStudentPayable: number;
   isMicroCart: boolean;
   amountToUnlockExpress: number;
@@ -55,7 +65,7 @@ export function getCalibratedAppPrice(counterPrice: number): number {
 
 /**
  * Calculates checkout pricing breakdown including taxes, tech fee, delivery fee,
- * micro-cart threshold validations, and canteen disbursal.
+ * small order surcharge, micro-cart threshold validations, and canteen disbursal.
  */
 export function calculateCheckoutPricing(
   items: CartItemInput[],
@@ -64,7 +74,7 @@ export function calculateCheckoutPricing(
   // Normalize STANDARD to EXPRESS_DOOR
   const normalizedMode = selectedMode === 'STANDARD' ? 'EXPRESS_DOOR' : selectedMode;
 
-  // 1. Calculate Calibrated App Price per item: CounterPrice / 0.85
+  // 1. Calculate Calibrated App Price per item: CounterPrice / (1 - COMMISSION_RATE)
   let appSubtotal = 0;
   let canteenCounterBase = 0;
 
@@ -90,14 +100,26 @@ export function calculateCheckoutPricing(
   // 3. Compute Fees & Taxes
   const gstAmount = Number((appSubtotal * GST_RATE).toFixed(2));
   const isTakeaway = normalizedMode === 'COUNTER_TAKEAWAY';
+  const isDelivery = !isTakeaway;
   const platformTechFee = isTakeaway ? TECH_FEE_TAKEAWAY : TECH_FEE_DELIVERY;
 
   let deliveryFee = 0;
   if (normalizedMode === 'HOSTEL_BATCH') deliveryFee = BATCH_DELIVERY_FEE;
   if (normalizedMode === 'EXPRESS_DOOR') deliveryFee = EXPRESS_DELIVERY_FEE;
 
+  // Small order fee & min delivery subtotal check
+  const isBelowMinDelivery = isDelivery && appSubtotal > 0 && appSubtotal < MIN_DELIVERY_SUBTOTAL;
+  const minDeliveryError = isBelowMinDelivery
+    ? "Minimum cart for hostel delivery is ₹35.00. Add items or switch to Counter Takeaway."
+    : undefined;
+
+  const smallOrderFee =
+    isDelivery && appSubtotal >= MIN_DELIVERY_SUBTOTAL && appSubtotal < SMALL_ORDER_THRESHOLD
+      ? SMALL_ORDER_FEE
+      : 0.00;
+
   const totalStudentPayable = Number(
-    (appSubtotal + gstAmount + platformTechFee + deliveryFee).toFixed(2)
+    (appSubtotal + gstAmount + platformTechFee + deliveryFee + smallOrderFee).toFixed(2)
   );
 
   // 4. Guarantee Canteen Receives 100% Counter Rate + GST
@@ -112,6 +134,12 @@ export function calculateCheckoutPricing(
     gstAmount,
     platformTechFee,
     deliveryFee,
+    smallOrderFee,
+    small_order_fee: smallOrderFee,
+    isBelowMinDelivery,
+    minDeliveryError,
+    is_below_min_delivery: isBelowMinDelivery,
+    min_delivery_error: minDeliveryError,
     totalStudentPayable,
     isMicroCart,
     amountToUnlockExpress,

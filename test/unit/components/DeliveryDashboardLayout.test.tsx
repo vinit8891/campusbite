@@ -107,7 +107,7 @@ describe("Delivery Partner / Courier Portal Visual & Layout Overhaul", () => {
       expect(screen.getByText("Dashboard")).toBeInTheDocument();
       expect(screen.getByText("Available Orders")).toBeInTheDocument();
       expect(screen.getByText("My Deliveries")).toBeInTheDocument();
-      expect(screen.getByText("History & Earnings")).toBeInTheDocument();
+      expect(screen.getByText("Earnings & CIH")).toBeInTheDocument();
       expect(screen.getByText("Profile")).toBeInTheDocument();
 
       expect(screen.getByText("Rajesh Kumar")).toBeInTheDocument();

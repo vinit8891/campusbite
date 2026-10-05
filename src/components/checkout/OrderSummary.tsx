@@ -18,6 +18,9 @@ import {
   type DeliveryMode,
   type CartItemInput,
   MICRO_CART_THRESHOLD,
+  MIN_DELIVERY_SUBTOTAL,
+  SMALL_ORDER_THRESHOLD,
+  SMALL_ORDER_FEE,
 } from "@/lib/pricingEngine";
 import {
   COD_PAYMENT_METHOD,
@@ -91,6 +94,12 @@ export default function OrderSummary() {
         gstAmount: 0,
         platformTechFee: 0,
         deliveryFee: 0,
+        smallOrderFee: 0,
+        small_order_fee: 0,
+        isBelowMinDelivery: false,
+        minDeliveryError: undefined,
+        is_below_min_delivery: false,
+        min_delivery_error: undefined,
         totalStudentPayable: 0,
         isMicroCart: true,
         amountToUnlockExpress: MICRO_CART_THRESHOLD,
@@ -112,6 +121,12 @@ export default function OrderSummary() {
     return calculateCheckoutPricing(cartInput, effectiveMode);
   }, [cartInput, effectiveMode, basePricing]);
 
+  const isDelivery = effectiveMode !== "COUNTER_TAKEAWAY";
+  const isBelowMinDelivery = isDelivery && pricing.appSubtotal > 0 && pricing.appSubtotal < MIN_DELIVERY_SUBTOTAL;
+  const missingToMinDelivery = Math.max(0, Number((MIN_DELIVERY_SUBTOTAL - pricing.appSubtotal).toFixed(2)));
+  const hasSmallOrderSurcharge = isDelivery && pricing.appSubtotal >= MIN_DELIVERY_SUBTOTAL && pricing.appSubtotal < SMALL_ORDER_THRESHOLD;
+  const missingToWaiveSurcharge = Math.max(0, Number((SMALL_ORDER_THRESHOLD - pricing.appSubtotal).toFixed(2)));
+
   const isCod = checkout.payment_method === COD_PAYMENT_METHOD;
   const isOnline = checkout.payment_method === ONLINE_PAYMENT_METHOD;
   const paymentMethod = isCod ? "cod" : "online";
@@ -123,6 +138,7 @@ export default function OrderSummary() {
     !loading &&
     paymentState !== "processing" &&
     paymentState !== "success" &&
+    !isBelowMinDelivery &&
     (isCod ? checkout.cod_confirmed : checkout.online_confirmed);
 
   function finishSuccess(orderId: string) {
@@ -185,6 +201,13 @@ export default function OrderSummary() {
 
   async function handlePlaceOrder() {
     if (loading || paymentState === "processing") {
+      return;
+    }
+
+    if (isBelowMinDelivery) {
+      toast.error(
+        "Minimum cart for hostel delivery is ₹35.00. Add items or switch to Counter Takeaway."
+      );
       return;
     }
 
@@ -456,6 +479,32 @@ export default function OrderSummary() {
           </span>
         </div>
 
+        {/* Minimum Delivery Cart Warning Banner */}
+        {isBelowMinDelivery && (
+          <div className="rounded-xl border border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-900 shadow-2xs">
+            <div className="flex items-start gap-2">
+              <span className="text-base">⚠️</span>
+              <div className="flex-1 space-y-2">
+                <p className="font-semibold leading-snug">
+                  Hostel delivery requires a minimum food order of ₹35.00. Add ₹{missingToMinDelivery.toFixed(2)} more or switch to Takeaway.
+                </p>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setCheckout((prev) => ({
+                      ...prev,
+                      delivery_type: "COUNTER_TAKEAWAY",
+                    }))
+                  }
+                  className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-amber-700 transition cursor-pointer"
+                >
+                  Switch to Counter Takeaway (Self Pickup)
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Cart Items List */}
         <div className="space-y-2 border-b border-stone-100 pb-3">
           {cart.map((item) => {
@@ -559,6 +608,34 @@ export default function OrderSummary() {
             </span>
           </div>
 
+          {/* Small Order Surcharge (under ₹50) */}
+          {hasSmallOrderSurcharge && (
+            <div className="flex items-center justify-between text-amber-900 bg-amber-50/70 border border-amber-200/80 rounded-lg px-2.5 py-1.5">
+              <div className="flex items-center gap-1.5">
+                <span>Small Order Surcharge</span>
+                <span className="text-[10px] text-amber-700 font-medium">(under ₹50)</span>
+              </div>
+              <span className="font-bold text-amber-900">+₹{pricing.smallOrderFee.toFixed(2)}</span>
+            </div>
+          )}
+
+          {/* Helper tip to waive surcharge */}
+          {hasSmallOrderSurcharge && (
+            <div className="rounded-xl border border-amber-200/60 bg-amber-50/40 p-2.5 text-[11px] text-amber-800 flex items-center justify-between gap-2">
+              <span className="flex items-center gap-1.5">
+                <span>💡</span>
+                <span>Add <strong>₹{missingToWaiveSurcharge.toFixed(2)}</strong> more to waive the ₹5 small order fee!</span>
+              </span>
+              <button
+                type="button"
+                onClick={() => router.push(ROUTES.RESTAURANTS)}
+                className="text-xs font-bold text-amber-700 hover:text-amber-800 underline cursor-pointer shrink-0"
+              >
+                + Add Items
+              </button>
+            </div>
+          )}
+
           {Number(checkout.tip_amount || 0) > 0 && (
             <div className="flex justify-between text-amber-700 font-bold">
               <span>Rider Tip</span>
@@ -624,14 +701,14 @@ export default function OrderSummary() {
           <button
             type="button"
             onClick={handlePlaceOrder}
-            disabled={isSubmitting}
+            disabled={isSubmitting || !canSubmit}
             className={`flex-1 py-3.5 px-6 rounded-xl font-bold text-white shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer ${
-              !canSubmit && !isSubmitting
-                ? "bg-amber-600/90 hover:bg-amber-600"
+              !canSubmit
+                ? "bg-amber-600/50 cursor-not-allowed text-white/80"
                 : "bg-amber-600 hover:bg-amber-700"
             }`}
           >
-            {ctaButtonText}
+            {isBelowMinDelivery ? "Min ₹35 Delivery Required" : ctaButtonText}
           </button>
         </div>
       </div>

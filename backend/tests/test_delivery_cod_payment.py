@@ -181,6 +181,7 @@ async def test_assign_delivery_partner_matches_missing_or_null_partner():
 
     test_oid = ObjectId()
     mock_collection = AsyncMock()
+    mock_collection.find_one = AsyncMock(return_value={"_id": test_oid, "status": "Ready for Pickup"})
     mock_update_result = AsyncMock()
     mock_update_result.modified_count = 1
     mock_collection.update_one = AsyncMock(return_value=mock_update_result)

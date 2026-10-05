@@ -29,6 +29,8 @@ describe("Next.js Edge Route Protection Middleware", () => {
         "/admin/:path*",
         "/restaurant/dashboard/:path*",
         "/delivery/dashboard/:path*",
+        "/delivery/earnings/:path*",
+        "/delivery/earnings",
         "/courier/:path*",
         "/checkout/:path*",
         "/my-orders/:path*",

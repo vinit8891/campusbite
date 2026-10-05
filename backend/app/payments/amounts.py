@@ -17,6 +17,10 @@ ONLINE_PG_FEE_RATE = 0.0236
 RIDER_BASE_PAYOUT = 20.0  # Canonical flat ₹20 base payout per fulfilled order
 RIDER_COD_BALANCE_CEILING = 1000.0
 
+MIN_DELIVERY_SUBTOTAL = 35.0
+SMALL_ORDER_THRESHOLD = 50.0
+SMALL_ORDER_FEE = 5.0
+
 
 def get_calibrated_app_price(counter_price: float) -> int:
     """Returns calibrated menu price ensuring 100% canteen payout post 18% commission."""
@@ -38,7 +42,7 @@ def calculate_order_amounts(
 ) -> dict[str, Any]:
     """
     Authoritative server-side calculation for order totals, statutory GSTs,
-    commission splits, rider payouts, and platform margin.
+    small order surcharges, commission splits, rider payouts, and platform margin.
     """
     if not items:
         raise HTTPException(
@@ -81,15 +85,31 @@ def calculate_order_amounts(
     if norm_delivery_type == "STANDARD":
         norm_delivery_type = "EXPRESS_DOOR"
 
-    is_takeaway = norm_delivery_type == "COUNTER_TAKEAWAY"
+    is_takeaway = norm_delivery_type in ("COUNTER_TAKEAWAY", "TAKEAWAY", "PICKUP")
+    is_delivery = not is_takeaway
     platform_fee = TECH_FEE_TAKEAWAY if is_takeaway else TECH_FEE_DELIVERY
 
     if is_takeaway:
         delivery_fee = 0.0
-    elif norm_delivery_type == "HOSTEL_BATCH":
-        delivery_fee = BATCH_DELIVERY_FEE
+        small_order_fee = 0.0
+        is_below_min_delivery = False
+        min_delivery_error = None
     else:
-        delivery_fee = EXPRESS_DELIVERY_FEE
+        if norm_delivery_type == "HOSTEL_BATCH":
+            delivery_fee = BATCH_DELIVERY_FEE
+        else:
+            delivery_fee = EXPRESS_DELIVERY_FEE
+
+        is_below_min_delivery = 0.0 < app_subtotal < MIN_DELIVERY_SUBTOTAL
+        min_delivery_error = (
+            "Minimum cart for hostel delivery is ₹35.00. Add items or switch to Counter Takeaway."
+            if is_below_min_delivery
+            else None
+        )
+        if MIN_DELIVERY_SUBTOTAL <= app_subtotal < SMALL_ORDER_THRESHOLD:
+            small_order_fee = SMALL_ORDER_FEE
+        else:
+            small_order_fee = 0.0
 
     # 5% Restaurant Food GST on calibrated app subtotal
     gst_amount = round(FOOD_GST_RATE * app_subtotal, 2)
@@ -97,7 +117,7 @@ def calculate_order_amounts(
     valid_tip = round(max(0.0, float(tip_amount or 0.0)), 2)
 
     total_unrounded = round(
-        app_subtotal + gst_amount + platform_fee + delivery_fee + valid_tip,
+        app_subtotal + gst_amount + platform_fee + delivery_fee + small_order_fee + valid_tip,
         2,
     )
 
@@ -125,7 +145,7 @@ def calculate_order_amounts(
     # Net Platform Margin
     commission_amount = round(app_subtotal - canteen_counter_base, 2)
     net_platform_profit = round(
-        commission_amount + platform_fee + (delivery_fee - delivery_partner_earning) - pg_fee,
+        commission_amount + platform_fee + small_order_fee + (delivery_fee - delivery_partner_earning) - pg_fee,
         2,
     )
 
@@ -137,6 +157,9 @@ def calculate_order_amounts(
         "gst_amount": gst_amount,
         "platform_fee": platform_fee,
         "delivery_fee": delivery_fee,
+        "small_order_fee": small_order_fee,
+        "is_below_min_delivery": is_below_min_delivery,
+        "min_delivery_error": min_delivery_error,
         "delivery_type": norm_delivery_type,
         "tip_amount": valid_tip,
         "total_payable": total_payable,

@@ -100,46 +100,49 @@ describe("CartPage Component", () => {
     mockDeliveryType = "HOSTEL_BATCH";
   });
 
-  it("renders cart items and pricing breakdown with 5% GST, ₹15 delivery fee, and ₹3 platform fee", () => {
+  it("renders cart items and pricing breakdown with calibrated prices, 5% GST, delivery fee, and platform fee", () => {
     render(<CartPage />);
 
-    // Items: (40 * 2) + (120 * 1) = 200 Subtotal
-    // GST 5%: 200 * 0.05 = 10.00
+    // Calibrated items:
+    // Butter Naan: ceil(40 / 0.82) = 49; qty 2 = 98.00
+    // Paneer Butter Masala: ceil(120 / 0.82) = 147; qty 1 = 147.00
+    // Subtotal: 98 + 147 = 245.00
+    // Food GST (5%): 245 * 0.05 = 12.25
     // Delivery Fee: 15.00 (Hostel Batch)
-    // Platform Fee: 3.00
-    // Grand Total: 200 + 10 + 15 + 3 = 228.00
+    // Platform Tech Fee: 5.00
+    // Grand Total: 245 + 12.25 + 15 + 5 = 277.25
 
     expect(screen.getByText("Your Order")).toBeInTheDocument();
     expect(screen.getByText("Butter Naan")).toBeInTheDocument();
     expect(screen.getByText("Paneer Butter Masala")).toBeInTheDocument();
 
-    expect(screen.getByText("Subtotal")).toBeInTheDocument();
-    expect(screen.getByText("₹200.00")).toBeInTheDocument();
+    expect(screen.getByText("Items Subtotal")).toBeInTheDocument();
+    expect(screen.getByText("₹245.00")).toBeInTheDocument();
 
-    expect(screen.getByText("Restaurant GST (5%)")).toBeInTheDocument();
-    expect(screen.getByText("₹10.00")).toBeInTheDocument();
+    expect(screen.getByText("Food GST (5%)")).toBeInTheDocument();
+    expect(screen.getByText("₹12.25")).toBeInTheDocument();
 
     expect(screen.getByText("Delivery Fee")).toBeInTheDocument();
-    expect(screen.getByText("Hostel Batch")).toBeInTheDocument();
+    expect(screen.getAllByText("Hostel Batch").length).toBeGreaterThan(0);
     expect(screen.getByText("₹15.00")).toBeInTheDocument();
 
-    expect(screen.getByText("Platform Fee")).toBeInTheDocument();
-    expect(screen.getByText("₹3.00")).toBeInTheDocument();
+    expect(screen.getByText("Platform Tech Fee")).toBeInTheDocument();
+    expect(screen.getByText("₹5.00")).toBeInTheDocument();
 
     expect(screen.getByText("Grand Total")).toBeInTheDocument();
-    expect(screen.getByText("₹228.00")).toBeInTheDocument();
+    expect(screen.getByText("₹277.25")).toBeInTheDocument();
   });
 
-  it("allows selecting Direct Room Delivery (₹40) and updates delivery mode state", async () => {
+  it("allows selecting Direct Room Delivery and updates delivery mode state", async () => {
     const user = userEvent.setup();
     render(<CartPage />);
 
     const directDeliveryBtn = screen.getByRole("radio", {
-      name: /Direct Room Delivery/i,
+      name: /Direct Room/i,
     });
     await user.click(directDeliveryBtn);
 
-    expect(mockSetDeliveryType).toHaveBeenCalledWith("STANDARD");
+    expect(mockSetDeliveryType).toHaveBeenCalledWith("EXPRESS_DOOR");
     expect(mockSetCheckout).toHaveBeenCalled();
   });
 
@@ -153,5 +156,73 @@ describe("CartPage Component", () => {
     await user.click(checkoutBtn);
 
     expect(mockPush).toHaveBeenCalledWith("/checkout");
+  });
+
+  it("shows minimum delivery warning and disables checkout when subtotal < ₹35 on delivery", async () => {
+    const user = userEvent.setup();
+    // 1 item with price 10 -> calibrated ceil(10/0.82) = 13 < 35
+    mockCartState = [
+      {
+        id: "item-tea",
+        name: "Masala Chai",
+        price: 10,
+        quantity: 1,
+        image: "/images/food/chai.jpg",
+        restaurant_email: "eatery@campus.edu",
+        restaurant_name: "Campus Eatery",
+      },
+    ];
+    mockDeliveryType = "HOSTEL_BATCH";
+
+    render(<CartPage />);
+
+    expect(
+      screen.getByText(/Hostel delivery requires a minimum food order of ₹35.00/i)
+    ).toBeInTheDocument();
+
+    const checkoutBtn = screen.getByRole("button", {
+      name: /Min Delivery ₹35 Required/i,
+    });
+    expect(checkoutBtn).toBeDisabled();
+
+    // Quick switch to Takeaway
+    const switchBtn = screen.getByRole("button", {
+      name: /Switch to Counter Takeaway/i,
+    });
+    await user.click(switchBtn);
+    expect(mockSetDeliveryType).toHaveBeenCalledWith("COUNTER_TAKEAWAY");
+  });
+
+  it("shows small order surcharge and helper tip when delivery subtotal is between ₹35 and ₹50", () => {
+    // 1 item with price 30 -> calibrated ceil(30/0.82) = 37 (between 35 and 50)
+    mockCartState = [
+      {
+        id: "item-snack",
+        name: "Veg Sandwich",
+        price: 30,
+        quantity: 1,
+        image: "/images/food/sandwich.jpg",
+        restaurant_email: "eatery@campus.edu",
+        restaurant_name: "Campus Eatery",
+      },
+    ];
+    mockDeliveryType = "HOSTEL_BATCH";
+
+    render(<CartPage />);
+
+    // Small Order Surcharge line item
+    expect(screen.getByText("Small Order Surcharge")).toBeInTheDocument();
+    expect(screen.getByText("+₹5.00")).toBeInTheDocument();
+
+    // Helper tip
+    expect(
+      screen.getByText(/Add.*to waive the ₹5 small order fee!/i)
+    ).toBeInTheDocument();
+
+    // Checkout button is active
+    const checkoutBtn = screen.getByRole("button", {
+      name: /Proceed to Checkout/i,
+    });
+    expect(checkoutBtn).toBeEnabled();
   });
 });

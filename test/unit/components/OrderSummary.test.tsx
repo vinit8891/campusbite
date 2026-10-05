@@ -21,7 +21,7 @@ vi.mock("sonner", () => ({
   },
 }));
 
-const mockCart = [
+let currentCart = [
   { id: "1", name: "Veg Thali", price: 100, quantity: 1, restaurant_email: "rest@campus.in" },
 ];
 
@@ -57,7 +57,7 @@ const mockSetCheckout = vi.fn((updater) => {
 
 vi.mock("@/context/CartContext", () => ({
   useCart: () => ({
-    cart: mockCart,
+    cart: currentCart,
     clearCart: vi.fn(),
   }),
 }));
@@ -79,6 +79,9 @@ vi.mock("@/context/AuthContext", () => ({
 describe("OrderSummary Component", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    currentCart = [
+      { id: "1", name: "Veg Thali", price: 100, quantity: 1, restaurant_email: "rest@campus.in" },
+    ];
     mockCheckoutState = {
       customer_name: "John Doe",
       phone: "9876543210",
@@ -102,20 +105,68 @@ describe("OrderSummary Component", () => {
     };
   });
 
-  it("renders order items and statutory pricing breakdown (5% GST, ₹15 batch delivery, ₹3 tech fee)", () => {
+  it("renders order items and statutory pricing breakdown (5% GST, ₹15 batch delivery, ₹5 tech fee, COD rounding)", () => {
     render(<OrderSummary />);
 
     expect(screen.getByText("Veg Thali × 1")).toBeInTheDocument();
-    expect(screen.getByText("Items Total")).toBeInTheDocument();
-    expect(screen.getAllByText("₹100.00").length).toBeGreaterThanOrEqual(1);
-    expect(screen.getByText("Restaurant GST (5%)")).toBeInTheDocument();
-    expect(screen.getByText("₹5.00")).toBeInTheDocument();
+    expect(screen.getByText("Items Subtotal")).toBeInTheDocument();
+    expect(screen.getAllByText("₹122.00").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Food GST (5%)")).toBeInTheDocument();
+    expect(screen.getByText("₹6.10")).toBeInTheDocument();
     expect(screen.getByText("Delivery Fee")).toBeInTheDocument();
-    expect(screen.getByText("Saved ₹25")).toBeInTheDocument();
+    expect(screen.getByText("Hostel Batch (₹15)")).toBeInTheDocument();
     expect(screen.getByText("Platform Tech Fee")).toBeInTheDocument();
-    expect(screen.getByText("₹3.00")).toBeInTheDocument();
-    // Total = 100 + 5 + 15 + 3 = 123.00 (shown in summary breakdown and sticky bottom CTA bar)
-    expect(screen.getAllByText("₹123.00").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("₹5.00")).toBeInTheDocument();
+    // Total = 122 + 6.10 + 15 + 5 = 148.10 -> 148 (COD rounded)
+    expect(screen.getAllByText("₹148").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("displays amber banner and disables checkout button when delivery subtotal is below ₹35", async () => {
+    const user = userEvent.setup();
+    // Counter price 20 -> Calibrated app price 25 (< 35)
+    currentCart = [
+      { id: "tea", name: "Tea", price: 20, quantity: 1, restaurant_email: "rest@campus.in" },
+    ];
+
+    render(<OrderSummary />);
+
+    // Amber banner with message
+    expect(
+      screen.getByText(/Hostel delivery requires a minimum food order of ₹35\.00/i)
+    ).toBeInTheDocument();
+
+    // Quick toggle button to switch to Takeaway
+    const switchBtn = screen.getByRole("button", {
+      name: /Switch to Counter Takeaway/i,
+    });
+    expect(switchBtn).toBeInTheDocument();
+
+    // CTA button is disabled
+    const ctaBtn = screen.getByRole("button", { name: /Min ₹35 Delivery Required/i });
+    expect(ctaBtn).toBeDisabled();
+
+    // Clicking switch to takeaway updates checkout
+    await user.click(switchBtn);
+    expect(mockSetCheckout).toHaveBeenCalled();
+  });
+
+  it("displays small order surcharge and helper tip when delivery subtotal is ₹35 to ₹49.99", () => {
+    // Counter price 30 -> Calibrated app price 37 (between 35 and 49.99)
+    currentCart = [
+      { id: "samosa", name: "Samosa", price: 30, quantity: 1, restaurant_email: "rest@campus.in" },
+    ];
+
+    render(<OrderSummary />);
+
+    // Surcharge line item
+    expect(screen.getByText("Small Order Surcharge")).toBeInTheDocument();
+    expect(screen.getByText("(under ₹50)")).toBeInTheDocument();
+    expect(screen.getByText("+₹5.00")).toBeInTheDocument();
+
+    // Helper tip
+    expect(
+      screen.getByText(/to waive the ₹5 small order fee!/i)
+    ).toBeInTheDocument();
   });
 
   it("allows selecting rider tip and updates checkout state", async () => {
@@ -137,9 +188,9 @@ describe("OrderSummary Component", () => {
       phone: "9876543210",
       address: "Room 101, Block A, Hostel Block A, Ref: Near Mess (Note: Call when downstairs)",
       payment_method: "cod",
-      total: 123.00,
+      total: 148,
       status: "Pending",
-      items: mockCart,
+      items: currentCart,
     });
 
     render(<OrderSummary />);
@@ -153,7 +204,7 @@ describe("OrderSummary Component", () => {
           restaurant_email: "rest@campus.in",
           delivery_type: "HOSTEL_BATCH",
           hostel_block: "Hostel Block A",
-          total: 123.00,
+          total: 148,
           payment_method: "cod",
           address: expect.stringContaining("Room 101, Block A"),
         })

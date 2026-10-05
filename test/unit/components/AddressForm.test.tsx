@@ -31,21 +31,16 @@ describe("AddressForm Component", () => {
     // Header and delivery modes
     expect(screen.getByText("Delivery Details")).toBeInTheDocument();
     expect(screen.getByText(/Hostel Batch/i)).toBeInTheDocument();
-    expect(screen.getByText(/Express Door/i)).toBeInTheDocument();
-    expect(screen.getByText("Save ₹25")).toBeInTheDocument();
+    expect(screen.getByText(/Takeaway/i)).toBeInTheDocument();
+    expect(screen.getAllByText(/Direct Room/i).length).toBeGreaterThan(0);
 
-    // 2 Intuitive Campus fields
-    expect(
-      screen.getByLabelText(/hostel \/ pg \/ building name/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByLabelText(/room \/ flat \/ floor/i)
-    ).toBeInTheDocument();
+    // Campus hostel pills
+    expect(screen.getByRole("button", { name: /Block A/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Block B/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Library \/ Main Gate/i })).toBeInTheDocument();
 
-    // Campus Quick Chips
-    expect(screen.getByRole("button", { name: /Hostel Block A/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Central Library/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Main Canteen/i })).toBeInTheDocument();
+    // Room number input
+    expect(screen.getByLabelText(/room number/i)).toBeInTheDocument();
 
     // Collapsible note toggle button
     expect(
@@ -57,40 +52,22 @@ describe("AddressForm Component", () => {
     const user = userEvent.setup();
     renderAddressForm();
 
-    const libraryChip = screen.getByRole("button", { name: /Central Library/i });
-    await user.click(libraryChip);
+    const blockBChip = screen.getByRole("button", { name: /Block B/i });
+    await user.click(blockBChip);
 
-    const buildingInput = screen.getByLabelText(
-      /hostel \/ pg \/ building name/i
-    ) as HTMLInputElement;
-    expect(buildingInput.value).toBe("Central Library");
+    expect(blockBChip).toHaveClass("bg-amber-600");
   });
 
-  it("allows selecting a saved address pill to fill building details", async () => {
-    const testSaved = [
-      {
-        id: "addr-home-1",
-        tag: "home",
-        roomOrFlat: "Flat 302",
-        buildingOrSociety: "Shree Ram PG",
-        areaOrLandmark: "Near North Gate",
-        city: "Pune",
-      },
-    ];
-    localStorage.setItem("cb_saved_addresses", JSON.stringify(testSaved));
-
+  it("allows switching between Campus Hostel and Outside PG/Flat tabs", async () => {
     const user = userEvent.setup();
     renderAddressForm();
 
-    const savedPill = screen.getByRole("button", { name: /shree ram pg/i });
-    expect(savedPill).toBeInTheDocument();
+    const outsideTab = screen.getByRole("button", { name: /Outside \(PG \/ Flat\)/i });
+    await user.click(outsideTab);
 
-    await user.click(savedPill);
-
-    const buildingInput = screen.getByLabelText(
-      /hostel \/ pg \/ building name/i
-    ) as HTMLInputElement;
-    expect(buildingInput.value).toBe("Shree Ram PG");
+    expect(screen.getByText(/Select Area/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /College Road/i })).toBeInTheDocument();
+    expect(screen.getByLabelText(/Building \/ PG Name/i)).toBeInTheDocument();
   });
 
   it("expands delivery note / landmark inputs and selects quick instruction chip", async () => {

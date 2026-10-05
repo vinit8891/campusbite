@@ -26,7 +26,7 @@ describe("MenuCard component", () => {
     );
 
     expect(screen.getByText("Paneer Butter Masala")).toBeInTheDocument();
-    expect(screen.getByText("₹220")).toBeInTheDocument();
+    expect(screen.getByText("₹269")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /add/i })).toBeInTheDocument();
   });
 

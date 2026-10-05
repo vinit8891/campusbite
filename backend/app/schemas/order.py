@@ -28,8 +28,9 @@ class Order(BaseModel):
     # Delivery recipient type
     delivery_for: str = "self"
 
-    # Delivery Type: "HOSTEL_BATCH" | "STANDARD"
+    # Delivery Type: "HOSTEL_BATCH" | "STANDARD" | "EXPRESS_DOOR" | "COUNTER_TAKEAWAY"
     delivery_type: str = "HOSTEL_BATCH"
+    order_type: str | None = None
     hostel_block: str | None = None
     tip_amount: float = 0.0
 

@@ -47,6 +47,9 @@ from app.core.logging import get_logger
 from app.core.sanitize import sanitize_email, sanitize_search_query
 from app.models.delivery_partner import get_delivery_partner_by_phone
 from app.payments.amounts import (
+    MIN_DELIVERY_SUBTOTAL,
+    SMALL_ORDER_THRESHOLD,
+    SMALL_ORDER_FEE,
     RIDER_COD_BALANCE_CEILING,
     assert_client_total_matches,
     calculate_order_amounts,
@@ -167,6 +170,11 @@ def _public_order(order: dict) -> dict:
     response.pop("delivery_otp", None)
     # Signature is verification material — do not expose on generic APIs
     response.pop("razorpay_signature", None)
+
+    if "_id" in response:
+        response["_id"] = str(response["_id"])
+        if "id" not in response:
+            response["id"] = response["_id"]
 
     for date_key in ("created_at", "delivered_at", "paid_at", "accepted_at", "ready_at"):
         val = response.get(date_key)
@@ -323,6 +331,21 @@ async def add_order(
         tip_amount=tip_amount,
         payment_method=method_for_calc,
     )
+
+    norm_delivery_type = (delivery_type or "HOSTEL_BATCH").strip().upper()
+    if norm_delivery_type == "STANDARD":
+        norm_delivery_type = "EXPRESS_DOOR"
+
+    is_takeaway = norm_delivery_type in ("COUNTER_TAKEAWAY", "TAKEAWAY", "PICKUP")
+    order_type = str(data.get("order_type") or "").strip().upper()
+    is_delivery_order = order_type == "DELIVERY" or not is_takeaway
+
+    if is_delivery_order and pricing["food_subtotal"] < MIN_DELIVERY_SUBTOTAL:
+        raise HTTPException(
+            status_code=400,
+            detail="Minimum delivery subtotal is ₹35.00",
+        )
+
     server_total = pricing["total_payable"]
     assert_client_total_matches(data.get("total"), server_total)
     data["total"] = server_total

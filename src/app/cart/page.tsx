@@ -15,6 +15,9 @@ import {
   type DeliveryMode,
   type CartItemInput,
   MICRO_CART_THRESHOLD,
+  MIN_DELIVERY_SUBTOTAL,
+  SMALL_ORDER_THRESHOLD,
+  SMALL_ORDER_FEE,
 } from "@/lib/pricingEngine";
 
 export default function CartPage() {
@@ -58,6 +61,12 @@ export default function CartPage() {
         gstAmount: 0,
         platformTechFee: 0,
         deliveryFee: 0,
+        smallOrderFee: 0,
+        small_order_fee: 0,
+        isBelowMinDelivery: false,
+        minDeliveryError: undefined,
+        is_below_min_delivery: false,
+        min_delivery_error: undefined,
         totalStudentPayable: 0,
         isMicroCart: true,
         amountToUnlockExpress: MICRO_CART_THRESHOLD,
@@ -82,6 +91,12 @@ export default function CartPage() {
     if (cartInput.length === 0) return basePricing;
     return calculateCheckoutPricing(cartInput, effectiveMode);
   }, [cartInput, effectiveMode, basePricing]);
+
+  const isDelivery = effectiveMode !== "COUNTER_TAKEAWAY";
+  const isBelowMinDelivery = isDelivery && pricing.appSubtotal > 0 && pricing.appSubtotal < MIN_DELIVERY_SUBTOTAL;
+  const missingToMinDelivery = Math.max(0, Number((MIN_DELIVERY_SUBTOTAL - pricing.appSubtotal).toFixed(2)));
+  const hasSmallOrderSurcharge = isDelivery && pricing.appSubtotal >= MIN_DELIVERY_SUBTOTAL && pricing.appSubtotal < SMALL_ORDER_THRESHOLD;
+  const missingToWaiveSurcharge = Math.max(0, Number((SMALL_ORDER_THRESHOLD - pricing.appSubtotal).toFixed(2)));
 
   function handleDeliveryModeChange(mode: DeliveryMode) {
     if (isMicroCart && mode === "EXPRESS_DOOR") return;
@@ -251,6 +266,27 @@ export default function CartPage() {
               <h2 className="text-xl font-extrabold text-gray-900">
                 Order Summary
               </h2>
+
+              {/* Minimum Delivery Subtotal Warning Banner */}
+              {isBelowMinDelivery && (
+                <div className="rounded-2xl bg-amber-50 p-3.5 text-xs text-amber-900 border border-amber-300 space-y-2">
+                  <div className="flex items-start gap-2">
+                    <span className="text-base">⚠️</span>
+                    <div className="flex-1 space-y-1.5">
+                      <p className="font-semibold leading-snug">
+                        Hostel delivery requires a minimum food order of ₹35.00. Add ₹{missingToMinDelivery.toFixed(2)} more or switch to Takeaway.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={() => handleDeliveryModeChange("COUNTER_TAKEAWAY")}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-amber-700 transition cursor-pointer"
+                      >
+                        Switch to Counter Takeaway (Self Pickup)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* Dynamic Micro-Cart Nudge Banner */}
               {isMicroCart && (
@@ -434,6 +470,34 @@ export default function CartPage() {
                   </span>
                 </div>
 
+                {/* Small Order Surcharge (under ₹50) */}
+                {hasSmallOrderSurcharge && (
+                  <div className="flex items-center justify-between text-amber-900 bg-amber-50/70 border border-amber-200/80 rounded-lg px-2.5 py-1.5">
+                    <div className="flex items-center gap-1.5">
+                      <span>Small Order Surcharge</span>
+                      <span className="text-[10px] text-amber-700 font-medium">(under ₹50)</span>
+                    </div>
+                    <span className="font-bold text-amber-900">+₹{pricing.smallOrderFee.toFixed(2)}</span>
+                  </div>
+                )}
+
+                {/* Helper tip to waive small order surcharge */}
+                {hasSmallOrderSurcharge && (
+                  <div className="rounded-xl border border-amber-200/60 bg-amber-50/40 p-2.5 text-[11px] text-amber-800 flex items-center justify-between gap-2">
+                    <span className="flex items-center gap-1.5">
+                      <span>💡</span>
+                      <span>Add <strong>₹{missingToWaiveSurcharge.toFixed(2)}</strong> more to waive the ₹5 small order fee!</span>
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => router.push(ROUTES.RESTAURANTS)}
+                      className="text-xs font-bold text-amber-700 hover:text-amber-800 underline cursor-pointer shrink-0"
+                    >
+                      + Add Items
+                    </button>
+                  </div>
+                )}
+
                 <div className="border-t border-gray-200 pt-4">
                   <div className="flex items-center justify-between">
                     <span className="text-lg font-bold text-gray-900">
@@ -448,11 +512,11 @@ export default function CartPage() {
               </div>
 
               <Button
-                disabled={cart.length === 0}
+                disabled={cart.length === 0 || isBelowMinDelivery}
                 className="w-full rounded-2xl bg-orange-500 py-6 text-base font-bold shadow-md transition-all duration-200 hover:scale-[1.02] hover:bg-orange-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                 onClick={() => router.push(ROUTES.CHECKOUT)}
               >
-                Proceed to Checkout →
+                {isBelowMinDelivery ? "Min Delivery ₹35 Required" : "Proceed to Checkout →"}
               </Button>
 
               <p className="text-center text-xs text-gray-400">
