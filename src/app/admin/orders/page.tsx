@@ -6,6 +6,7 @@ import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminTableSkeleton from "@/components/admin/AdminTableSkeleton";
 import DeleteOrderModal from "@/components/admin/DeleteOrderModal";
+import AdminOrderDetailsModal from "@/components/admin/AdminOrderDetailsModal";
 import PaginationControls from "@/components/ui/PaginationControls";
 import { useAdminOrders } from "@/hooks/admin/useAdminOrders";
 import { AdminOrdersFilterBar } from "@/components/admin/AdminOrdersFilterBar";
@@ -36,6 +37,7 @@ export default function AdminOrdersPage() {
   } = useAdminOrders();
 
   const [orderToDelete, setOrderToDelete] = useState<AdminOrder | null>(null);
+  const [orderToView, setOrderToView] = useState<AdminOrder | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
   async function handleConfirmDelete() {
@@ -101,6 +103,7 @@ export default function AdminOrdersPage() {
       ) : (
         <AdminOrdersTable
           orders={orders}
+          onViewOrder={(order) => setOrderToView(order)}
           onDeleteOrder={(order) => setOrderToDelete(order)}
         />
       )}
@@ -114,6 +117,12 @@ export default function AdminOrdersPage() {
           setPage(next);
           void fetchOrders(currentFilters({ page: next }));
         }}
+      />
+
+      <AdminOrderDetailsModal
+        isOpen={Boolean(orderToView)}
+        order={orderToView}
+        onClose={() => setOrderToView(null)}
       />
 
       <DeleteOrderModal

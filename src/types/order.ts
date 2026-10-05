@@ -102,6 +102,8 @@ export type AdminOrder = {
   _id: string;
   customer_name?: string;
   customer_email?: string;
+  customer_phone?: string;
+  phone?: string;
   restaurant_email?: string;
   restaurant_name?: string;
   status?: string;
@@ -109,6 +111,17 @@ export type AdminOrder = {
   payment_status?: string;
   total?: number;
   created_at?: string;
+  order_type?: string;
+  delivery_type?: string;
+  delivery_for?: string;
+  food_subtotal?: number;
+  small_order_fee?: number;
+  platform_fee?: number;
+  restaurant_gst?: number;
+  delivery_fee?: number;
+  tip_amount?: number;
+  items?: OrderItem[];
+  pricing_breakdown?: OrderPricingBreakdown | PricingBreakdown;
 };
 
 export type AdminOrdersQuery = {

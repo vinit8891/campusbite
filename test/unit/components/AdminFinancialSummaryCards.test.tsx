@@ -29,7 +29,9 @@ describe("AdminFinancialSummaryCards component", () => {
     // Net App Earnings
     expect(screen.getByText("Net App Earnings")).toBeInTheDocument();
     expect(screen.getByText("₹1,420.00")).toBeInTheDocument();
-    expect(screen.getByText(/₹3 tech fees \+ commissions/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/18% Canteen Commission \+ Tech Fees \(₹3\/₹5\) \+ Small Order Fees \(₹5\) \+ Delivery Differential/i)
+    ).toBeInTheDocument();
 
     // Total Revenue (GMV)
     expect(screen.getByText("Total Revenue (GMV)")).toBeInTheDocument();
@@ -44,6 +46,25 @@ describe("AdminFinancialSummaryCards component", () => {
     // Avg. Order Value (AOV)
     expect(screen.getByText("Avg. Order Value (AOV)")).toBeInTheDocument();
     expect(screen.getByText("₹147.54")).toBeInTheDocument();
+  });
+
+  it("renders small order surcharge breakdown line when small order fees exist", () => {
+    const analyticsWithSmallOrders: AdminFinancialAnalytics = {
+      ...mockAnalytics,
+      platform_earnings: 1475.0,
+      total_small_order_fees: 55.0,
+      small_order_fees_total: 55.0,
+      small_order_count: 11,
+    };
+
+    render(<AdminFinancialSummaryCards analytics={analyticsWithSmallOrders} />);
+
+    const pill = screen.getByTestId("small-order-surcharge-pill");
+    expect(pill).toBeInTheDocument();
+    expect(
+      screen.getByText(/Small Order Surcharges \(<₹50\): \+₹55.00 \(11 orders\)/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText("₹1,475.00")).toBeInTheDocument();
   });
 
   it("renders fund distribution breakdown with restaurant net, delivery pool, and GST", () => {
@@ -84,4 +105,41 @@ describe("AdminFinancialSummaryCards component", () => {
     expect(screen.getAllByText("₹0.00").length).toBeGreaterThan(0);
     expect(screen.getByText("0")).toBeInTheDocument();
   });
+
+  it("renders Total Physical Cash on Campus and Hard Lockout Warning when riders are locked", () => {
+    render(
+      <AdminFinancialSummaryCards
+        analytics={mockAnalytics}
+        totalCampusCih={1250.0}
+        lockedRidersCount={2}
+      />
+    );
+
+    expect(screen.getByText("Total Physical Cash on Campus:")).toBeInTheDocument();
+    expect(screen.getByText("₹1250.00")).toBeInTheDocument();
+
+    const warningBadge = screen.getByTestId("locked-riders-warning");
+    expect(warningBadge).toBeInTheDocument();
+    expect(
+      screen.getByText(/⚠️ 2 Rider\(s\) Locked Out \(Holdings ≥ ₹500\)/i)
+    ).toBeInTheDocument();
+  });
+
+  it("renders All Couriers Active badge when no riders are locked out", () => {
+    render(
+      <AdminFinancialSummaryCards
+        analytics={mockAnalytics}
+        totalCampusCih={350.0}
+        lockedRidersCount={0}
+      />
+    );
+
+    expect(screen.getByText("Total Physical Cash on Campus:")).toBeInTheDocument();
+    expect(screen.getByText("₹350.00")).toBeInTheDocument();
+
+    const activeBadge = screen.getByTestId("all-riders-active-badge");
+    expect(activeBadge).toBeInTheDocument();
+    expect(screen.getByText(/All Couriers Active \(< ₹500 CIH\)/i)).toBeInTheDocument();
+  });
 });
+

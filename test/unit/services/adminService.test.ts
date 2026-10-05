@@ -12,6 +12,8 @@ describe("adminService", () => {
     expect(stats.users).toBe(120);
     expect(stats.restaurants).toBe(12);
     expect(stats.orders).toBe(540);
+    expect(stats.total_small_order_fees).toBe(320.0);
+    expect(stats.small_order_count).toBe(64);
   });
 
   it("getAdminAnalytics fetches platform financial metrics", async () => {
@@ -23,6 +25,9 @@ describe("adminService", () => {
     expect(analytics.courier_payouts).toBe(8100.0);
     expect(analytics.gst_pool).toBe(3500.0);
     expect(analytics.average_order_value).toBe(121.11);
+    expect(analytics.total_small_order_fees).toBe(320.0);
+    expect(analytics.small_order_fees_total).toBe(320.0);
+    expect(analytics.small_order_count).toBe(64);
   });
 
   it("deleteUser sends delete request with user id and optional role", async () => {

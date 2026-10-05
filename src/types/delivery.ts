@@ -177,6 +177,8 @@ export type AdminDeliveryPartner = {
   net_cash_due?: number;
 };
 
+export type RiderCihStatus = "ACTIVE" | "APPROACHING_LIMIT" | "LOCKED";
+
 export type RiderReconciliationItem = {
   id: string;
   name: string;
@@ -184,18 +186,29 @@ export type RiderReconciliationItem = {
   email?: string;
   vehicle?: string;
   vehicle_number?: string;
-  status: string;
   orders_delivered: number;
   cash_collected: number;
   wages_kept: number;
+  net_cash_due: number;
   net_due: number;
+  max_limit: number;
+  is_locked: boolean;
+  excess_amount: number;
+  status: RiderCihStatus | string;
   remittance_status: "CLEAR" | "DUES_PENDING";
+  approved_remittances?: number;
+  utr?: string;
+  remitted_at?: string;
 };
 
 export type RiderReconciliationSummary = {
   total_cash_collected: number;
+  total_campus_cih?: number;
   total_wages_kept: number;
   net_unremitted_dues: number;
+  locked_riders_count?: number;
+  approaching_limit_count?: number;
+  active_riders_count?: number;
   riders: RiderReconciliationItem[];
 };
 

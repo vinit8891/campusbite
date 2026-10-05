@@ -12,6 +12,7 @@ import {
   ShieldCheck,
   X,
   ChevronRight,
+  Sliders,
 } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 
@@ -87,6 +88,18 @@ export function AdminSidebar({
           icon: Users,
           isActive: (path) =>
             path === ROUTES.ADMIN_USERS || path.startsWith("/admin/users/"),
+        },
+      ],
+    },
+    {
+      label: "SYSTEM",
+      items: [
+        {
+          name: "Pricing & Safeguards",
+          href: ROUTES.ADMIN_SETTINGS,
+          icon: Sliders,
+          isActive: (path) =>
+            path === ROUTES.ADMIN_SETTINGS || path.startsWith("/admin/settings"),
         },
       ],
     },

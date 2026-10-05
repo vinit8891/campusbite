@@ -247,6 +247,8 @@ async def get_admin_financial_analytics() -> dict:
     courier_payouts = 0.0
     gst_pool = 0.0
     total_orders = 0
+    total_small_order_fees = 0.0
+    small_order_count = 0
 
     async for doc in order_collection.find(delivered_query):
         total_orders += 1
@@ -278,13 +280,19 @@ async def get_admin_financial_analytics() -> dict:
         else:
             comm = round(0.18 * subtotal, 2)
 
-        # Platform fee
+        # Platform fee (Tech fee)
         if doc.get("platform_fee") is not None:
             p_fee = float(doc.get("platform_fee") or 0.0)
         else:
             p_fee = 3.00 if subtotal <= 100.0 else 5.00
             if order_total <= 0:
                 p_fee = 0.0
+
+        # Small order fee (₹5.00 surcharge for delivery orders under ₹50)
+        s_fee = float(doc.get("small_order_fee") or 0.0)
+        if s_fee > 0:
+            total_small_order_fees += s_fee
+            small_order_count += 1
 
         # Courier earnings (Canonical RIDER_BASE_PAYOUT = 20.00 + tips)
         if doc.get("delivery_partner_earning") is not None:
@@ -310,7 +318,7 @@ async def get_admin_financial_analytics() -> dict:
         settlement = max(0.0, subtotal - comm)
 
         total_revenue += order_total
-        platform_earnings += p_fee + comm
+        platform_earnings += p_fee + comm + s_fee
         restaurant_settlements += settlement
         courier_payouts += courier_payout
         gst_pool += gst
@@ -327,4 +335,6 @@ async def get_admin_financial_analytics() -> dict:
         "courier_payouts": round(courier_payouts, 2),
         "gst_pool": round(gst_pool, 2),
         "average_order_value": average_order_value,
+        "total_small_order_fees": round(total_small_order_fees, 2),
+        "small_order_count": small_order_count,
     }

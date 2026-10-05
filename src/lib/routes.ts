@@ -61,6 +61,7 @@ export const ROUTES = {
   ADMIN_RESTAURANTS: "/admin/restaurants",
   ADMIN_ADD_RESTAURANT: "/admin/add-restaurant",
   ADMIN_SUBSCRIPTIONS: "/admin/subscriptions",
+  ADMIN_SETTINGS: "/admin/settings",
 } as const;
 
 // Dynamic route helpers
@@ -163,5 +164,6 @@ export const routes = {
     addRestaurant: ROUTES.ADMIN_ADD_RESTAURANT,
     editRestaurant: adminEditRestaurantPath,
     subscriptions: ROUTES.ADMIN_SUBSCRIPTIONS,
+    settings: ROUTES.ADMIN_SETTINGS,
   },
 } as const;

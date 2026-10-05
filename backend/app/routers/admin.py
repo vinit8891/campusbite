@@ -136,6 +136,7 @@ from app.models.analytics import get_admin_financial_analytics
 
 
 @router.get("/analytics")
+@router.get("/analytics/financial-summary")
 async def admin_analytics(
     current_user: Annotated[dict, Depends(require_roles(ADMIN))],
 ):
@@ -640,5 +641,192 @@ async def list_canteen_settlements(
         settlements.append(doc)
 
     return {"settlements": settlements}
+
+
+@router.get("/riders/cih-oversight")
+async def get_rider_cih_oversight(
+    _: Annotated[dict, Depends(require_roles(ADMIN))],
+):
+    """
+    Returns platform-wide Courier Cash-in-Hand (CIH) oversight records with hard lockout detection.
+    Computes status:
+      - LOCKED: net_cash_due >= 500.00
+      - APPROACHING_LIMIT: net_cash_due >= 400.00 and net_cash_due < 500.00
+      - ACTIVE: net_cash_due < 400.00
+    """
+    cursor = database["delivery_partners"].find({}).sort("name", 1)
+    partners = await cursor.to_list(None)
+
+    total_cash_collected = 0.0
+    total_wages_kept = 0.0
+    total_cih_held = 0.0
+    locked_count = 0
+    approaching_count = 0
+    active_count = 0
+
+    rider_records = []
+    for doc in partners:
+        phone = doc.get("phone") or ""
+        doc_id = str(doc.get("_id", ""))
+        name = doc.get("name") or doc.get("full_name") or "Courier"
+        email = doc.get("email") or ""
+        vehicle = doc.get("vehicle") or doc.get("vehicle_type") or "Bike"
+        vehicle_number = doc.get("vehicle_number") or ""
+
+        cash_collected = float(doc.get("cash_in_hand") or 0.0)
+        wages_kept = float(doc.get("total_payout_earned") or 0.0)
+
+        if doc.get("net_cash_due") is not None:
+            net_due = float(doc.get("net_cash_due") or 0.0)
+        else:
+            net_due = max(0.0, cash_collected - wages_kept)
+
+        is_locked = net_due >= 500.00
+        excess_amount = max(0.0, net_due - 500.00)
+
+        if is_locked:
+            cih_status = "LOCKED"
+            locked_count += 1
+        elif net_due >= 400.00:
+            cih_status = "APPROACHING_LIMIT"
+            approaching_count += 1
+        else:
+            cih_status = "ACTIVE"
+            active_count += 1
+
+        total_cash_collected += cash_collected
+        total_wages_kept += wages_kept
+        total_cih_held += net_due
+
+        rider_records.append({
+            "id": doc_id,
+            "name": name,
+            "phone": phone,
+            "email": email,
+            "vehicle": vehicle,
+            "vehicle_number": vehicle_number,
+            "orders_delivered": int(
+                doc.get("total_deliveries")
+                or doc.get("completed_orders")
+                or doc.get("completed_deliveries")
+                or 0
+            ),
+            "cash_collected": round(cash_collected, 2),
+            "wages_kept": round(wages_kept, 2),
+            "net_cash_due": round(net_due, 2),
+            "net_due": round(net_due, 2),
+            "max_limit": 500.00,
+            "is_locked": is_locked,
+            "excess_amount": round(excess_amount, 2),
+            "status": cih_status,
+            "remittance_status": "DUES_PENDING" if net_due > 0 else "CLEAR",
+            "approved_remittances": float(doc.get("total_remitted") or 0.0),
+        })
+
+    return {
+        "total_cash_collected": round(total_cash_collected, 2),
+        "total_campus_cih": round(total_cih_held, 2),
+        "total_cih_held": round(total_cih_held, 2),
+        "total_wages_kept": round(total_wages_kept, 2),
+        "net_unremitted_dues": round(total_cih_held, 2),
+        "locked_riders_count": locked_count,
+        "approaching_limit_count": approaching_count,
+        "active_riders_count": active_count,
+        "riders": rider_records,
+    }
+
+
+@router.post("/riders/{rider_id}/remittance/approve")
+async def approve_rider_remittance_endpoint(
+    rider_id: str,
+    payload: dict,
+    current_user: Annotated[dict, Depends(require_roles(ADMIN))],
+):
+    """
+    Approves a courier cash remittance (UTR verification), drops net cash due,
+    and unblocks the courier immediately if net_cash_due < ₹500.
+    """
+    import datetime
+
+    admin_email = (
+        current_user.get("email") or current_user.get("sub") or ""
+    ).strip().lower()
+
+    query = _id_filter(rider_id)
+    partner_doc = await database["delivery_partners"].find_one(query)
+    if not partner_doc:
+        partner_doc = await database["delivery_partners"].find_one({"phone": rider_id})
+
+    if not partner_doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Courier partner not found",
+        )
+
+    amount = float(payload.get("amount") or 0.0)
+    utr = str(payload.get("utr") or f"UPI/{datetime.datetime.now().strftime('%Y%m%d%H%M%S')}")
+
+    current_cih = float(partner_doc.get("cash_in_hand") or 0.0)
+    current_earned = float(partner_doc.get("total_payout_earned") or 0.0)
+    current_net_due = float(
+        partner_doc.get("net_cash_due")
+        if partner_doc.get("net_cash_due") is not None
+        else max(0.0, current_cih - current_earned)
+    )
+
+    remit_amount = amount if amount > 0 else current_net_due
+    new_cih = max(0.0, current_cih - remit_amount)
+    new_net_due = max(0.0, new_cih - current_earned)
+    is_locked = new_net_due >= 500.00
+    excess_amount = max(0.0, new_net_due - 500.00)
+
+    total_remitted = float(partner_doc.get("total_remitted") or 0.0) + remit_amount
+
+    await database["delivery_partners"].update_one(
+        {"_id": partner_doc["_id"]},
+        {
+            "$set": {
+                "cash_in_hand": round(new_cih, 2),
+                "net_cash_due": round(new_net_due, 2),
+                "total_remitted": round(total_remitted, 2),
+                "is_locked": is_locked,
+            }
+        },
+    )
+
+    remittance_record = {
+        "rider_id": str(partner_doc["_id"]),
+        "rider_name": partner_doc.get("name") or "",
+        "rider_phone": partner_doc.get("phone") or "",
+        "amount": remit_amount,
+        "utr": utr,
+        "approved_by": admin_email,
+        "approved_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        "status": "APPROVED",
+    }
+    await database["rider_remittances"].insert_one(remittance_record)
+
+    await log_admin_action(
+        admin_email=admin_email,
+        action="approve_rider_remittance",
+        resource="delivery_partners",
+        resource_id=str(partner_doc["_id"]),
+        metadata={
+            "phone": partner_doc.get("phone"),
+            "amount": remit_amount,
+            "utr": utr,
+            "new_net_due": new_net_due,
+            "is_locked": is_locked,
+        },
+    )
+
+    return {
+        "success": True,
+        "message": f"Remittance of ₹{remit_amount:.2f} approved (UTR: {utr}). Rider unlocked.",
+        "net_cash_due": round(new_net_due, 2),
+        "is_locked": is_locked,
+        "excess_amount": round(excess_amount, 2),
+        "status": "ACTIVE" if not is_locked else ("APPROACHING_LIMIT" if new_net_due >= 400.0 else "LOCKED"),
+    }
 
 

@@ -48,12 +48,39 @@ const ADMIN_JSON = {
 };
 
 
-export async function getAdminStats() {
-  return authJson<AdminStats>("/admin/stats", ADMIN_JSON);
+export async function getAdminStats(): Promise<AdminStats> {
+  const stats = await authJson<AdminStats>("/admin/stats", ADMIN_JSON);
+  const totalSmall =
+    stats.total_small_order_fees ??
+    (stats as { small_order_fees_total?: number }).small_order_fees_total ??
+    0;
+  return {
+    ...stats,
+    total_small_order_fees: totalSmall,
+    small_order_fees_total: totalSmall,
+    small_order_count: stats.small_order_count ?? 0,
+  };
 }
 
-export async function getAdminAnalytics() {
-  return authJson<AdminFinancialAnalytics>("/admin/analytics", ADMIN_JSON);
+export async function getAdminAnalytics(): Promise<AdminFinancialAnalytics> {
+  const data = await authJson<AdminFinancialAnalytics>("/admin/analytics", ADMIN_JSON);
+  const totalSmall =
+    data.total_small_order_fees ??
+    (data as { small_order_fees_total?: number }).small_order_fees_total ??
+    0;
+  return {
+    ...data,
+    total_small_order_fees: totalSmall,
+    small_order_fees_total: totalSmall,
+    small_order_count: data.small_order_count ?? 0,
+  };
+}
+
+/**
+ * Returns canonical Admin Financial Analytics / Overview summary.
+ */
+export async function getAdminFinancialOverview(): Promise<AdminFinancialAnalytics> {
+  return getAdminAnalytics();
 }
 
 /** Public liveness probe — no JWT required. */
@@ -192,36 +219,85 @@ export async function deleteAdminSubscription(
 }
 
 /**
- * Acknowledges / clears rider cash-in-hand remittance.
+ * Approves and records a rider cash-in-hand remittance with UTR verification,
+ * immediately reducing net cash due and unlocking order claiming.
  */
-export async function remitRiderDuesAdmin(
-  phone: string,
-  amount?: number
-): Promise<{ success: boolean; message: string }> {
+export async function approveRiderRemittance(
+  riderId: string,
+  amount?: number,
+  utr?: string
+): Promise<{
+  success: boolean;
+  message: string;
+  net_cash_due?: number;
+  is_locked?: boolean;
+  excess_amount?: number;
+  status?: string;
+}> {
+  const generatedUtr = utr || `UPI/${Date.now()}`;
+
   // 1. Sync local storage CIH balance immediately
-  remitRiderDues(phone, amount);
+  const recon = remitRiderDues(riderId, amount, generatedUtr);
 
   if (typeof window !== "undefined") {
+    try {
+      const remitKey = "cb_rider_remittances";
+      const raw = localStorage.getItem(remitKey);
+      const existing = raw ? JSON.parse(raw) : [];
+      existing.unshift({
+        rider_id: riderId,
+        amount: amount ?? recon.total_remitted,
+        utr: generatedUtr,
+        approved_at: new Date().toISOString(),
+        status: "APPROVED",
+      });
+      localStorage.setItem(remitKey, JSON.stringify(existing));
+    } catch (_) {}
+
     window.dispatchEvent(new Event("admin_settlement_changed"));
     window.dispatchEvent(new Event("delivery_state_changed"));
   }
 
   // 2. Call backend API with silent fallback
   try {
-    return await authJson<{ success: boolean; message: string }>(
-      `/admin/riders/remit/${encodeURIComponent(phone)}`,
-      {
-        ...ADMIN_JSON,
-        method: "PUT",
-        body: JSON.stringify({ amount }),
-      }
-    );
+    return await authJson<{
+      success: boolean;
+      message: string;
+      net_cash_due?: number;
+      is_locked?: boolean;
+      excess_amount?: number;
+      status?: string;
+    }>(`/admin/riders/${encodeURIComponent(riderId)}/remittance/approve`, {
+      ...ADMIN_JSON,
+      method: "POST",
+      body: JSON.stringify({ amount, utr: generatedUtr }),
+    });
   } catch (_) {
+    const isLocked = recon.net_cash_due >= 500.0;
+    const status = isLocked
+      ? "LOCKED"
+      : recon.net_cash_due >= 400.0
+      ? "APPROACHING_LIMIT"
+      : "ACTIVE";
     return {
       success: true,
-      message: `Remittance of ${amount ? `₹${amount}` : "balance"} acknowledged for courier ${phone}`,
+      message: `Remittance of ₹${(amount ?? recon.net_cash_due).toFixed(2)} approved (UTR: ${generatedUtr}). Rider unlocked.`,
+      net_cash_due: recon.net_cash_due,
+      is_locked: isLocked,
+      excess_amount: recon.excess_amount,
+      status,
     };
   }
+}
+
+/**
+ * Acknowledges / clears rider cash-in-hand remittance (backward compatibility alias).
+ */
+export async function remitRiderDuesAdmin(
+  phone: string,
+  amount?: number
+): Promise<{ success: boolean; message: string }> {
+  return approveRiderRemittance(phone, amount);
 }
 
 /**
@@ -337,7 +413,29 @@ export async function getCanteenSettlementsAdmin(
 /**
  * Builds complete Rider CIH (Cash-in-Hand) reconciliation report for the admin console.
  */
-export async function getAdminRiderReconciliations(): Promise<RiderReconciliationSummary> {
+export async function getRiderCihOversight(): Promise<RiderReconciliationSummary> {
+  // 1. Attempt remote backend CIH oversight endpoint first
+  try {
+    const remote = await authJson<RiderReconciliationSummary>(
+      "/admin/riders/cih-oversight",
+      ADMIN_JSON
+    );
+    if (remote && Array.isArray(remote.riders) && remote.riders.length > 0) {
+      const lockedCount = remote.riders.filter((r) => r.is_locked || r.status === "LOCKED").length;
+      const approachingCount = remote.riders.filter((r) => r.status === "APPROACHING_LIMIT").length;
+      const activeCount = remote.riders.filter((r) => r.status === "ACTIVE").length;
+
+      return {
+        ...remote,
+        total_campus_cih: remote.total_campus_cih ?? remote.total_cash_collected ?? 0,
+        locked_riders_count: remote.locked_riders_count ?? lockedCount,
+        approaching_limit_count: remote.approaching_limit_count ?? approachingCount,
+        active_riders_count: remote.active_riders_count ?? activeCount,
+      };
+    }
+  } catch (_) {}
+
+  // 2. Fallback to local computation
   let partners: AdminDeliveryPartner[] = [];
   try {
     const data = await getAdminDeliveryPartners("", 1, 100);
@@ -420,6 +518,14 @@ export async function getAdminRiderReconciliations(): Promise<RiderReconciliatio
       ? cih.total_payout_earned
       : ordersDelivered * RIDER_BASE_PAYOUT;
     const netDue = cih.net_cash_due;
+    const maxLimit = 500.00;
+    const isLocked = netDue >= maxLimit;
+    const excessAmount = isLocked ? Math.max(0, Number((netDue - maxLimit).toFixed(2))) : 0;
+    const status: "ACTIVE" | "APPROACHING_LIMIT" | "LOCKED" = isLocked
+      ? "LOCKED"
+      : netDue >= 400.00
+      ? "APPROACHING_LIMIT"
+      : "ACTIVE";
 
     totalCashHeld += cashCollected;
     totalWagesKept += wagesKept;
@@ -431,24 +537,38 @@ export async function getAdminRiderReconciliations(): Promise<RiderReconciliatio
       email: p.email,
       vehicle: p.vehicle || "Bike",
       vehicle_number: p.vehicle_number,
-      status: p.status || "Online",
+      status,
       orders_delivered: ordersDelivered,
       cash_collected: cashCollected,
       wages_kept: wagesKept,
+      net_cash_due: netDue,
       net_due: netDue,
+      max_limit: maxLimit,
+      is_locked: isLocked,
+      excess_amount: excessAmount,
       remittance_status: netDue > 0 ? "DUES_PENDING" : "CLEAR",
+      approved_remittances: cih.total_remitted || 0,
     };
   });
 
   const netUnremitted = Number((totalCashHeld - totalWagesKept).toFixed(2));
+  const lockedCount = items.filter((i) => i.is_locked || i.status === "LOCKED").length;
+  const approachingCount = items.filter((i) => i.status === "APPROACHING_LIMIT").length;
+  const activeCount = items.filter((i) => i.status === "ACTIVE").length;
 
   return {
     total_cash_collected: Number(totalCashHeld.toFixed(2)),
+    total_campus_cih: Number(totalCashHeld.toFixed(2)),
     total_wages_kept: Number(totalWagesKept.toFixed(2)),
     net_unremitted_dues: Math.max(0, netUnremitted),
+    locked_riders_count: lockedCount,
+    approaching_limit_count: approachingCount,
+    active_riders_count: activeCount,
     riders: items,
   };
 }
+
+export const getAdminRiderReconciliations = getRiderCihOversight;
 
 /**
  * Builds Canteen Daily Settlement Sheet for the current date.

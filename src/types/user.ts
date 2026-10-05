@@ -88,6 +88,9 @@ export type AdminFinancialAnalytics = {
   courier_payouts: number;
   gst_pool: number;
   average_order_value: number;
+  total_small_order_fees?: number;
+  small_order_fees_total?: number;
+  small_order_count?: number;
 };
 
 export type AdminStats = {
@@ -103,6 +106,9 @@ export type AdminStats = {
   courier_payouts?: number;
   gst_pool?: number;
   average_order_value?: number;
+  total_small_order_fees?: number;
+  small_order_fees_total?: number;
+  small_order_count?: number;
 };
 
 export type BackendHealth = {

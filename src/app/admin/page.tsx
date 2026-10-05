@@ -5,6 +5,7 @@ import { useEffect, useState } from "react";
 
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminFinancialSummaryCards from "@/components/admin/AdminFinancialSummaryCards";
+import AdminPricingSafeguardsCard from "@/components/admin/AdminPricingSafeguardsCard";
 import AdminRiderCihOversight from "@/components/admin/AdminRiderCihOversight";
 import AdminCanteenDailySettlements from "@/components/admin/AdminCanteenDailySettlements";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
@@ -161,6 +162,11 @@ export default function AdminPage() {
           {/* Financial Metrics & Fund Distribution */}
           <section aria-label="Platform Financial Metrics">
             <AdminFinancialSummaryCards analytics={analytics} />
+          </section>
+
+          {/* Active Platform Pricing Safeguards */}
+          <section aria-label="Active Platform Pricing Safeguards">
+            <AdminPricingSafeguardsCard />
           </section>
 
           {/* Courier Cash-in-Hand (COD Dues) & Remittance Oversight */}

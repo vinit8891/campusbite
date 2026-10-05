@@ -99,3 +99,59 @@ async def test_admin_financial_analytics_multiple_delivered_orders():
         assert analytics["gst_pool"] == 19.00
         # AOV = 462 / 2 = 231.00
         assert analytics["average_order_value"] == 231.00
+        assert analytics["total_small_order_fees"] == 0.0
+        assert analytics["small_order_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_admin_financial_analytics_with_small_order_surcharge():
+    """Verifies that small order fees (<₹50 delivery surcharge) are accumulated into platform earnings."""
+    delivered_orders = [
+        # Order 1: Small cart (₹40 food subtotal < ₹50) + ₹5 small order fee + ₹2 GST + ₹15 delivery + ₹3 platform fee = ₹65 total
+        # Commission: 18% of 40 = ₹7.20, Tech fee = ₹3.00, Small order fee = ₹5.00 -> Platform earnings = 7.20 + 3.00 + 5.00 = ₹15.20
+        # Restaurant settlement: 40 - 7.20 = ₹32.80
+        # Courier payout: ₹15.00, GST pool: ₹2.00
+        {
+            "status": "Delivered",
+            "total": 65.0,
+            "food_subtotal": 40.0,
+            "restaurant_gst": 2.0,
+            "platform_fee": 3.0,
+            "small_order_fee": 5.0,
+            "delivery_fee": 15.0,
+            "commission_amount": 7.20,
+            "items": [
+                {"name": "Tea & Bun Maska", "price": 40.0, "quantity": 1}
+            ],
+        },
+        # Order 2: Standard cart (₹120 food subtotal >= ₹50) -> small_order_fee = 0
+        # Commission: 18% of 120 = ₹21.60, Tech fee = ₹5.00 -> Platform earnings = 21.60 + 5.00 = ₹26.60
+        {
+            "status": "Delivered",
+            "total": 145.0,
+            "food_subtotal": 120.0,
+            "restaurant_gst": 6.0,
+            "platform_fee": 5.0,
+            "small_order_fee": 0.0,
+            "delivery_fee": 15.0,
+            "commission_amount": 21.60,
+            "items": [
+                {"name": "Thali", "price": 120.0, "quantity": 1}
+            ],
+        },
+    ]
+
+    mock_collection = AsyncMock()
+    mock_collection.find = lambda query: MockAsyncCursor(delivered_orders)
+
+    with patch("app.models.analytics.order_collection", mock_collection):
+        analytics = await get_admin_financial_analytics()
+
+        # GMV = 65 + 145 = 210.00
+        assert analytics["total_revenue"] == 210.00
+        # Platform earnings = 15.20 + 26.60 = 41.80
+        assert analytics["platform_earnings"] == 41.80
+        # Small order fees total and count
+        assert analytics["total_small_order_fees"] == 5.00
+        assert analytics["small_order_count"] == 1
+        assert analytics["total_orders"] == 2
