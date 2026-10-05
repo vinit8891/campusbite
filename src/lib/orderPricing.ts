@@ -7,8 +7,10 @@ export const PLATFORM_FEE_LOW = 3.00;
 export const PLATFORM_FEE_HIGH = 5.00;
 export const DELIVERY_FEE_HOSTEL_BATCH = 15.00;
 export const DELIVERY_FEE_STANDARD = 40.00;
-export const BUDGET_MEAL_COMMISSION_RATE = 0.05;
-export const STANDARD_COMMISSION_RATE = 0.10;
+export const RESTAURANT_COMMISSION_RATE = 0.18;
+export const COMMISSION_RATE = 0.18;
+export const BUDGET_MEAL_COMMISSION_RATE = 0.18;
+export const STANDARD_COMMISSION_RATE = 0.18;
 export const ONLINE_PG_FEE_RATE = 0.0236;
 export const RIDER_BASE_PAYOUT = 20.00; // Flat ₹20 per fulfilled order
 export const DELIVERY_PARTNER_SHARE_RATE = 0.85; // Legacy / reference rate
@@ -72,15 +74,9 @@ export function calculateOrderPricing(
     (food_subtotal + restaurant_gst + delivery_fee + platform_fee + valid_tip).toFixed(2)
   );
 
-  // Commission splits
+  // Commission splits (Standard 18% Platform Take Rate)
   const commission_amount = Number(
-    items
-      .reduce((sum, item) => {
-        const itemTotal = Number(item.price || 0) * Number(item.quantity || 0);
-        const rate = item.is_budget_meal ? BUDGET_MEAL_COMMISSION_RATE : STANDARD_COMMISSION_RATE;
-        return sum + itemTotal * rate;
-      }, 0)
-      .toFixed(2)
+    (food_subtotal * RESTAURANT_COMMISSION_RATE).toFixed(2)
   );
 
   const isOnline = ["online", "online_payment", "razorpay"].includes(

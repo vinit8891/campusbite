@@ -211,7 +211,7 @@ export function AdminCanteenDailySettlements() {
               <span>{totalCommission.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</span>
             </p>
             <p className="text-xs text-purple-700">
-              5% budget meals / 10% standard
+              18% standard platform commission
             </p>
           </div>
 

@@ -30,7 +30,7 @@ describe("restaurantService", () => {
             restaurant_name: "Taj Canteen",
             status: "Delivered",
             food_subtotal: 500,
-            commission_amount: 40, // 8%
+            commission_amount: 90, // 18%
             total: 540,
             created_at: new Date().toISOString(),
           },
@@ -40,7 +40,7 @@ describe("restaurantService", () => {
             restaurant_name: "Taj Canteen",
             status: "Delivered",
             food_subtotal: 300,
-            commission_amount: 24, // 8%
+            commission_amount: 54, // 18%
             total: 325,
             created_at: new Date().toISOString(),
           },
@@ -52,12 +52,12 @@ describe("restaurantService", () => {
 
       // Gross = 500 + 300 = 800
       expect(res.today.gross_food_sales).toBe(800);
-      // Commission = 40 + 24 = 64
-      expect(res.today.commission_deducted).toBe(64);
+      // Commission = 90 + 54 = 144 (18%)
+      expect(res.today.commission_deducted).toBe(144);
       // GST = 5% of 800 = 40
       expect(res.today.gst_amount).toBe(40);
-      // Net Payable = 800 + 40 - 64 = 776
-      expect(res.today.net_payable_subtotal).toBe(776);
+      // Net Payable = (800 + 40) - 144 = 696 (₹87 per ₹100)
+      expect(res.today.net_payable_subtotal).toBe(696);
       expect(res.today.orders_count).toBe(2);
       expect(res.today.status).toBe("Pending");
     });
@@ -75,8 +75,8 @@ describe("restaurantService", () => {
             upi_id: "punjabi.rasoi@okaxis",
             orders_count: 5,
             gross_food_sales: 1200,
-            commission_deducted: 96,
-            net_payable_subtotal: 1164,
+            commission_deducted: 216,
+            net_payable_subtotal: 1044,
             status: "Settled",
             transaction_ref: "UPI/20261003/999111",
             settlement_date: todayStr,
@@ -89,7 +89,7 @@ describe("restaurantService", () => {
 
       expect(res.today.status).toBe("Settled");
       expect(res.today.transaction_ref).toBe("UPI/20261003/999111");
-      expect(res.today.net_payable_subtotal).toBe(1164);
+      expect(res.today.net_payable_subtotal).toBe(1044);
     });
   });
 });

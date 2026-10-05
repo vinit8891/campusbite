@@ -291,7 +291,7 @@ export async function getRestaurantSettlements(
     todayGrossFoodSales += subtotal;
 
     const orderExt = o as { commission_amount?: number };
-    const comm = Number(orderExt.commission_amount ?? (subtotal * 0.08));
+    const comm = Number(orderExt.commission_amount ?? (subtotal * 0.18));
     todayCommission += comm;
   }
 
@@ -353,10 +353,10 @@ export async function getRestaurantSettlements(
       upi_id: upiId,
       orders_count: 14,
       gross_food_sales: 1680.0,
-      commission_deducted: 134.4,
+      commission_deducted: 302.4,
       gst_amount: 84.0,
-      net_payable_subtotal: 1629.6,
-      net_disbursed: 1629.6,
+      net_payable_subtotal: 1461.6,
+      net_disbursed: 1461.6,
       status: "Settled",
       settled_at: `${yesterday}T21:05:12.000Z`,
       settled_by: "ops@campusbite.in",
@@ -370,10 +370,10 @@ export async function getRestaurantSettlements(
       upi_id: upiId,
       orders_count: 22,
       gross_food_sales: 2750.0,
-      commission_deducted: 220.0,
+      commission_deducted: 495.0,
       gst_amount: 137.5,
-      net_payable_subtotal: 2667.5,
-      net_disbursed: 2667.5,
+      net_payable_subtotal: 2392.5,
+      net_disbursed: 2392.5,
       status: "Settled",
       settled_at: `${twoDaysAgo}T21:02:44.000Z`,
       settled_by: "ops@campusbite.in",
@@ -387,10 +387,10 @@ export async function getRestaurantSettlements(
       upi_id: upiId,
       orders_count: 19,
       gross_food_sales: 2340.0,
-      commission_deducted: 187.2,
+      commission_deducted: 421.2,
       gst_amount: 117.0,
-      net_payable_subtotal: 2269.8,
-      net_disbursed: 2269.8,
+      net_payable_subtotal: 2035.8,
+      net_disbursed: 2035.8,
       status: "Settled",
       settled_at: `${threeDaysAgo}T21:08:19.000Z`,
       settled_by: "ops@campusbite.in",

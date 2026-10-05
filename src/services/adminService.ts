@@ -528,7 +528,7 @@ export async function getAdminCanteenDailyBreakdown(
         const orderExt = o as { food_subtotal?: number; commission_amount?: number; total?: number };
         const subtotal = Number(orderExt.food_subtotal || orderExt.total || o.total || 0);
         grossSales += subtotal;
-        commission += Number(orderExt.commission_amount || (subtotal * 0.08));
+        commission += Number(orderExt.commission_amount || (subtotal * 0.18));
       }
     } else if (settled) {
       grossSales = settled.gross_food_sales;

@@ -37,19 +37,19 @@ function runTests() {
   const pohaPricing = calculateCheckoutPricing(pohaItems, 'HOSTEL_BATCH');
 
   assert(
-    pohaAppPrice === 42,
-    'Poha Calibrated App Price is ₹42',
-    `Expected: 42, Received: ${pohaAppPrice}`
+    pohaAppPrice === 43,
+    'Poha Calibrated App Price is ₹43',
+    `Expected: 43, Received: ${pohaAppPrice}`
   );
   assert(
-    pohaPricing.appSubtotal === 42,
-    'Poha App Subtotal is ₹42',
-    `Expected: 42, Received: ${pohaPricing.appSubtotal}`
+    pohaPricing.appSubtotal === 43,
+    'Poha App Subtotal is ₹43',
+    `Expected: 43, Received: ${pohaPricing.appSubtotal}`
   );
   assert(
-    pohaPricing.gstAmount === 2.10,
-    'Poha 5% GST is ₹2.10',
-    `Expected: 2.10, Received: ${pohaPricing.gstAmount}`
+    pohaPricing.gstAmount === 2.15,
+    'Poha 5% GST is ₹2.15',
+    `Expected: 2.15, Received: ${pohaPricing.gstAmount}`
   );
   assert(
     pohaPricing.platformTechFee === 5.0,
@@ -62,9 +62,9 @@ function runTests() {
     `Expected: 15.00, Received: ${pohaPricing.deliveryFee}`
   );
   assert(
-    pohaPricing.totalStudentPayable === 64.10,
-    'Poha Total Student Payable is ₹64.10',
-    `Expected: 64.10, Received: ${pohaPricing.totalStudentPayable}`
+    pohaPricing.totalStudentPayable === 65.15,
+    'Poha Total Student Payable is ₹65.15',
+    `Expected: 65.15, Received: ${pohaPricing.totalStudentPayable}`
   );
   assert(
     pohaPricing.canteenPayout.baseFood === 35,
@@ -80,14 +80,14 @@ function runTests() {
   const chapatiPricing = calculateCheckoutPricing(chapatiItems, 'HOSTEL_BATCH');
 
   assert(
-    chapatiAppPrice === 71,
-    'Chapati Bhaji Calibrated App Price is ₹71',
-    `Expected: 71, Received: ${chapatiAppPrice}`
+    chapatiAppPrice === 74,
+    'Chapati Bhaji Calibrated App Price is ₹74',
+    `Expected: 74, Received: ${chapatiAppPrice}`
   );
   assert(
-    chapatiPricing.totalStudentPayable === 94.55,
-    'Chapati Bhaji Total Batch Payable is ₹94.55',
-    `Expected: 94.55 (71 + 3.55 GST + 5 Tech + 15 Delivery), Received: ${chapatiPricing.totalStudentPayable}`
+    chapatiPricing.totalStudentPayable === 97.70,
+    'Chapati Bhaji Total Batch Payable is ₹97.70',
+    `Expected: 97.70 (74 + 3.70 GST + 5 Tech + 15 Delivery), Received: ${chapatiPricing.totalStudentPayable}`
   );
   assert(
     chapatiPricing.canteenPayout.baseFood === 60,
@@ -103,14 +103,14 @@ function runTests() {
   const ricePricing = calculateCheckoutPricing(riceItems, 'EXPRESS_DOOR');
 
   assert(
-    riceAppPrice === 95,
-    'Rice Plate Calibrated App Price is ₹95',
-    `Expected: 95, Received: ${riceAppPrice}`
+    riceAppPrice === 98,
+    'Rice Plate Calibrated App Price is ₹98',
+    `Expected: 98, Received: ${riceAppPrice}`
   );
   assert(
-    ricePricing.appSubtotal === 95,
-    'Rice Plate Subtotal is ₹95 (>= ₹80 threshold)',
-    `Expected: 95, Received: ${ricePricing.appSubtotal}`
+    ricePricing.appSubtotal === 98,
+    'Rice Plate Subtotal is ₹98 (>= ₹80 threshold)',
+    `Expected: 98, Received: ${ricePricing.appSubtotal}`
   );
   assert(
     ricePricing.deliveryFee === 40.0,
@@ -118,9 +118,9 @@ function runTests() {
     `Expected: 40.00, Received: ${ricePricing.deliveryFee}`
   );
   assert(
-    ricePricing.totalStudentPayable === 144.75,
-    'Rice Plate Express Door Total Payable is ₹144.75',
-    `Expected: 144.75 (95 + 4.75 GST + 5 Tech + 40 Express), Received: ${ricePricing.totalStudentPayable}`
+    ricePricing.totalStudentPayable === 147.90,
+    'Rice Plate Express Door Total Payable is ₹147.90',
+    `Expected: 147.90 (98 + 4.90 GST + 5 Tech + 40 Express), Received: ${ricePricing.totalStudentPayable}`
   );
   console.log('');
 
@@ -136,30 +136,30 @@ function runTests() {
 
   assert(
     restrictionThrown,
-    'Express Restriction thrown when testing Poha (₹42 subtotal) with EXPRESS_DOOR'
+    'Express Restriction thrown when testing Poha (₹43 subtotal) with EXPRESS_DOOR'
   );
   console.log('');
 
   // --- Test 5: COD Whole-Rupee Rounding ---
   console.log('--- Test 5: COD Whole-Rupee Rounding Validation ---');
-  const cod1 = calculateCodRounding(64.10);
+  const cod1 = calculateCodRounding(65.15);
   assert(
-    cod1.roundedTotal === 64 && cod1.roundOff === -0.10,
-    'COD rounding down: ₹64.10 -> ₹64 (roundOff: -₹0.10)',
+    cod1.roundedTotal === 65 && cod1.roundOff === -0.15,
+    'COD rounding down: ₹65.15 -> ₹65 (roundOff: -₹0.15)',
     `Received: roundedTotal=${cod1.roundedTotal}, roundOff=${cod1.roundOff}`
   );
 
-  const cod2 = calculateCodRounding(94.55);
+  const cod2 = calculateCodRounding(97.70);
   assert(
-    cod2.roundedTotal === 95 && cod2.roundOff === 0.45,
-    'COD rounding up: ₹94.55 -> ₹95 (roundOff: +₹0.45)',
+    cod2.roundedTotal === 98 && cod2.roundOff === 0.30,
+    'COD rounding up: ₹97.70 -> ₹98 (roundOff: +₹0.30)',
     `Received: roundedTotal=${cod2.roundedTotal}, roundOff=${cod2.roundOff}`
   );
 
-  const cod3 = calculateCodRounding(144.75);
+  const cod3 = calculateCodRounding(147.90);
   assert(
-    cod3.roundedTotal === 145 && cod3.roundOff === 0.25,
-    'COD rounding up: ₹144.75 -> ₹145 (roundOff: +₹0.25)',
+    cod3.roundedTotal === 148 && cod3.roundOff === 0.10,
+    'COD rounding up: ₹147.90 -> ₹148 (roundOff: +₹0.10)',
     `Received: roundedTotal=${cod3.roundedTotal}, roundOff=${cod3.roundOff}`
   );
 
@@ -174,7 +174,7 @@ function runTests() {
   // --- Test 6: Flat ₹20 Rider Base Payout & Tip Tracking ---
   console.log('--- Test 6: Flat ₹20 Rider Payout & Tip Validation ---');
   const orderPricingNoTip = calculateOrderPricing(
-    [{ price: 42, quantity: 1 }],
+    [{ price: 43, quantity: 1 }],
     'HOSTEL_BATCH',
     0,
     'COD'
@@ -186,7 +186,7 @@ function runTests() {
   );
 
   const orderPricingWithTip = calculateOrderPricing(
-    [{ price: 42, quantity: 1 }],
+    [{ price: 43, quantity: 1 }],
     'HOSTEL_BATCH',
     10.00,
     'COD'
@@ -200,14 +200,14 @@ function runTests() {
 
   // --- Test 7: Cash-in-Hand (CIH) Reconciliation Arithmetic ---
   console.log('--- Test 7: Cash-in-Hand (CIH) Reconciliation Ledger ---');
-  const collectedCodCash = 64.00; // e.g. Poha COD total
+  const collectedCodCash = 65.00; // e.g. Poha COD total
   const riderPayout = RIDER_BASE_PAYOUT; // ₹20 flat
   const netDue = Number((collectedCodCash - riderPayout).toFixed(2));
 
   assert(
-    netDue === 44.00,
-    'Net Due to CampusBite is ₹44.00 (₹64 cash collected - ₹20 wage earned)',
-    `Expected: 44.00, Received: ${netDue}`
+    netDue === 45.00,
+    'Net Due to CampusBite is ₹45.00 (₹65 cash collected - ₹20 wage earned)',
+    `Expected: 45.00, Received: ${netDue}`
   );
   console.log('');
 

@@ -5,7 +5,8 @@ from typing import Any, Literal
 from fastapi import HTTPException
 
 # Statutory Tax & Pricing Constants
-COMMISSION_RATE = 0.15  # 15% Platform Take-Rate
+RESTAURANT_COMMISSION_RATE = 0.18  # 18% Standard Restaurant Deduction Rate
+COMMISSION_RATE = 0.18  # 18% Platform Take-Rate
 FOOD_GST_RATE = 0.05    # 5% Food GST
 TECH_FEE_DELIVERY = 5.0 # ₹5 for delivered orders
 TECH_FEE_TAKEAWAY = 3.0 # ₹3 for counter pass
@@ -18,7 +19,7 @@ RIDER_COD_BALANCE_CEILING = 1000.0
 
 
 def get_calibrated_app_price(counter_price: float) -> int:
-    """Returns calibrated menu price ensuring 100% canteen payout post 15% commission."""
+    """Returns calibrated menu price ensuring 100% canteen payout post 18% commission."""
     return math.ceil(counter_price / (1.0 - COMMISSION_RATE))
 
 

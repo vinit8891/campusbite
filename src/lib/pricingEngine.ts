@@ -1,4 +1,5 @@
-export const COMMISSION_RATE = 0.15; // 15% Platform Take-Rate
+export const RESTAURANT_COMMISSION_RATE = 0.18;
+export const COMMISSION_RATE = 0.18; // 18% Platform Take-Rate
 export const GST_RATE = 0.05;         // 5% Food GST
 export const TECH_FEE_DELIVERY = 5.0; // ₹5 for delivered orders
 export const TECH_FEE_TAKEAWAY = 3.0; // ₹3 for counter pass

@@ -272,18 +272,11 @@ async def get_admin_financial_analytics() -> dict:
                 else order_total
             )
 
-        # Commission
+        # Commission (Standard 18% Platform Take Rate)
         if doc.get("commission_amount") is not None:
             comm = float(doc.get("commission_amount") or 0.0)
-        elif items:
-            comm = sum(
-                float(it.get("price", 0))
-                * int(it.get("quantity", 1))
-                * (0.05 if it.get("is_budget_meal") else 0.10)
-                for it in items
-            )
         else:
-            comm = round(0.05 * subtotal, 2)
+            comm = round(0.18 * subtotal, 2)
 
         # Platform fee
         if doc.get("platform_fee") is not None:

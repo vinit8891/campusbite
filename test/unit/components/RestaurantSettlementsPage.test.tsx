@@ -21,7 +21,7 @@ describe("RestaurantSettlementsPage", () => {
           restaurant_name: "Taj Canteen",
           status: "Delivered",
           food_subtotal: 1000,
-          commission_amount: 80,
+          commission_amount: 180,
           total: 1080,
           created_at: new Date().toISOString(),
         },
@@ -64,7 +64,7 @@ describe("RestaurantSettlementsPage", () => {
     });
 
     expect(
-      screen.getByText("CampusBite Platform Commission:")
+      screen.getByText("CampusBite Platform Commission (18%):")
     ).toBeInTheDocument();
     expect(screen.getByText("Print / Download Slip")).toBeInTheDocument();
   });

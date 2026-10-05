@@ -242,7 +242,7 @@ export default function RestaurantSettlementsPage() {
               <span>Commission Retained</span>
             </span>
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-800">
-              5%–10% Platform Fee
+              18% Platform Fee
             </span>
           </div>
 
@@ -595,7 +595,7 @@ export default function RestaurantSettlementsPage() {
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-amber-700">
-                  <span>CampusBite Platform Commission:</span>
+                  <span>CampusBite Platform Commission (18%):</span>
                   <span className="font-bold">
                     -₹{selectedSlip.commission_deducted.toFixed(2)}
                   </span>
