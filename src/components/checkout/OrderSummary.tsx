@@ -19,8 +19,9 @@ import {
   type CartItemInput,
   MICRO_CART_THRESHOLD,
   MIN_DELIVERY_SUBTOTAL,
-  SMALL_ORDER_THRESHOLD,
-  SMALL_ORDER_FEE,
+  PLATFORM_FEE_STANDARD,
+  PLATFORM_FEE_SMALL_CART,
+  SMALL_CART_THRESHOLD,
 } from "@/lib/pricingEngine";
 import {
   COD_PAYMENT_METHOD,
@@ -124,8 +125,6 @@ export default function OrderSummary() {
   const isDelivery = effectiveMode !== "COUNTER_TAKEAWAY";
   const isBelowMinDelivery = isDelivery && pricing.appSubtotal > 0 && pricing.appSubtotal < MIN_DELIVERY_SUBTOTAL;
   const missingToMinDelivery = Math.max(0, Number((MIN_DELIVERY_SUBTOTAL - pricing.appSubtotal).toFixed(2)));
-  const hasSmallOrderSurcharge = isDelivery && pricing.appSubtotal >= MIN_DELIVERY_SUBTOTAL && pricing.appSubtotal < SMALL_ORDER_THRESHOLD;
-  const missingToWaiveSurcharge = Math.max(0, Number((SMALL_ORDER_THRESHOLD - pricing.appSubtotal).toFixed(2)));
 
   const isCod = checkout.payment_method === COD_PAYMENT_METHOD;
   const isOnline = checkout.payment_method === ONLINE_PAYMENT_METHOD;
@@ -602,34 +601,6 @@ export default function OrderSummary() {
               ₹{pricing.platformTechFee.toFixed(2)}
             </span>
           </div>
-
-          {/* Small Order Surcharge (under ₹50) */}
-          {hasSmallOrderSurcharge && (
-            <div className="flex items-center justify-between text-amber-900 bg-amber-50/70 border border-amber-200/80 rounded-lg px-2.5 py-1.5">
-              <div className="flex items-center gap-1.5">
-                <span>Small Order Surcharge</span>
-                <span className="text-[10px] text-amber-700 font-medium">(under ₹50)</span>
-              </div>
-              <span className="font-bold text-amber-900">+₹{pricing.smallOrderFee.toFixed(2)}</span>
-            </div>
-          )}
-
-          {/* Helper tip to waive surcharge */}
-          {hasSmallOrderSurcharge && (
-            <div className="rounded-xl border border-amber-200/60 bg-amber-50/40 p-2.5 text-[11px] text-amber-800 flex items-center justify-between gap-2">
-              <span className="flex items-center gap-1.5">
-                <span>💡</span>
-                <span>Add <strong>₹{missingToWaiveSurcharge.toFixed(2)}</strong> more to waive the ₹5 small order fee!</span>
-              </span>
-              <button
-                type="button"
-                onClick={() => router.push(ROUTES.RESTAURANTS)}
-                className="text-xs font-bold text-amber-700 hover:text-amber-800 underline cursor-pointer shrink-0"
-              >
-                + Add Items
-              </button>
-            </div>
-          )}
 
           {Number(checkout.tip_amount || 0) > 0 && (
             <div className="flex justify-between text-amber-700 font-bold">

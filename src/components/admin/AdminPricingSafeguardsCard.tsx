@@ -11,8 +11,9 @@ import {
 } from "lucide-react";
 import {
   MIN_DELIVERY_SUBTOTAL,
-  SMALL_ORDER_THRESHOLD,
-  SMALL_ORDER_FEE,
+  SMALL_CART_THRESHOLD,
+  PLATFORM_FEE_STANDARD,
+  PLATFORM_FEE_SMALL_CART,
   COMMISSION_RATE,
   RIDER_BASE_PAYOUT,
 } from "@/lib/orderPricing";
@@ -31,13 +32,13 @@ export function AdminPricingSafeguardsCard() {
       iconClass: "text-blue-600 bg-blue-50",
     },
     {
-      id: "small-order-surcharge",
-      title: "Small Order Threshold",
-      value: `₹${SMALL_ORDER_THRESHOLD.toFixed(2)}`,
-      subvalue: `Surcharge: +₹${SMALL_ORDER_FEE.toFixed(2)}`,
-      badge: "Active Surcharge",
+      id: "platform-tech-fee",
+      title: "Platform Tech Fee Tiering",
+      value: `₹${PLATFORM_FEE_STANDARD.toFixed(2)} / ₹${PLATFORM_FEE_SMALL_CART.toFixed(2)}`,
+      subvalue: `< ₹${SMALL_CART_THRESHOLD.toFixed(0)}: ₹${PLATFORM_FEE_SMALL_CART.toFixed(0)}`,
+      badge: "Dynamic Tiering",
       badgeClass: "bg-amber-100 text-amber-800 border-amber-200",
-      description: "Orders below ₹50.00 incur a ₹5.00 surcharge to ensure unit economic sustainability.",
+      description: "₹5.00 for small carts (< ₹50.00), ₹3.00 standard (≥ ₹50.00) without separate surcharge lines.",
       icon: Sparkles,
       iconClass: "text-amber-600 bg-amber-50",
     },

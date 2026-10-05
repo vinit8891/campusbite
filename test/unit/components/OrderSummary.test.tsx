@@ -105,7 +105,7 @@ describe("OrderSummary Component", () => {
     };
   });
 
-  it("renders order items and statutory pricing breakdown (5% GST, ₹15 batch delivery, ₹5 tech fee, COD rounding)", () => {
+  it("renders order items and statutory pricing breakdown (5% GST, ₹15 batch delivery, ₹3 tech fee for carts >= ₹50, COD rounding)", () => {
     render(<OrderSummary />);
 
     expect(screen.getByText("Veg Thali × 1")).toBeInTheDocument();
@@ -116,9 +116,9 @@ describe("OrderSummary Component", () => {
     expect(screen.getByText("Delivery Fee")).toBeInTheDocument();
     expect(screen.getByText("Hostel Batch (₹15)")).toBeInTheDocument();
     expect(screen.getByText("Platform Tech Fee")).toBeInTheDocument();
-    expect(screen.getByText("₹5.00")).toBeInTheDocument();
-    // Total = 122 + 6.10 + 15 + 5 = 148.10 -> 148 (COD rounded)
-    expect(screen.getAllByText("₹148").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("₹3.00")).toBeInTheDocument();
+    // Total = 122 + 6.10 + 15 + 3 = 146.10 -> 146 (COD rounded)
+    expect(screen.getAllByText("₹146").length).toBeGreaterThanOrEqual(1);
   });
 
   it("renders ₹3 platform tech fee when takeaway is selected and calculates Veg Thali takeaway total", () => {
@@ -145,6 +145,32 @@ describe("OrderSummary Component", () => {
     expect(screen.getByText("₹3.00")).toBeInTheDocument();
     // Online total = 98 + 4.90 + 0 + 3 = 105.90
     expect(screen.getAllByText("₹105.90").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("calculates Veg Thali delivery total with ₹3 Platform Tech Fee (₹120.90 online)", () => {
+    // Veg Thali counter price ₹80 -> calibrated app price ₹98
+    currentCart = [
+      { id: "veg_thali", name: "Veg Thali", price: 80, quantity: 1, restaurant_email: "rest@campus.in" },
+    ];
+    mockCheckoutState = {
+      ...mockCheckoutState,
+      delivery_type: "HOSTEL_BATCH",
+      payment_method: "online",
+    };
+
+    render(<OrderSummary />);
+
+    expect(screen.getByText("Veg Thali × 1")).toBeInTheDocument();
+    expect(screen.getAllByText("₹98.00").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Food GST (5%)")).toBeInTheDocument();
+    expect(screen.getByText("₹4.90")).toBeInTheDocument();
+    expect(screen.getByText("Delivery Fee")).toBeInTheDocument();
+    expect(screen.getByText("Hostel Batch (₹15)")).toBeInTheDocument();
+    expect(screen.getByText("₹15.00")).toBeInTheDocument();
+    expect(screen.getByText("Platform Tech Fee")).toBeInTheDocument();
+    expect(screen.getByText("₹3.00")).toBeInTheDocument();
+    // Online total = 98 + 4.90 + 15 + 3 = 120.90
+    expect(screen.getAllByText("₹120.90").length).toBeGreaterThanOrEqual(1);
   });
 
   it("displays amber banner and disables checkout button when delivery subtotal is below ₹35", async () => {
@@ -176,7 +202,7 @@ describe("OrderSummary Component", () => {
     expect(mockSetCheckout).toHaveBeenCalled();
   });
 
-  it("displays small order surcharge and helper tip when delivery subtotal is ₹35 to ₹49.99", () => {
+  it("renders dynamic ₹5.00 Platform Tech Fee when delivery subtotal is ₹35 to ₹49.99 without separate surcharge row", () => {
     // Counter price 30 -> Calibrated app price 37 (between 35 and 49.99)
     currentCart = [
       { id: "samosa", name: "Samosa", price: 30, quantity: 1, restaurant_email: "rest@campus.in" },
@@ -184,15 +210,12 @@ describe("OrderSummary Component", () => {
 
     render(<OrderSummary />);
 
-    // Surcharge line item
-    expect(screen.getByText("Small Order Surcharge")).toBeInTheDocument();
-    expect(screen.getByText("(under ₹50)")).toBeInTheDocument();
-    expect(screen.getByText("+₹5.00")).toBeInTheDocument();
+    // Platform Tech Fee displays ₹5.00 for small cart
+    expect(screen.getByText("Platform Tech Fee")).toBeInTheDocument();
+    expect(screen.getByText("₹5.00")).toBeInTheDocument();
 
-    // Helper tip
-    expect(
-      screen.getByText(/to waive the ₹5 small order fee!/i)
-    ).toBeInTheDocument();
+    // No separate surcharge line item
+    expect(screen.queryByText("Small Order Surcharge")).not.toBeInTheDocument();
   });
 
   it("allows selecting rider tip and updates checkout state", async () => {
@@ -214,7 +237,7 @@ describe("OrderSummary Component", () => {
       phone: "9876543210",
       address: "Room 101, Block A, Hostel Block A, Ref: Near Mess (Note: Call when downstairs)",
       payment_method: "cod",
-      total: 148,
+      total: 146,
       status: "Pending",
       items: currentCart,
     });
@@ -230,7 +253,7 @@ describe("OrderSummary Component", () => {
           restaurant_email: "rest@campus.in",
           delivery_type: "HOSTEL_BATCH",
           hostel_block: "Hostel Block A",
-          total: 148,
+          total: 146,
           payment_method: "cod",
           address: expect.stringContaining("Room 101, Block A"),
         })

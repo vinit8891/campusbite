@@ -30,7 +30,7 @@ describe("AdminFinancialSummaryCards component", () => {
     expect(screen.getByText("Net App Earnings")).toBeInTheDocument();
     expect(screen.getByText("₹1,420.00")).toBeInTheDocument();
     expect(
-      screen.getByText(/18% Canteen Commission \+ Tech Fees \(₹3\/₹5\) \+ Small Order Fees \(₹5\) \+ Delivery Differential/i)
+      screen.getByText(/18% Canteen Commission \+ Platform Tech Fee \(₹3 standard \/ ₹5 for carts <₹50\) \+ Delivery Differential/i)
     ).toBeInTheDocument();
 
     // Total Revenue (GMV)

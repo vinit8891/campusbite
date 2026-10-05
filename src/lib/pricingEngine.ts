@@ -1,17 +1,22 @@
 export const RESTAURANT_COMMISSION_RATE = 0.18;
 export const COMMISSION_RATE = 0.18; // 18% Platform Take-Rate
 export const GST_RATE = 0.05;         // 5% Food GST
-export const TECH_FEE_DELIVERY = 5.0; // ₹5 for delivered orders
-export const TECH_FEE_TAKEAWAY = 3.0; // ₹3 for counter pass
+
+export const PLATFORM_FEE_STANDARD = 3.00; // Carts >= ₹50
+export const PLATFORM_FEE_SMALL_CART = 5.00; // Carts < ₹50
+export const SMALL_CART_THRESHOLD = 50.00;
+export const MIN_DELIVERY_SUBTOTAL = 35.00;
+
+export const TECH_FEE_DELIVERY = 5.0; // Legacy alias
+export const TECH_FEE_TAKEAWAY = 3.0; // Legacy alias
 export const PLATFORM_FEE_TAKEAWAY = 3.00;
 export const PLATFORM_FEE_DELIVERY = 5.00;
 export const BATCH_DELIVERY_FEE = 15.0;
 export const EXPRESS_DELIVERY_FEE = 40.0;
 export const MICRO_CART_THRESHOLD = 80.0;
 
-export const MIN_DELIVERY_SUBTOTAL = 35.00;
 export const SMALL_ORDER_THRESHOLD = 50.00;
-export const SMALL_ORDER_FEE = 5.00;
+export const SMALL_ORDER_FEE = 0.00;
 
 export type DeliveryMode = 'HOSTEL_BATCH' | 'EXPRESS_DOOR' | 'COUNTER_TAKEAWAY' | 'STANDARD';
 
@@ -66,8 +71,9 @@ export function getCalibratedAppPrice(counterPrice: number): number {
 }
 
 /**
- * Calculates checkout pricing breakdown including taxes, tech fee, delivery fee,
- * small order surcharge, micro-cart threshold validations, and canteen disbursal.
+ * Calculates checkout pricing breakdown including taxes, dynamic tech fee
+ * (₹5 for carts < ₹50, ₹3 for carts >= ₹50), delivery fee,
+ * min delivery validation, micro-cart threshold validations, and canteen disbursal.
  */
 export function calculateCheckoutPricing(
   items: CartItemInput[],
@@ -103,25 +109,26 @@ export function calculateCheckoutPricing(
   const gstAmount = Number((appSubtotal * GST_RATE).toFixed(2));
   const isTakeaway = normalizedMode === 'COUNTER_TAKEAWAY';
   const isDelivery = !isTakeaway;
-  const platformTechFee = isTakeaway ? TECH_FEE_TAKEAWAY : TECH_FEE_DELIVERY;
+
+  // Dynamic Platform Tech Fee: ₹5 for small carts (< ₹50), ₹3 for carts >= ₹50
+  const platformTechFee =
+    appSubtotal < SMALL_CART_THRESHOLD ? PLATFORM_FEE_SMALL_CART : PLATFORM_FEE_STANDARD;
 
   let deliveryFee = 0;
   if (normalizedMode === 'HOSTEL_BATCH') deliveryFee = BATCH_DELIVERY_FEE;
   if (normalizedMode === 'EXPRESS_DOOR') deliveryFee = EXPRESS_DELIVERY_FEE;
 
-  // Small order fee & min delivery subtotal check
+  // Minimum delivery subtotal check
   const isBelowMinDelivery = isDelivery && appSubtotal > 0 && appSubtotal < MIN_DELIVERY_SUBTOTAL;
   const minDeliveryError = isBelowMinDelivery
     ? "Minimum cart for hostel delivery is ₹35.00. Add items or switch to Counter Takeaway."
     : undefined;
 
-  const smallOrderFee =
-    isDelivery && appSubtotal >= MIN_DELIVERY_SUBTOTAL && appSubtotal < SMALL_ORDER_THRESHOLD
-      ? SMALL_ORDER_FEE
-      : 0.00;
+  // Small order fee removed from calculations
+  const smallOrderFee = 0.00;
 
   const totalStudentPayable = Number(
-    (appSubtotal + gstAmount + platformTechFee + deliveryFee + smallOrderFee).toFixed(2)
+    (appSubtotal + gstAmount + platformTechFee + deliveryFee).toFixed(2)
   );
 
   // 4. Guarantee Canteen Receives 100% Counter Rate + GST

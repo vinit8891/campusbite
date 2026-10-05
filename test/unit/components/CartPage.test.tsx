@@ -109,8 +109,8 @@ describe("CartPage Component", () => {
     // Subtotal: 98 + 147 = 245.00
     // Food GST (5%): 245 * 0.05 = 12.25
     // Delivery Fee: 15.00 (Hostel Batch)
-    // Platform Tech Fee: 5.00
-    // Grand Total: 245 + 12.25 + 15 + 5 = 277.25
+    // Platform Tech Fee: 3.00 (since 245 >= 50)
+    // Grand Total: 245 + 12.25 + 15 + 3 = 275.25
 
     expect(screen.getByText("Your Order")).toBeInTheDocument();
     expect(screen.getByText("Butter Naan")).toBeInTheDocument();
@@ -127,10 +127,10 @@ describe("CartPage Component", () => {
     expect(screen.getByText("₹15.00")).toBeInTheDocument();
 
     expect(screen.getByText("Platform Tech Fee")).toBeInTheDocument();
-    expect(screen.getByText("₹5.00")).toBeInTheDocument();
+    expect(screen.getByText("₹3.00")).toBeInTheDocument();
 
     expect(screen.getByText("Grand Total")).toBeInTheDocument();
-    expect(screen.getByText("₹277.25")).toBeInTheDocument();
+    expect(screen.getByText("₹275.25")).toBeInTheDocument();
   });
 
   it("allows selecting Direct Room Delivery and updates delivery mode state", async () => {
@@ -193,7 +193,7 @@ describe("CartPage Component", () => {
     expect(mockSetDeliveryType).toHaveBeenCalledWith("COUNTER_TAKEAWAY");
   });
 
-  it("shows small order surcharge and helper tip when delivery subtotal is between ₹35 and ₹50", () => {
+  it("shows dynamic ₹5.00 Platform Tech Fee when delivery subtotal is between ₹35 and ₹50 without separate surcharge row", () => {
     // 1 item with price 30 -> calibrated ceil(30/0.82) = 37 (between 35 and 50)
     mockCartState = [
       {
@@ -210,14 +210,16 @@ describe("CartPage Component", () => {
 
     render(<CartPage />);
 
-    // Small Order Surcharge line item
-    expect(screen.getByText("Small Order Surcharge")).toBeInTheDocument();
-    expect(screen.getByText("+₹5.00")).toBeInTheDocument();
+    // Platform Tech Fee displays ₹5.00 for small cart
+    expect(screen.getByText("Platform Tech Fee")).toBeInTheDocument();
+    expect(screen.getByText("₹5.00")).toBeInTheDocument();
 
-    // Helper tip
-    expect(
-      screen.getByText(/Add.*to waive the ₹5 small order fee!/i)
-    ).toBeInTheDocument();
+    // No separate surcharge line item
+    expect(screen.queryByText("Small Order Surcharge")).not.toBeInTheDocument();
+
+    // Grand total: 37 + 1.85 + 15 + 5 = 58.85
+    expect(screen.getByText("Grand Total")).toBeInTheDocument();
+    expect(screen.getByText("₹58.85")).toBeInTheDocument();
 
     // Checkout button is active
     const checkoutBtn = screen.getByRole("button", {

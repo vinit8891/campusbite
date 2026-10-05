@@ -18,10 +18,10 @@ describe("AdminPricingSafeguardsCard Component", () => {
     expect(screen.getByText("₹35.00")).toBeInTheDocument();
     expect(screen.getByText(/Counter Takeaway exempt/i)).toBeInTheDocument();
 
-    // Small Order Threshold: ₹50.00 & +₹5.00
-    expect(screen.getByText("Small Order Threshold")).toBeInTheDocument();
-    expect(screen.getByText("₹50.00")).toBeInTheDocument();
-    expect(screen.getByText("(Surcharge: +₹5.00)")).toBeInTheDocument();
+    // Platform Tech Fee Tiering: ₹3.00 / ₹5.00
+    expect(screen.getByText("Platform Tech Fee Tiering")).toBeInTheDocument();
+    expect(screen.getByText("₹3.00 / ₹5.00")).toBeInTheDocument();
+    expect(screen.getByText("(< ₹50: ₹5)")).toBeInTheDocument();
 
     // Canteen Commission Rate: 18.0%
     expect(screen.getByText("Canteen Commission Rate")).toBeInTheDocument();

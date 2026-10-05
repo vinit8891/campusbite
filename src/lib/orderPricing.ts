@@ -3,6 +3,11 @@
  */
 
 export const FOOD_GST_RATE = 0.05;
+export const PLATFORM_FEE_STANDARD = 3.00; // Carts >= ₹50
+export const PLATFORM_FEE_SMALL_CART = 5.00; // Carts < ₹50
+export const SMALL_CART_THRESHOLD = 50.00;
+export const MIN_DELIVERY_SUBTOTAL = 35.00;
+
 export const PLATFORM_FEE_TAKEAWAY = 3.00;
 export const PLATFORM_FEE_DELIVERY = 5.00;
 export const PLATFORM_FEE_LOW = 3.00;
@@ -17,9 +22,8 @@ export const ONLINE_PG_FEE_RATE = 0.0236;
 export const RIDER_BASE_PAYOUT = 20.00; // Flat ₹20 per fulfilled order
 export const DELIVERY_PARTNER_SHARE_RATE = 0.85; // Legacy / reference rate
 
-export const MIN_DELIVERY_SUBTOTAL = 35.00;
 export const SMALL_ORDER_THRESHOLD = 50.00;
-export const SMALL_ORDER_FEE = 5.00;
+export const SMALL_ORDER_FEE = 0.00;
 
 export type DeliveryType =
   | "HOSTEL_BATCH"
@@ -41,6 +45,7 @@ export interface OrderPricingBreakdown {
   food_subtotal: number;
   restaurant_gst: number;
   platform_fee: number;
+  amount?: number;
   fee_name: string;
   platform_fee_base: number;
   platform_fee_gst: number;
@@ -61,8 +66,9 @@ export interface OrderPricingBreakdown {
 }
 
 /**
- * Calculates complete order pricing including statutory GST, platform tech fee,
- * batch/standard delivery fees, small order surcharge, flat rider payout (₹20), tips, and partner splits.
+ * Calculates complete order pricing including statutory GST, dynamic platform tech fee
+ * (₹5 for carts < ₹50, ₹3 for carts >= ₹50), delivery fees, minimum delivery subtotal check,
+ * flat rider payout (₹20), tips, and partner splits.
  */
 export function calculateOrderPricing(
   items: PricingItem[],
@@ -85,8 +91,9 @@ export function calculateOrderPricing(
   // 5% Restaurant GST
   const restaurant_gst = Number((FOOD_GST_RATE * food_subtotal).toFixed(2));
 
-  // Platform Tech Fee: 2-Tier Structure (₹3 Takeaway / ₹5 Delivery)
-  const platform_fee = isTakeaway ? PLATFORM_FEE_TAKEAWAY : PLATFORM_FEE_DELIVERY;
+  // Dynamic Platform Tech Fee: ₹5 for carts < ₹50, ₹3 for carts >= ₹50
+  const platform_fee =
+    food_subtotal < SMALL_CART_THRESHOLD ? PLATFORM_FEE_SMALL_CART : PLATFORM_FEE_STANDARD;
   const platform_fee_base = Number((platform_fee / 1.18).toFixed(2));
   const platform_fee_gst = Number((platform_fee - platform_fee_base).toFixed(2));
   const fee_name = "Platform Tech Fee";
@@ -101,21 +108,19 @@ export function calculateOrderPricing(
       : DELIVERY_FEE_STANDARD
     : 0;
 
-  // Minimum cart and small order surcharge for delivery
+  // Minimum cart for delivery
   const is_below_min_delivery = isDelivery && food_subtotal > 0 && food_subtotal < MIN_DELIVERY_SUBTOTAL;
   const min_delivery_error = is_below_min_delivery
     ? "Minimum cart for hostel delivery is ₹35.00. Add items or switch to Counter Takeaway."
     : undefined;
 
-  const small_order_fee =
-    isDelivery && food_subtotal >= MIN_DELIVERY_SUBTOTAL && food_subtotal < SMALL_ORDER_THRESHOLD
-      ? SMALL_ORDER_FEE
-      : 0.00;
+  // Small order fee removed from calculations
+  const small_order_fee = 0.00;
 
   const valid_tip = Number(Math.max(0, Number(tipAmount || 0)).toFixed(2));
 
   const total_payable = Number(
-    (food_subtotal + restaurant_gst + delivery_fee + platform_fee + small_order_fee + valid_tip).toFixed(2)
+    (food_subtotal + restaurant_gst + delivery_fee + platform_fee + valid_tip).toFixed(2)
   );
 
   // Commission splits (Standard 18% Platform Take Rate)
@@ -141,7 +146,6 @@ export function calculateOrderPricing(
     (
       commission_amount +
       platform_fee +
-      small_order_fee +
       (delivery_fee - delivery_partner_earning) -
       pg_fee
     ).toFixed(2)
@@ -151,6 +155,7 @@ export function calculateOrderPricing(
     food_subtotal,
     restaurant_gst,
     platform_fee,
+    amount: platform_fee,
     fee_name,
     platform_fee_base,
     platform_fee_gst,

@@ -128,10 +128,10 @@ export function AdminFinancialSummaryCards({
           <div className="mt-2 space-y-1.5">
             <p
               className="flex items-start text-xs font-medium text-emerald-800 leading-snug"
-              title="18% Canteen Commission + Tech Fees (₹3/₹5) + Small Order Fees (₹5) + Delivery Differential"
+              title="18% Canteen Commission + Platform Tech Fee (₹3 standard / ₹5 for carts <₹50) + Delivery Differential"
             >
               <Info className="mr-1 mt-0.5 h-3.5 w-3.5 shrink-0" />
-              <span>18% Canteen Commission + Tech Fees (₹3/₹5) + Small Order Fees (₹5) + Delivery Differential</span>
+              <span>18% Canteen Commission + Platform Tech Fee (₹3 standard / ₹5 for carts &lt;₹50) + Delivery Differential</span>
             </p>
             {smallOrderFeesTotal > 0 || smallOrderCount > 0 ? (
               <div

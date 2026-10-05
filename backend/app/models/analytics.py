@@ -280,15 +280,15 @@ async def get_admin_financial_analytics() -> dict:
         else:
             comm = round(0.18 * subtotal, 2)
 
-        # Platform fee (Tech fee)
+        # Platform fee (Tech fee: ₹5 for carts < ₹50, ₹3 for carts >= ₹50)
         if doc.get("platform_fee") is not None:
             p_fee = float(doc.get("platform_fee") or 0.0)
         else:
-            p_fee = 3.00 if subtotal <= 100.0 else 5.00
+            p_fee = 5.00 if subtotal < 50.0 else 3.00
             if order_total <= 0:
                 p_fee = 0.0
 
-        # Small order fee (₹5.00 surcharge for delivery orders under ₹50)
+        # Small order fee (legacy / if present in past order documents)
         s_fee = float(doc.get("small_order_fee") or 0.0)
         if s_fee > 0:
             total_small_order_fees += s_fee
