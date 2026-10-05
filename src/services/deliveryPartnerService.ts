@@ -14,6 +14,8 @@ export type {
   RiderCashReconciliation,
 };
 
+export const MAX_UNREMITTED_CASH_LIMIT = 500.00;
+
 /**
  * Calculates earnings for a completed delivery order using the canonical flat ₹20 model.
  * earnedWage = RIDER_BASE_PAYOUT (₹20.00) + tip_amount
@@ -174,6 +176,14 @@ export function getRiderCashReconciliation(phone?: string): RiderCashReconciliat
     Number((total_cod_collected - canonicalPayoutEarned - total_remitted).toFixed(2))
   );
 
+  const isLocked = canonicalNetDue >= MAX_UNREMITTED_CASH_LIMIT;
+  const lockout_reason = isLocked
+    ? "Cash-in-Hand limit of ₹500 exceeded. Remit pending cash via UPI to unlock order claiming."
+    : undefined;
+  const excess_amount = isLocked
+    ? Math.max(0, Number((canonicalNetDue - MAX_UNREMITTED_CASH_LIMIT).toFixed(2)))
+    : 0;
+
   const updatedRecon: RiderCashReconciliation = {
     cash_in_hand,
     total_payout_earned: canonicalPayoutEarned,
@@ -181,6 +191,11 @@ export function getRiderCashReconciliation(phone?: string): RiderCashReconciliat
     total_cod_collected,
     total_remitted,
     completed_deliveries: completedCount,
+    isLocked,
+    is_locked: isLocked,
+    lockout_reason,
+    excess_amount,
+    max_limit: MAX_UNREMITTED_CASH_LIMIT,
   };
 
   // Overwrite stale caches across both keys
@@ -190,6 +205,28 @@ export function getRiderCashReconciliation(phone?: string): RiderCashReconciliat
   } catch (_) {}
 
   return updatedRecon;
+}
+
+export interface CanClaimOrdersResult {
+  canClaim: boolean;
+  allowed: boolean;
+  isLocked: boolean;
+  net_cash_due: number;
+  reason?: string;
+  excess_amount: number;
+}
+
+export function canClaimOrders(phone?: string): CanClaimOrdersResult {
+  const recon = getRiderCashReconciliation(phone);
+  const isLocked = recon.isLocked || recon.net_cash_due >= MAX_UNREMITTED_CASH_LIMIT;
+  return {
+    canClaim: !isLocked,
+    allowed: !isLocked,
+    isLocked,
+    net_cash_due: recon.net_cash_due,
+    reason: isLocked ? recon.lockout_reason : undefined,
+    excess_amount: recon.excess_amount ?? 0,
+  };
 }
 
 export function recordDeliveredOrderCash(
@@ -229,6 +266,14 @@ export function recordDeliveredOrderCash(
     )
   );
 
+  const isLocked = net_cash_due >= MAX_UNREMITTED_CASH_LIMIT;
+  const lockout_reason = isLocked
+    ? "Cash-in-Hand limit of ₹500 exceeded. Remit pending cash via UPI to unlock order claiming."
+    : undefined;
+  const excess_amount = isLocked
+    ? Math.max(0, Number((net_cash_due - MAX_UNREMITTED_CASH_LIMIT).toFixed(2)))
+    : 0;
+
   const updated: RiderCashReconciliation = {
     cash_in_hand,
     total_payout_earned,
@@ -236,6 +281,11 @@ export function recordDeliveredOrderCash(
     total_cod_collected,
     total_remitted,
     completed_deliveries,
+    isLocked,
+    is_locked: isLocked,
+    lockout_reason,
+    excess_amount,
+    max_limit: MAX_UNREMITTED_CASH_LIMIT,
   };
 
   if (typeof window !== "undefined") {
@@ -252,7 +302,8 @@ export function recordDeliveredOrderCash(
 
 export function remitRiderDues(
   phone?: string,
-  amountRemitted?: number
+  amountRemitted?: number,
+  _utrRef?: string
 ): RiderCashReconciliation {
   const current = getRiderCashReconciliation(phone);
   const remitted =
@@ -278,6 +329,14 @@ export function remitRiderDues(
     )
   );
 
+  const isLocked = net_cash_due >= MAX_UNREMITTED_CASH_LIMIT;
+  const lockout_reason = isLocked
+    ? "Cash-in-Hand limit of ₹500 exceeded. Remit pending cash via UPI to unlock order claiming."
+    : undefined;
+  const excess_amount = isLocked
+    ? Math.max(0, Number((net_cash_due - MAX_UNREMITTED_CASH_LIMIT).toFixed(2)))
+    : 0;
+
   const updated: RiderCashReconciliation = {
     cash_in_hand,
     total_payout_earned,
@@ -285,6 +344,11 @@ export function remitRiderDues(
     total_cod_collected,
     total_remitted,
     completed_deliveries,
+    isLocked,
+    is_locked: isLocked,
+    lockout_reason,
+    excess_amount,
+    max_limit: MAX_UNREMITTED_CASH_LIMIT,
   };
 
   if (typeof window !== "undefined") {
@@ -374,15 +438,35 @@ export async function getDeliveryStats(phone: string) {
     const netDue =
       data.net_cash_due !== undefined && data.net_cash_due !== 131.25
         ? Math.max(0, data.net_cash_due)
-        : Math.max(0, Number((cashInHand - totalPayout).toFixed(2)));
+        : Math.max(0, cashInHand - totalPayout);
+    const isLocked = netDue >= MAX_UNREMITTED_CASH_LIMIT;
+    const lockout_reason = isLocked
+      ? "Cash-in-Hand limit of ₹500 exceeded. Remit pending cash via UPI to unlock order claiming."
+      : undefined;
+    const excess_amount = isLocked
+      ? Math.max(0, Number((netDue - MAX_UNREMITTED_CASH_LIMIT).toFixed(2)))
+      : 0;
 
     return {
       ...data,
       cash_in_hand: cashInHand,
       total_payout_earned: totalPayout,
       net_cash_due: netDue,
+      isLocked,
+      is_locked: isLocked,
+      lockout_reason,
+      excess_amount,
+      max_limit: MAX_UNREMITTED_CASH_LIMIT,
     };
   } catch (err) {
+    const isLocked = cih.net_cash_due >= MAX_UNREMITTED_CASH_LIMIT;
+    const lockout_reason = isLocked
+      ? "Cash-in-Hand limit of ₹500 exceeded. Remit pending cash via UPI to unlock order claiming."
+      : undefined;
+    const excess_amount = isLocked
+      ? Math.max(0, Number((cih.net_cash_due - MAX_UNREMITTED_CASH_LIMIT).toFixed(2)))
+      : 0;
+
     return {
       phone,
       pending: 0,
@@ -392,6 +476,11 @@ export async function getDeliveryStats(phone: string) {
       cash_in_hand: cih.cash_in_hand,
       total_payout_earned: cih.total_payout_earned,
       net_cash_due: cih.net_cash_due,
+      isLocked,
+      is_locked: isLocked,
+      lockout_reason,
+      excess_amount,
+      max_limit: MAX_UNREMITTED_CASH_LIMIT,
       assigned_orders: 0,
       picked_up_orders: 0,
       delivered_today: cih.completed_deliveries ?? 0,

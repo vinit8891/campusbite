@@ -24,6 +24,11 @@ export type RiderCashReconciliation = {
   total_cod_collected?: number;
   total_remitted?: number;
   completed_deliveries?: number;
+  isLocked?: boolean;
+  is_locked?: boolean;
+  lockout_reason?: string;
+  excess_amount?: number;
+  max_limit?: number;
 };
 
 export type DeliveryPartnerProfile = {
@@ -150,6 +155,12 @@ export type DeliveryDashboardStats = {
   cash_in_hand?: number;
   total_payout_earned?: number;
   net_cash_due?: number;
+  isLocked?: boolean;
+  is_locked?: boolean;
+  lockout_reason?: string;
+  excess_amount?: number;
+  max_limit?: number;
+  cash_reconciliation?: RiderCashReconciliation;
   recent_assigned_orders?: DeliveryDashboardOrder[];
 };
 

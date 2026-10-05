@@ -57,7 +57,7 @@ describe("DeliveryCashReconciliation", () => {
     await user.click(remitBtn);
 
     expect(screen.getByText("Remit Dues to CampusBite")).toBeInTheDocument();
-    expect(screen.getByText("campusbite.ops@upi")).toBeInTheDocument();
+    expect(screen.getByText("campusbite.ops@okaxis")).toBeInTheDocument();
 
     const confirmBtn = screen.getByRole("button", { name: /confirm remitted ₹440\.00/i });
     await user.click(confirmBtn);

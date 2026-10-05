@@ -20,6 +20,7 @@ export type BatchGroup = {
 type BatchOrderGroupCardProps = {
   batch: BatchGroup;
   claimingIds: string[];
+  isLocked?: boolean;
   onClaimBatch: (orderIds: string[]) => void;
   onClaimSingle: (orderId: string) => void;
   onNavigate?: (order: AvailableOrder) => void;
@@ -28,6 +29,7 @@ type BatchOrderGroupCardProps = {
 export function BatchOrderGroupCard({
   batch,
   claimingIds,
+  isLocked = false,
   onClaimBatch,
   onClaimSingle,
   onNavigate,
@@ -140,11 +142,24 @@ export function BatchOrderGroupCard({
 
                 <button
                   type="button"
-                  onClick={() => onClaimSingle(order._id)}
-                  disabled={isSingleClaiming || isBatchClaiming}
-                  className="rounded-xl border border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-700 px-3 py-2 text-xs font-bold transition-all active:scale-95 disabled:opacity-50 cursor-pointer"
+                  onClick={() => !isLocked && onClaimSingle(order._id)}
+                  disabled={isSingleClaiming || isBatchClaiming || isLocked}
+                  title={
+                    isLocked
+                      ? "Cash-in-Hand limit of ₹500 exceeded. Remit pending cash via UPI to unlock order claiming."
+                      : undefined
+                  }
+                  className={`rounded-xl border px-3 py-2 text-xs font-bold transition-all ${
+                    isLocked
+                      ? "border-rose-300 bg-rose-50 text-rose-700 cursor-not-allowed opacity-90"
+                      : "border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-700 active:scale-95 disabled:opacity-50 cursor-pointer"
+                  }`}
                 >
-                  {isSingleClaiming ? "Claiming…" : "Claim Single"}
+                  {isLocked
+                    ? "🔒 Remit Cash to Claim"
+                    : isSingleClaiming
+                    ? "Claiming…"
+                    : "Claim Single"}
                 </button>
               </div>
             </div>
@@ -173,16 +188,31 @@ export function BatchOrderGroupCard({
 
           <button
             type="button"
-            onClick={() => onClaimBatch(orderIds)}
-            disabled={isBatchClaiming}
-            className="h-12 flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-xl bg-orange-600 hover:bg-orange-700 text-white px-5 sm:px-6 text-sm font-black shadow-sm hover:shadow transition-all active:scale-98 disabled:opacity-60 cursor-pointer"
+            onClick={() => !isLocked && onClaimBatch(orderIds)}
+            disabled={isBatchClaiming || isLocked}
+            title={
+              isLocked
+                ? "Cash-in-Hand limit of ₹500 exceeded. Remit pending cash via UPI to unlock order claiming."
+                : undefined
+            }
+            className={`h-12 flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-xl px-5 sm:px-6 text-sm font-black transition-all ${
+              isLocked
+                ? "bg-rose-100 border border-rose-300 text-rose-800 cursor-not-allowed opacity-90 shadow-none"
+                : "bg-orange-600 hover:bg-orange-700 text-white shadow-sm hover:shadow active:scale-98 disabled:opacity-60 cursor-pointer"
+            }`}
           >
-            <Zap className="h-4 w-4 fill-white shrink-0" />
-            <span>
-              {isBatchClaiming
-                ? "Claiming Batch…"
-                : `Claim Batch Run (${batch.orders.length} Orders)`}
-            </span>
+            {isLocked ? (
+              <span>🔒 Remit Cash to Claim</span>
+            ) : (
+              <>
+                <Zap className="h-4 w-4 fill-white shrink-0" />
+                <span>
+                  {isBatchClaiming
+                    ? "Claiming Batch…"
+                    : `Claim Batch Run (${batch.orders.length} Orders)`}
+                </span>
+              </>
+            )}
           </button>
         </div>
       </div>

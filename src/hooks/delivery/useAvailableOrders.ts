@@ -129,12 +129,12 @@ export function useAvailableOrders() {
       // 🛑 Live Cash-in-Hand (CIH) Reconciliation COD Limit Guard
       const recon = getRiderCashReconciliation(partner.phone);
       const currentDue = recon?.net_cash_due ?? 0;
-      const MAX_COD_LIMIT = 1000;
+      const MAX_COD_LIMIT = 500;
 
       // Allow claim if net dues are below limit
       if (currentDue >= MAX_COD_LIMIT) {
         toast.error(
-          "COD collection limit reached (₹1,000). Please deposit unremitted cash to continue accepting COD orders."
+          "Cash-in-Hand limit of ₹500 exceeded. Remit pending cash via UPI to unlock order claiming."
         );
         return false;
       }
@@ -169,12 +169,13 @@ export function useAvailableOrders() {
       // Check if this was a false-positive / stale limit error from backend
       if (
         (msg.toLowerCase().includes("limit") ||
-          msg.toLowerCase().includes("cod")) &&
+          msg.toLowerCase().includes("cod") ||
+          msg.toLowerCase().includes("cash-in-hand")) &&
         partner?.phone
       ) {
         const latestRecon = getRiderCashReconciliation(partner.phone);
         const currentDue = latestRecon?.net_cash_due ?? 0;
-        if (currentDue < 1000) {
+        if (currentDue < 500) {
           await loadOrders(currentFilters());
           if (typeof window !== "undefined") {
             window.dispatchEvent(new Event("delivery_state_changed"));

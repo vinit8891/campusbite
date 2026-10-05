@@ -8,6 +8,8 @@ from app.auth.roles import ADMIN, DELIVERY_PARTNER
 from app.core.logging import get_logger
 from app.db.database import database
 
+from app.payments.amounts import MAX_UNREMITTED_CASH_LIMIT
+
 router = APIRouter(
     prefix="/delivery-dashboard",
     tags=["Delivery Dashboard"],
@@ -161,6 +163,13 @@ async def delivery_stats(
     earnings = round(earnings, 2)
     total_cod_collected = round(total_cod_collected, 2)
     net_cash_due = max(0.0, round(total_cod_collected - earnings - unremitted_cod_balance, 2))
+    is_locked = net_cash_due >= MAX_UNREMITTED_CASH_LIMIT
+    lockout_reason = (
+        f"Cash-in-Hand limit of ₹{int(MAX_UNREMITTED_CASH_LIMIT)} exceeded. Remit pending cash via UPI to unlock order claiming."
+        if is_locked
+        else None
+    )
+    excess_amount = max(0.0, round(net_cash_due - MAX_UNREMITTED_CASH_LIMIT, 2))
 
     result = {
         # Legacy fields (unchanged)
@@ -174,6 +183,22 @@ async def delivery_stats(
         "earned_wages": earnings,
         "net_cash_due": net_cash_due,
         "unremitted_cod_balance": unremitted_cod_balance,
+        "is_locked": is_locked,
+        "isLocked": is_locked,
+        "lockout_reason": lockout_reason,
+        "excess_amount": excess_amount,
+        "max_limit": MAX_UNREMITTED_CASH_LIMIT,
+        "cash_reconciliation": {
+            "total_cod_collected": total_cod_collected,
+            "total_payout_earned": earnings,
+            "net_cash_due": net_cash_due,
+            "completed_deliveries": completed,
+            "isLocked": is_locked,
+            "is_locked": is_locked,
+            "lockout_reason": lockout_reason,
+            "excess_amount": excess_amount,
+            "max_limit": MAX_UNREMITTED_CASH_LIMIT,
+        },
         # Extended read-only dashboard fields
         "assigned_orders": assigned_orders,
         "picked_up_orders": picked_up_orders,

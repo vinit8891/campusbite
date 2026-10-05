@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import { Package, Bike, ArrowRight, ShieldCheck } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -8,6 +9,11 @@ import { useDeliveryDashboard } from "@/hooks/delivery/useDeliveryDashboard";
 import { DeliveryDashboardHeader } from "@/components/delivery/DeliveryDashboardHeader";
 import { DeliveryDashboardStatCards } from "@/components/delivery/DeliveryDashboardStatCards";
 import { RecentAssignedOrdersSection } from "@/components/delivery/RecentAssignedOrdersSection";
+import { RemitDuesModal } from "@/components/delivery/RemitDuesModal";
+import {
+  getRiderCashReconciliation,
+  MAX_UNREMITTED_CASH_LIMIT,
+} from "@/services/deliveryPartnerService";
 
 function DashboardSkeleton() {
   return (
@@ -37,6 +43,28 @@ export default function DeliveryDashboard() {
     recent,
   } = useDeliveryDashboard();
 
+  const [isRemitModalOpen, setIsRemitModalOpen] = useState(false);
+  const [localRecon, setLocalRecon] = useState(() =>
+    partner?.phone ? getRiderCashReconciliation(partner.phone) : null
+  );
+
+  useEffect(() => {
+    if (partner?.phone) {
+      setLocalRecon(getRiderCashReconciliation(partner.phone));
+    }
+    const updateRecon = () => {
+      if (partner?.phone) {
+        setLocalRecon(getRiderCashReconciliation(partner.phone));
+      }
+    };
+    window.addEventListener("delivery_state_changed", updateRecon);
+    window.addEventListener("storage", updateRecon);
+    return () => {
+      window.removeEventListener("delivery_state_changed", updateRecon);
+      window.removeEventListener("storage", updateRecon);
+    };
+  }, [partner?.phone]);
+
   if (loading) {
     return <DashboardSkeleton />;
   }
@@ -46,8 +74,49 @@ export default function DeliveryDashboard() {
     (o) => o.status === "Assigned" || o.status === "Out for Delivery"
   ) || recent[0];
 
+  const netCashDue =
+    stats.cash_reconciliation?.net_cash_due ??
+    localRecon?.net_cash_due ??
+    (stats.net_cash_due ?? 0);
+
+  const isLocked =
+    stats.cash_reconciliation?.isLocked ||
+    stats.isLocked ||
+    localRecon?.isLocked ||
+    netCashDue >= MAX_UNREMITTED_CASH_LIMIT;
+
   return (
     <div className="space-y-6 sm:space-y-8">
+      {/* ⚠️ Courier Cash-in-Hand (CIH) Hard Lockout Crimson Alert Banner */}
+      {isLocked ? (
+        <div className="rounded-2xl sm:rounded-3xl bg-rose-600 border border-rose-500 text-white p-5 sm:p-6 shadow-lg">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="p-2.5 rounded-2xl bg-white/20 shrink-0 text-2xl">
+                ⚠️
+              </div>
+              <div className="space-y-1">
+                <h2 className="text-base sm:text-lg font-black tracking-tight text-white flex items-center gap-2">
+                  <span>Order Claiming Paused</span>
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider bg-white/25 px-2 py-0.5 rounded-full">
+                    CIH Hard Lockout
+                  </span>
+                </h2>
+                <p className="text-xs sm:text-sm text-rose-100 font-medium leading-relaxed max-w-2xl">
+                  You are holding ₹{netCashDue.toFixed(2)} in physical cash (limit ₹500.00). Scan the UPI QR code to remit your dues and resume deliveries immediately.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsRemitModalOpen(true)}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-white px-5 py-3 text-sm font-black text-rose-700 shadow-md transition hover:bg-rose-50 active:scale-98 cursor-pointer shrink-0"
+            >
+              <span>💸 Remit Dues Now (UPI QR)</span>
+            </button>
+          </div>
+        </div>
+      ) : null}
       {/* ⚡ Active Delivery Alert Banner */}
       {activeRunsCount > 0 ? (
         <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-r from-amber-600 via-orange-600 to-orange-700 text-white p-5 sm:p-6 shadow-md border border-orange-400/40">
@@ -169,6 +238,17 @@ export default function DeliveryDashboard() {
           <ArrowRight className="h-5 w-5 text-stone-400" />
         </div>
       </Link>
+
+      <RemitDuesModal
+        isOpen={isRemitModalOpen}
+        onClose={() => setIsRemitModalOpen(false)}
+        phone={partner?.phone}
+        onRemitSuccess={() => {
+          if (partner?.phone) {
+            setLocalRecon(getRiderCashReconciliation(partner.phone));
+          }
+        }}
+      />
     </div>
   );
 }

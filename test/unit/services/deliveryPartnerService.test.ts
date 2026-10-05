@@ -2,8 +2,10 @@ import { describe, it, expect, beforeEach } from "vitest";
 import {
   calculateRiderEarnings,
   getRiderCashReconciliation,
+  canClaimOrders,
   recordDeliveredOrderCash,
   remitRiderDues,
+  MAX_UNREMITTED_CASH_LIMIT,
 } from "@/services/deliveryPartnerService";
 import { RIDER_BASE_PAYOUT } from "@/lib/orderPricing";
 
@@ -180,6 +182,108 @@ describe("deliveryPartnerService rider earnings and CIH calculations", () => {
       expect(cleared.total_remitted).toBe(360);
       // net_cash_due = Math.max(0, 400 - 40 - 360) = 0
       expect(cleared.net_cash_due).toBe(0);
+    });
+  });
+
+  describe("₹500 Courier Cash-in-Hand (CIH) Hard Lockout", () => {
+    it("exports canonical MAX_UNREMITTED_CASH_LIMIT as ₹500.00", () => {
+      expect(MAX_UNREMITTED_CASH_LIMIT).toBe(500.0);
+    });
+
+    it("allows rider with ₹480 dues to claim orders (NOT locked out)", () => {
+      const phone = "9111222333";
+      localStorage.setItem(
+        `cb_cih_${phone}`,
+        JSON.stringify({
+          total_cod_collected: 500,
+          total_payout_earned: 20,
+          net_cash_due: 480,
+          completed_deliveries: 1,
+        })
+      );
+
+      const recon = getRiderCashReconciliation(phone);
+      expect(recon.net_cash_due).toBe(480.0);
+      expect(recon.isLocked).toBe(false);
+      expect(recon.is_locked).toBe(false);
+      expect(recon.excess_amount).toBe(0);
+      expect(recon.lockout_reason).toBeUndefined();
+
+      const claimCheck = canClaimOrders(phone);
+      expect(claimCheck.allowed).toBe(true);
+      expect(claimCheck.reason).toBeUndefined();
+    });
+
+    it("locks out rider with ₹500 dues and order claim returns false", () => {
+      const phone = "9222333444";
+      localStorage.setItem(
+        `cb_cih_${phone}`,
+        JSON.stringify({
+          total_cod_collected: 540,
+          total_payout_earned: 40,
+          net_cash_due: 500,
+          completed_deliveries: 2,
+        })
+      );
+
+      const recon = getRiderCashReconciliation(phone);
+      expect(recon.net_cash_due).toBe(500.0);
+      expect(recon.isLocked).toBe(true);
+      expect(recon.is_locked).toBe(true);
+      expect(recon.lockout_reason).toBe(
+        "Cash-in-Hand limit of ₹500 exceeded. Remit pending cash via UPI to unlock order claiming."
+      );
+      expect(recon.excess_amount).toBe(0);
+
+      const claimCheck = canClaimOrders(phone);
+      expect(claimCheck.allowed).toBe(false);
+      expect(claimCheck.reason).toBe(
+        "Cash-in-Hand limit of ₹500 exceeded. Remit pending cash via UPI to unlock order claiming."
+      );
+    });
+
+    it("calculates excess_amount when dues exceed ₹500", () => {
+      const phone = "9333444555";
+      localStorage.setItem(
+        `cb_cih_${phone}`,
+        JSON.stringify({
+          total_cod_collected: 600,
+          total_payout_earned: 20,
+          net_cash_due: 580,
+          completed_deliveries: 1,
+        })
+      );
+
+      const recon = getRiderCashReconciliation(phone);
+      expect(recon.net_cash_due).toBe(580.0);
+      expect(recon.isLocked).toBe(true);
+      expect(recon.excess_amount).toBe(80.0);
+    });
+
+    it("restores active claim permissions upon partial remittance reducing dues below ₹500", () => {
+      const phone = "9444555666";
+
+      // Rider delivers ₹540 COD with ₹40 earnings -> ₹500 net dues -> locked
+      recordDeliveredOrderCash({ total: 270, payment_method: "COD" }, phone);
+      const lockedRecon = recordDeliveredOrderCash(
+        { total: 270, payment_method: "COD" },
+        phone
+      );
+      expect(lockedRecon.net_cash_due).toBe(500.0);
+      expect(lockedRecon.isLocked).toBe(true);
+      expect(canClaimOrders(phone).allowed).toBe(false);
+
+      // Rider remits partial amount ₹100 via UPI (UTR ref)
+      const afterPartialRemit = remitRiderDues(phone, 100, "UTR123456789");
+      expect(afterPartialRemit.net_cash_due).toBe(400.0);
+      expect(afterPartialRemit.isLocked).toBe(false);
+      expect(afterPartialRemit.is_locked).toBe(false);
+      expect(afterPartialRemit.excess_amount).toBe(0);
+
+      // Verify active claim permissions are immediately restored
+      const restoredCheck = canClaimOrders(phone);
+      expect(restoredCheck.allowed).toBe(true);
+      expect(restoredCheck.reason).toBeUndefined();
     });
   });
 });

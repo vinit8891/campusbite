@@ -31,7 +31,23 @@ vi.mock("@/lib/authTokens", () => ({
 }));
 
 vi.mock("@/services/deliveryPartnerService", () => ({
+  MAX_UNREMITTED_CASH_LIMIT: 500.0,
   updateDeliveryStatus: vi.fn().mockResolvedValue({ success: true }),
+  getRiderCashReconciliation: vi.fn().mockReturnValue({
+    total_cod_collected: 0,
+    total_payout_earned: 0,
+    net_cash_due: 0,
+    isLocked: false,
+    is_locked: false,
+    excess_amount: 0,
+  }),
+  canClaimOrders: vi.fn().mockReturnValue({
+    canClaim: true,
+    allowed: true,
+    isLocked: false,
+    net_cash_due: 0,
+    excess_amount: 0,
+  }),
   getDeliveryStats: vi.fn().mockResolvedValue({
     assigned_orders: 1,
     picked_up_orders: 1,
@@ -39,6 +55,14 @@ vi.mock("@/services/deliveryPartnerService", () => ({
     earnings_today: 160,
     total_deliveries: 42,
     rating: 4.9,
+    cash_reconciliation: {
+      total_cod_collected: 0,
+      total_payout_earned: 0,
+      net_cash_due: 0,
+      isLocked: false,
+      is_locked: false,
+      excess_amount: 0,
+    },
   }),
 }));
 

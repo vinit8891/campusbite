@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Bike, Layers, ListFilter } from "lucide-react";
 import { toast } from "sonner";
@@ -12,7 +12,12 @@ import { AvailableOrdersFilterBar } from "@/components/delivery/AvailableOrdersF
 import { AvailableOrderCard } from "@/components/delivery/AvailableOrderCard";
 import { BatchOrderGroupCard, type BatchGroup } from "@/components/delivery/BatchOrderGroupCard";
 import { getDeliveryPartnerSession } from "@/lib/authTokens";
-import { getRiderCashReconciliation } from "@/services/deliveryPartnerService";
+import {
+  getRiderCashReconciliation,
+  MAX_UNREMITTED_CASH_LIMIT,
+  type RiderCashReconciliation,
+} from "@/services/deliveryPartnerService";
+import { RemitDuesModal } from "@/components/delivery/RemitDuesModal";
 import { ROUTES } from "@/lib/routes";
 
 function OrdersSkeleton() {
@@ -68,6 +73,32 @@ export default function AvailableOrdersPage() {
 
   const [viewMode, setViewMode] = useState<"batch" | "single">("batch");
   const [claimingBatchIds, setClaimingBatchIds] = useState<string[]>([]);
+  const [partnerPhone, setPartnerPhone] = useState<string>("");
+  const [cashRecon, setCashRecon] = useState<RiderCashReconciliation | null>(null);
+  const [isRemitModalOpen, setIsRemitModalOpen] = useState(false);
+
+  useEffect(() => {
+    const p = getDeliveryPartnerSession();
+    if (p?.phone) {
+      setPartnerPhone(p.phone);
+      setCashRecon(getRiderCashReconciliation(p.phone));
+    }
+    const updateRecon = () => {
+      const activePartner = getDeliveryPartnerSession();
+      if (activePartner?.phone) {
+        setCashRecon(getRiderCashReconciliation(activePartner.phone));
+      }
+    };
+    window.addEventListener("delivery_state_changed", updateRecon);
+    window.addEventListener("storage", updateRecon);
+    return () => {
+      window.removeEventListener("delivery_state_changed", updateRecon);
+      window.removeEventListener("storage", updateRecon);
+    };
+  }, []);
+
+  const netCashDue = cashRecon?.net_cash_due ?? 0;
+  const isLocked = cashRecon?.isLocked ?? (netCashDue >= MAX_UNREMITTED_CASH_LIMIT);
 
   // Cluster orders by destination complex/building
   const batchGroups: BatchGroup[] = useMemo(() => {
@@ -100,16 +131,11 @@ export default function AvailableOrdersPage() {
   async function handleClaimBatch(orderIds: string[]) {
     if (!orderIds.length) return;
 
-    // Check COD limit once before batch claim
-    const partner = getDeliveryPartnerSession();
-    const recon = getRiderCashReconciliation(partner?.phone);
-    const currentDue = recon?.net_cash_due ?? 0;
-    const MAX_COD_LIMIT = 1000;
-
-    if (currentDue >= MAX_COD_LIMIT) {
+    if (isLocked || netCashDue >= MAX_UNREMITTED_CASH_LIMIT) {
       toast.error(
-        "COD collection limit reached (₹1,000). Please deposit unremitted cash to continue accepting COD orders."
+        "Cash-in-Hand limit of ₹500 exceeded. Remit pending cash via UPI to unlock order claiming."
       );
+      setIsRemitModalOpen(true);
       return;
     }
 
@@ -239,6 +265,34 @@ export default function AvailableOrdersPage() {
         </div>
       </div>
 
+      {/* ⚠️ Courier Cash-in-Hand (CIH) Hard Lockout Alert Banner */}
+      {isLocked ? (
+        <div className="rounded-2xl sm:rounded-3xl bg-rose-600 border border-rose-500 text-white p-4 sm:p-5 shadow-md">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="flex items-start gap-3">
+              <div className="p-2 rounded-xl bg-white/20 shrink-0 text-xl">
+                ⚠️
+              </div>
+              <div className="space-y-0.5">
+                <h2 className="text-sm sm:text-base font-black tracking-tight text-white">
+                  Order Claiming Paused
+                </h2>
+                <p className="text-xs sm:text-sm text-rose-100 font-medium leading-relaxed">
+                  You are holding ₹{netCashDue.toFixed(2)} in physical cash (limit ₹500.00). Scan the UPI QR code to remit your dues and resume deliveries immediately.
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={() => setIsRemitModalOpen(true)}
+              className="w-full sm:w-auto inline-flex items-center justify-center gap-2 rounded-xl bg-white px-4 py-2.5 text-xs sm:text-sm font-black text-rose-700 shadow-sm transition hover:bg-rose-50 active:scale-98 cursor-pointer shrink-0"
+            >
+              <span>💸 Remit Dues Now (UPI QR)</span>
+            </button>
+          </div>
+        </div>
+      ) : null}
+
       {/* Single-Row Clean Search & Filters */}
       <AvailableOrdersFilterBar
         q={q}
@@ -290,6 +344,7 @@ export default function AvailableOrdersPage() {
               key={batch.building}
               batch={batch}
               claimingIds={allClaimingIds}
+              isLocked={isLocked}
               onClaimBatch={(ids) => void handleClaimBatch(ids)}
               onClaimSingle={(id) => void handleAccept(id)}
               onNavigate={(o) => openNavigation(o)}
@@ -303,6 +358,7 @@ export default function AvailableOrdersPage() {
               key={order._id}
               order={order}
               isAccepting={allClaimingIds.includes(order._id)}
+              isLocked={isLocked}
               onAccept={(id) => void handleAccept(id)}
               onNavigate={(o) => openNavigation(o)}
             />
@@ -322,6 +378,18 @@ export default function AvailableOrdersPage() {
           void loadOrders(currentFilters({ page: next }), {
             showLoading: true,
           });
+        }}
+      />
+
+      <RemitDuesModal
+        isOpen={isRemitModalOpen}
+        onClose={() => setIsRemitModalOpen(false)}
+        phone={partnerPhone}
+        onRemitSuccess={() => {
+          const p = getDeliveryPartnerSession();
+          if (p?.phone) {
+            setCashRecon(getRiderCashReconciliation(p.phone));
+          }
         }}
       />
     </div>

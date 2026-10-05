@@ -7,6 +7,7 @@ from app.payments.amounts import (
     get_calibrated_app_price,
     assert_client_total_matches,
     RIDER_COD_BALANCE_CEILING,
+    MAX_UNREMITTED_CASH_LIMIT,
     FOOD_GST_RATE,
     COMMISSION_RATE,
     BATCH_DELIVERY_FEE,
@@ -205,5 +206,6 @@ def test_assert_client_total_matches():
 
 
 def test_rider_cod_balance_ceiling_value():
-    assert RIDER_COD_BALANCE_CEILING == 1000.0
+    assert RIDER_COD_BALANCE_CEILING == 500.0
+    assert MAX_UNREMITTED_CASH_LIMIT == 500.0
 

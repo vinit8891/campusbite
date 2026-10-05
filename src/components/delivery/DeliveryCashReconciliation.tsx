@@ -29,7 +29,7 @@ import { RIDER_BASE_PAYOUT } from "@/lib/orderPricing";
 import { ROUTES } from "@/lib/routes";
 import type { DeliveryPartner } from "@/types";
 
-export const CAMPUSBITE_UPI_ID = "campusbite.ops@upi";
+export const CAMPUSBITE_UPI_ID = "campusbite.ops@okaxis";
 export const CAMPUSBITE_UPI_NAME = "CampusBite Operations";
 
 export type DeliveryCashReconciliationProps = {

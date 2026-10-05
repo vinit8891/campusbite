@@ -51,6 +51,7 @@ from app.payments.amounts import (
     SMALL_ORDER_THRESHOLD,
     SMALL_ORDER_FEE,
     RIDER_COD_BALANCE_CEILING,
+    MAX_UNREMITTED_CASH_LIMIT,
     assert_client_total_matches,
     calculate_order_amounts,
     calculate_payable_amount,
@@ -552,6 +553,7 @@ async def my_delivery_orders(
 
 
 @router.put("/delivery/accept/{order_id}")
+@router.post("/delivery/claim-order/{order_id}")
 async def accept_delivery(
     order_id: str,
     background_tasks: BackgroundTasks,
@@ -591,32 +593,33 @@ async def accept_delivery(
             detail="Active delivery limit reached (max 3 runs). Complete current orders before accepting new ones.",
         )
 
-    # Rider COD floating balance guard: ceiling at ₹1,000 net dues
-    is_cod_order = (
-        _is_cod_method(target_order.get("payment_method"))
-        or str(target_order.get("payment_method", "")).lower() == "cod"
+    # Courier Cash-in-Hand (CIH) Hard Lockout guard: reject if net dues >= ₹500
+    partner_doc = await get_delivery_partner_by_phone(partner_phone)
+    unremitted_balance = float(
+        (partner_doc or {}).get("unremitted_cod_balance")
+        or (partner_doc or {}).get("cash_in_hand")
+        or (partner_doc or {}).get("total_cod_collected")
+        or 0.0
     )
-    if is_cod_order:
-        partner_doc = await get_delivery_partner_by_phone(partner_phone)
-        unremitted_balance = float(
-            (partner_doc or {}).get("unremitted_cod_balance") or 0.0
+    total_payout_earned = float(
+        (partner_doc or {}).get("total_payout_earned")
+        or (partner_doc or {}).get("earned_wages")
+        or (partner_doc or {}).get("earnings")
+        or 0.0
+    )
+    total_remitted = float(
+        (partner_doc or {}).get("total_remitted")
+        or (partner_doc or {}).get("approved_remittances")
+        or 0.0
+    )
+    net_cash_due = max(
+        0.0, unremitted_balance - total_payout_earned - total_remitted
+    )
+    if net_cash_due >= MAX_UNREMITTED_CASH_LIMIT:
+        raise HTTPException(
+            status_code=403,
+            detail="Cash-in-hand limit reached. Remit cash to claim new runs.",
         )
-        total_payout_earned = float(
-            (partner_doc or {}).get("total_payout_earned")
-            or (partner_doc or {}).get("earnings")
-            or 0.0
-        )
-        total_remitted = float(
-            (partner_doc or {}).get("total_remitted") or 0.0
-        )
-        net_cash_due = max(
-            0.0, unremitted_balance - total_payout_earned - total_remitted
-        )
-        if net_cash_due >= RIDER_COD_BALANCE_CEILING:
-            raise HTTPException(
-                status_code=400,
-                detail="COD collection limit reached (₹1,000). Please deposit unremitted cash to continue accepting COD orders.",
-            )
 
     success = await assign_delivery_partner(
         order_id=order_id,

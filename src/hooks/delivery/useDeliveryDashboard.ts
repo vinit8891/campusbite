@@ -80,6 +80,18 @@ export function useDeliveryDashboard() {
     runImmediately: true,
   });
 
+  useEffect(() => {
+    const handleStateChange = () => {
+      void loadDashboard();
+    };
+    window.addEventListener("delivery_state_changed", handleStateChange);
+    window.addEventListener("storage", handleStateChange);
+    return () => {
+      window.removeEventListener("delivery_state_changed", handleStateChange);
+      window.removeEventListener("storage", handleStateChange);
+    };
+  }, [loadDashboard]);
+
   const assigned = stats.assigned_orders ?? 0;
   const pickedUp = stats.picked_up_orders ?? 0;
   const deliveredToday = stats.delivered_today ?? 0;

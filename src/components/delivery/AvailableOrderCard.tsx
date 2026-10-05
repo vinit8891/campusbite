@@ -17,6 +17,7 @@ import type { AvailableOrder } from "@/hooks/delivery/useAvailableOrders";
 type AvailableOrderCardProps = {
   order: AvailableOrder;
   isAccepting: boolean;
+  isLocked?: boolean;
   onAccept: (id: string) => void;
   onNavigate: (order: AvailableOrder) => void;
 };
@@ -24,6 +25,7 @@ type AvailableOrderCardProps = {
 export function AvailableOrderCard({
   order,
   isAccepting,
+  isLocked = false,
   onAccept,
   onNavigate,
 }: AvailableOrderCardProps) {
@@ -162,12 +164,27 @@ export function AvailableOrderCard({
 
           <button
             type="button"
-            onClick={() => onAccept(order._id)}
-            disabled={isAccepting}
-            className="h-12 flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-xl bg-orange-600 hover:bg-orange-700 active:scale-98 px-6 text-sm font-black text-white transition-all shadow-xs disabled:opacity-60 cursor-pointer"
+            onClick={() => !isLocked && onAccept(order._id)}
+            disabled={isAccepting || isLocked}
+            title={
+              isLocked
+                ? "Cash-in-Hand limit of ₹500 exceeded. Remit pending cash via UPI to unlock order claiming."
+                : undefined
+            }
+            className={`h-12 flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-xl px-6 text-sm font-black transition-all ${
+              isLocked
+                ? "bg-rose-100 border border-rose-300 text-rose-800 cursor-not-allowed opacity-90 shadow-none"
+                : "bg-orange-600 hover:bg-orange-700 active:scale-98 text-white shadow-xs disabled:opacity-60 cursor-pointer"
+            }`}
           >
-            <Zap className="h-4 w-4 fill-white shrink-0" />
-            <span>{isAccepting ? "Claiming…" : "⚡ Claim Run • ₹20 Payout"}</span>
+            {isLocked ? (
+              <span>🔒 Remit Cash to Claim</span>
+            ) : (
+              <>
+                <Zap className="h-4 w-4 fill-white shrink-0" />
+                <span>{isAccepting ? "Claiming…" : "⚡ Claim Run • ₹20 Payout"}</span>
+              </>
+            )}
           </button>
         </div>
       </div>
