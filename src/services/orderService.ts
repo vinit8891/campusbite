@@ -276,6 +276,13 @@ export { deleteAdminOrder } from "@/services/adminService";
 export {
   updateDeliveryOrderStatus,
   updateOrderStatus,
+  getCourierLiveLocation,
+  streamCourierGPSLocation,
+} from "@/services/deliveryService";
+export type {
+  CourierLocationPayload,
+  CourierLocationResponse,
+  CourierTrackingInfo,
 } from "@/services/deliveryService";
 
 

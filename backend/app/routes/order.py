@@ -44,6 +44,10 @@ from app.services.notification_service import (
     schedule_notification,
 )
 from app.services.batch_scheduler import find_or_create_batch_for_order
+from app.services.location_service import (
+    update_courier_location_service,
+    get_courier_location_and_proximity,
+)
 from app.db.database import database
 from app.core.logging import get_logger
 from app.core.sanitize import sanitize_email, sanitize_search_query
@@ -696,6 +700,8 @@ async def assign_delivery(
 
 
 @router.put("/delivery/location/{order_id}")
+@router.post("/delivery/location/{order_id}")
+@router.post("/{order_id}/location")
 async def update_location(
     order_id: str,
     current_user: Annotated[dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))],
@@ -734,6 +740,8 @@ async def update_location(
 
     latitude = location.get("latitude")
     longitude = location.get("longitude")
+    heading = location.get("heading")
+    speed = location.get("speed")
 
     if latitude is None or longitude is None:
         raise HTTPException(
@@ -741,24 +749,44 @@ async def update_location(
             detail="Latitude and Longitude are required.",
         )
 
-    updated = await update_delivery_location(
-        order_id,
-        latitude,
-        longitude,
-    )
-
-    if not updated:
+    try:
+        lat = float(latitude)
+        lon = float(longitude)
+    except (ValueError, TypeError):
         raise HTTPException(
             status_code=400,
-            detail="Unable to update location for this order status.",
+            detail="Latitude and Longitude must be valid numbers.",
         )
 
+    proximity_result = await update_courier_location_service(
+        order_id=order_id,
+        latitude=lat,
+        longitude=lon,
+        heading=float(heading) if heading is not None else None,
+        speed=float(speed) if speed is not None else None,
+        destination_lat=order.get("latitude"),
+        destination_lon=order.get("longitude"),
+        hostel_block=order.get("hostel_block"),
+    )
+
+    await update_delivery_location(
+        order_id,
+        lat,
+        lon,
+    )
+
     return {
-        "message": "Delivery Location Updated"
+        "success": True,
+        "message": "Delivery Location Updated",
+        "data": proximity_result,
+        "is_within_200m": proximity_result["is_within_200m"],
+        "distance_meters": proximity_result["distance_meters"],
     }
 
 
 @router.get("/delivery/location/{order_id}")
+@router.get("/{order_id}/courier-location")
+@router.get("/courier-location/{order_id}")
 async def get_location(
     order_id: str,
     current_user: Annotated[
@@ -782,7 +810,25 @@ async def get_location(
         )
 
     _assert_order_access(order, current_user)
-    return await get_delivery_location(order_id)
+    
+    proximity_data = await get_courier_location_and_proximity(order_id, order_doc=order)
+    partner = order.get("delivery_partner") or {}
+    legacy_data = {
+        "partner_latitude": partner.get("latitude"),
+        "partner_longitude": partner.get("longitude"),
+        "customer_latitude": order.get("latitude"),
+        "customer_longitude": order.get("longitude"),
+        "restaurant_latitude": order.get("restaurant_latitude"),
+        "restaurant_longitude": order.get("restaurant_longitude"),
+        "last_location_update": partner.get("last_location_update"),
+        "status": order.get("status"),
+    }
+
+    return {
+        **legacy_data,
+        **(proximity_data or {}),
+        "status": order.get("status"),
+    }
 
 
 @router.get("/otp/{order_id}")

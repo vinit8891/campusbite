@@ -34,6 +34,7 @@ import {
   getStatusProgressionRank,
 } from "@/services/deliveryService";
 import { recordDeliveredOrderCash } from "@/services/deliveryPartnerService";
+import { useCourierLocationStream } from "@/hooks/useCourierLocationStream";
 import type { DeliveryOrder } from "@/types";
 
 type ActiveDeliveryManifestProps = {
@@ -111,6 +112,33 @@ export function ActiveDeliveryManifest({
   // Track checked items for canteen pickup validation
   const [checkedItems, setCheckedItems] = useState<Record<string, boolean>>({});
 
+  const orderId = effectiveOrder._id || (effectiveOrder as { id?: string }).id || "";
+  const effectiveStatus = localStatus || effectiveOrder.status || "";
+
+  const {
+    isStreaming,
+    isWithin200m: isHookWithin200m,
+    distanceMeters,
+  } = useCourierLocationStream({
+    orderId,
+    status: effectiveStatus,
+    destinationLat: effectiveOrder.latitude,
+    destinationLng: effectiveOrder.longitude,
+  });
+
+  const isRiderWithin200m =
+    isHookWithin200m ||
+    Boolean(
+      (effectiveOrder.delivery_partner as Record<string, unknown> | undefined)
+        ?.is_within_200m
+    ) ||
+    (typeof (
+      effectiveOrder.delivery_partner as Record<string, unknown> | undefined
+    )?.distance_meters === "number" &&
+      ((
+        effectiveOrder.delivery_partner as Record<string, unknown> | undefined
+      )?.distance_meters as number) <= 200);
+
   if (!isMounted) {
     return (
       <div className="w-full max-w-full min-w-0 box-border rounded-3xl border border-stone-200/90 bg-white p-6 sm:p-8 text-center text-stone-400">
@@ -119,7 +147,6 @@ export function ActiveDeliveryManifest({
     );
   }
 
-  const effectiveStatus = localStatus || effectiveOrder.status || "";
   const currentStatus = effectiveStatus
     .toLowerCase()
     .replace(/[-_]/g, " ")
@@ -587,6 +614,31 @@ export function ActiveDeliveryManifest({
               </div>
             </div>
           )}
+        </div>
+      )}
+
+      {/* 200m Dropoff Proximity Auto-Highlight Banner */}
+      {isRiderWithin200m && isEnRoute && !isDelivered && (
+        <div
+          data-testid="courier-proximity-highlight"
+          className="rounded-2xl border-2 border-emerald-400 bg-gradient-to-r from-emerald-500/15 via-teal-500/10 to-emerald-500/20 p-4 sm:p-5 shadow-sm space-y-2 animate-in fade-in slide-in-from-top-3"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-emerald-600 text-white shadow-sm shadow-emerald-600/30 animate-pulse">
+              <MapPin className="h-5 w-5" />
+            </div>
+            <div>
+              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 border border-emerald-300 px-2.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-emerald-900">
+                📍 Dropoff Proximity Reached • &lt;= 200m
+              </span>
+              <h4 className="font-extrabold text-stone-900 text-sm sm:text-base mt-0.5">
+                You&apos;re within 200m of the dropoff. Recipient has been notified to meet at the lobby.
+              </h4>
+            </div>
+          </div>
+          <p className="text-xs text-emerald-950 font-medium pl-0 sm:pl-13">
+            Ask student for their 4-digit handover OTP upon arrival. Amber COD card below displays the instant UPI QR code for doorstep collection.
+          </p>
         </div>
       )}
 

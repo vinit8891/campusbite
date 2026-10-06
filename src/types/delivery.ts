@@ -255,6 +255,9 @@ export type TrackingLocation = {
   delivery_partner_vehicle?: string;
   customer_name?: string;
   customer_address?: string;
+  is_within_200m?: boolean;
+  distance_meters?: number | null;
+  hostel_block?: string | null;
 };
 
 

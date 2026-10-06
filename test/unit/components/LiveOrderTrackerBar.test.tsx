@@ -195,4 +195,43 @@ describe("LiveOrderTrackerBar Component & Guards", () => {
 
     expect(localStorage.getItem("cb_active_order_id")).toBeNull();
   });
+
+  it("renders high-contrast 200m pulsating alert banner and triggers vibration when rider is within 200m", async () => {
+    mockIsLoggedIn = true;
+    mockPathname = "/";
+
+    const vibrateMock = vi.fn();
+    Object.defineProperty(global.navigator, "vibrate", {
+      value: vibrateMock,
+      configurable: true,
+      writable: true,
+    });
+
+    const proximityOrder: Order = {
+      ...mockActiveOrder,
+      delivery_partner: {
+        ...mockActiveOrder.delivery_partner,
+        is_within_200m: true,
+        distance_meters: 140,
+      } as any,
+    };
+
+    vi.spyOn(orderService, "getMyOrders").mockResolvedValue([proximityOrder]);
+
+    render(<LiveOrderTrackerBar />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("live-order-tracker-bar")).toBeInTheDocument();
+    });
+
+    expect(
+      screen.getByText(/Courier Arriving! Rider is within 200m/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/Head downstairs to the lobby now with your 4-digit OTP/i)
+    ).toBeInTheDocument();
+    expect(screen.getByText("OTP: 4821")).toBeInTheDocument();
+    expect(vibrateMock).toHaveBeenCalledWith([200, 100, 200]);
+  });
 });
+

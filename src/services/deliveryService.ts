@@ -463,28 +463,106 @@ export async function getDeliveryHistory(
   return asPaginated<DeliveryOrder>(data);
 }
 
+export interface CourierLocationPayload {
+  latitude: number;
+  longitude: number;
+  heading?: number | null;
+  speed?: number | null;
+}
+
+export interface CourierLocationResponse {
+  success?: boolean;
+  message?: string;
+  is_within_200m?: boolean;
+  distance_meters?: number;
+  data?: {
+    latitude: number;
+    longitude: number;
+    heading?: number | null;
+    speed?: number | null;
+    is_within_200m?: boolean;
+    distance_meters?: number;
+  };
+}
+
+export async function streamCourierGPSLocation(
+  orderId: string,
+  payload: CourierLocationPayload
+): Promise<CourierLocationResponse> {
+  if (!orderId) return { success: false, message: "Invalid Order ID" };
+  try {
+    try {
+      return await authJson<CourierLocationResponse>(
+        `/delivery/orders/${encodeURIComponent(orderId)}/location`,
+        {
+          role: "delivery_partner",
+          method: "POST",
+          body: JSON.stringify(payload),
+        }
+      );
+    } catch {
+      return await authJson<CourierLocationResponse>(
+        `/orders/delivery/location/${encodeURIComponent(orderId)}`,
+        {
+          role: "delivery_partner",
+          method: "PUT",
+          body: JSON.stringify(payload),
+        }
+      );
+    }
+  } catch (err) {
+    return { success: false, message: "Location stream fallback (silent mode)" };
+  }
+}
+
+export interface CourierTrackingInfo {
+  order_id?: string;
+  status?: string;
+  latitude?: number | null;
+  longitude?: number | null;
+  heading?: number | null;
+  speed?: number | null;
+  updated_at?: string | null;
+  distance_meters?: number | null;
+  is_within_200m?: boolean;
+  hostel_block?: string | null;
+  destination_latitude?: number | null;
+  destination_longitude?: number | null;
+}
+
+export async function getCourierLiveLocation(
+  orderId: string
+): Promise<CourierTrackingInfo> {
+  if (!orderId) return {};
+  try {
+    return await authJson<CourierTrackingInfo>(
+      `/orders/${encodeURIComponent(orderId)}/courier-location`,
+      {
+        role: "customer",
+        cache: "no-store",
+      }
+    );
+  } catch {
+    try {
+      return await authJson<CourierTrackingInfo>(
+        `/delivery/orders/${encodeURIComponent(orderId)}/courier-location`,
+        {
+          role: "customer",
+          cache: "no-store",
+        }
+      );
+    } catch {
+      return {};
+    }
+  }
+}
+
 export async function updateLiveLocation(
   orderId: string,
   latitude: number,
   longitude: number
 ) {
-  if (!orderId) return { success: false, message: "Invalid Order ID" };
-  try {
-    return await authJson(
-      `/orders/delivery/location/${encodeURIComponent(orderId)}`,
-      {
-        role: "delivery_partner",
-        method: "PUT",
-        body: JSON.stringify({
-          latitude,
-          longitude,
-        }),
-      }
-    );
-  } catch (err) {
-    // Silently capture 403 / 404 / network errors without crashing the UI
-    return { success: false, message: "Location push skipped (silent fallback)" };
-  }
+  return streamCourierGPSLocation(orderId, { latitude, longitude });
 }
 
 export async function getOrderOTP(orderId: string) {
