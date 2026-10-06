@@ -129,8 +129,10 @@ export default function DeliveryOrdersPage() {
         setOtp={setOtp}
         verifying={verifying}
         otpError={otpError}
-        order={orders.find((o) => o._id === otpOrderId)}
-        onVerify={() => void verifyOTP()}
+        order={orders.find(
+          (o) => o._id === otpOrderId || (o as { id?: string }).id === otpOrderId
+        )}
+        onVerify={(mode) => void verifyOTP(mode)}
         onClose={() => {
           setOtpOrderId(null);
           setOtp("");

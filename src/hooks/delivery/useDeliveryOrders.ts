@@ -252,7 +252,7 @@ export function useDeliveryOrders() {
     }
   }
 
-  async function verifyOTP() {
+  async function verifyOTP(collectionMode?: "upi" | "cash") {
     if (!otpOrderId) return;
 
     try {
@@ -267,7 +267,7 @@ export function useDeliveryOrders() {
       );
       if (deliveredOrder) {
         const partner = getDeliveryPartnerSession();
-        recordDeliveredOrderCash(deliveredOrder, partner?.phone);
+        recordDeliveredOrderCash(deliveredOrder, partner?.phone, collectionMode);
       }
 
       setOtp("");

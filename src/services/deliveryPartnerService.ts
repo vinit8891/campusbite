@@ -236,14 +236,24 @@ export function recordDeliveredOrderCash(
     tip_amount?: number;
     tip?: number;
     delivery_fee?: number;
+    collection_mode?: "upi" | "cash";
   },
-  phone?: string
+  phone?: string,
+  collectionMode?: "upi" | "cash"
 ): RiderCashReconciliation {
   const current = getRiderCashReconciliation(phone);
   const paymentMethod = String(order.payment_method || "").toLowerCase().trim();
-  const isCod = paymentMethod.includes("cod") || paymentMethod.includes("cash");
+  const isCod =
+    paymentMethod.includes("cod") ||
+    paymentMethod.includes("cash") ||
+    paymentMethod.includes("pay on delivery");
 
-  const orderCash = isCod ? Number(order.total || 0) : 0;
+  const mode = collectionMode || order.collection_mode;
+  // If collection mode is explicitly UPI, physical cash collected is 0 (direct digital settlement)
+  // If collection mode is cash, order total is added to CIH
+  // If collection mode is omitted, default to adding cash if isCod is true
+  const isPhysicalCash = mode ? mode === "cash" : isCod;
+  const orderCash = isPhysicalCash ? Number(order.total || 0) : 0;
   const earnedWage = calculateRiderEarnings(order);
 
   const total_cod_collected = Number(

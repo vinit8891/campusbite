@@ -153,6 +153,20 @@ describe("deliveryPartnerService rider earnings and CIH calculations", () => {
       expect(recon.net_cash_due).toBe(0);
       expect(recon.completed_deliveries).toBe(1);
     });
+
+    it("keeps cash_in_hand at 0 when a COD order is collected via CampusBite Doorstep UPI QR", () => {
+      const phone = "9876543210";
+      const order = {
+        total: 250,
+        payment_method: "COD",
+      };
+
+      const recon = recordDeliveredOrderCash(order, phone, "upi");
+      expect(recon.cash_in_hand).toBe(0);
+      expect(recon.total_payout_earned).toBe(20);
+      expect(recon.net_cash_due).toBe(0);
+      expect(recon.completed_deliveries).toBe(1);
+    });
   });
 
   describe("remitRiderDues", () => {

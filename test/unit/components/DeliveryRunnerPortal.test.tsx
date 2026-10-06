@@ -367,11 +367,12 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
       ).toBeInTheDocument();
     });
 
-    it("requires mandatory cash collection confirmation for COD orders before enabling submit", async () => {
+    it("renders dynamic Doorstep UPI QR code by default on COD orders and verifies with UPI mode", async () => {
       const user = userEvent.setup();
       const onVerify = vi.fn();
 
       const codOrder = {
+        _id: "order-998877",
         total: 350,
         payment_method: "cod",
         payment_status: "pending",
@@ -390,10 +391,63 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
         />
       );
 
+      // Verify Doorstep UPI QR section and copy
+      expect(screen.getByText(/CampusBite Doorstep UPI QR/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(/Ask student to scan and pay via GPay \/ PhonePe \/ Paytm/i)
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText(/Rider CIH physical cash remains ₹0\.00/i)
+      ).toBeInTheDocument();
+
+      // Verify dynamic QR code image src has correct UPI URI
+      const qrImg = screen.getByAltText(/UPI QR Code for CampusBite Order 998877/i);
+      expect(qrImg).toBeInTheDocument();
+      expect(qrImg.getAttribute("src")).toContain(
+        encodeURIComponent(
+          "upi://pay?pa=campusbite.ops@okaxis&pn=CampusBite%20Operations&am=350&cu=INR&tn=CB-Order-998877"
+        )
+      );
+
+      // Default UPI mode allows instant OTP verification
+      const verifyBtn = screen.getByRole("button", { name: /verify & complete/i });
+      expect(verifyBtn).not.toBeDisabled();
+      await user.click(verifyBtn);
+      expect(onVerify).toHaveBeenCalledWith("upi");
+    });
+
+    it("allows switching to Paper Cash fallback and requires cash collection confirmation", async () => {
+      const user = userEvent.setup();
+      const onVerify = vi.fn();
+
+      const codOrder = {
+        _id: "order-998877",
+        total: 350,
+        payment_method: "cod",
+        payment_status: "pending",
+      };
+
+      render(
+        <DeliveryOtpModal
+          isOpen={true}
+          otp="4321"
+          setOtp={vi.fn()}
+          verifying={false}
+          otpError=""
+          order={codOrder}
+          onVerify={onVerify}
+          onClose={vi.fn()}
+        />
+      );
+
+      // Switch to Paper Cash mode
+      const cashTab = screen.getByRole("button", { name: /paid in paper cash/i });
+      await user.click(cashTab);
+
       // Verify COD warning is rendered with exact amount
       expect(screen.getByText(/CASH ON DELIVERY: Collect ₹350/i)).toBeInTheDocument();
 
-      // Verify button is initially disabled despite complete 4-digit OTP
+      // Verify button is disabled in cash mode until confirmed
       const verifyBtn = screen.getByRole("button", { name: /verify & complete/i });
       expect(verifyBtn).toBeDisabled();
 
@@ -401,10 +455,10 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
       const checkbox = screen.getByLabelText(/I confirm that I have collected ₹350 in cash/i);
       await user.click(checkbox);
 
-      // Verify button is now enabled and clickable
+      // Verify button is now enabled and calls onVerify with "cash"
       expect(verifyBtn).not.toBeDisabled();
       await user.click(verifyBtn);
-      expect(onVerify).toHaveBeenCalled();
+      expect(onVerify).toHaveBeenCalledWith("cash");
     });
   });
 
