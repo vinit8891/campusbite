@@ -302,6 +302,56 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
 
       expect(onUpdateStatus).toHaveBeenCalledWith("order-201", "Out for Delivery");
     });
+
+    it("renders dynamic Doorstep UPI QR code directly on active COD order cards", async () => {
+      const user = userEvent.setup();
+      const codActiveOrder: DeliveryOrder = {
+        ...mockActiveOrder,
+        _id: "order-554433",
+        total: 280,
+        payment_method: "cod",
+        payment_status: "pending",
+        status: "Out for Delivery",
+      };
+
+      render(
+        <ActiveDeliveryManifest
+          order={codActiveOrder}
+          onUpdateStatus={vi.fn()}
+          onOpenOtp={vi.fn()}
+        />
+      );
+
+      // Verify COD Doorstep Card is rendered with amount
+      expect(screen.getByText(/Doorstep Payment & Collection/i)).toBeInTheDocument();
+      expect(
+        screen.getByText(
+          /📱 Have student scan to pay ₹280 directly to CampusBite via GPay \/ PhonePe \/ Paytm/i
+        )
+      ).toBeInTheDocument();
+
+      // Dynamic QR image
+      const qrImg = screen.getByAltText(/UPI QR Code for CampusBite Order 554433/i);
+      expect(qrImg).toBeInTheDocument();
+      expect(qrImg.getAttribute("src")).toContain(
+        encodeURIComponent(
+          "upi://pay?pa=campusbite.ops@okaxis&pn=CampusBite%20Operations&am=280&cu=INR&tn=CB-Order-554433"
+        )
+      );
+
+      // 1-Tap Copy UPI ID button
+      const copyBtn = screen.getByRole("button", {
+        name: /📋 Copy UPI ID \(campusbite\.ops@okaxis\)/i,
+      });
+      expect(copyBtn).toBeInTheDocument();
+      await user.click(copyBtn);
+      expect(screen.getByText(/Copied UPI ID/i)).toBeInTheDocument();
+
+      // Fallback tag
+      expect(
+        screen.getByText(/💵 Fallback: Paper cash accepted if recipient cannot scan UPI/i)
+      ).toBeInTheDocument();
+    });
   });
 
   describe("DeliveryOtpModal", () => {

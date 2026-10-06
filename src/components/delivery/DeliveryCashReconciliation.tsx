@@ -244,11 +244,10 @@ export function DeliveryCashReconciliation({
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {/* Remit Dues Action Button */}
+            {/* Remit Dues Action Button (Always available for viewing UPI QR and settling dues) */}
             <button
               onClick={handleOpenRemitModal}
-              disabled={cih.net_cash_due <= 0}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 px-5 sm:px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-orange-600/30 transition hover:from-orange-600 hover:to-orange-700 active:scale-98 disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 px-5 sm:px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-orange-600/30 transition hover:from-orange-600 hover:to-orange-700 active:scale-98 cursor-pointer"
             >
               <QrCode className="h-5 w-5" />
               Remit Dues via UPI ⚡

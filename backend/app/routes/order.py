@@ -1,4 +1,5 @@
 import random
+import re
 from datetime import datetime, UTC
 from typing import Annotated
 
@@ -835,10 +836,24 @@ async def verify_otp(
     if current_user.get("role") == DELIVERY_PARTNER:
         partner = order.get("delivery_partner") or {}
         token_phone = current_user.get("phone")
-        if not token_phone or str(partner.get("phone")) != str(token_phone):
+        partner_phone = partner.get("phone")
+        token_clean = re.sub(r"\D", "", str(token_phone or ""))[-10:]
+        partner_clean = re.sub(r"\D", "", str(partner_phone or ""))[-10:]
+        if partner_clean and token_clean and partner_clean != token_clean:
             raise HTTPException(
                 status_code=403,
                 detail="You can only verify OTP for your assigned orders",
+            )
+        if not partner_phone and token_phone:
+            partner_to_bind = {
+                "name": current_user.get("name") or "Delivery Partner",
+                "phone": token_phone,
+                "vehicle": current_user.get("vehicle") or "Bike",
+                "accepted_at": datetime.now(UTC),
+            }
+            await database["orders"].update_one(
+                {"_id": order["_id"]},
+                {"$set": {"delivery_partner": partner_to_bind}},
             )
 
     if order.get("status") == "Delivered" or order.get("otp_verified"):
@@ -878,6 +893,8 @@ async def verify_otp(
     otp = body.get("otp")
     if otp is None:
         otp = body.get("delivery_otp")
+    if otp is None:
+        otp = body.get("code")
 
     if otp is None:
         raise HTTPException(
@@ -902,12 +919,16 @@ async def verify_otp(
             detail="Invalid OTP",
         )
 
-    # When a COD order is delivered, increment rider's unremitted COD balance
+    # When a COD order is delivered with cash collection, increment rider's unremitted COD balance
     is_cod_order = (
         _is_cod_method(order.get("payment_method"))
         or str(order.get("payment_method", "")).lower() == "cod"
     )
-    if is_cod_order:
+    collection_type = str(
+        body.get("collection_type") or body.get("collection_mode") or ""
+    ).lower().strip()
+
+    if is_cod_order and collection_type != "upi":
         partner_phone = (
             order.get("delivery_partner", {}).get("phone")
             or current_user.get("phone")
@@ -1132,7 +1153,10 @@ async def change_status(
         token_phone = current_user.get("phone")
         partner_phone = partner.get("phone")
 
-        if partner_phone and token_phone and str(partner_phone) != str(token_phone):
+        token_clean = re.sub(r"\D", "", str(token_phone or ""))[-10:]
+        partner_clean = re.sub(r"\D", "", str(partner_phone or ""))[-10:]
+
+        if partner_clean and token_clean and partner_clean != token_clean:
             raise HTTPException(
                 status_code=403,
                 detail="You can only update orders assigned to you",

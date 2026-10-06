@@ -14,6 +14,9 @@ import {
   Phone,
   Store,
   User,
+  Copy,
+  Check,
+  QrCode,
 } from "lucide-react";
 import { toast } from "sonner";
 import { OrderStatusBadge } from "@/components/common";
@@ -51,12 +54,22 @@ export function ActiveDeliveryManifest({
   const [isMounted, setIsMounted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [localStatus, setLocalStatus] = useState<string>(order.status || "Assigned");
+  const [copiedUpi, setCopiedUpi] = useState(false);
 
   // Inline OTP state
   const [inlineOtp, setInlineOtp] = useState("");
   const [isVerifyingInline, setIsVerifyingInline] = useState(false);
   const [inlineOtpError, setInlineOtpError] = useState("");
   const [showPackedItems, setShowPackedItems] = useState(false);
+
+  function handleCopyUpi() {
+    if (typeof navigator !== "undefined" && navigator.clipboard) {
+      navigator.clipboard.writeText("campusbite.ops@okaxis");
+      setCopiedUpi(true);
+      toast.success("CampusBite UPI ID copied to clipboard!");
+      setTimeout(() => setCopiedUpi(false), 2000);
+    }
+  }
 
   const { updateStatus } = useDeliveryOrders();
 
@@ -458,29 +471,110 @@ export function ActiveDeliveryManifest({
         </div>
       )}
 
-      {/* Stage 2: Prominent COD Cash Collection Banner (Highlighted during transit) */}
+      {/* Stage 2: Prominent COD Doorstep UPI QR & Cash Collection Card (Active Orders) */}
       {isCod && (
-        <div className="rounded-2xl border-2 border-amber-400 bg-gradient-to-r from-amber-500/15 via-orange-500/10 to-amber-500/20 p-4 sm:p-5 flex flex-wrap items-center justify-between gap-3 shadow-xs">
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="h-11 w-11 rounded-xl bg-amber-500/20 text-amber-800 flex items-center justify-center shrink-0">
-              <Banknote className="h-6 w-6 text-amber-700" />
+        <div className="rounded-3xl border-2 border-amber-400 bg-gradient-to-b from-amber-500/15 via-orange-500/10 to-amber-500/20 p-5 sm:p-6 space-y-4 shadow-sm">
+          {/* Header Row */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-300/70 pb-3.5">
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="h-11 w-11 rounded-2xl bg-amber-500/20 text-amber-900 flex items-center justify-center shrink-0">
+                <Banknote className="h-6 w-6 text-amber-800" />
+              </div>
+              <div>
+                <span className="text-[11px] font-black uppercase tracking-wider text-amber-900 block">
+                  Cash On Delivery (COD)
+                </span>
+                <span className="text-sm sm:text-base font-extrabold text-amber-950">
+                  Doorstep Payment &amp; Collection
+                </span>
+              </div>
             </div>
-            <div>
-              <span className="text-[11px] font-black uppercase tracking-wider text-amber-900 block">
-                Cash On Delivery (COD)
-              </span>
-              <span className="text-sm sm:text-base font-extrabold text-amber-950">
-                Collect Cash on Delivery Before Handover
+            <div className="text-right shrink-0">
+              <span className="text-xs font-bold text-amber-800 block">Amount to Collect</span>
+              <span className="text-2xl sm:text-3xl font-black text-amber-950 flex items-center justify-end">
+                <IndianRupee size={22} className="text-amber-700" />
+                {effectiveOrder.total ?? 0}
               </span>
             </div>
           </div>
-          <div className="text-right shrink-0">
-            <span className="text-xs font-bold text-amber-800 block">Amount to Collect</span>
-            <span className="text-2xl sm:text-3xl font-black text-amber-950 flex items-center justify-end">
-              <IndianRupee size={22} className="text-amber-700" />
-              {effectiveOrder.total ?? 0}
-            </span>
-          </div>
+
+          {/* Active Order: Render Dynamic CampusBite UPI QR Code & Instructions */}
+          {!isDelivered && (
+            <div className="rounded-2xl border border-amber-300/90 bg-white p-4 sm:p-5 space-y-3.5 shadow-xs">
+              {/* Clean Student Banner */}
+              <div className="rounded-xl bg-orange-50 border border-orange-200 p-3 text-center">
+                <p className="text-xs sm:text-sm font-extrabold text-orange-950">
+                  📱 Have student scan to pay ₹{effectiveOrder.total ?? 0} directly to CampusBite via GPay / PhonePe / Paytm
+                </p>
+              </div>
+
+              {/* Dynamic QR Code and Details */}
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 py-1">
+                <div className="bg-stone-50 p-2.5 rounded-2xl border border-stone-200 shadow-inner shrink-0">
+                  <img
+                    src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
+                      `upi://pay?pa=campusbite.ops@okaxis&pn=CampusBite%20Operations&am=${
+                        effectiveOrder.total ?? 0
+                      }&cu=INR&tn=CB-Order-${(
+                        effectiveOrder._id || (effectiveOrder as { id?: string }).id || ""
+                      ).slice(-6)}`
+                    )}`}
+                    alt={`UPI QR Code for CampusBite Order ${(
+                      effectiveOrder._id || (effectiveOrder as { id?: string }).id || ""
+                    ).slice(-6)}`}
+                    width={150}
+                    height={150}
+                    className="rounded-xl"
+                  />
+                </div>
+
+                <div className="space-y-2.5 text-center sm:text-left flex-1 min-w-0">
+                  <div>
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-stone-500 block">
+                      Official Payment VPA
+                    </span>
+                    <span className="font-mono text-xs sm:text-sm font-black text-stone-900 truncate block">
+                      campusbite.ops@okaxis
+                    </span>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 pt-0.5 justify-center sm:justify-start">
+                    <button
+                      type="button"
+                      onClick={handleCopyUpi}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 border border-orange-300 text-orange-800 text-xs font-bold hover:bg-orange-100 transition active:scale-95 cursor-pointer shadow-xs"
+                    >
+                      {copiedUpi ? (
+                        <>
+                          <Check className="h-3.5 w-3.5 text-emerald-600" />
+                          <span>Copied UPI ID</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3.5 w-3.5" />
+                          <span>📋 Copy UPI ID (campusbite.ops@okaxis)</span>
+                        </>
+                      )}
+                    </button>
+
+                    <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 border border-emerald-200 text-emerald-800 text-[11px] font-bold">
+                      ✓ CIH physical cash remains ₹0.00
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Secondary Fallback Tag */}
+              <div className="border-t border-stone-100 pt-2.5 flex items-center justify-between text-xs text-stone-600">
+                <span className="font-semibold text-stone-500">
+                  💵 Fallback: Paper cash accepted if recipient cannot scan UPI
+                </span>
+                <span className="text-[11px] font-bold text-amber-800 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200">
+                  Cash adds to CIH ledger
+                </span>
+              </div>
+            </div>
+          )}
         </div>
       )}
 

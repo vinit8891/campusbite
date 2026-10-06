@@ -504,7 +504,8 @@ export async function getOrderOTP(orderId: string) {
 
 export async function verifyDeliveryOTP(
   orderId: string,
-  otp: string | number
+  otp: string | number,
+  collectionType?: "upi" | "cash"
 ) {
   // Update local storage status to Delivered
   const partner =
@@ -527,6 +528,8 @@ export async function verifyDeliveryOTP(
         method: "PUT",
         body: JSON.stringify({
           otp: String(otp).trim(),
+          collection_type: collectionType || "upi",
+          collection_mode: collectionType || "upi",
         }),
       }
     );

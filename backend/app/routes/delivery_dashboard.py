@@ -156,13 +156,17 @@ async def delivery_stats(
             picked_up_orders += 1
 
     partner_doc = await database["delivery_partners"].find_one({"phone": phone})
-    unremitted_cod_balance = float(
-        (partner_doc or {}).get("unremitted_cod_balance") or 0.0
+    total_remitted = float(
+        (partner_doc or {}).get("total_remitted")
+        or (partner_doc or {}).get("approved_remittances")
+        or (partner_doc or {}).get("remitted_amount")
+        or 0.0
     )
 
     earnings = round(earnings, 2)
     total_cod_collected = round(total_cod_collected, 2)
-    net_cash_due = max(0.0, round(total_cod_collected - earnings - unremitted_cod_balance, 2))
+    net_cash_due = max(0.0, round(total_cod_collected - earnings - total_remitted, 2))
+    unremitted_cod_balance = max(0.0, round(total_cod_collected - total_remitted, 2))
     is_locked = net_cash_due >= MAX_UNREMITTED_CASH_LIMIT
     lockout_reason = (
         f"Cash-in-Hand limit of ₹{int(MAX_UNREMITTED_CASH_LIMIT)} exceeded. Remit pending cash via UPI to unlock order claiming."
