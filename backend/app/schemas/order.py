@@ -32,6 +32,10 @@ class Order(BaseModel):
     delivery_type: str = "HOSTEL_BATCH"
     order_type: str | None = None
     hostel_block: str | None = None
+    batch_window_id: str | None = None
+    scheduled_wave: str | None = None
+    batch_id: str | None = None
+    is_batch_addon: bool = False
     tip_amount: float = 0.0
 
     # Pricing breakdown (statutory GST, platform fee, commission, partner earning)

@@ -12,7 +12,11 @@ import { RIDER_BASE_PAYOUT, RIDER_BATCH_ADDON_PAYOUT } from "@/lib/orderPricing"
 import type { AvailableOrder } from "@/hooks/delivery/useAvailableOrders";
 
 export type BatchGroup = {
-  building: string;
+  batchId?: string;
+  building?: string;
+  hostelBlock?: string;
+  deliveryWindow?: string;
+  scheduledWave?: string;
   orders: AvailableOrder[];
   estimatedPayout: number;
   restaurants: string[];
@@ -38,26 +42,23 @@ export function BatchOrderGroupCard({
   const isBatchClaiming = batch.orders.some((o) => claimingIds.includes(o._id));
   const orderIds = batch.orders.map((o) => o._id);
 
+  const hostelBlock = batch.hostelBlock || batch.building || "Hostel Lobby";
+  const deliveryWindow = batch.deliveryWindow || batch.scheduledWave || "12:45 PM – 1:15 PM";
   const orderCount = batch.orders.length;
   const addonCount = Math.max(0, orderCount - 1);
   const totalTips = batch.orders.reduce(
     (sum, o) => sum + Math.max(0, Number(o.tip_amount ?? o.tip ?? 0)),
     0
   );
-  const calculatedPayout =
+  const totalPayout =
     RIDER_BASE_PAYOUT + addonCount * RIDER_BATCH_ADDON_PAYOUT + totalTips;
 
   const payoutBreakdownText =
     orderCount === 1
-      ? "₹20 base"
-      : addonCount === 1
-      ? "₹20 base + ₹10 add-on"
-      : `₹20 base + ${addonCount} × ₹10 add-on`;
+      ? "1 Drop: ₹20 base"
+      : `${orderCount} Drops: ₹20 base + ${addonCount * 10} add-ons`;
 
-  const earnHeadline =
-    orderCount === 1
-      ? `Earn ₹${calculatedPayout.toFixed(2)} + Tips`
-      : `Earn ₹${calculatedPayout.toFixed(2)} (${payoutBreakdownText}) + Tips`;
+  const earnHeadline = `Earn ₹${totalPayout.toFixed(2)} (${payoutBreakdownText}) + Tips`;
 
   const efficiencyText = `Same Hostel Route • 1 Trip, ${orderCount} ${
     orderCount === 1 ? "Drop-off" : "Drop-offs"
@@ -84,7 +85,7 @@ export function BatchOrderGroupCard({
 
           <h3 className="flex items-center gap-2 text-lg sm:text-2xl font-black text-stone-900 tracking-tight pt-1 truncate">
             <Building2 className="h-5 w-5 sm:h-6 sm:w-6 text-orange-600 shrink-0" />
-            <span className="truncate">{batch.building}</span>
+            <span className="truncate">📦 Hostel Batch • {hostelBlock} ({deliveryWindow})</span>
           </h3>
 
           <div className="flex items-center gap-1.5 text-xs text-stone-600 pt-0.5 min-w-0">
@@ -102,10 +103,10 @@ export function BatchOrderGroupCard({
             Combined Payout
           </span>
           <div className="text-lg sm:text-2xl font-black text-emerald-900 leading-tight">
-            💰 ₹{calculatedPayout.toFixed(2)}
+            💰 ₹{totalPayout.toFixed(2)}
           </div>
           <span className="block text-[10px] text-emerald-700 font-bold">
-            ({orderCount} {orderCount === 1 ? "drop" : "drops"} • {payoutBreakdownText})
+            Earn ₹{totalPayout.toFixed(2)} ({payoutBreakdownText}) + Tips
           </span>
         </div>
       </div>
@@ -255,8 +256,8 @@ export function BatchOrderGroupCard({
                 <Zap className="h-4 w-4 fill-white shrink-0" />
                 <span>
                   {isBatchClaiming
-                    ? "Claiming Batch…"
-                    : `Claim Batch Run (${batch.orders.length} Orders)`}
+                    ? "Accepting Batch…"
+                    : `Accept Entire Batch (${batch.orders.length} Orders)`}
                 </span>
               </>
             )}

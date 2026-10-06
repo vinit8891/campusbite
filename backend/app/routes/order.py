@@ -43,6 +43,7 @@ from app.services.notification_service import (
     notify_order_placed,
     schedule_notification,
 )
+from app.services.batch_scheduler import find_or_create_batch_for_order
 from app.db.database import database
 from app.core.logging import get_logger
 from app.core.sanitize import sanitize_email, sanitize_search_query
@@ -352,10 +353,24 @@ async def add_order(
     assert_client_total_matches(data.get("total"), server_total)
     data["total"] = server_total
     data["amount_paise"] = to_paise(server_total)
-    data["pricing_breakdown"] = pricing
     data["delivery_type"] = delivery_type
-    data["hostel_block"] = data.get("hostel_block")
     data["tip_amount"] = tip_amount
+
+    # Group HOSTEL_BATCH orders into batches and calibrate rider payouts
+    batch_info = await find_or_create_batch_for_order(data)
+    data["batch_id"] = batch_info.get("batch_id")
+    data["is_batch_addon"] = bool(batch_info.get("is_batch_addon"))
+    data["batch_window_id"] = batch_info.get("batch_window_id")
+    data["hostel_block"] = batch_info.get("hostel_block") or data.get("hostel_block")
+    data["scheduled_wave"] = batch_info.get("scheduled_wave")
+
+    if batch_info.get("is_batch_addon"):
+        pricing["is_batch_addon"] = True
+        pricing["delivery_partner_earning"] = batch_info.get(
+            "calculated_payout", 10.0 + tip_amount
+        )
+
+    data["pricing_breakdown"] = pricing
 
     if is_online:
         data["payment_method"] = ONLINE_METHOD

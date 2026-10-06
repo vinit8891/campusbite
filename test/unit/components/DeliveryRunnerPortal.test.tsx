@@ -89,7 +89,7 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
         />
       );
 
-      expect(screen.getByText("Tagore Hostel")).toBeInTheDocument();
+      expect(screen.getAllByText(/Tagore Hostel/i).length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText("2 Orders")).toBeInTheDocument();
       expect(screen.getAllByText(/30\.00/).length).toBeGreaterThanOrEqual(1); // Payout ₹30.00
       expect(screen.getByText(/Campus Corner Grill • Chai & Snacks Point/i)).toBeInTheDocument();
@@ -113,7 +113,7 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
       );
 
       const batchClaimBtn = screen.getByRole("button", {
-        name: /claim batch run \(2 orders\)/i,
+        name: /(?:claim batch run|accept entire batch) \(2 orders\)/i,
       });
       await user.click(batchClaimBtn);
 

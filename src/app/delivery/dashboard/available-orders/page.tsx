@@ -102,24 +102,41 @@ export default function AvailableOrdersPage() {
   const netCashDue = cashRecon?.net_cash_due ?? 0;
   const isLocked = cashRecon?.isLocked ?? (netCashDue >= MAX_UNREMITTED_CASH_LIMIT);
 
-  // Cluster orders by destination complex/building
+  // Cluster orders by shared batch_id or destination complex/building
   const batchGroups: BatchGroup[] = useMemo(() => {
     const map = new Map<string, typeof orders>();
     for (const order of orders) {
-      const b = extractBuilding(order.address);
-      const existing = map.get(b) || [];
+      const key =
+        order.batch_id ||
+        (order as { hostel_block?: string }).hostel_block ||
+        extractBuilding(order.address);
+      const existing = map.get(key) || [];
       existing.push(order);
-      map.set(b, existing);
+      map.set(key, existing);
     }
 
-    return Array.from(map.entries()).map(([building, batchOrders]) => {
+    return Array.from(map.entries()).map(([key, batchOrders]) => {
       const restSet = new Set<string>();
       batchOrders.forEach((bo) => {
         if (bo.restaurant_name) restSet.add(bo.restaurant_name);
         else if (bo.restaurant_email) restSet.add(bo.restaurant_email);
       });
+      const firstOrder = batchOrders[0];
+      const hostelBlock =
+        (firstOrder as { hostel_block?: string })?.hostel_block ||
+        extractBuilding(firstOrder?.address) ||
+        "Hostel Lobby";
+      const deliveryWindow =
+        (firstOrder as { scheduled_wave?: string })?.scheduled_wave ||
+        (firstOrder as { batch_window_id?: string })?.batch_window_id ||
+        "12:45 PM – 1:15 PM";
+
       return {
-        building,
+        batchId: firstOrder?.batch_id,
+        building: hostelBlock,
+        hostelBlock,
+        deliveryWindow,
+        scheduledWave: (firstOrder as { scheduled_wave?: string })?.scheduled_wave,
         orders: batchOrders,
         estimatedPayout:
           batchOrders.length <= 0

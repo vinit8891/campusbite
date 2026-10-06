@@ -32,6 +32,10 @@ export type PlaceOrderPayload = {
   delivery_for?: string;
   delivery_type?: DeliveryMode | "HOSTEL_BATCH" | "STANDARD";
   hostel_block?: string | null;
+  batch_window_id?: string;
+  scheduled_wave?: string;
+  batch_id?: string;
+  is_batch_addon?: boolean;
   tip_amount?: number;
   pricing_breakdown?: OrderPricingBreakdown | PricingBreakdown;
   restaurant_latitude?: number | null;
@@ -61,6 +65,10 @@ export type Order = {
   total: number;
   delivery_type?: DeliveryMode | "HOSTEL_BATCH" | "STANDARD";
   hostel_block?: string | null;
+  batch_window_id?: string;
+  scheduled_wave?: string;
+  batch_id?: string;
+  is_batch_addon?: boolean;
   tip_amount?: number;
   pricing_breakdown?: OrderPricingBreakdown | PricingBreakdown;
   status: string;

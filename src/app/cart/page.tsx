@@ -8,6 +8,7 @@ import { ArrowLeft, Minus, Plus, Trash2, Zap, Building2, Store } from "lucide-re
 import { useCart } from "@/context/CartContext";
 import { useCheckout } from "@/context/CheckoutContext";
 import { Button } from "@/components/ui/button";
+import { BatchWindowCountdown } from "@/components/checkout/BatchWindowCountdown";
 import { ROUTES } from "@/lib/routes";
 import {
   calculateCheckoutPricing,
@@ -476,6 +477,14 @@ export default function CartPage() {
                   </div>
                 </div>
               </div>
+
+              {/* Live Batch Window Countdown Banner */}
+              {effectiveMode === "HOSTEL_BATCH" && (
+                <BatchWindowCountdown
+                  hostelBlock={null}
+                  deliveryMode={effectiveMode}
+                />
+              )}
 
               <Button
                 disabled={cart.length === 0 || isBelowMinDelivery}

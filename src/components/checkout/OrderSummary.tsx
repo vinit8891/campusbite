@@ -11,6 +11,8 @@ import { useCheckout } from "@/context/CheckoutContext";
 import { placeOrder } from "@/services/orderService";
 import { AuthHttpError } from "@/services/authFetch";
 import { ROUTES } from "@/lib/routes";
+import { BatchWindowCountdown } from "@/components/checkout/BatchWindowCountdown";
+import { getNextBatchWindow } from "@/lib/batchWindows";
 import {
   calculateCheckoutPricing,
   calculateCodRounding,
@@ -299,6 +301,7 @@ export default function OrderSummary() {
         calculateCodRounding(unroundedPayable);
       const finalPayableNum = isCod ? codRoundedTotal : unroundedPayable;
 
+      const batchWindow = getNextBatchWindow();
       const orderData = {
         restaurant_email: restaurantEmail,
         customer_name: effectiveName.trim(),
@@ -313,9 +316,25 @@ export default function OrderSummary() {
           effectiveMode === "HOSTEL_BATCH"
             ? checkout.hostel_block
             : null,
+        batch_window_id:
+          effectiveMode === "HOSTEL_BATCH"
+            ? batchWindow.slotId
+            : undefined,
+        scheduled_wave:
+          effectiveMode === "HOSTEL_BATCH"
+            ? batchWindow.scheduledWave || batchWindow.deliveryWindow
+            : undefined,
         tip_amount: checkout.tip_amount,
         pricing_breakdown: {
           ...pricing,
+          batch_window_id:
+            effectiveMode === "HOSTEL_BATCH"
+              ? batchWindow.slotId
+              : undefined,
+          scheduled_wave:
+            effectiveMode === "HOSTEL_BATCH"
+              ? batchWindow.scheduledWave || batchWindow.deliveryWindow
+              : undefined,
           codRounding: isCod
             ? { roundedTotal: codRoundedTotal, roundOff: codRoundOff }
             : undefined,
@@ -653,6 +672,13 @@ export default function OrderSummary() {
             {effectiveMode !== "COUNTER_TAKEAWAY" && checkout.landmark ? ` • Ref: ${checkout.landmark}` : ""}
           </p>
         </div>
+        {/* Live Batch Window Countdown Banner */}
+        {effectiveMode === "HOSTEL_BATCH" && (
+          <BatchWindowCountdown
+            hostelBlock={checkout.hostel_block}
+            deliveryMode={effectiveMode}
+          />
+        )}
       </section>
 
       {/* =========================================================
