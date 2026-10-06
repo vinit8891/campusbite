@@ -42,6 +42,9 @@ export function MyDeliveryCard({
     upiUri
   )}`;
 
+  const isAddon = Boolean(order.is_batch_addon || order.isBatchAddon);
+  const wageBadge = isAddon ? "Batch Add-on (₹10.00 wage)" : "Base Drop (₹20.00 wage)";
+
   return (
     <div className="rounded-2xl border bg-white p-6 shadow space-y-4">
       <div className="flex items-center justify-between">
@@ -54,13 +57,24 @@ export function MyDeliveryCard({
           <p className="text-gray-500">{order.address}</p>
         </div>
 
-        <div className="text-right">
+        <div className="text-right space-y-1.5">
           <p className="text-xl font-bold text-orange-600">
             ₹{order.total}
           </p>
-          <span className="rounded bg-blue-100 px-3 py-1 text-sm font-semibold">
-            {order.status}
-          </span>
+          <div className="flex flex-col items-end gap-1">
+            <span className="rounded bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-900">
+              {order.status}
+            </span>
+            <span
+              className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
+                isAddon
+                  ? "bg-amber-100 text-amber-900 border-amber-300"
+                  : "bg-emerald-100 text-emerald-900 border-emerald-300"
+              }`}
+            >
+              {wageBadge}
+            </span>
+          </div>
         </div>
       </div>
 

@@ -28,7 +28,9 @@ describe("DeliveryCashReconciliation", () => {
       ).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/Flat ₹20\/run model/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/₹20 base \+ ₹10 add-on model/i)
+    ).toBeInTheDocument();
     expect(screen.getAllByText("₹360.00").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText(/Net Cash Due to CampusBite/i).length).toBeGreaterThanOrEqual(1);
   });

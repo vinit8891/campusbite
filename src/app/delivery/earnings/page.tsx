@@ -27,7 +27,7 @@ import {
   getAvailableOrders,
   type DeliveryOrder,
 } from "@/services/deliveryService";
-import { RIDER_BASE_PAYOUT } from "@/lib/orderPricing";
+import { RIDER_BASE_PAYOUT, RIDER_BATCH_ADDON_PAYOUT } from "@/lib/orderPricing";
 import { ROUTES } from "@/lib/routes";
 import type { DeliveryPartner } from "@/types";
 
@@ -61,7 +61,7 @@ export default function DeliveryEarningsPage() {
       }
       const phone = currentPartner?.phone;
 
-      // 1. Fetch live CIH local reconciliation (purges 12.75 & recalculates ₹20 flat)
+      // 1. Fetch live CIH local reconciliation
       const currentCih = getRiderCashReconciliation(phone);
       setCih(currentCih);
 
@@ -162,14 +162,33 @@ export default function DeliveryEarningsPage() {
 
   const completedCount = completedOrders.length > 0 ? completedOrders.length : (cih?.completed_deliveries || (cih?.cash_in_hand > 0 ? 1 : 0));
   const totalTips = completedOrders.reduce((sum, o) => sum + Math.max(0, Number(o.tip_amount ?? o.tip ?? 0)), 0);
-  const earnedWagesDeducted = Number(((completedCount * RIDER_BASE_PAYOUT) + totalTips).toFixed(2));
+
+  let computedWages = 0;
+  const seenBatches = new Set<string>();
+  for (const o of completedOrders) {
+    const tip = Math.max(0, Number(o.tip_amount ?? o.tip ?? 0));
+    let isAddon = Boolean(o.is_batch_addon || o.isBatchAddon);
+    const bId = String(o.batch_id || "").trim();
+    if (bId) {
+      if (seenBatches.has(bId)) isAddon = true;
+      else seenBatches.add(bId);
+    }
+    const baseWage = isAddon ? RIDER_BATCH_ADDON_PAYOUT : RIDER_BASE_PAYOUT;
+    const payout = o.calculated_payout !== undefined && o.calculated_payout > 0 ? o.calculated_payout : baseWage + tip;
+    computedWages += payout;
+  }
+
+  const earnedWagesDeducted = completedOrders.length > 0
+    ? Number(computedWages.toFixed(2))
+    : Number((cih.total_payout_earned || (completedCount * RIDER_BASE_PAYOUT) + totalTips).toFixed(2));
+
   const collectedCash = cih.cash_in_hand > 0 ? cih.cash_in_hand : (cih.total_cod_collected || 0);
   const totalRemitted = cih.total_remitted || 0;
   const netCashDue = Math.max(0, Number((collectedCash - earnedWagesDeducted - totalRemitted).toFixed(2)));
 
   const isDuesPending = netCashDue > 0;
   const totalCompletedCount = completedOrders.length > 0 ? completedOrders.length : completedCount;
-  const totalFlatPayouts = totalCompletedCount * RIDER_BASE_PAYOUT;
+  const totalFlatPayouts = earnedWagesDeducted;
 
   return (
     <div className="flex min-h-screen bg-stone-50/70 text-stone-900 font-sans">
@@ -193,14 +212,14 @@ export default function DeliveryEarningsPage() {
                   Rider Finance
                 </span>
                 <span className="text-xs font-semibold text-stone-500">
-                  Flat ₹{RIDER_BASE_PAYOUT.toFixed(0)} Payout Model
+                  ₹20 Base + ₹10 Batch Add-on Model
                 </span>
               </div>
               <h1 className="mt-1.5 text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">
-                Earnings & Cash Reconciliation
+                Earnings &amp; Cash Reconciliation
               </h1>
               <p className="text-sm text-stone-500 mt-0.5">
-                Track your ₹20 per-delivery wages, customer cash collected, and settle dues with CampusBite.
+                Track your ₹20 base &amp; ₹10 batch drop wages, customer cash collected, and settle dues with CampusBite.
               </p>
             </div>
 
@@ -270,7 +289,7 @@ export default function DeliveryEarningsPage() {
                 <div className="rounded-3xl border border-stone-200/80 bg-white p-5 sm:p-6 shadow-xs">
                   <div className="flex items-center justify-between">
                     <span className="text-xs font-bold uppercase tracking-wider text-stone-500">
-                      Base Payout Wages
+                      Earned Wages &amp; Payouts
                     </span>
                     <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-50 text-emerald-600">
                       <IndianRupee className="h-5 w-5" />
@@ -280,7 +299,7 @@ export default function DeliveryEarningsPage() {
                     ₹{totalFlatPayouts.toFixed(2)}
                   </p>
                   <p className="mt-1 text-xs text-stone-500">
-                    Guaranteed ₹{RIDER_BASE_PAYOUT.toFixed(0)} × {totalCompletedCount} deliveries
+                    ₹20 base + ₹10 batch add-ons + customer tips
                   </p>
                 </div>
 
@@ -318,10 +337,10 @@ export default function DeliveryEarningsPage() {
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
                   <div>
                     <h3 className="text-lg font-bold text-stone-900">
-                      Fulfilled Deliveries & Wage Log
+                      Fulfilled Deliveries &amp; Wage Log
                     </h3>
                     <p className="text-xs sm:text-sm text-stone-500">
-                      Breakdown of customer payments and your ₹20 per-order payout
+                      Itemized breakdown of customer payments and your ₹20 base / ₹10 add-on wages
                     </p>
                   </div>
 
@@ -353,7 +372,7 @@ export default function DeliveryEarningsPage() {
                     <p className="text-xs text-stone-500 mt-1 max-w-sm mx-auto">
                       {searchQuery
                         ? "Try changing your search query or clear the filter."
-                        : "Accept available deliveries from the marketplace. Once delivered, your ₹20 earnings will automatically appear here."}
+                        : "Accept available deliveries from the marketplace. Once delivered, your earnings will automatically appear here."}
                     </p>
                     {!searchQuery && (
                       <Link
@@ -370,7 +389,7 @@ export default function DeliveryEarningsPage() {
                       <thead className="bg-stone-50 text-xs font-bold uppercase tracking-wider text-stone-500 border-b border-stone-200/80">
                         <tr>
                           <th className="px-4 py-3.5">Order ID</th>
-                          <th className="px-4 py-3.5">Customer & Location</th>
+                          <th className="px-4 py-3.5">Customer &amp; Location</th>
                           <th className="px-4 py-3.5">Payment Mode</th>
                           <th className="px-4 py-3.5 text-right">
                             Cash Collected
@@ -382,7 +401,7 @@ export default function DeliveryEarningsPage() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-stone-100 text-stone-800">
-                        {filteredOrders.map((order) => {
+                        {filteredOrders.map((order, idx) => {
                           const isCod =
                             (order.payment_method || "")
                               .toLowerCase()
@@ -391,11 +410,18 @@ export default function DeliveryEarningsPage() {
                               .toLowerCase()
                               .includes("cash");
                           const cashAmount = isCod ? order.total || 0 : 0;
-                          const payout = RIDER_BASE_PAYOUT;
+                          const isAddon = Boolean(order.is_batch_addon || order.isBatchAddon);
+                          const tip = Math.max(0, Number(order.tip_amount ?? order.tip ?? 0));
+                          const basePayout = isAddon ? RIDER_BATCH_ADDON_PAYOUT : RIDER_BASE_PAYOUT;
+                          const totalPayout =
+                            order.calculated_payout !== undefined && order.calculated_payout > 0
+                              ? order.calculated_payout
+                              : basePayout + tip;
+                          const wageLabel = isAddon ? "Batch Add-on: ₹10.00" : "Base Run: ₹20.00";
 
                           return (
                             <tr
-                              key={order._id}
+                              key={order._id || idx}
                               className="hover:bg-orange-50/30 transition-colors"
                             >
                               <td className="px-4 py-3.5 font-bold font-mono text-xs text-stone-900">
@@ -425,8 +451,13 @@ export default function DeliveryEarningsPage() {
                               <td className="px-4 py-3.5 text-right font-bold text-stone-900">
                                 {isCod ? `₹${cashAmount.toFixed(2)}` : "₹0.00"}
                               </td>
-                              <td className="px-4 py-3.5 text-right font-black text-emerald-700">
-                                +₹{payout.toFixed(2)}
+                              <td className="px-4 py-3.5 text-right">
+                                <div className="font-black text-emerald-700 text-sm">
+                                  +₹{totalPayout.toFixed(2)}
+                                </div>
+                                <div className="text-[10px] font-bold text-stone-500">
+                                  {wageLabel}{tip > 0 ? ` + ₹${tip.toFixed(2)} tip` : ""}
+                                </div>
                               </td>
                               <td className="px-4 py-3.5 text-right">
                                 <span className="inline-flex items-center gap-1 text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full">

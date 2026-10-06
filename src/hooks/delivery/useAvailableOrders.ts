@@ -32,6 +32,12 @@ export type AvailableOrder = {
   special_instructions?: string;
   notes?: string;
   runner_fee?: number;
+  is_batch_addon?: boolean;
+  isBatchAddon?: boolean;
+  batch_id?: string;
+  calculated_payout?: number;
+  tip_amount?: number;
+  tip?: number;
   items?: Array<{
     id?: string | number;
     name?: string;

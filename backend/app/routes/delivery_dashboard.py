@@ -8,7 +8,13 @@ from app.auth.roles import ADMIN, DELIVERY_PARTNER
 from app.core.logging import get_logger
 from app.db.database import database
 
-from app.payments.amounts import MAX_UNREMITTED_CASH_LIMIT
+from app.payments.amounts import (
+    MAX_UNREMITTED_CASH_LIMIT,
+    RIDER_BASE_PAYOUT,
+    RIDER_BATCH_ADDON_PAYOUT,
+    calculate_rider_payout,
+    calculate_batch_rider_earnings,
+)
 
 router = APIRouter(
     prefix="/delivery-dashboard",
@@ -19,7 +25,6 @@ logger = get_logger(__name__)
 
 orders = database["orders"]
 
-RIDER_BASE_PAYOUT = 20.0
 DELIVERY_EARNING_PER_ORDER = 20.0
 ASSIGNED_STATUSES = ["Assigned"]
 PICKED_UP_STATUSES = ["Picked Up", "Out for Delivery"]
@@ -98,6 +103,7 @@ async def delivery_stats(
     today_start = _start_of_today_utc()
     week_start = _start_of_week_utc()
     month_start = _start_of_month_utc()
+    seen_batch_ids: set[str] = set()
 
     async for order in partner_orders:
 
@@ -124,11 +130,25 @@ async def delivery_stats(
                 or order.get("tip")
                 or 0.0
             )
-            # Enforce canonical flat ₹20 payout + tip
-            earning = float(
-                pricing_breakdown.get("delivery_partner_earning")
-                or (RIDER_BASE_PAYOUT + tip_amount)
+
+            batch_id = str(order.get("batch_id") or "").strip()
+            is_batch_addon = bool(
+                order.get("is_batch_addon")
+                or order.get("isBatchAddon")
+                or pricing_breakdown.get("is_batch_addon")
             )
+            if batch_id:
+                if batch_id in seen_batch_ids:
+                    is_batch_addon = True
+                else:
+                    seen_batch_ids.add(batch_id)
+
+            if pricing_breakdown.get("delivery_partner_earning") is not None:
+                earning = float(pricing_breakdown["delivery_partner_earning"])
+            else:
+                base_wage = RIDER_BATCH_ADDON_PAYOUT if is_batch_addon else RIDER_BASE_PAYOUT
+                earning = base_wage + tip_amount
+
             earnings += round(earning, 2)
 
             pm = str(order.get("payment_method") or "").lower().strip()

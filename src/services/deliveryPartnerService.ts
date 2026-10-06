@@ -1,5 +1,10 @@
 import { authJson } from "@/services/authFetch";
-import { RIDER_BASE_PAYOUT } from "@/lib/orderPricing";
+import {
+  RIDER_BASE_PAYOUT,
+  RIDER_BATCH_ADDON_PAYOUT,
+  calculateRiderPayout,
+  calculateBatchRiderEarnings,
+} from "@/lib/orderPricing";
 import type {
   DeliveryPartnerProfile,
   DeliveryDashboardStats,
@@ -14,20 +19,36 @@ export type {
   RiderCashReconciliation,
 };
 
+export {
+  RIDER_BASE_PAYOUT,
+  RIDER_BATCH_ADDON_PAYOUT,
+  calculateRiderPayout,
+  calculateBatchRiderEarnings,
+};
+
 export const MAX_UNREMITTED_CASH_LIMIT = 500.00;
 
 /**
- * Calculates earnings for a completed delivery order using the canonical flat ₹20 model.
- * earnedWage = RIDER_BASE_PAYOUT (₹20.00) + tip_amount
+ * Calculates earnings for a completed delivery order using the calibrated multi-drop model.
+ * Base drop: RIDER_BASE_PAYOUT (₹20.00) + tip
+ * Batch add-on drop: RIDER_BATCH_ADDON_PAYOUT (₹10.00) + tip
  */
 export function calculateRiderEarnings(order?: {
   total?: number;
   delivery_fee?: number;
   tip_amount?: number;
   tip?: number;
+  is_batch_addon?: boolean;
+  isBatchAddon?: boolean;
+  calculated_payout?: number;
 }): number {
+  if (order?.calculated_payout !== undefined && order.calculated_payout > 0) {
+    return Number(order.calculated_payout.toFixed(2));
+  }
   const tip = Number(order?.tip_amount ?? order?.tip ?? 0);
-  return Number((RIDER_BASE_PAYOUT + Math.max(0, tip)).toFixed(2));
+  const isAddon = Boolean(order?.is_batch_addon || order?.isBatchAddon);
+  const baseWage = isAddon ? RIDER_BATCH_ADDON_PAYOUT : RIDER_BASE_PAYOUT;
+  return Number((baseWage + Math.max(0, tip)).toFixed(2));
 }
 
 function getStoredDeliveredOrders(phone?: string): Array<{
@@ -38,6 +59,10 @@ function getStoredDeliveredOrders(phone?: string): Array<{
   payment_method?: string;
   tip_amount?: number;
   tip?: number;
+  is_batch_addon?: boolean;
+  isBatchAddon?: boolean;
+  batch_id?: string;
+  calculated_payout?: number;
 }> {
   if (typeof window === "undefined") return [];
   const list: Array<{
@@ -48,6 +73,10 @@ function getStoredDeliveredOrders(phone?: string): Array<{
     payment_method?: string;
     tip_amount?: number;
     tip?: number;
+    is_batch_addon?: boolean;
+    isBatchAddon?: boolean;
+    batch_id?: string;
+    calculated_payout?: number;
   }> = [];
   const seenIds = new Set<string>();
 
@@ -112,7 +141,7 @@ export function getRiderCashReconciliation(phone?: string): RiderCashReconciliat
     return s === "delivered" || s === "completed";
   });
 
-  // 2. Sum COD collected and tips from delivered runs
+  // 2. Sum COD collected from delivered runs
   let codFromOrders = 0;
   for (const o of completedOrders) {
     const pm = String(o.payment_method || "").toLowerCase().trim();
@@ -125,19 +154,29 @@ export function getRiderCashReconciliation(phone?: string): RiderCashReconciliat
   const total_cod_collected = Number(Math.max(codFromOrders, rawTotalCod).toFixed(2));
   const total_remitted = Number((parsed.total_remitted || 0).toFixed(2));
 
-  const totalTips = completedOrders.reduce(
-    (sum, o) => sum + Math.max(0, Number(o.tip_amount ?? o.tip ?? 0)),
-    0
-  );
-
   let completedCount = 0;
   let canonicalPayoutEarned = 0;
 
   if (completedOrders.length > 0) {
     completedCount = completedOrders.length;
-    canonicalPayoutEarned = Number(
-      (completedCount * RIDER_BASE_PAYOUT + totalTips).toFixed(2)
-    );
+    // Track batch IDs to award ₹20 to primary drop and ₹10 to subsequent drops in the same batch
+    const seenBatches = new Set<string>();
+    let totalWages = 0;
+    for (const o of completedOrders) {
+      const tip = Math.max(0, Number(o.tip_amount ?? o.tip ?? 0));
+      let isAddon = Boolean(o.is_batch_addon || o.isBatchAddon);
+      const bId = String(o.batch_id || "").trim();
+      if (bId) {
+        if (seenBatches.has(bId)) {
+          isAddon = true;
+        } else {
+          seenBatches.add(bId);
+        }
+      }
+      const wage = isAddon ? RIDER_BATCH_ADDON_PAYOUT : RIDER_BASE_PAYOUT;
+      totalWages += (o.calculated_payout !== undefined && o.calculated_payout > 0 ? o.calculated_payout : wage + tip);
+    }
+    canonicalPayoutEarned = Number(totalWages.toFixed(2));
   } else if (typeof parsed.total_payout_earned === "number" && parsed.total_payout_earned > 0) {
     const rawEarned = parsed.total_payout_earned;
     const decimalPart = Number((rawEarned % 1).toFixed(2));
@@ -237,6 +276,10 @@ export function recordDeliveredOrderCash(
     tip?: number;
     delivery_fee?: number;
     collection_mode?: "upi" | "cash";
+    is_batch_addon?: boolean;
+    isBatchAddon?: boolean;
+    batch_id?: string;
+    calculated_payout?: number;
   },
   phone?: string,
   collectionMode?: "upi" | "cash"

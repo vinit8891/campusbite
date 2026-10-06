@@ -8,6 +8,7 @@ import {
   FileText,
 } from "lucide-react";
 import { formatRestaurantName, shortId } from "@/lib/formatters";
+import { RIDER_BASE_PAYOUT, RIDER_BATCH_ADDON_PAYOUT } from "@/lib/orderPricing";
 import type { AvailableOrder } from "@/hooks/delivery/useAvailableOrders";
 
 export type BatchGroup = {
@@ -36,6 +37,31 @@ export function BatchOrderGroupCard({
 }: BatchOrderGroupCardProps) {
   const isBatchClaiming = batch.orders.some((o) => claimingIds.includes(o._id));
   const orderIds = batch.orders.map((o) => o._id);
+
+  const orderCount = batch.orders.length;
+  const addonCount = Math.max(0, orderCount - 1);
+  const totalTips = batch.orders.reduce(
+    (sum, o) => sum + Math.max(0, Number(o.tip_amount ?? o.tip ?? 0)),
+    0
+  );
+  const calculatedPayout =
+    RIDER_BASE_PAYOUT + addonCount * RIDER_BATCH_ADDON_PAYOUT + totalTips;
+
+  const payoutBreakdownText =
+    orderCount === 1
+      ? "₹20 base"
+      : addonCount === 1
+      ? "₹20 base + ₹10 add-on"
+      : `₹20 base + ${addonCount} × ₹10 add-on`;
+
+  const earnHeadline =
+    orderCount === 1
+      ? `Earn ₹${calculatedPayout.toFixed(2)} + Tips`
+      : `Earn ₹${calculatedPayout.toFixed(2)} (${payoutBreakdownText}) + Tips`;
+
+  const efficiencyText = `Same Hostel Route • 1 Trip, ${orderCount} ${
+    orderCount === 1 ? "Drop-off" : "Drop-offs"
+  }`;
 
   const formattedRestaurants = batch.restaurants
     .map((r) => formatRestaurantName(r))
@@ -76,21 +102,33 @@ export function BatchOrderGroupCard({
             Combined Payout
           </span>
           <div className="text-lg sm:text-2xl font-black text-emerald-900 leading-tight">
-            💰 ₹{batch.estimatedPayout}
+            💰 ₹{calculatedPayout.toFixed(2)}
           </div>
           <span className="block text-[10px] text-emerald-700 font-bold">
-            ({batch.orders.length} drops • ₹20/ea)
+            ({orderCount} {orderCount === 1 ? "drop" : "drops"} • {payoutBreakdownText})
           </span>
         </div>
       </div>
 
+      {/* Route Efficiency Callout Banner */}
+      <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-orange-100/80 border border-orange-200/80 px-3 py-1.5 text-xs">
+        <span className="font-black text-orange-950 flex items-center gap-1.5">
+          <span>🛵</span>
+          <span>{earnHeadline}</span>
+        </span>
+        <span className="font-bold text-orange-800 hidden sm:inline">
+          {efficiencyText}
+        </span>
+      </div>
+
       {/* Orders List in Batch */}
       <div className="my-4 space-y-2.5 min-w-0 max-w-full">
-        {batch.orders.map((order) => {
+        {batch.orders.map((order, idx) => {
           const isSingleClaiming = claimingIds.includes(order._id);
           const canteenName = formatRestaurantName(
             order.restaurant_name || order.restaurant_email
           );
+          const isAddon = idx > 0 || Boolean(order.is_batch_addon || order.isBatchAddon);
 
           return (
             <div
@@ -104,6 +142,15 @@ export function BatchOrderGroupCard({
                   </span>
                   <span className="text-xs font-extrabold text-stone-900 truncate">
                     🏪 {canteenName}
+                  </span>
+                  <span
+                    className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                      isAddon
+                        ? "bg-amber-100 text-amber-900 border border-amber-300"
+                        : "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                    }`}
+                  >
+                    {isAddon ? "Batch Add-on (₹10.00 wage)" : "Base Drop (₹20.00 wage)"}
                   </span>
                 </div>
 

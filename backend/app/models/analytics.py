@@ -294,7 +294,7 @@ async def get_admin_financial_analytics() -> dict:
             total_small_order_fees += s_fee
             small_order_count += 1
 
-        # Courier earnings (Canonical RIDER_BASE_PAYOUT = 20.00 + tips)
+        # Courier earnings (Canonical RIDER_BASE_PAYOUT = 20.00 / RIDER_BATCH_ADDON_PAYOUT = 10.00 + tips)
         if doc.get("delivery_partner_earning") is not None:
             courier_payout = float(doc.get("delivery_partner_earning") or 0.0)
         elif doc.get("courier_earning") is not None:
@@ -304,7 +304,9 @@ async def get_admin_financial_analytics() -> dict:
             courier_payout = float(doc.get("delivery_fee") or 0.0)
         else:
             tip = float(doc.get("tip_amount") or doc.get("tip") or 0.0)
-            courier_payout = (20.00 + tip) if order_total > 0 else 0.0
+            is_addon = bool(doc.get("is_batch_addon") or doc.get("isBatchAddon"))
+            base_payout = 10.00 if is_addon else 20.00
+            courier_payout = (base_payout + tip) if order_total > 0 else 0.0
 
         # GST (5%)
         if doc.get("restaurant_gst") is not None:

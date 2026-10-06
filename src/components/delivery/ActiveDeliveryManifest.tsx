@@ -247,16 +247,28 @@ export function ActiveDeliveryManifest({
     (effectiveOrder.payment_method || "").toLowerCase().includes("cash") ||
     effectiveOrder.payment_method === "cod";
 
+  const isAddon = Boolean(effectiveOrder.is_batch_addon || effectiveOrder.isBatchAddon);
+  const wageLabel = isAddon ? "Batch Add-on (₹10.00 wage)" : "Base Drop (₹20.00 wage)";
+
   return (
     <div className="w-full max-w-full min-w-0 box-border rounded-3xl border border-stone-200/90 bg-white p-5 sm:p-7 shadow-xs space-y-5 transition-all hover:shadow-md">
       {/* Manifest Header */}
       <div className="flex flex-wrap items-start justify-between gap-4 border-b border-stone-100 pb-4">
         <div className="min-w-0 max-w-full flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-xs font-bold text-stone-500 bg-stone-100 px-2.5 py-0.5 rounded-md">
               Order #{shortId(effectiveOrder._id)}
             </span>
             <OrderStatusBadge status={effectiveStatus} size="sm" />
+            <span
+              className={`text-[11px] font-black px-2.5 py-0.5 rounded-full border ${
+                isAddon
+                  ? "bg-amber-50 text-amber-900 border-amber-300"
+                  : "bg-emerald-50 text-emerald-900 border-emerald-300"
+              }`}
+            >
+              {wageLabel}
+            </span>
           </div>
 
           <h2 className="text-xl sm:text-2xl font-black text-stone-900 tracking-tight pt-1.5 flex items-center gap-2 truncate">

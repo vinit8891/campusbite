@@ -25,7 +25,7 @@ import {
   getDeliveryStats,
   type RiderCashReconciliation,
 } from "@/services/deliveryPartnerService";
-import { RIDER_BASE_PAYOUT } from "@/lib/orderPricing";
+import { RIDER_BASE_PAYOUT, RIDER_BATCH_ADDON_PAYOUT } from "@/lib/orderPricing";
 import { ROUTES } from "@/lib/routes";
 import type { DeliveryPartner } from "@/types";
 
@@ -212,7 +212,7 @@ export function DeliveryCashReconciliation({
                 Cash-In-Hand (CIH) Reconciliation
               </span>
               <span className="inline-flex items-center gap-1 rounded-full bg-stone-800 px-2.5 py-0.5 text-[11px] font-semibold text-stone-300 border border-stone-700">
-                Flat ₹{RIDER_BASE_PAYOUT.toFixed(0)}/run model
+                ₹{RIDER_BASE_PAYOUT.toFixed(0)} base + ₹{RIDER_BATCH_ADDON_PAYOUT.toFixed(0)} add-on model
               </span>
             </div>
 
@@ -320,7 +320,7 @@ export function DeliveryCashReconciliation({
               -₹{cih.total_payout_earned.toFixed(2)}
             </p>
             <p className="mt-1 text-xs text-stone-500">
-              Flat ₹{RIDER_BASE_PAYOUT.toFixed(0)}/order guaranteed wage + customer tips
+              ₹{RIDER_BASE_PAYOUT.toFixed(0)} base / ₹{RIDER_BATCH_ADDON_PAYOUT.toFixed(0)} batch drop wage + customer tips
             </p>
           </div>
         </div>

@@ -15,6 +15,8 @@ import { getDeliveryPartnerSession } from "@/lib/authTokens";
 import {
   getRiderCashReconciliation,
   MAX_UNREMITTED_CASH_LIMIT,
+  RIDER_BASE_PAYOUT,
+  RIDER_BATCH_ADDON_PAYOUT,
   type RiderCashReconciliation,
 } from "@/services/deliveryPartnerService";
 import { RemitDuesModal } from "@/components/delivery/RemitDuesModal";
@@ -119,7 +121,10 @@ export default function AvailableOrdersPage() {
       return {
         building,
         orders: batchOrders,
-        estimatedPayout: batchOrders.length * 20,
+        estimatedPayout:
+          batchOrders.length <= 0
+            ? 0
+            : RIDER_BASE_PAYOUT + Math.max(0, batchOrders.length - 1) * RIDER_BATCH_ADDON_PAYOUT,
         restaurants:
           Array.from(restSet).length > 0
             ? Array.from(restSet)

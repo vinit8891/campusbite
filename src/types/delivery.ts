@@ -2,6 +2,9 @@
  * Canonical Delivery and Delivery Partner domain models.
  */
 
+export const RIDER_BASE_PAYOUT = 20.00; // Primary drop wage (₹20.00)
+export const RIDER_BATCH_ADDON_PAYOUT = 10.00; // Secondary/subsequent drop add-on wage (₹10.00)
+
 export type DeliveryPartner = {
   id?: string;
   name?: string;
@@ -93,6 +96,10 @@ export type DeliveryOrder = {
   tip_amount?: number;
   tip?: number;
   delivery_fee?: number;
+  is_batch_addon?: boolean;
+  isBatchAddon?: boolean;
+  batch_id?: string;
+  calculated_payout?: number;
   status?: string;
   cash_in_hand?: number;
   total_payout_earned?: number;
@@ -129,6 +136,10 @@ export type DeliveryDashboardOrder = {
   tip_amount?: number;
   tip?: number;
   delivery_fee?: number;
+  is_batch_addon?: boolean;
+  isBatchAddon?: boolean;
+  batch_id?: string;
+  calculated_payout?: number;
   status?: string;
   items?: Array<{
     id?: string;

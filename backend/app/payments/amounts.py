@@ -22,12 +22,36 @@ BATCH_DELIVERY_FEE = 15.0
 EXPRESS_DELIVERY_FEE = 40.0
 MICRO_CART_THRESHOLD = 80.0
 ONLINE_PG_FEE_RATE = 0.0236
-RIDER_BASE_PAYOUT = 20.0  # Canonical flat ₹20 base payout per fulfilled order
+RIDER_BASE_PAYOUT = 20.0          # Primary drop wage (₹20.00)
+RIDER_BATCH_ADDON_PAYOUT = 10.0   # Secondary/subsequent drop add-on wage (₹10.00)
 RIDER_COD_BALANCE_CEILING = 500.0  # Hard lockout at ₹500 unremitted cash
 MAX_UNREMITTED_CASH_LIMIT = 500.0
 
 SMALL_ORDER_THRESHOLD = 50.0
 SMALL_ORDER_FEE = 0.0
+
+
+def calculate_rider_payout(
+    is_batch_addon: bool = False,
+    tip_amount: float = 0.0,
+    is_takeaway: bool = False,
+) -> float:
+    """Calculates canonical rider wage: ₹20 base or ₹10 batch add-on + 100% tip."""
+    if is_takeaway:
+        return 0.0
+    base = RIDER_BATCH_ADDON_PAYOUT if is_batch_addon else RIDER_BASE_PAYOUT
+    return round(base + max(0.0, float(tip_amount or 0.0)), 2)
+
+
+def calculate_batch_rider_earnings(
+    order_count: int,
+    total_tips: float = 0.0,
+) -> float:
+    """Calculates total batch rider earnings: ₹20 base + (N-1)*₹10 add-ons + tips."""
+    if order_count <= 0:
+        return 0.0
+    wages = RIDER_BASE_PAYOUT + max(0, order_count - 1) * RIDER_BATCH_ADDON_PAYOUT
+    return round(wages + max(0.0, float(total_tips or 0.0)), 2)
 
 
 def get_calibrated_app_price(counter_price: float) -> int:
@@ -47,6 +71,7 @@ def calculate_order_amounts(
     delivery_type: str = "HOSTEL_BATCH",
     tip_amount: float = 0.0,
     payment_method: str = "COD",
+    is_batch_addon: bool = False,
 ) -> dict[str, Any]:
     """
     Authoritative server-side calculation for order totals, statutory GSTs,
@@ -146,9 +171,11 @@ def calculate_order_amounts(
     # Net Restaurant Payout: 100% Canteen counter base + GST pass-through
     net_restaurant_payout = round(canteen_counter_base + gst_amount, 2)
 
-    # Delivery Partner Earning: Flat ₹20 base payout + 100% of driver tip (only if delivery is requested)
-    delivery_partner_earning = (
-        round(RIDER_BASE_PAYOUT + valid_tip, 2) if not is_takeaway else 0.0
+    # Delivery Partner Earning: ₹20 base or ₹10 add-on + 100% tip (only if delivery is requested)
+    delivery_partner_earning = calculate_rider_payout(
+        is_batch_addon=is_batch_addon,
+        tip_amount=valid_tip,
+        is_takeaway=is_takeaway,
     )
 
     # Net Platform Margin
@@ -170,6 +197,7 @@ def calculate_order_amounts(
         "is_below_min_delivery": is_below_min_delivery,
         "min_delivery_error": min_delivery_error,
         "delivery_type": norm_delivery_type,
+        "is_batch_addon": is_batch_addon,
         "tip_amount": valid_tip,
         "total_payable": total_payable,
         "total_unrounded": total_unrounded,

@@ -257,7 +257,7 @@ export function AdminFinancialSummaryCards({
                     ₹{courierPayouts.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                   </p>
                   <p className="mt-1 text-xs text-teal-600/80">
-                    Total rider wages earned (fulfilled × ₹20.00 + tips)
+                    Total rider wages earned (₹20.00 base + ₹10.00 batch add-ons + tips)
                   </p>
                 </div>
 

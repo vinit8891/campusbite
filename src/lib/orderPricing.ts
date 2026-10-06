@@ -19,11 +19,37 @@ export const COMMISSION_RATE = 0.18;
 export const BUDGET_MEAL_COMMISSION_RATE = 0.18;
 export const STANDARD_COMMISSION_RATE = 0.18;
 export const ONLINE_PG_FEE_RATE = 0.0236;
-export const RIDER_BASE_PAYOUT = 20.00; // Flat ₹20 per fulfilled order
+export const RIDER_BASE_PAYOUT = 20.00; // Primary drop wage (₹20.00)
+export const RIDER_BATCH_ADDON_PAYOUT = 10.00; // Secondary/subsequent drop add-on wage (₹10.00)
 export const DELIVERY_PARTNER_SHARE_RATE = 0.85; // Legacy / reference rate
 
 export const SMALL_ORDER_THRESHOLD = 50.00;
 export const SMALL_ORDER_FEE = 0.00;
+
+/**
+ * Calculates canonical courier payout: ₹20 base or ₹10 batch add-on + 100% tip.
+ */
+export function calculateRiderPayout(
+  isBatchAddon: boolean = false,
+  tipAmount: number = 0,
+  isTakeaway: boolean = false
+): number {
+  if (isTakeaway) return 0.00;
+  const base = isBatchAddon ? RIDER_BATCH_ADDON_PAYOUT : RIDER_BASE_PAYOUT;
+  return Number((base + Math.max(0, tipAmount)).toFixed(2));
+}
+
+/**
+ * Calculates total batch rider earnings: ₹20 base + (N-1)*₹10 add-ons + tips.
+ */
+export function calculateBatchRiderEarnings(
+  orderCount: number,
+  totalTips: number = 0
+): number {
+  if (orderCount <= 0) return 0.00;
+  const wages = RIDER_BASE_PAYOUT + Math.max(0, orderCount - 1) * RIDER_BATCH_ADDON_PAYOUT;
+  return Number((wages + Math.max(0, totalTips)).toFixed(2));
+}
 
 export type DeliveryType =
   | "HOSTEL_BATCH"
@@ -56,6 +82,9 @@ export interface OrderPricingBreakdown {
   isBelowMinDelivery?: boolean;
   minDeliveryError?: string;
   delivery_type: DeliveryType;
+  is_batch_addon?: boolean;
+  isBatchAddon?: boolean;
+  calculated_payout?: number;
   tip_amount: number;
   total_payable: number;
   commission_amount: number;
@@ -74,7 +103,8 @@ export function calculateOrderPricing(
   items: PricingItem[],
   deliveryType: DeliveryType = "HOSTEL_BATCH",
   tipAmount: number = 0,
-  paymentMethod: string = "COD"
+  paymentMethod: string = "COD",
+  isBatchAddon: boolean = false
 ): OrderPricingBreakdown {
   const food_subtotal = Number(
     items
@@ -137,10 +167,12 @@ export function calculateOrderPricing(
     (food_subtotal + restaurant_gst - commission_amount).toFixed(2)
   );
 
-  // Flat ₹20 Base Payout + 100% Customer Tip for Courier (only if delivered)
-  const delivery_partner_earning = isTakeaway
-    ? 0.00
-    : Number((RIDER_BASE_PAYOUT + valid_tip).toFixed(2));
+  // Calibrated Wage: ₹20 Base Payout or ₹10 Batch Add-on + 100% Customer Tip for Courier
+  const delivery_partner_earning = calculateRiderPayout(
+    isBatchAddon,
+    valid_tip,
+    isTakeaway
+  );
 
   const net_platform_profit = Number(
     (
@@ -166,6 +198,9 @@ export function calculateOrderPricing(
     isBelowMinDelivery: is_below_min_delivery,
     minDeliveryError: min_delivery_error,
     delivery_type: deliveryType,
+    is_batch_addon: isBatchAddon,
+    isBatchAddon,
+    calculated_payout: delivery_partner_earning,
     tip_amount: valid_tip,
     total_payable,
     commission_amount,
