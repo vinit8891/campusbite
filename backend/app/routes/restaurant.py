@@ -183,6 +183,73 @@ async def remove_restaurant(
     }
 
 
+@router.get("/settlements/today")
+async def get_restaurant_today_settlement(
+    current_user: Annotated[
+        dict, Depends(require_roles(ADMIN, RESTAURANT_OWNER))
+    ],
+    date: Annotated[str | None, Query()] = None,
+    restaurant_email: Annotated[str | None, Query()] = None,
+):
+    """
+    Returns today's live settlement accruals for a canteen leading up to the 9:00 PM batch payout.
+    """
+    from app.services.settlement_service import calculate_canteen_daily_settlement
+
+    role = current_user.get("role")
+    user_email = (
+        current_user.get("email") or current_user.get("sub") or ""
+    ).strip().lower()
+
+    target_email = user_email if role == RESTAURANT_OWNER or not restaurant_email else restaurant_email.strip().lower()
+
+    return await calculate_canteen_daily_settlement(
+        restaurant_email=target_email,
+        target_date=date,
+    )
+
+
+@router.get("/settlements/export")
+@router.get("/settlements/{canteen_id}/export")
+async def export_restaurant_settlement(
+    current_user: Annotated[
+        dict, Depends(require_roles(ADMIN, RESTAURANT_OWNER))
+    ],
+    canteen_id: str | None = None,
+    date: Annotated[str | None, Query()] = None,
+    format: Annotated[str, Query()] = "csv",
+):
+    """
+    Generates downloadable CSV or JSON daily settlement summary for the canteen owner.
+    """
+    from fastapi.responses import PlainTextResponse
+    from app.services.settlement_service import generate_canteen_settlement_export
+
+    role = current_user.get("role")
+    user_email = (
+        current_user.get("email") or current_user.get("sub") or ""
+    ).strip().lower()
+
+    target = user_email if role == RESTAURANT_OWNER or not canteen_id else canteen_id.strip()
+
+    result = await generate_canteen_settlement_export(
+        canteen_id_or_email=target,
+        target_date=date,
+        format_type=format,
+    )
+
+    if format.lower() == "json":
+        return result
+
+    return PlainTextResponse(
+        content=result,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=settlement_slip_{date or 'today'}.csv"
+        },
+    )
+
+
 @router.get("/settlements/my")
 @router.get("/settlements")
 async def fetch_restaurant_settlements(
@@ -195,7 +262,7 @@ async def fetch_restaurant_settlements(
     """
     Fetches daily settlement records for a restaurant/canteen.
     """
-    from app.core.database import database
+    from app.db.database import database
 
     role = current_user.get("role")
     user_email = (

@@ -155,3 +155,108 @@ async def test_admin_financial_analytics_with_small_order_surcharge():
         assert analytics["total_small_order_fees"] == 5.00
         assert analytics["small_order_count"] == 1
         assert analytics["total_orders"] == 2
+
+
+@pytest.mark.asyncio
+async def test_canteen_settlement_summary_excludes_delivery_and_rider_wages():
+    """
+    Asserts that the 9:00 PM Canteen Settlement engine calculates:
+    gross_food_sales = sum(item_subtotals)
+    gst_collected = 5% of gross_food_sales
+    platform_commission = 18% of gross_food_sales
+    net_canteen_payable = gross + 5% GST - 18% Commission (87% of Gross)
+    and strictly excludes delivery fees (₹15/₹40), tech fees (₹3/₹5), and courier tips.
+    """
+    from app.services.settlement_service import (
+        calculate_canteen_daily_settlement,
+        get_daily_canteen_settlement_summary,
+    )
+
+    mock_orders = [
+        {
+            "_id": "order-1",
+            "restaurant_email": "taj@campusbite.in",
+            "restaurant_name": "Taj Canteen",
+            "status": "Delivered",
+            "food_subtotal": 200.0,
+            "restaurant_gst": 10.0,
+            "delivery_fee": 15.0,
+            "platform_fee": 3.0,
+            "tip_amount": 10.0,
+            "delivery_partner_earning": 30.0,  # ₹20 base + ₹10 tip
+            "total": 238.0,
+            "created_at": "2026-10-06T12:00:00Z",
+            "delivered_at": "2026-10-06T12:30:00Z",
+            "items": [{"name": "Paneer Butter Masala", "price": 200.0, "quantity": 1}],
+        },
+        {
+            "_id": "order-2",
+            "restaurant_email": "taj@campusbite.in",
+            "restaurant_name": "Taj Canteen",
+            "status": "Delivered",
+            "food_subtotal": 300.0,
+            "restaurant_gst": 15.0,
+            "delivery_fee": 40.0,
+            "platform_fee": 5.0,
+            "tip_amount": 0.0,
+            "delivery_partner_earning": 20.0,
+            "total": 360.0,
+            "created_at": "2026-10-06T14:00:00Z",
+            "delivered_at": "2026-10-06T14:45:00Z",
+            "items": [{"name": "Chicken Biryani Combo", "price": 150.0, "quantity": 2}],
+        },
+    ]
+
+    mock_restaurants = [
+        {
+            "_id": "rest-taj",
+            "email": "taj@campusbite.in",
+            "name": "Taj Canteen",
+            "upi_id": "tajcanteen@okaxis",
+            "bank_account": "9876543210",
+            "ifsc": "HDFC0001234",
+        }
+    ]
+
+    mock_db = {
+        "restaurants": AsyncMock(),
+        "canteen_settlements": AsyncMock(),
+        "orders": AsyncMock(),
+    }
+
+    mock_db["restaurants"].find_one = AsyncMock(return_value=mock_restaurants[0])
+    mock_db["restaurants"].find = lambda query: MockAsyncCursor(mock_restaurants)
+    mock_db["canteen_settlements"].find_one = AsyncMock(return_value=None)
+    mock_db["orders"].find = lambda query: MockAsyncCursor(mock_orders)
+
+    async def mock_distinct(field):
+        return ["taj@campusbite.in"]
+
+    mock_db["orders"].distinct = mock_distinct
+
+    with patch("app.services.settlement_service.database", mock_db):
+        settlement = await calculate_canteen_daily_settlement(
+            restaurant_email="taj@campusbite.in",
+            target_date="2026-10-06",
+        )
+
+        # Gross Food Sales must only be ₹200 + ₹300 = ₹500 (Delivery fee ₹55, tech fee ₹8, tip ₹10 excluded)
+        assert settlement["gross_food_sales"] == 500.00
+        # 5% GST = ₹25.00
+        assert settlement["gst_collected"] == 25.00
+        # 18% Platform Commission = ₹90.00
+        assert settlement["platform_commission"] == 90.00
+        # Net Canteen Payable = 500 + 25 - 90 = ₹435.00
+        assert settlement["net_canteen_payable"] == 435.00
+        assert settlement["orders_count"] == 2
+        assert settlement["upi_id"] == "tajcanteen@okaxis"
+        assert settlement["bank_details"]["account_number"] == "9876543210"
+
+        # Summary endpoint aggregation
+        summary = await get_daily_canteen_settlement_summary(target_date="2026-10-06")
+        assert summary["total_gross_food_sales"] == 500.00
+        assert summary["total_gst_collected"] == 25.00
+        assert summary["total_platform_commission"] == 90.00
+        assert summary["total_net_payable"] == 435.00
+        assert summary["total_orders"] == 2
+

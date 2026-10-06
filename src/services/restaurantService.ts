@@ -90,14 +90,26 @@ export async function getRestaurantById(
 export async function getRestaurantByEmail(
   email: string
 ): Promise<BackendRestaurant | null> {
-  const page = await getRestaurantsPage({
-    email,
-    page: 1,
-    limit: 1,
-    include_menu: true,
-  });
+  const clean = (email || "").trim().toLowerCase();
+  if (!clean) return null;
 
-  return page.items[0] || null;
+  try {
+    const page = await getRestaurantsPage({
+      email: clean,
+      page: 1,
+      limit: 1,
+      include_menu: true,
+    });
+
+    const matching = page.items.find(
+      (item) =>
+        (item.email || "").toLowerCase() === clean ||
+        ((item as { owner_email?: string }).owner_email || "").toLowerCase() === clean
+    );
+    return matching || null;
+  } catch {
+    return null;
+  }
 }
 
 export type RegisterRestaurantOwnerInput = {
@@ -140,7 +152,19 @@ export async function getRestaurantSettlements(
     restaurant = await getRestaurantByEmail(cleanEmail);
   } catch (_) {}
 
-  const restaurantName =
+  if (!restaurant && typeof window !== "undefined") {
+    try {
+      const storedOwner = localStorage.getItem("restaurantOwner");
+      if (storedOwner) {
+        const parsed = JSON.parse(storedOwner);
+        if (parsed?.name) {
+          restaurant = { name: parsed.name, email: parsed.email || cleanEmail } as BackendRestaurant;
+        }
+      }
+    } catch (_) {}
+  }
+
+  let restaurantName =
     restaurant?.name ||
     (cleanEmail
       ? cleanEmail
@@ -211,6 +235,9 @@ export async function getRestaurantSettlements(
         String(o.status || "").toLowerCase().trim()
       );
       if ((matchEmail || matchName) && isDelivered) {
+        if (o.restaurant_name && (restaurantName === "Campus Canteen" || restaurantName === "Taj")) {
+          restaurantName = o.restaurant_name;
+        }
         allDeliveredOrders.push(o as unknown as Order);
       }
     }
@@ -239,6 +266,9 @@ export async function getRestaurantSettlements(
                 isDelivered &&
                 !allDeliveredOrders.some((x) => x._id === o._id)
               ) {
+                if (o.restaurant_name && (restaurantName === "Campus Canteen" || restaurantName === "Taj")) {
+                  restaurantName = o.restaurant_name;
+                }
                 allDeliveredOrders.push(o);
               }
             }

@@ -548,6 +548,87 @@ async def acknowledge_rider_remittance(
     }
 
 
+@router.get("/settlements/daily-summary")
+@router.get("/canteen-settlements/daily-summary")
+async def get_canteen_daily_settlement_summary_endpoint(
+    _: Annotated[dict, Depends(require_roles(ADMIN))],
+    date: Annotated[str | None, Query()] = None,
+):
+    """
+    Returns aggregated daily settlement summary for all canteens for the 9:00 PM batch run.
+    """
+    from app.services.settlement_service import get_daily_canteen_settlement_summary
+    return await get_daily_canteen_settlement_summary(target_date=date)
+
+
+@router.post("/settlements/trigger-payout")
+@router.post("/canteen-settlements/trigger-payout")
+async def trigger_canteen_batch_payout_endpoint(
+    payload: dict,
+    current_user: Annotated[dict, Depends(require_roles(ADMIN))],
+):
+    """
+    Executes and records the 9:00 PM batch payout confirmation for canteens.
+    """
+    from app.services.settlement_service import trigger_canteen_batch_payout
+    admin_email = (
+        current_user.get("email") or current_user.get("sub") or "admin@campusbite.in"
+    ).strip().lower()
+
+    settlement_date = payload.get("settlement_date")
+    batch_reference = payload.get("batch_reference") or payload.get("transaction_ref") or payload.get("utr")
+    restaurant_emails = payload.get("restaurant_emails")
+
+    result = await trigger_canteen_batch_payout(
+        settlement_date=settlement_date,
+        batch_reference=batch_reference,
+        restaurant_emails=restaurant_emails,
+        admin_email=admin_email,
+    )
+
+    await log_admin_action(
+        admin_email=admin_email,
+        action="trigger_canteen_9pm_payout",
+        resource="canteen_settlements",
+        resource_id=settlement_date or "today",
+        metadata=result,
+    )
+
+    return result
+
+
+@router.get("/settlements/{canteen_id}/export")
+@router.get("/canteen-settlements/{canteen_id}/export")
+async def export_canteen_settlement_endpoint(
+    canteen_id: str,
+    _: Annotated[dict, Depends(require_roles(ADMIN))],
+    date: Annotated[str | None, Query()] = None,
+    format: Annotated[str, Query()] = "csv",
+):
+    """
+    Generates downloadable CSV or JSON daily settlement summary for a canteen.
+    """
+    from fastapi.responses import PlainTextResponse
+    from app.services.settlement_service import generate_canteen_settlement_export
+
+    result = await generate_canteen_settlement_export(
+        canteen_id_or_email=canteen_id,
+        target_date=date,
+        format_type=format,
+    )
+
+    if format.lower() == "json":
+        return result
+
+    return PlainTextResponse(
+        content=result,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=settlement_{canteen_id}_{date or 'today'}.csv"
+        },
+    )
+
+
 @router.post("/canteen-settlements")
 async def record_canteen_settlement(
     payload: dict,
@@ -575,6 +656,8 @@ async def record_canteen_settlement(
         "restaurant_name": restaurant_name,
         "settlement_date": settlement_date,
         "amount": amount,
+        "net_payable_subtotal": amount,
+        "net_disbursed": amount,
         "orders_count": orders_count,
         "transaction_ref": transaction_ref,
         "upi_id": upi_id,

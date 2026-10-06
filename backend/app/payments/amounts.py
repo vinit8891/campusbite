@@ -6,8 +6,9 @@ from fastapi import HTTPException
 
 # Statutory Tax & Pricing Constants
 RESTAURANT_COMMISSION_RATE = 0.18  # 18% Standard Restaurant Deduction Rate
-COMMISSION_RATE = 0.18  # 18% Platform Take-Rate
-FOOD_GST_RATE = 0.05    # 5% Food GST
+CANTEEN_COMMISSION_RATE = 0.18     # 18% platform commission
+COMMISSION_RATE = 0.18             # 18% Platform Take-Rate
+FOOD_GST_RATE = 0.05               # 5% Food GST
 
 PLATFORM_FEE_STANDARD = 3.0  # Carts >= ₹50
 PLATFORM_FEE_SMALL_CART = 5.0  # Carts < ₹50
