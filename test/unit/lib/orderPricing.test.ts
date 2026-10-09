@@ -1,6 +1,8 @@
 import { describe, it, expect } from "vitest";
 import {
   calculateOrderPricing,
+  calculateRiderPayout,
+  calculateBatchRiderEarnings,
   MIN_DELIVERY_SUBTOTAL,
   SMALL_CART_THRESHOLD,
   PLATFORM_FEE_STANDARD,
@@ -9,6 +11,18 @@ import {
   FOOD_GST_RATE,
   DELIVERY_FEE_HOSTEL_BATCH,
   DELIVERY_FEE_STANDARD,
+  DELIVERY_FEE,
+  TECH_FEE_TIER_LOW,
+  TECH_FEE_TIER_HIGH,
+  RIDER_BASE_PAYOUT,
+  RIDER_BATCH_ADDON_PAYOUT,
+  LARGE_CART_THRESHOLD,
+  LARGE_CART_RIDER_BONUS,
+  NIGHT_SURGE_FEE,
+  MILESTONE_TIER_1,
+  MILESTONE_TIER_2,
+  MILESTONE_TIER_3,
+  RIDER_MILESTONES,
 } from "@/lib/orderPricing";
 import {
   calculateCheckoutPricing,
@@ -200,6 +214,88 @@ describe("orderPricing and pricingEngine thresholds & calculations", () => {
       // gst = 5% of 50 = 2.50, delivery = 15, tech = 3
       // total = 50 + 2.50 + 3 + 15 = 70.50
       expect(breakdown.totalStudentPayable).toBe(70.5);
+    });
+  });
+
+  describe("Courier Compensation and Incentive Engine", () => {
+    it("verifies canonical customer fees and platform tech fees remain unchanged", () => {
+      expect(DELIVERY_FEE).toBe(15.00);
+      expect(TECH_FEE_TIER_LOW).toBe(5.00);
+      expect(TECH_FEE_TIER_HIGH).toBe(3.00);
+    });
+
+    it("verifies courier compensation constants and rates", () => {
+      expect(RIDER_BASE_PAYOUT).toBe(20.00);
+      expect(RIDER_BATCH_ADDON_PAYOUT).toBe(14.00);
+      expect(LARGE_CART_THRESHOLD).toBe(150.00);
+      expect(LARGE_CART_RIDER_BONUS).toBe(5.00);
+      expect(NIGHT_SURGE_FEE).toBe(10.00);
+    });
+
+    it("verifies upgraded courier streak milestones", () => {
+      expect(MILESTONE_TIER_1).toEqual({ count: 3, bonus: 20.0 });
+      expect(MILESTONE_TIER_2).toEqual({ count: 6, bonus: 50.0 });
+      expect(MILESTONE_TIER_3).toEqual({ count: 10, bonus: 100.0 });
+      expect(RIDER_MILESTONES).toHaveLength(3);
+    });
+
+    it("calculates standard primary drop payout (₹20.00)", () => {
+      const payout = calculateRiderPayout(false, 0, false, 80.0, false);
+      expect(payout).toBe(20.00);
+    });
+
+    it("calculates batch add-on drop payout (₹14.00)", () => {
+      const payout = calculateRiderPayout(true, 0, false, 80.0, false);
+      expect(payout).toBe(14.00);
+    });
+
+    it("applies +₹5 Large Cart Rider Bonus on orders with subtotal >= ₹150 (₹25.00)", () => {
+      // Subtotal exactly 150 -> ₹20 base + ₹5 bonus = ₹25.00
+      const exactLarge = calculateRiderPayout(false, 0, false, 150.0, false);
+      expect(exactLarge).toBe(25.00);
+
+      // Subtotal 220 -> ₹20 base + ₹5 bonus = ₹25.00
+      const overLarge = calculateRiderPayout(false, 0, false, 220.0, false);
+      expect(overLarge).toBe(25.00);
+
+      // Subtotal 149.99 -> no bonus (₹20.00)
+      const underLarge = calculateRiderPayout(false, 0, false, 149.99, false);
+      expect(underLarge).toBe(20.00);
+    });
+
+    it("does not apply large cart bonus to batch add-on drops", () => {
+      // Batch addon is fixed ₹14.00 add-on rate
+      const addonLarge = calculateRiderPayout(true, 0, false, 200.0, false);
+      expect(addonLarge).toBe(14.00);
+    });
+
+    it("applies +₹10 Night Surge Fee and passes 100% to courier", () => {
+      // Standard drop with night surge: ₹20 + ₹10 = ₹30.00
+      const surgePayout = calculateRiderPayout(false, 0, false, 80.0, true);
+      expect(surgePayout).toBe(30.00);
+
+      // Large cart with night surge and tip: ₹20 + ₹5 (large) + ₹10 (surge) + ₹15 (tip) = ₹50.00
+      const fullStacked = calculateRiderPayout(false, 15.0, false, 180.0, true);
+      expect(fullStacked).toBe(50.00);
+    });
+
+    it("returns 0 payout for Counter Takeaway orders", () => {
+      const takeawayPayout = calculateRiderPayout(false, 10.0, true, 180.0, true);
+      expect(takeawayPayout).toBe(0.00);
+    });
+
+    it("calculates batch bundled earnings correctly", () => {
+      // 1 drop: ₹20.00
+      expect(calculateBatchRiderEarnings(1, 0, 0, false)).toBe(20.00);
+
+      // 2 drops: ₹20 base + ₹14 addon = ₹34.00
+      expect(calculateBatchRiderEarnings(2, 0, 0, false)).toBe(34.00);
+
+      // 3 drops: ₹20 base + 2 * ₹14 addon = ₹48.00
+      expect(calculateBatchRiderEarnings(3, 0, 0, false)).toBe(48.00);
+
+      // 3 drops with 1 large cart (+₹5), night surge (+₹10), and ₹20 tips: 48 + 5 + 10 + 20 = ₹83.00
+      expect(calculateBatchRiderEarnings(3, 20.0, 1, true)).toBe(83.00);
     });
   });
 });

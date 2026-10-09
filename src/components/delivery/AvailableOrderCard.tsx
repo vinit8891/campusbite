@@ -33,18 +33,29 @@ export function AvailableOrderCard({
     order.restaurant_name || order.restaurant_email
   );
 
+  const orderSubtotal = Number(
+    order.food_subtotal ?? (order as { subtotal?: number }).subtotal ?? order.total ?? 0
+  );
+  const isHeavyOrder = orderSubtotal >= 150.00;
+  const payoutAmount = isHeavyOrder ? 25 : 20;
+
   return (
     <div className="w-full max-w-full min-w-0 overflow-hidden box-border rounded-2xl sm:rounded-3xl border border-stone-200/90 bg-white p-4 sm:p-6 shadow-xs transition-all hover:shadow-md">
       {/* Top Header Row */}
       <div className="flex flex-wrap items-start justify-between gap-2 pb-3 border-b border-stone-100">
         <div className="space-y-1 min-w-0 max-w-full flex-1">
-          <div className="flex items-center gap-2">
+          <div className="flex flex-wrap items-center gap-2">
             <span className="font-mono text-xs font-bold text-stone-500 bg-stone-100 px-2 py-0.5 rounded-md">
               #{shortId(order._id)}
             </span>
             <span className="rounded-xl bg-orange-100/90 px-2.5 py-0.5 text-[11px] font-bold text-orange-800">
               🟢 Ready for Pickup
             </span>
+            {isHeavyOrder && (
+              <span className="rounded-xl bg-indigo-100 border border-indigo-300 px-2 py-0.5 text-[11px] font-black text-indigo-900">
+                📦 Heavy Order (+₹5)
+              </span>
+            )}
           </div>
 
           <h2 className="text-lg sm:text-xl font-black text-stone-900 tracking-tight pt-1 truncate">
@@ -55,7 +66,7 @@ export function AvailableOrderCard({
         {/* Payout Pill */}
         <div className="rounded-xl bg-emerald-100/90 border border-emerald-200 px-2.5 py-1 text-xs sm:text-sm max-w-full text-right shrink-0">
           <span className="font-black text-emerald-900 flex items-center gap-1">
-            💰 +₹20 Payout
+            💰 +₹{payoutAmount} Payout
           </span>
         </div>
       </div>

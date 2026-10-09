@@ -15,6 +15,7 @@ import {
   MAX_UNREMITTED_CASH_LIMIT,
 } from "@/services/deliveryPartnerService";
 import { MessShiftRoster } from "@/components/delivery/MessShiftRoster";
+import { RiderStreakMilestoneCard } from "@/components/delivery/RiderStreakMilestoneCard";
 
 function DashboardSkeleton() {
   return (
@@ -175,6 +176,11 @@ export default function DeliveryDashboard() {
         totalDeliveries={totalDeliveries}
         allTimeEarnings={stats.earnings}
         rating={stats.rating || 4.9}
+      />
+
+      {/* 🚀 Courier Shift Drops Milestones & Loss-Proof Bonus Rewards */}
+      <RiderStreakMilestoneCard
+        completedCount={deliveredToday || stats.completed || 0}
       />
 
       {/* Navigation Tabs */}

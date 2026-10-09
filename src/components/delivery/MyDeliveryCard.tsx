@@ -43,7 +43,13 @@ export function MyDeliveryCard({
   )}`;
 
   const isAddon = Boolean(order.is_batch_addon || order.isBatchAddon);
-  const wageBadge = isAddon ? "Batch Add-on (₹10.00 wage)" : "Base Drop (₹20.00 wage)";
+  const orderSubtotal = Number(order.food_subtotal ?? (order as { subtotal?: number }).subtotal ?? order.total ?? 0);
+  const isHeavyOrder = orderSubtotal >= 150.00;
+  const wageBadge = isAddon
+    ? "Batch Add-on (₹14.00 wage)"
+    : isHeavyOrder
+    ? "Base Drop (₹25.00 wage • Heavy)"
+    : "Base Drop (₹20.00 wage)";
 
   return (
     <div className="rounded-2xl border bg-white p-6 shadow space-y-4">
@@ -74,6 +80,11 @@ export function MyDeliveryCard({
             >
               {wageBadge}
             </span>
+            {isHeavyOrder && (
+              <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full border bg-indigo-100 text-indigo-900 border-indigo-300">
+                📦 Heavy Order (+₹5)
+              </span>
+            )}
           </div>
         </div>
       </div>

@@ -30,16 +30,19 @@ export const MAX_UNREMITTED_CASH_LIMIT = 500.00;
 
 /**
  * Calculates earnings for a completed delivery order using the calibrated multi-drop model.
- * Base drop: RIDER_BASE_PAYOUT (₹20.00) + tip
- * Batch add-on drop: RIDER_BATCH_ADDON_PAYOUT (₹10.00) + tip
+ * Base drop: RIDER_BASE_PAYOUT (₹20.00) + Large Cart Bonus (+₹5 if >= ₹150) + tip
+ * Batch add-on drop: RIDER_BATCH_ADDON_PAYOUT (₹14.00) + tip
  */
 export function calculateRiderEarnings(order?: {
   total?: number;
+  food_subtotal?: number;
+  subtotal?: number;
   delivery_fee?: number;
   tip_amount?: number;
   tip?: number;
   is_batch_addon?: boolean;
   isBatchAddon?: boolean;
+  is_night_surge?: boolean;
   calculated_payout?: number;
 }): number {
   if (order?.calculated_payout !== undefined && order.calculated_payout > 0) {
@@ -47,8 +50,14 @@ export function calculateRiderEarnings(order?: {
   }
   const tip = Number(order?.tip_amount ?? order?.tip ?? 0);
   const isAddon = Boolean(order?.is_batch_addon || order?.isBatchAddon);
-  const baseWage = isAddon ? RIDER_BATCH_ADDON_PAYOUT : RIDER_BASE_PAYOUT;
-  return Number((baseWage + Math.max(0, tip)).toFixed(2));
+  const subtotal = Number(order?.food_subtotal ?? order?.subtotal ?? order?.total ?? 0);
+  return calculateRiderPayout(
+    isAddon,
+    tip,
+    false,
+    subtotal,
+    Boolean(order?.is_night_surge)
+  );
 }
 
 function getStoredDeliveredOrders(phone?: string): Array<{

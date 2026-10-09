@@ -55,10 +55,13 @@ export function BatchOrderGroupCard({
 
   const payoutBreakdownText =
     orderCount === 1
-      ? "1 Drop: ₹20 base"
-      : `${orderCount} Drops: ₹20 base + ${addonCount * 10} add-ons`;
+      ? "₹20 base"
+      : addonCount === 1
+      ? "₹20 base + ₹14 add-on"
+      : `₹20 base + ${addonCount} × ₹14 add-on`;
 
   const earnHeadline = `Earn ₹${totalPayout.toFixed(2)} (${payoutBreakdownText}) + Tips`;
+  const badgeBreakdownHeadline = `💰 ₹${totalPayout.toFixed(2)} (${payoutBreakdownText}) + Tips`;
 
   const efficiencyText = `Same Hostel Route • 1 Trip, ${orderCount} ${
     orderCount === 1 ? "Drop-off" : "Drop-offs"
@@ -106,7 +109,7 @@ export function BatchOrderGroupCard({
             💰 ₹{totalPayout.toFixed(2)}
           </div>
           <span className="block text-[10px] text-emerald-700 font-bold">
-            Earn ₹{totalPayout.toFixed(2)} ({payoutBreakdownText}) + Tips
+            {badgeBreakdownHeadline}
           </span>
         </div>
       </div>
@@ -115,7 +118,7 @@ export function BatchOrderGroupCard({
       <div className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-orange-100/80 border border-orange-200/80 px-3 py-1.5 text-xs">
         <span className="font-black text-orange-950 flex items-center gap-1.5">
           <span>🛵</span>
-          <span>{earnHeadline}</span>
+          <span>{badgeBreakdownHeadline}</span>
         </span>
         <span className="font-bold text-orange-800 hidden sm:inline">
           {efficiencyText}
@@ -130,6 +133,8 @@ export function BatchOrderGroupCard({
             order.restaurant_name || order.restaurant_email
           );
           const isAddon = idx > 0 || Boolean(order.is_batch_addon || order.isBatchAddon);
+          const orderSubtotal = Number(order.food_subtotal ?? (order as { subtotal?: number }).subtotal ?? order.total ?? 0);
+          const isHeavy = orderSubtotal >= 150.00;
 
           return (
             <div
@@ -151,8 +156,13 @@ export function BatchOrderGroupCard({
                         : "bg-emerald-100 text-emerald-900 border border-emerald-300"
                     }`}
                   >
-                    {isAddon ? "Batch Add-on (₹10.00 wage)" : "Base Drop (₹20.00 wage)"}
+                    {isAddon ? "Batch Add-on (₹14.00 wage)" : "Base Drop (₹20.00 wage)"}
                   </span>
+                  {isHeavy && (
+                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-900 border border-indigo-300">
+                      📦 Heavy Order (+₹5)
+                    </span>
+                  )}
                 </div>
 
                 <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-stone-600">

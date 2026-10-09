@@ -17,37 +17,63 @@ export const DELIVERY_FEE_STANDARD = 40.00;
 export const RESTAURANT_COMMISSION_RATE = 0.18;
 export const COMMISSION_RATE = 0.18;
 export const BUDGET_MEAL_COMMISSION_RATE = 0.18;
+export const DELIVERY_FEE = 15.00;
+export const TECH_FEE_TIER_LOW = 5.00;
+export const TECH_FEE_TIER_HIGH = 3.00;
 export const STANDARD_COMMISSION_RATE = 0.18;
 export const ONLINE_PG_FEE_RATE = 0.0236;
+
+// Courier Compensation & Incentive Constants
 export const RIDER_BASE_PAYOUT = 20.00; // Primary drop wage (₹20.00)
-export const RIDER_BATCH_ADDON_PAYOUT = 10.00; // Secondary/subsequent drop add-on wage (₹10.00)
+export const RIDER_BATCH_ADDON_PAYOUT = 14.00; // Secondary/subsequent drop add-on wage (₹14.00)
+export const LARGE_CART_THRESHOLD = 150.00; // Food subtotal threshold for heavy cart bonus (₹150.00)
+export const LARGE_CART_RIDER_BONUS = 5.00; // Extra bonus for orders with subtotal >= ₹150 (+₹5.00)
+export const NIGHT_SURGE_FEE = 10.00; // Night surge (9:30 PM - 1:00 AM IST) 100% to rider (+₹10.00)
 export const DELIVERY_PARTNER_SHARE_RATE = 0.85; // Legacy / reference rate
+
+// Upgraded Courier Streak Milestones
+export const MILESTONE_TIER_1 = { count: 3, bonus: 20.0 };   // 3 drops = +₹20
+export const MILESTONE_TIER_2 = { count: 6, bonus: 50.0 };   // 6 drops = +₹50
+export const MILESTONE_TIER_3 = { count: 10, bonus: 100.0 }; // 10 drops = +₹100
+export const RIDER_MILESTONES = [MILESTONE_TIER_1, MILESTONE_TIER_2, MILESTONE_TIER_3];
 
 export const SMALL_ORDER_THRESHOLD = 50.00;
 export const SMALL_ORDER_FEE = 0.00;
 
 /**
- * Calculates canonical courier payout: ₹20 base or ₹10 batch add-on + 100% tip.
+ * Calculates canonical courier payout: ₹20 base (+₹5 if subtotal >= ₹150) or ₹14 batch add-on + surge + 100% tip.
  */
 export function calculateRiderPayout(
   isBatchAddon: boolean = false,
   tipAmount: number = 0,
-  isTakeaway: boolean = false
+  isTakeaway: boolean = false,
+  subtotal: number = 0,
+  isNightSurge: boolean = false
 ): number {
   if (isTakeaway) return 0.00;
-  const base = isBatchAddon ? RIDER_BATCH_ADDON_PAYOUT : RIDER_BASE_PAYOUT;
-  return Number((base + Math.max(0, tipAmount)).toFixed(2));
+  let base = isBatchAddon ? RIDER_BATCH_ADDON_PAYOUT : RIDER_BASE_PAYOUT;
+  if (!isBatchAddon && subtotal >= LARGE_CART_THRESHOLD) {
+    base += LARGE_CART_RIDER_BONUS;
+  }
+  const surge = isNightSurge ? NIGHT_SURGE_FEE : 0.00;
+  return Number((base + surge + Math.max(0, tipAmount)).toFixed(2));
 }
 
 /**
- * Calculates total batch rider earnings: ₹20 base + (N-1)*₹10 add-ons + tips.
+ * Calculates total batch rider earnings: ₹20 base + (N-1)*₹14 add-ons + large cart bonuses + tips.
  */
 export function calculateBatchRiderEarnings(
   orderCount: number,
-  totalTips: number = 0
+  totalTips: number = 0,
+  largeCartCount: number = 0,
+  isNightSurge: boolean = false
 ): number {
   if (orderCount <= 0) return 0.00;
-  const wages = RIDER_BASE_PAYOUT + Math.max(0, orderCount - 1) * RIDER_BATCH_ADDON_PAYOUT;
+  let wages = RIDER_BASE_PAYOUT + Math.max(0, orderCount - 1) * RIDER_BATCH_ADDON_PAYOUT;
+  wages += largeCartCount * LARGE_CART_RIDER_BONUS;
+  if (isNightSurge) {
+    wages += NIGHT_SURGE_FEE;
+  }
   return Number((wages + Math.max(0, totalTips)).toFixed(2));
 }
 
@@ -167,11 +193,12 @@ export function calculateOrderPricing(
     (food_subtotal + restaurant_gst - commission_amount).toFixed(2)
   );
 
-  // Calibrated Wage: ₹20 Base Payout or ₹10 Batch Add-on + 100% Customer Tip for Courier
+  // Calibrated Wage: ₹20 Base Payout (+₹5 if subtotal >= ₹150) or ₹14 Batch Add-on + 100% Customer Tip for Courier
   const delivery_partner_earning = calculateRiderPayout(
     isBatchAddon,
     valid_tip,
-    isTakeaway
+    isTakeaway,
+    food_subtotal
   );
 
   const net_platform_profit = Number(

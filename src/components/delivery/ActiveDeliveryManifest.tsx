@@ -275,7 +275,18 @@ export function ActiveDeliveryManifest({
     effectiveOrder.payment_method === "cod";
 
   const isAddon = Boolean(effectiveOrder.is_batch_addon || effectiveOrder.isBatchAddon);
-  const wageLabel = isAddon ? "Batch Add-on (₹10.00 wage)" : "Base Drop (₹20.00 wage)";
+  const orderSubtotal = Number(
+    effectiveOrder.food_subtotal ??
+    (effectiveOrder as { subtotal?: number }).subtotal ??
+    effectiveOrder.total ??
+    0
+  );
+  const isHeavyOrder = orderSubtotal >= 150.00;
+  const wageLabel = isAddon
+    ? "Batch Add-on (₹14.00 wage)"
+    : isHeavyOrder
+    ? "Base Drop (₹25.00 wage • Heavy)"
+    : "Base Drop (₹20.00 wage)";
 
   return (
     <div className="w-full max-w-full min-w-0 box-border rounded-3xl border border-stone-200/90 bg-white p-5 sm:p-7 shadow-xs space-y-5 transition-all hover:shadow-md">
@@ -296,6 +307,11 @@ export function ActiveDeliveryManifest({
             >
               {wageLabel}
             </span>
+            {isHeavyOrder && (
+              <span className="text-[11px] font-black px-2.5 py-0.5 rounded-full border bg-indigo-50 text-indigo-900 border-indigo-300">
+                📦 Heavy Order (+₹5)
+              </span>
+            )}
           </div>
 
           <h2 className="text-xl sm:text-2xl font-black text-stone-900 tracking-tight pt-1.5 flex items-center gap-2 truncate">

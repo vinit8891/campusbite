@@ -22,6 +22,8 @@ export type AvailableOrder = {
   phone?: string;
   address?: string;
   total?: number;
+  food_subtotal?: number;
+  subtotal?: number;
   payment_method?: string;
   payment_status?: string;
   status?: string;

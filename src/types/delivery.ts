@@ -3,7 +3,15 @@
  */
 
 export const RIDER_BASE_PAYOUT = 20.00; // Primary drop wage (₹20.00)
-export const RIDER_BATCH_ADDON_PAYOUT = 10.00; // Secondary/subsequent drop add-on wage (₹10.00)
+export const RIDER_BATCH_ADDON_PAYOUT = 14.00; // Secondary/subsequent drop add-on wage (₹14.00)
+export const LARGE_CART_THRESHOLD = 150.00;
+export const LARGE_CART_RIDER_BONUS = 5.00;
+export const NIGHT_SURGE_FEE = 10.00;
+
+export const MILESTONE_TIER_1 = { count: 3, bonus: 20.0 };   // 3 drops = +₹20
+export const MILESTONE_TIER_2 = { count: 6, bonus: 50.0 };   // 6 drops = +₹50
+export const MILESTONE_TIER_3 = { count: 10, bonus: 100.0 }; // 10 drops = +₹100
+export const RIDER_MILESTONES = [MILESTONE_TIER_1, MILESTONE_TIER_2, MILESTONE_TIER_3];
 
 export type DeliveryPartner = {
   id?: string;
@@ -95,6 +103,8 @@ export type DeliveryOrder = {
   payment_method?: string;
   payment_status?: string;
   total?: number;
+  food_subtotal?: number;
+  subtotal?: number;
   tip_amount?: number;
   tip?: number;
   delivery_fee?: number;
@@ -135,6 +145,8 @@ export type DeliveryDashboardOrder = {
   phone?: string;
   address?: string;
   total?: number;
+  food_subtotal?: number;
+  subtotal?: number;
   tip_amount?: number;
   tip?: number;
   delivery_fee?: number;

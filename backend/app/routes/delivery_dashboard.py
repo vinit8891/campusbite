@@ -143,11 +143,24 @@ async def delivery_stats(
                 else:
                     seen_batch_ids.add(batch_id)
 
+            subtotal = float(
+                order.get("food_subtotal")
+                or order.get("subtotal")
+                or order.get("app_subtotal")
+                or pricing_breakdown.get("food_subtotal")
+                or 0.0
+            )
+            is_night_surge = bool(order.get("is_night_surge") or pricing_breakdown.get("is_night_surge"))
+
             if pricing_breakdown.get("delivery_partner_earning") is not None:
                 earning = float(pricing_breakdown["delivery_partner_earning"])
             else:
-                base_wage = RIDER_BATCH_ADDON_PAYOUT if is_batch_addon else RIDER_BASE_PAYOUT
-                earning = base_wage + tip_amount
+                earning = calculate_rider_payout(
+                    subtotal=subtotal,
+                    is_batch_addon=is_batch_addon,
+                    is_night_surge=is_night_surge,
+                    tip=tip_amount,
+                )
 
             earnings += round(earning, 2)
 

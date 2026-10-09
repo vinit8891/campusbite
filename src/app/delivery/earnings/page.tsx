@@ -16,6 +16,7 @@ import { DeliverySidebar } from "@/components/delivery/DeliverySidebar";
 import { DeliveryNavbar } from "@/components/delivery/DeliveryNavbar";
 import { DeliveryBottomNav } from "@/components/delivery/DeliveryBottomNav";
 import { DeliveryCashReconciliation } from "@/components/delivery/DeliveryCashReconciliation";
+import { RiderStreakMilestoneCard } from "@/components/delivery/RiderStreakMilestoneCard";
 import { getDeliveryPartnerSession } from "@/lib/authTokens";
 import {
   getDeliveryStats,
@@ -212,14 +213,14 @@ export default function DeliveryEarningsPage() {
                   Rider Finance
                 </span>
                 <span className="text-xs font-semibold text-stone-500">
-                  ₹20 Base + ₹10 Batch Add-on Model
+                  ₹20 Base + ₹14 Batch Add-on Model
                 </span>
               </div>
               <h1 className="mt-1.5 text-2xl sm:text-3xl font-black text-stone-900 tracking-tight">
                 Earnings &amp; Cash Reconciliation
               </h1>
               <p className="text-sm text-stone-500 mt-0.5">
-                Track your ₹20 base &amp; ₹10 batch drop wages, customer cash collected, and settle dues with CampusBite.
+                Track your ₹20 base &amp; ₹14 batch drop wages, heavy cart bonuses, customer cash collected, and settle dues with CampusBite.
               </p>
             </div>
 
@@ -255,6 +256,9 @@ export default function DeliveryEarningsPage() {
             onRemitSuccess={loadEarningsData}
             showViewOrdersLink={true}
           />
+
+          {/* 🚀 Daily Streak Milestones Banner */}
+          <RiderStreakMilestoneCard completedCount={totalCompletedCount} />
 
           {loading ? (
             <div className="space-y-6">

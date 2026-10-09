@@ -19,39 +19,69 @@ TECH_FEE_DELIVERY = 5.0 # Legacy alias
 TECH_FEE_TAKEAWAY = 3.0 # Legacy alias
 PLATFORM_FEE_DELIVERY = 5.0
 PLATFORM_FEE_TAKEAWAY = 3.0
+DELIVERY_FEE = 15.0
 BATCH_DELIVERY_FEE = 15.0
 EXPRESS_DELIVERY_FEE = 40.0
+TECH_FEE_TIER_LOW = 5.0
+TECH_FEE_TIER_HIGH = 3.0
 MICRO_CART_THRESHOLD = 80.0
 ONLINE_PG_FEE_RATE = 0.0236
+
+# Courier Compensation & Incentive Constants
 RIDER_BASE_PAYOUT = 20.0          # Primary drop wage (₹20.00)
-RIDER_BATCH_ADDON_PAYOUT = 10.0   # Secondary/subsequent drop add-on wage (₹10.00)
+RIDER_BATCH_ADDON_PAYOUT = 14.0   # Secondary/subsequent drop add-on wage (₹14.00)
+LARGE_CART_THRESHOLD = 150.0      # Cart food subtotal threshold for heavy cart bonus (₹150.00)
+LARGE_CART_RIDER_BONUS = 5.0      # Additional bonus for heavy carts >= ₹150 (+₹5.00)
+NIGHT_SURGE_FEE = 10.0            # Night surge (9:30 PM - 1:00 AM IST) 100% to rider (+₹10.00)
 RIDER_COD_BALANCE_CEILING = 500.0  # Hard lockout at ₹500 unremitted cash
 MAX_UNREMITTED_CASH_LIMIT = 500.0
+
+# Upgraded Streak Milestones
+MILESTONE_TIER_1 = {"count": 3, "bonus": 20.0}   # 3 drops = +₹20
+MILESTONE_TIER_2 = {"count": 6, "bonus": 50.0}   # 6 drops = +₹50
+MILESTONE_TIER_3 = {"count": 10, "bonus": 100.0} # 10 drops = +₹100
+RIDER_MILESTONES = [MILESTONE_TIER_1, MILESTONE_TIER_2, MILESTONE_TIER_3]
 
 SMALL_ORDER_THRESHOLD = 50.0
 SMALL_ORDER_FEE = 0.0
 
 
 def calculate_rider_payout(
+    subtotal: float = 0.0,
     is_batch_addon: bool = False,
-    tip_amount: float = 0.0,
+    is_night_surge: bool = False,
+    tip: float = 0.0,
     is_takeaway: bool = False,
+    tip_amount: float | None = None,
 ) -> float:
-    """Calculates canonical rider wage: ₹20 base or ₹10 batch add-on + 100% tip."""
+    """Calculates canonical rider wage: ₹20 base (+₹5 if subtotal >= ₹150) or ₹14 batch add-on + surge + 100% tip."""
     if is_takeaway:
         return 0.0
-    base = RIDER_BATCH_ADDON_PAYOUT if is_batch_addon else RIDER_BASE_PAYOUT
-    return round(base + max(0.0, float(tip_amount or 0.0)), 2)
+    actual_tip = tip if tip > 0 else (tip_amount or 0.0)
+    if is_batch_addon:
+        base = RIDER_BATCH_ADDON_PAYOUT  # 14.0
+    else:
+        base = RIDER_BASE_PAYOUT         # 20.0
+        if subtotal >= LARGE_CART_THRESHOLD:
+            base += LARGE_CART_RIDER_BONUS  # +5.0
+
+    surge = NIGHT_SURGE_FEE if is_night_surge else 0.0
+    return round(base + surge + max(0.0, float(actual_tip)), 2)
 
 
 def calculate_batch_rider_earnings(
     order_count: int,
     total_tips: float = 0.0,
+    large_cart_count: int = 0,
+    is_night_surge: bool = False,
 ) -> float:
-    """Calculates total batch rider earnings: ₹20 base + (N-1)*₹10 add-ons + tips."""
+    """Calculates total batch rider earnings: ₹20 base + (N-1)*₹14 add-ons + large cart bonuses + tips."""
     if order_count <= 0:
         return 0.0
     wages = RIDER_BASE_PAYOUT + max(0, order_count - 1) * RIDER_BATCH_ADDON_PAYOUT
+    wages += large_cart_count * LARGE_CART_RIDER_BONUS
+    if is_night_surge:
+        wages += NIGHT_SURGE_FEE
     return round(wages + max(0.0, float(total_tips or 0.0)), 2)
 
 
@@ -73,6 +103,7 @@ def calculate_order_amounts(
     tip_amount: float = 0.0,
     payment_method: str = "COD",
     is_batch_addon: bool = False,
+    is_night_surge: bool = False,
 ) -> dict[str, Any]:
     """
     Authoritative server-side calculation for order totals, statutory GSTs,
@@ -172,10 +203,12 @@ def calculate_order_amounts(
     # Net Restaurant Payout: 100% Canteen counter base + GST pass-through
     net_restaurant_payout = round(canteen_counter_base + gst_amount, 2)
 
-    # Delivery Partner Earning: ₹20 base or ₹10 add-on + 100% tip (only if delivery is requested)
+    # Delivery Partner Earning: ₹20 base (+₹5 if subtotal >= ₹150) or ₹14 add-on + surge + 100% tip (only if delivery is requested)
     delivery_partner_earning = calculate_rider_payout(
+        subtotal=app_subtotal,
         is_batch_addon=is_batch_addon,
-        tip_amount=valid_tip,
+        is_night_surge=is_night_surge,
+        tip=valid_tip,
         is_takeaway=is_takeaway,
     )
 
@@ -207,6 +240,7 @@ def calculate_order_amounts(
         "pg_fee": pg_fee,
         "net_restaurant_payout": net_restaurant_payout,
         "delivery_partner_earning": delivery_partner_earning,
+        "delivery_partner_payout": delivery_partner_earning,
         "net_platform_profit": net_platform_profit,
         "canteen_payout": {
             "base_food": canteen_counter_base,

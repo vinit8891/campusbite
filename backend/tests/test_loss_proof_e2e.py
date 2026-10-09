@@ -264,18 +264,18 @@ def test_courier_claim_allowed_when_cih_below_500(client, courier_auth_headers):
 # ==============================================================================
 
 def test_batch_wage_calculation_formula():
-    """Validates calibrated drop payouts: Drop 1 = ₹20, Drop 2+ = ₹10."""
+    """Validates calibrated drop payouts: Drop 1 = ₹20, Drop 2+ = ₹14."""
     drop1 = calculate_rider_payout(is_batch_addon=False, tip_amount=0.0)
     drop2 = calculate_rider_payout(is_batch_addon=True, tip_amount=0.0)
     assert drop1 == RIDER_BASE_PAYOUT  # ₹20.00
-    assert drop2 == RIDER_BATCH_ADDON_PAYOUT  # ₹10.00
+    assert drop2 == RIDER_BATCH_ADDON_PAYOUT  # ₹14.00
 
-    # 2-order batch: 20 + 10 = 30.00
-    assert calculate_batch_rider_earnings(2, total_tips=0.0) == 30.00
-    # 3-order batch: 20 + 10 + 10 = 40.00
-    assert calculate_batch_rider_earnings(3, total_tips=0.0) == 40.00
-    # 2-order batch with ₹15 tips: 30 + 15 = 45.00
-    assert calculate_batch_rider_earnings(2, total_tips=15.0) == 45.00
+    # 2-order batch: 20 + 14 = 34.00
+    assert calculate_batch_rider_earnings(2, total_tips=0.0) == 34.00
+    # 3-order batch: 20 + 14 + 14 = 48.00
+    assert calculate_batch_rider_earnings(3, total_tips=0.0) == 48.00
+    # 2-order batch with ₹15 tips: 34 + 15 = 49.00
+    assert calculate_batch_rider_earnings(2, total_tips=15.0) == 49.00
 
 
 @pytest.mark.asyncio
@@ -322,13 +322,13 @@ async def test_delivery_dashboard_stats_aggregates_batch_wages():
         stats = await delivery_stats(phone=courier_phone, current_user=user_context)
 
         assert stats["completed"] == 2
-        # Drop 1 gets ₹20, Drop 2 gets ₹10 -> Total Earnings = ₹30.00
-        assert stats["earnings"] == 30.00
+        # Drop 1 gets ₹20, Drop 2 gets ₹14 -> Total Earnings = ₹34.00
+        assert stats["earnings"] == 34.00
         # Total COD collected = 120 + 150 = ₹270.00
         assert stats["cash_in_hand"] == 270.00
         assert stats["cash_reconciliation"]["total_cod_collected"] == 270.00
-        # Net Cash Due = 270 - 30 = ₹240.00
-        assert stats["net_cash_due"] == 240.00
+        # Net Cash Due = 270 - 34 = ₹236.00
+        assert stats["net_cash_due"] == 236.00
         assert stats["is_locked"] is False
 
 

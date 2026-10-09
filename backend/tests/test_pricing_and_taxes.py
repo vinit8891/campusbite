@@ -260,34 +260,34 @@ def test_calibrated_multi_drop_batch_wages():
     """
     Validates calibrated multi-drop batch wage constants and calculation helpers:
     - Primary drop: ₹20.00 base wage
-    - Subsequent/Add-on drops: ₹10.00 base wage
+    - Subsequent/Add-on drops: ₹14.00 base wage
     - 1-order run: ₹20.00
-    - 2-order batch: ₹30.00 (₹20 + ₹10)
-    - 3-order batch: ₹40.00 (₹20 + ₹10 + ₹10)
+    - 2-order batch: ₹34.00 (₹20 + ₹14)
+    - 3-order batch: ₹48.00 (₹20 + ₹14 + ₹14)
     """
     assert RIDER_BASE_PAYOUT == 20.0
-    assert RIDER_BATCH_ADDON_PAYOUT == 10.0
+    assert RIDER_BATCH_ADDON_PAYOUT == 14.0
 
     # Individual drop calculation
     assert calculate_rider_payout(is_batch_addon=False, tip_amount=0.0) == 20.0
-    assert calculate_rider_payout(is_batch_addon=True, tip_amount=0.0) == 10.0
+    assert calculate_rider_payout(is_batch_addon=True, tip_amount=0.0) == 14.0
     assert calculate_rider_payout(is_batch_addon=False, tip_amount=15.0) == 35.0
-    assert calculate_rider_payout(is_batch_addon=True, tip_amount=5.0) == 15.0
+    assert calculate_rider_payout(is_batch_addon=True, tip_amount=5.0) == 19.0
     assert calculate_rider_payout(is_batch_addon=False, tip_amount=0.0, is_takeaway=True) == 0.0
 
     # Batch earnings helper
     assert calculate_batch_rider_earnings(1) == 20.0
-    assert calculate_batch_rider_earnings(2) == 30.0
-    assert calculate_batch_rider_earnings(3) == 40.0
-    assert calculate_batch_rider_earnings(2, total_tips=10.0) == 40.0
+    assert calculate_batch_rider_earnings(2) == 34.0
+    assert calculate_batch_rider_earnings(3) == 48.0
+    assert calculate_batch_rider_earnings(2, total_tips=10.0) == 44.0
 
 
 def test_delivery_pool_reconciliation():
     """
     Validates delivery pool differential (delivery_fees_collected - rider_wages_paid):
     - Single order: ₹15 collected - ₹20 wage = -₹5.00 (subsidized by ₹5 tech fee).
-    - 2-order batch: 2 × ₹15 = ₹30 collected - ₹30 wage = ₹0.00 (100% self-funding).
-    - 3-order batch: 3 × ₹15 = ₹45 collected - ₹40 wage = +₹5.00 delivery surplus.
+    - 2-order batch: 2 × ₹15 = ₹30 collected - ₹34 wage = -₹4.00 (subsidized by 2 × ₹3+ tech fees).
+    - 3-order batch: 3 × ₹15 = ₹45 collected - ₹48 wage = -₹3.00 (subsidized by 3 × ₹3+ tech fees).
     """
     # 1. Single Order
     delivery_fees_single = BATCH_DELIVERY_FEE * 1  # 15.0
@@ -295,15 +295,15 @@ def test_delivery_pool_reconciliation():
     differential_single = delivery_fees_single - rider_wage_single
     assert differential_single == -5.0
 
-    # 2. Two-Order Batch (Self-funding)
+    # 2. Two-Order Batch
     delivery_fees_batch2 = BATCH_DELIVERY_FEE * 2  # 30.0
-    rider_wage_batch2 = calculate_batch_rider_earnings(2)  # 30.0 (20 + 10)
+    rider_wage_batch2 = calculate_batch_rider_earnings(2)  # 34.0 (20 + 14)
     differential_batch2 = delivery_fees_batch2 - rider_wage_batch2
-    assert differential_batch2 == 0.0  # 100% self-funding
+    assert differential_batch2 == -4.0
 
-    # 3. Three-Order Batch (Surplus)
+    # 3. Three-Order Batch
     delivery_fees_batch3 = BATCH_DELIVERY_FEE * 3  # 45.0
-    rider_wage_batch3 = calculate_batch_rider_earnings(3)  # 40.0 (20 + 10 + 10)
+    rider_wage_batch3 = calculate_batch_rider_earnings(3)  # 48.0 (20 + 14 + 14)
     differential_batch3 = delivery_fees_batch3 - rider_wage_batch3
-    assert differential_batch3 == 5.0  # +₹5 surplus
+    assert differential_batch3 == -3.0
 
