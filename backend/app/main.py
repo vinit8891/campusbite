@@ -77,6 +77,7 @@ from app.routes.review import (
 )
 from app.routes.health import router as health_router
 from app.routers.admin import router as admin_router
+from app.routes.partner_onboarding import router as partner_onboarding_router
 from app.routes.payment import router as payment_router
 from app.routes.subscription import router as subscription_router
 from app.routes.subscription_billing import router as subscription_billing_router
@@ -87,6 +88,8 @@ from app.routes.subscription_payment import (
     customer_router as subscription_payment_customer_router,
     restaurant_router as subscription_payment_restaurant_router,
 )
+from starlette.staticfiles import StaticFiles
+import os
 
 from app.db.database import database
 
@@ -212,7 +215,13 @@ app.include_router(
     review_router
 )
 
+app.include_router(partner_onboarding_router)
 app.include_router(admin_router)
+
+# Mount local uploads directory
+uploads_dir = os.path.join(os.getcwd(), "uploads")
+os.makedirs(uploads_dir, exist_ok=True)
+app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
 
 
 # ----------------------------------------

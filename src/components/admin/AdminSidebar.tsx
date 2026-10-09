@@ -89,6 +89,14 @@ export function AdminSidebar({
           isActive: (path) =>
             path === ROUTES.ADMIN_USERS || path.startsWith("/admin/users/"),
         },
+        {
+          name: "Partner Verifications",
+          href: ROUTES.ADMIN_VERIFICATIONS,
+          icon: ShieldCheck,
+          isActive: (path) =>
+            path === ROUTES.ADMIN_VERIFICATIONS ||
+            path.startsWith("/admin/verifications"),
+        },
       ],
     },
     {

@@ -319,11 +319,26 @@ async def add_order(
     elif not data.get("phone"):
         data["phone"] = token_phone
 
-    if not data.get("restaurant_email"):
+    rest_email = data.get("restaurant_email")
+    if not rest_email:
         raise HTTPException(
             status_code=400,
             detail="restaurant_email is required",
         )
+
+    # Hard Platform Guard: Unapproved restaurants cannot accept orders
+    try:
+        from app.models.restaurant import get_restaurant_by_email
+        rest_doc = await get_restaurant_by_email(rest_email)
+        if rest_doc and rest_doc.get("verification_status") in ("PENDING_VERIFICATION", "REJECTED", "SUSPENDED"):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Restaurant is {rest_doc.get('verification_status')} and not approved to accept orders.",
+            )
+    except HTTPException:
+        raise
+    except Exception:
+        pass
 
     raw_method = data.get("payment_method")
     is_online = _is_online_method(raw_method)
@@ -491,13 +506,28 @@ async def restaurant_orders(
 
 @router.get("/delivery/available")
 async def available_orders(
-    _: Annotated[dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))],
+    current_user: Annotated[dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))],
     q: Annotated[str | None, Query()] = None,
     restaurant: Annotated[str | None, Query()] = None,
     payment_method: Annotated[str | None, Query()] = None,
     page: Annotated[int, Query(ge=1)] = 1,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
 ):
+    if current_user.get("role") == DELIVERY_PARTNER:
+        phone = current_user.get("phone")
+        if phone:
+            try:
+                from app.models.delivery_partner import get_delivery_partner_by_phone
+                courier = await get_delivery_partner_by_phone(phone)
+                if courier and courier.get("verification_status") in ("PENDING_VERIFICATION", "REJECTED", "SUSPENDED"):
+                    raise HTTPException(
+                        status_code=403,
+                        detail="Courier account is pending verification and cannot view or claim available orders.",
+                    )
+            except HTTPException:
+                raise
+            except Exception:
+                pass
     return _public_paginated(
         await get_available_orders(
             q=sanitize_search_query(q),
@@ -591,6 +621,14 @@ async def accept_delivery(
         raise HTTPException(
             status_code=400,
             detail="Delivery partner identity is incomplete. Please log in again.",
+        )
+
+    # Courier Verification Status guard:
+    partner_doc_check = await get_delivery_partner_by_phone(partner_phone)
+    if partner_doc_check and partner_doc_check.get("verification_status") in ("PENDING_VERIFICATION", "REJECTED", "SUSPENDED"):
+        raise HTTPException(
+            status_code=403,
+            detail="Courier account is pending verification and not approved to claim orders.",
         )
 
     target_order = await get_order_by_id(order_id)

@@ -61,6 +61,7 @@ export const ROUTES = {
   ADMIN_RESTAURANTS: "/admin/restaurants",
   ADMIN_ADD_RESTAURANT: "/admin/add-restaurant",
   ADMIN_SUBSCRIPTIONS: "/admin/subscriptions",
+  ADMIN_VERIFICATIONS: "/admin/verifications",
   ADMIN_SETTINGS: "/admin/settings",
 } as const;
 
@@ -164,6 +165,7 @@ export const routes = {
     addRestaurant: ROUTES.ADMIN_ADD_RESTAURANT,
     editRestaurant: adminEditRestaurantPath,
     subscriptions: ROUTES.ADMIN_SUBSCRIPTIONS,
+    verifications: ROUTES.ADMIN_VERIFICATIONS,
     settings: ROUTES.ADMIN_SETTINGS,
   },
 } as const;

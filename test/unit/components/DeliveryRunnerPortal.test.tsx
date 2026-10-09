@@ -91,7 +91,7 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
 
       expect(screen.getAllByText(/Tagore Hostel/i).length).toBeGreaterThanOrEqual(1);
       expect(screen.getByText("2 Orders")).toBeInTheDocument();
-      expect(screen.getAllByText(/30\.00/).length).toBeGreaterThanOrEqual(1); // Payout ₹30.00
+      expect(screen.getAllByText(/34\.00/).length).toBeGreaterThanOrEqual(1); // Payout ₹34.00 (₹20 + ₹14)
       expect(screen.getByText(/Campus Corner Grill • Chai & Snacks Point/i)).toBeInTheDocument();
 
       // Individual orders inside the batch
@@ -537,14 +537,14 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
       expect(screen.queryByText("north.indian.dhaba@campus.edu")).not.toBeInTheDocument();
 
       // Unclipped payout badge
-      expect(screen.getByText(/💰 \+₹20 Payout/i)).toBeInTheDocument();
+      expect(screen.getByText(/💰 \+₹25 Payout/i)).toBeInTheDocument();
 
       // Customer & Room
       expect(screen.getByText("Rahul Sharma")).toBeInTheDocument();
       expect(screen.getByText(/Room 304, Tagore Hostel/i)).toBeInTheDocument();
 
       // 48px touch claim button
-      const claimBtn = screen.getByRole("button", { name: /claim run • ₹20 payout/i });
+      const claimBtn = screen.getByRole("button", { name: /claim run • ₹25 payout/i });
       await user.click(claimBtn);
       expect(onAccept).toHaveBeenCalledWith("order-101");
 

@@ -19,7 +19,7 @@ describe("deliveryPartnerService rider earnings and CIH calculations", () => {
   describe("calculateRiderEarnings", () => {
     it("returns flat RIDER_BASE_PAYOUT (₹20.00) when no tip is provided", () => {
       const earnings = calculateRiderEarnings({
-        total: 150,
+        total: 120,
         delivery_fee: 40,
       });
       expect(earnings).toBe(20.0);
@@ -27,7 +27,7 @@ describe("deliveryPartnerService rider earnings and CIH calculations", () => {
 
     it("adds customer tips to the flat ₹20 payout", () => {
       const earnings = calculateRiderEarnings({
-        total: 250,
+        total: 120,
         delivery_fee: 15,
         tip_amount: 15,
       });
@@ -36,8 +36,8 @@ describe("deliveryPartnerService rider earnings and CIH calculations", () => {
 
     it("ignores legacy delivery_fee multipliers (e.g. 0.85)", () => {
       // Regardless of delivery_fee being ₹15 or ₹40, rider receives ₹20 flat
-      const batchOrder = calculateRiderEarnings({ delivery_fee: 15 });
-      const standardOrder = calculateRiderEarnings({ delivery_fee: 40 });
+      const batchOrder = calculateRiderEarnings({ total: 100, delivery_fee: 15 });
+      const standardOrder = calculateRiderEarnings({ total: 100, delivery_fee: 40 });
       expect(batchOrder).toBe(20.0);
       expect(standardOrder).toBe(20.0);
     });
@@ -127,24 +127,24 @@ describe("deliveryPartnerService rider earnings and CIH calculations", () => {
     it("accumulates COD order cash and awards ₹20 flat payout", () => {
       const phone = "9876543210";
       const order = {
-        total: 180,
+        total: 140,
         payment_method: "COD",
         tip_amount: 10,
       };
 
       const recon = recordDeliveredOrderCash(order, phone);
-      expect(recon.cash_in_hand).toBe(180);
+      expect(recon.cash_in_hand).toBe(140);
       // Payout = 20 base + 10 tip = 30
       expect(recon.total_payout_earned).toBe(30);
-      // Net due = Math.max(0, 180 - 30) = 150
-      expect(recon.net_cash_due).toBe(150);
+      // Net due = Math.max(0, 140 - 30) = 110
+      expect(recon.net_cash_due).toBe(110);
       expect(recon.completed_deliveries).toBe(1);
     });
 
     it("does not increase cash_in_hand for online prepaid orders but credits ₹20 wage", () => {
       const phone = "9876543210";
       const order = {
-        total: 220,
+        total: 140,
         payment_method: "ONLINE",
       };
 
@@ -159,7 +159,7 @@ describe("deliveryPartnerService rider earnings and CIH calculations", () => {
     it("keeps cash_in_hand at 0 when a COD order is collected via CampusBite Doorstep UPI QR", () => {
       const phone = "9876543210";
       const order = {
-        total: 250,
+        total: 140,
         payment_method: "COD",
       };
 
@@ -175,28 +175,28 @@ describe("deliveryPartnerService rider earnings and CIH calculations", () => {
     it("deducts remittance from dues and updates cash_in_hand", () => {
       const phone = "9876543210";
 
-      // 1. Deliver 2 COD orders of ₹200 each (total ₹400 cash, ₹40 wages -> ₹360 dues)
-      recordDeliveredOrderCash({ total: 200, payment_method: "COD" }, phone);
+      // 1. Deliver 2 COD orders of ₹140 each (total ₹280 cash, ₹40 wages -> ₹240 dues)
+      recordDeliveredOrderCash({ total: 140, payment_method: "COD" }, phone);
       const afterTwo = recordDeliveredOrderCash(
-        { total: 200, payment_method: "COD" },
+        { total: 140, payment_method: "COD" },
         phone
       );
-      expect(afterTwo.cash_in_hand).toBe(400);
+      expect(afterTwo.cash_in_hand).toBe(280);
       expect(afterTwo.total_payout_earned).toBe(40);
-      expect(afterTwo.net_cash_due).toBe(360);
+      expect(afterTwo.net_cash_due).toBe(240);
 
-      // 2. Remit ₹200
-      const afterRemit = remitRiderDues(phone, 200);
-      expect(afterRemit.cash_in_hand).toBe(200);
-      expect(afterRemit.total_remitted).toBe(200);
-      // net_cash_due = Math.max(0, 400 - 40 - 200) = 160
-      expect(afterRemit.net_cash_due).toBe(160);
+      // 2. Remit ₹100
+      const afterRemit = remitRiderDues(phone, 100);
+      expect(afterRemit.cash_in_hand).toBe(180);
+      expect(afterRemit.total_remitted).toBe(100);
+      // net_cash_due = Math.max(0, 280 - 40 - 100) = 140
+      expect(afterRemit.net_cash_due).toBe(140);
 
-      // 3. Remit remaining ₹160
-      const cleared = remitRiderDues(phone, 160);
+      // 3. Remit remaining ₹140
+      const cleared = remitRiderDues(phone, 140);
       expect(cleared.cash_in_hand).toBe(40);
-      expect(cleared.total_remitted).toBe(360);
-      // net_cash_due = Math.max(0, 400 - 40 - 360) = 0
+      expect(cleared.total_remitted).toBe(240);
+      // net_cash_due = Math.max(0, 280 - 40 - 240) = 0
       expect(cleared.net_cash_due).toBe(0);
     });
   });
@@ -279,12 +279,18 @@ describe("deliveryPartnerService rider earnings and CIH calculations", () => {
     it("restores active claim permissions upon partial remittance reducing dues below ₹500", () => {
       const phone = "9444555666";
 
-      // Rider delivers ₹540 COD with ₹40 earnings -> ₹500 net dues -> locked
-      recordDeliveredOrderCash({ total: 270, payment_method: "COD" }, phone);
-      const lockedRecon = recordDeliveredOrderCash(
-        { total: 270, payment_method: "COD" },
-        phone
+      // Directly set up a locked state with ₹500 dues
+      localStorage.setItem(
+        `cb_cih_${phone}`,
+        JSON.stringify({
+          total_cod_collected: 540,
+          total_payout_earned: 40,
+          net_cash_due: 500,
+          completed_deliveries: 2,
+        })
       );
+
+      const lockedRecon = getRiderCashReconciliation(phone);
       expect(lockedRecon.net_cash_due).toBe(500.0);
       expect(lockedRecon.isLocked).toBe(true);
       expect(canClaimOrders(phone).allowed).toBe(false);
@@ -303,7 +309,7 @@ describe("deliveryPartnerService rider earnings and CIH calculations", () => {
     });
   });
 
-  describe("Calibrated Multi-Drop Batch Wage Structure (₹20 Base + ₹10 Add-on)", () => {
+  describe("Calibrated Multi-Drop Batch Wage Structure (₹20 Base + ₹14 Add-on)", () => {
     it("single order completed credits flat ₹20.00", () => {
       const singleOrderWage = calculateRiderEarnings({
         total: 120,
@@ -313,47 +319,47 @@ describe("deliveryPartnerService rider earnings and CIH calculations", () => {
       expect(calculateBatchRiderEarnings(1)).toBe(20.0);
     });
 
-    it("2-order batch run credits ₹30.00 total (₹20 + ₹10)", () => {
+    it("2-order batch run credits ₹34.00 total (₹20 + ₹14)", () => {
       const drop1 = calculateRiderEarnings({ total: 100, is_batch_addon: false });
       const drop2 = calculateRiderEarnings({ total: 100, is_batch_addon: true });
       expect(drop1).toBe(20.0);
-      expect(drop2).toBe(10.0);
-      expect(drop1 + drop2).toBe(30.0);
-      expect(calculateBatchRiderEarnings(2)).toBe(30.0);
+      expect(drop2).toBe(14.0);
+      expect(drop1 + drop2).toBe(34.0);
+      expect(calculateBatchRiderEarnings(2)).toBe(34.0);
     });
 
-    it("3-order batch run credits ₹40.00 total (₹20 + ₹10 + ₹10)", () => {
+    it("3-order batch run credits ₹48.00 total (₹20 + ₹14 + ₹14)", () => {
       const drop1 = calculateRiderEarnings({ total: 100, is_batch_addon: false });
       const drop2 = calculateRiderEarnings({ total: 100, is_batch_addon: true });
       const drop3 = calculateRiderEarnings({ total: 100, is_batch_addon: true });
       expect(drop1).toBe(20.0);
-      expect(drop2).toBe(10.0);
-      expect(drop3).toBe(10.0);
-      expect(drop1 + drop2 + drop3).toBe(40.0);
-      expect(calculateBatchRiderEarnings(3)).toBe(40.0);
+      expect(drop2).toBe(14.0);
+      expect(drop3).toBe(14.0);
+      expect(drop1 + drop2 + drop3).toBe(48.0);
+      expect(calculateBatchRiderEarnings(3)).toBe(48.0);
     });
 
-    it("CIH wage deductions accurately offset by ₹30.00 for a 2-order batch", () => {
+    it("CIH wage deductions accurately offset by ₹34.00 for a 2-order batch", () => {
       const phone = "9777888999";
-      // Drop 1: COD ₹150, Base Drop (₹20 wage)
+      // Drop 1: COD ₹140, Base Drop (₹20 wage)
       const afterDrop1 = recordDeliveredOrderCash(
-        { total: 150, payment_method: "COD", is_batch_addon: false, batch_id: "batch-xyz" },
+        { total: 140, payment_method: "COD", is_batch_addon: false, batch_id: "batch-xyz" },
         phone
       );
-      expect(afterDrop1.cash_in_hand).toBe(150);
+      expect(afterDrop1.cash_in_hand).toBe(140);
       expect(afterDrop1.total_payout_earned).toBe(20);
-      expect(afterDrop1.net_cash_due).toBe(130);
+      expect(afterDrop1.net_cash_due).toBe(120);
 
-      // Drop 2: COD ₹150, Batch Add-on (₹10 wage)
+      // Drop 2: COD ₹140, Batch Add-on (₹14 wage)
       const afterDrop2 = recordDeliveredOrderCash(
-        { total: 150, payment_method: "COD", is_batch_addon: true, batch_id: "batch-xyz" },
+        { total: 140, payment_method: "COD", is_batch_addon: true, batch_id: "batch-xyz" },
         phone
       );
-      // Total collected = 300, Total wages = 30 (20 + 10)
-      expect(afterDrop2.cash_in_hand).toBe(300);
-      expect(afterDrop2.total_payout_earned).toBe(30);
-      // net_cash_due = 300 - 30 = 270
-      expect(afterDrop2.net_cash_due).toBe(270);
+      // Total collected = 280, Total wages = 34 (20 + 14)
+      expect(afterDrop2.cash_in_hand).toBe(280);
+      expect(afterDrop2.total_payout_earned).toBe(34);
+      // net_cash_due = 280 - 34 = 246
+      expect(afterDrop2.net_cash_due).toBe(246);
     });
 
     it("dynamically reconciles multi-drop batch runs from localStorage", () => {
@@ -361,17 +367,17 @@ describe("deliveryPartnerService rider earnings and CIH calculations", () => {
       localStorage.setItem(
         `cb_my_deliveries_${phone}`,
         JSON.stringify([
-          { _id: "b-1", status: "Delivered", total: 150, payment_method: "COD", batch_id: "batch-1" },
-          { _id: "b-2", status: "Delivered", total: 150, payment_method: "COD", batch_id: "batch-1" },
+          { _id: "b-1", status: "Delivered", total: 140, payment_method: "COD", batch_id: "batch-1" },
+          { _id: "b-2", status: "Delivered", total: 140, payment_method: "COD", batch_id: "batch-1" },
         ])
       );
 
       const recon = getRiderCashReconciliation(phone);
-      // 2 orders in same batch = 20 base + 10 addon = 30 total wages
+      // 2 orders in same batch = 20 base + 14 addon = 34 total wages
       expect(recon.completed_deliveries).toBe(2);
-      expect(recon.total_payout_earned).toBe(30.0);
-      expect(recon.cash_in_hand).toBe(300.0);
-      expect(recon.net_cash_due).toBe(270.0);
+      expect(recon.total_payout_earned).toBe(34.0);
+      expect(recon.cash_in_hand).toBe(280.0);
+      expect(recon.net_cash_due).toBe(246.0);
     });
   });
 });

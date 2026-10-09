@@ -1,9 +1,9 @@
-import RestaurantRegisterForm from "@/components/restaurant/RestaurantRegisterForm";
+import RestaurantOnboardingWizard from "@/components/restaurant/RestaurantOnboardingWizard";
 
 export default function RestaurantRegisterPage() {
   return (
-    <main className="flex min-h-screen items-center justify-center bg-orange-50 py-10 px-4">
-      <RestaurantRegisterForm />
+    <main className="min-h-screen bg-stone-100/60 py-10 px-4">
+      <RestaurantOnboardingWizard />
     </main>
   );
 }

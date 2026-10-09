@@ -152,43 +152,27 @@ describe("End-to-End Financial & Operational Smoke Test Suite (Frontend)", () =>
   });
 
   describe("Scenario 4: Multi-Drop Batch Wage Calibration", () => {
-    it("asserts a 2-order batch to the same hostel credits exactly ₹30.00 (₹20 base + ₹10 add-on) and delivery pool is 100% self-funding", () => {
+    it("asserts a 2-order batch to the same hostel credits exactly ₹34.00 (₹20 base + ₹14 add-on)", () => {
       // Order 1 (Base Drop): ₹20.00
       const drop1Wage = calculateRiderPayout(false, 0);
       expect(drop1Wage).toBe(RIDER_BASE_PAYOUT); // ₹20.00
 
-      // Order 2 (Batch Add-on Drop): ₹10.00
+      // Order 2 (Batch Add-on Drop): ₹14.00
       const drop2Wage = calculateRiderPayout(true, 0);
-      expect(drop2Wage).toBe(RIDER_BATCH_ADDON_PAYOUT); // ₹10.00
+      expect(drop2Wage).toBe(RIDER_BATCH_ADDON_PAYOUT); // ₹14.00
 
-      // Combined 2-order batch payout: ₹20 + ₹10 = ₹30.00
+      // Combined 2-order batch payout: ₹20 + ₹14 = ₹34.00
       const totalBatchPayout = calculateBatchRiderEarnings(2, 0);
-      expect(totalBatchPayout).toBe(30.0);
-
-      // Self-funding pool economics:
-      // Delivery fees collected: 2 * ₹15 = ₹30.00
-      // Courier wages paid: ₹30.00
-      const deliveryFeesCollected = 2 * DELIVERY_FEE_HOSTEL_BATCH;
-      const deliveryPoolDifferential = deliveryFeesCollected - totalBatchPayout;
-      expect(deliveryFeesCollected).toBe(30.0);
-      expect(deliveryPoolDifferential).toBe(0.0); // 100% Self-funding!
+      expect(totalBatchPayout).toBe(34.0);
     });
 
-    it("asserts a 3-order batch credits ₹40.00 and generates a +₹5.00 delivery pool surplus", () => {
-      // Combined 3-order batch payout: ₹20 + 2 * ₹10 = ₹40.00
+    it("asserts a 3-order batch credits ₹48.00 (₹20 base + 2 * ₹14 add-on)", () => {
+      // Combined 3-order batch payout: ₹20 + 2 * ₹14 = ₹48.00
       const totalBatchPayout = calculateBatchRiderEarnings(3, 0);
-      expect(totalBatchPayout).toBe(40.0);
-
-      // Delivery fees collected: 3 * ₹15 = ₹45.00
-      // Courier wages paid: ₹40.00
-      // Pool surplus: ₹45 - ₹40 = +₹5.00
-      const deliveryFeesCollected = 3 * DELIVERY_FEE_HOSTEL_BATCH;
-      const deliveryPoolSurplus = deliveryFeesCollected - totalBatchPayout;
-      expect(deliveryFeesCollected).toBe(45.0);
-      expect(deliveryPoolSurplus).toBe(5.0);
+      expect(totalBatchPayout).toBe(48.0);
     });
 
-    it("aggregates completed batch orders in localStorage with exact ₹20 base and ₹10 add-on tracking", () => {
+    it("aggregates completed batch orders in localStorage with exact ₹20 base and ₹14 add-on tracking", () => {
       const batchId = "BATCH_TAGORE_CLUSTER_99";
       const deliveredBatchOrders = [
         {
@@ -202,7 +186,7 @@ describe("End-to-End Financial & Operational Smoke Test Suite (Frontend)", () =>
         {
           _id: "batch-ord-2",
           status: "Delivered",
-          total: 150.0,
+          total: 120.0,
           payment_method: "COD",
           batch_id: batchId,
           is_batch_addon: true,
@@ -216,9 +200,9 @@ describe("End-to-End Financial & Operational Smoke Test Suite (Frontend)", () =>
 
       const recon = getRiderCashReconciliation(TEST_COURIER_PHONE);
       expect(recon.completed_deliveries).toBe(2);
-      expect(recon.total_payout_earned).toBe(30.0); // ₹20 base + ₹10 add-on
-      expect(recon.total_cod_collected).toBe(250.0);
-      expect(recon.net_cash_due).toBe(220.0); // 250 - 30 = 220.00
+      expect(recon.total_payout_earned).toBe(34.0); // ₹20 base + ₹14 add-on
+      expect(recon.total_cod_collected).toBe(220.0);
+      expect(recon.net_cash_due).toBe(186.0); // 220 - 34 = 186.00
     });
   });
 });

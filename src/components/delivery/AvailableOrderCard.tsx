@@ -193,7 +193,11 @@ export function AvailableOrderCard({
             ) : (
               <>
                 <Zap className="h-4 w-4 fill-white shrink-0" />
-                <span>{isAccepting ? "Claiming…" : "⚡ Claim Run • ₹20 Payout"}</span>
+                <span>
+                  {isAccepting
+                    ? "Claiming…"
+                    : `⚡ Claim Run • ₹${payoutAmount} Payout`}
+                </span>
               </>
             )}
           </button>
