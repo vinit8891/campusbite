@@ -172,13 +172,19 @@ async def ensure_app_indexes() -> None:
         unique=True,
         sparse=True,
     )
+    # meal redemptions
+    meal_redemptions = database["meal_redemptions"]
     await _safe_create_index(
-        subscription_payments,
-        [("subscription_id", 1), ("billing_period", 1)],
-        unique=True,
-        partialFilterExpression={
-            "payment_status": {"$in": ["pending", "processing", "paid"]},
-        },
+        meal_redemptions,
+        [("restaurant_email", 1), ("date", 1)],
+    )
+    await _safe_create_index(
+        meal_redemptions,
+        [("token", 1), ("date", 1)],
+    )
+    await _safe_create_index(
+        meal_redemptions,
+        [("customer_email", 1), ("date", 1)],
     )
 
     logger.info("MongoDB indexes ensured")
