@@ -432,4 +432,52 @@ export async function getMessCounterSummary(
   });
 }
 
+export async function getMessShiftSlots(shiftDate?: string) {
+  const suffix = shiftDate ? `?shift_date=${encodeURIComponent(shiftDate)}` : "";
+  return authJson<{ items: import("@/types").CourierShiftSlot[]; shift_date?: string }>(
+    `/delivery/roster/slots${suffix}`,
+    {
+      role: "delivery_partner",
+      cache: "no-store",
+    }
+  );
+}
+
+export async function reserveMessShift(payload: {
+  wave_slot_id: string;
+  shift_date?: string;
+  hostel_block?: string;
+}) {
+  return authJson<{
+    success: boolean;
+    message: string;
+    reservation_id: string;
+    reservation?: import("@/types").CourierShiftReservation;
+  }>("/delivery/roster/reserve", {
+    role: "delivery_partner",
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export async function getMyMessShifts() {
+  return authJson<{ items: import("@/types").CourierShiftReservation[] }>(
+    "/delivery/roster/my",
+    {
+      role: "delivery_partner",
+      cache: "no-store",
+    }
+  );
+}
+
+export async function cancelMessShift(reservationId: string) {
+  return authJson<{ success: boolean; message: string }>(
+    `/delivery/roster/${encodeURIComponent(reservationId)}/cancel`,
+    {
+      role: "delivery_partner",
+      method: "POST",
+    }
+  );
+}
+
 

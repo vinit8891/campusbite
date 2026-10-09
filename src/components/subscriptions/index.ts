@@ -34,3 +34,7 @@ export {
   RenewalSection,
   type RenewalSectionProps,
 } from "./RenewalSection";
+export {
+  WeeklyMessSelector,
+  type WeeklyMessSelectorProps,
+} from "./WeeklyMessSelector";

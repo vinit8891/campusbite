@@ -3,6 +3,12 @@
  */
 
 export type SubscriptionType = "weekly" | "monthly";
+export type PlanType = "WEEKLY" | "MONTHLY" | "weekly" | "monthly";
+export type DeliveryPreference =
+  | "DINE_IN"
+  | "HOSTEL_LOBBY_DELIVERY"
+  | "dine_in"
+  | "hostel_lobby_delivery";
 export type MealType = "breakfast" | "lunch" | "dinner" | "combo";
 export type SubscriptionStatus = "active" | "paused" | "expired" | "cancelled";
 
@@ -22,12 +28,19 @@ export type Subscription = {
   customer_email: string;
   restaurant_email: string;
   subscription_type: SubscriptionType;
+  plan_type?: PlanType;
+  delivery_preference?: DeliveryPreference;
   meal_type: MealType;
   start_date: string;
   end_date: string;
   status: SubscriptionStatus;
   delivery_days: Weekday[];
   price: number;
+  base_meal_price?: number;
+  meals_count?: number;
+  delivery_addon?: number;
+  platform_fee?: number;
+  hostel_block?: string | null;
   payment_status: string;
   auto_renew: boolean;
   skipped_dates: string[];
@@ -43,13 +56,55 @@ export type SubscriptionCreateInput = {
   plan_id?: string;
   restaurant_email?: string;
   subscription_type?: SubscriptionType;
+  plan_type?: PlanType;
+  delivery_preference?: DeliveryPreference;
   meal_type?: MealType;
   start_date: string;
   end_date?: string;
   delivery_days?: Weekday[];
   price?: number;
+  base_meal_price?: number;
+  meals_count?: number;
+  delivery_addon?: number;
+  platform_fee?: number;
+  hostel_block?: string;
   payment_status?: string;
   auto_renew?: boolean;
+};
+
+export type CourierShiftSlot = {
+  wave_slot_id: string;
+  label: string;
+  delivery_window: string;
+  shift_date: string;
+  cutoff_time: string;
+  minutes_until_cutoff: number;
+  is_past_cutoff: boolean;
+  guaranteed_base_payout: number;
+  addon_payout_per_order: number;
+  expected_payout_range: string;
+  capacity: number;
+  reserved_count: number;
+  is_available: boolean;
+  is_reserved_by_me: boolean;
+  reservation_id?: string | null;
+  status: string;
+};
+
+export type CourierShiftReservation = {
+  reservation_id: string;
+  courier_id: string;
+  courier_phone: string;
+  courier_name: string;
+  wave_slot_id: string;
+  slot_label: string;
+  delivery_window: string;
+  shift_date: string;
+  hostel_block?: string;
+  status: "CONFIRMED" | "CHECKED_IN" | "RELEASED" | "COMPLETED";
+  base_payout: number;
+  addon_payout: number;
+  created_at?: string;
 };
 
 export type SubscriptionCalendarMeal = {

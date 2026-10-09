@@ -71,7 +71,9 @@ async def _resolve_subscription_payload(body: SubscriptionCreate) -> dict:
         if not plan.get("active", True):
             raise HTTPException(status_code=400, detail="Subscription plan is not active")
 
-        subscription_type = plan["subscription_type"]
+        subscription_type = plan.get("subscription_type") or "weekly"
+        plan_type = body.plan_type or plan.get("plan_type") or subscription_type.upper()
+        delivery_preference = body.delivery_preference or plan.get("delivery_preference") or "DINE_IN"
         end_date = body.end_date or compute_subscription_end_date(
             body.start_date, subscription_type
         )
@@ -86,29 +88,63 @@ async def _resolve_subscription_payload(body: SubscriptionCreate) -> dict:
             "plan_name": plan.get("name"),
             "restaurant_email": plan["restaurant_email"],
             "subscription_type": subscription_type,
+            "plan_type": plan_type,
+            "delivery_preference": delivery_preference,
             "meal_type": plan["meal_type"],
             "start_date": body.start_date,
             "end_date": end_date,
             "delivery_days": plan["delivery_days"],
-            "price": float(plan["price"]),
+            "price": float(body.price if body.price is not None else plan["price"]),
+            "base_meal_price": float(body.base_meal_price or plan.get("base_meal_price") or 80.0),
+            "meals_count": int(body.meals_count or plan.get("meals_count") or (14 if plan["meal_type"] == "combo" else 7)),
+            "delivery_addon": float(body.delivery_addon if body.delivery_addon is not None else plan.get("delivery_addon") or 0.0),
+            "platform_fee": float(body.platform_fee if body.platform_fee is not None else plan.get("platform_fee") or 25.0),
+            "hostel_block": body.hostel_block,
             "start_time": plan.get("start_time"),
             "end_time": plan.get("end_time"),
             "payment_status": body.payment_status,
             "auto_renew": body.auto_renew,
         }
 
-    end_date = body.end_date
-    if end_date is None:
-        raise HTTPException(status_code=400, detail="end_date is required")
+    subscription_type = body.subscription_type or body.plan_type or "weekly"
+    end_date = body.end_date or compute_subscription_end_date(
+        body.start_date, subscription_type
+    )
+    if end_date < body.start_date:
+        raise HTTPException(status_code=400, detail="end_date must be on or after start_date")
+
+    plan_type = (body.plan_type or subscription_type).upper()
+    delivery_preference = body.delivery_preference or "DINE_IN"
+    meal_type = body.meal_type or "lunch"
+    delivery_days = body.delivery_days or ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+
+    # Calculate pricing if not explicitly provided
+    from app.schemas.subscription import calculate_subscription_pricing
+    computed = calculate_subscription_pricing(
+        plan_type=plan_type,
+        meal_type=meal_type,
+        delivery_preference=delivery_preference,
+        base_meal_price=body.base_meal_price or 80.0,
+        custom_meals_count=body.meals_count,
+    )
+
+    final_price = float(body.price) if body.price is not None else computed["total_price"]
 
     return {
         "restaurant_email": str(body.restaurant_email).lower(),
-        "subscription_type": body.subscription_type,
-        "meal_type": body.meal_type,
+        "subscription_type": subscription_type.lower(),
+        "plan_type": plan_type,
+        "delivery_preference": delivery_preference,
+        "meal_type": meal_type,
         "start_date": body.start_date,
         "end_date": end_date,
-        "delivery_days": body.delivery_days,
-        "price": float(body.price),
+        "delivery_days": delivery_days,
+        "price": final_price,
+        "base_meal_price": computed["base_meal_price"],
+        "meals_count": computed["meals_count"],
+        "delivery_addon": computed["delivery_addon"],
+        "platform_fee": computed["platform_fee"],
+        "hostel_block": body.hostel_block,
         "payment_status": body.payment_status,
         "auto_renew": body.auto_renew,
     }

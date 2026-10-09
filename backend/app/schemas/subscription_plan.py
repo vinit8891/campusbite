@@ -24,20 +24,26 @@ def _validate_time(value: str, field_name: str) -> str:
 class SubscriptionPlanBase(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     description: str = ""
-    subscription_type: str
+    subscription_type: str = "weekly"
+    plan_type: str = "WEEKLY"
+    delivery_preference: str = "DINE_IN"
     meal_type: str
     price: float = Field(gt=0)
+    base_meal_price: float | None = Field(default=None, gt=0)
+    meals_count: int | None = Field(default=None, gt=0)
+    delivery_addon: float | None = Field(default=None, ge=0)
+    platform_fee: float | None = Field(default=None, ge=0)
     delivery_days: list[str] = Field(min_length=1)
     start_time: str
     end_time: str
     active: bool = True
 
-    @field_validator("subscription_type")
+    @field_validator("subscription_type", "plan_type")
     @classmethod
     def validate_subscription_type(cls, value: str) -> str:
         normalized = value.strip().lower()
         if normalized not in VALID_SUBSCRIPTION_TYPES:
-            raise ValueError("subscription_type must be weekly or monthly")
+            raise ValueError("subscription_type/plan_type must be weekly or monthly")
         return normalized
 
     @field_validator("meal_type")

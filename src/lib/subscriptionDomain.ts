@@ -66,3 +66,76 @@ export function buildCalendarDays(
   }
   return cells;
 }
+
+export interface WeeklyMessPlanPricingInput {
+  planType?: "WEEKLY" | "MONTHLY" | "weekly" | "monthly";
+  mealType: "breakfast" | "lunch" | "dinner" | "combo";
+  deliveryPreference: "DINE_IN" | "HOSTEL_LOBBY_DELIVERY" | "dine_in" | "hostel_lobby_delivery";
+  baseMealPrice?: number;
+  customMealsCount?: number;
+}
+
+export interface WeeklyMessPlanPricingResult {
+  planType: "WEEKLY" | "MONTHLY";
+  mealType: string;
+  deliveryPreference: "DINE_IN" | "HOSTEL_LOBBY_DELIVERY";
+  validityDays: number;
+  mealsCount: number;
+  baseMealPrice: number;
+  foodSubtotal: number;
+  baseFoodTotal: number;
+  deliveryAddon: number;
+  platformFee: number;
+  totalPrice: number;
+  dailyCost: number;
+  estimatedSavings: number;
+}
+
+export function calculateWeeklyPlanPrice(
+  input: WeeklyMessPlanPricingInput
+): WeeklyMessPlanPricingResult {
+  const normPlan = (input.planType || "WEEKLY").toUpperCase() as "WEEKLY" | "MONTHLY";
+  const normPref = (input.deliveryPreference || "DINE_IN").toUpperCase() as
+    | "DINE_IN"
+    | "HOSTEL_LOBBY_DELIVERY";
+  const normMeal = input.mealType.toLowerCase();
+  const validityDays = normPlan === "WEEKLY" ? 7 : 30;
+
+  let mealsCount = 7;
+  const isBothMeals = normMeal === "both" || normMeal === "combo";
+  if (input.customMealsCount && input.customMealsCount > 0) {
+    mealsCount = input.customMealsCount;
+  } else if (normPlan === "WEEKLY") {
+    mealsCount = isBothMeals ? 14 : 7;
+  } else {
+    mealsCount = isBothMeals ? 60 : 30;
+  }
+
+  const baseMealPrice = input.baseMealPrice && input.baseMealPrice > 0 ? input.baseMealPrice : 80;
+  const deliveryRate = normPref === "HOSTEL_LOBBY_DELIVERY" ? 15 : 0;
+  const deliveryAddon = Math.round(deliveryRate * mealsCount * 100) / 100;
+  const platformFee = normPlan === "WEEKLY" ? 25 : 75;
+  const foodSubtotal = Math.round(baseMealPrice * mealsCount * 100) / 100;
+  const totalPrice = Math.round((foodSubtotal + deliveryAddon + platformFee) * 100) / 100;
+  const dailyCost = Math.round((totalPrice / validityDays) * 100) / 100;
+
+  // Comparison benchmark: single-order standard restaurant pricing (approx ₹110/meal + ₹30 delivery each)
+  const aLaCarteBenchmark = mealsCount * (110 + (normPref === "HOSTEL_LOBBY_DELIVERY" ? 30 : 0));
+  const estimatedSavings = Math.max(0, Math.round((aLaCarteBenchmark - totalPrice) * 100) / 100);
+
+  return {
+    planType: normPlan,
+    mealType: normMeal,
+    deliveryPreference: normPref,
+    validityDays,
+    mealsCount,
+    baseMealPrice,
+    foodSubtotal,
+    baseFoodTotal: foodSubtotal,
+    deliveryAddon,
+    platformFee,
+    totalPrice,
+    dailyCost,
+    estimatedSavings,
+  };
+}

@@ -14,6 +14,7 @@ import {
   getRiderCashReconciliation,
   MAX_UNREMITTED_CASH_LIMIT,
 } from "@/services/deliveryPartnerService";
+import { MessShiftRoster } from "@/components/delivery/MessShiftRoster";
 
 function DashboardSkeleton() {
   return (
@@ -43,6 +44,7 @@ export default function DeliveryDashboard() {
     recent,
   } = useDeliveryDashboard();
 
+  const [activeTab, setActiveTab] = useState<"orders" | "roster">("orders");
   const [isRemitModalOpen, setIsRemitModalOpen] = useState(false);
   const [localRecon, setLocalRecon] = useState(() =>
     partner?.phone ? getRiderCashReconciliation(partner.phone) : null
@@ -175,69 +177,105 @@ export default function DeliveryDashboard() {
         rating={stats.rating || 4.9}
       />
 
-      {/* Quick Runner Action Tiles */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-        <Link
-          href={ROUTES.DELIVERY_AVAILABLE}
-          className="group flex items-center justify-between rounded-2xl border border-stone-200/80 bg-white p-4 sm:p-5 shadow-xs transition hover:border-orange-300 hover:shadow-sm"
+      {/* Navigation Tabs */}
+      <div className="flex rounded-2xl bg-stone-100 p-1.5 border border-stone-200/80">
+        <button
+          type="button"
+          onClick={() => setActiveTab("orders")}
+          className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold transition ${
+            activeTab === "orders"
+              ? "bg-white text-stone-900 shadow-xs"
+              : "text-stone-600 hover:text-stone-900"
+          }`}
         >
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-colors">
-              <Package className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="text-sm sm:text-base font-bold text-stone-900">
-                Available Orders & Batch Drops
-              </h3>
-              <p className="text-xs text-stone-500">
-                Claim single or bundled hostel deliveries (+₹20/drop)
-              </p>
-            </div>
-          </div>
-          <ArrowRight className="h-5 w-5 text-stone-400 group-hover:text-orange-600 transition-colors" />
-        </Link>
-
-        <Link
-          href={ROUTES.DELIVERY_ORDERS}
-          className="group flex items-center justify-between rounded-2xl border border-stone-200/80 bg-white p-4 sm:p-5 shadow-xs transition hover:border-orange-300 hover:shadow-sm"
+          <Package className="h-4 w-4 text-orange-600" />
+          <span>⚡ Live Orders & Dispatch</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => setActiveTab("roster")}
+          className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold transition ${
+            activeTab === "roster"
+              ? "bg-white text-stone-900 shadow-xs"
+              : "text-stone-600 hover:text-stone-900"
+          }`}
         >
-          <div className="flex items-center gap-3">
-            <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-colors">
-              <Bike className="h-5 w-5" />
-            </div>
-            <div>
-              <h3 className="text-sm sm:text-base font-bold text-stone-900">
-                My Active Runs & Manifest
-              </h3>
-              <p className="text-xs text-stone-500">
-                Canteen checklist, GPS navigation, and OTP handover
-              </p>
-            </div>
-          </div>
-          <ArrowRight className="h-5 w-5 text-stone-400 group-hover:text-amber-600 transition-colors" />
-        </Link>
+          <span>📅 Mess Shift Roster (Guaranteed Runs)</span>
+        </button>
       </div>
 
-      {/* Recent Assigned Orders Section */}
-      <RecentAssignedOrdersSection recent={recent} />
+      {activeTab === "roster" ? (
+        <MessShiftRoster
+          courierPhone={partner?.phone}
+          isOnline={partner?.is_active}
+        />
+      ) : (
+        <>
+          {/* Quick Runner Action Tiles */}
+          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+            <Link
+              href={ROUTES.DELIVERY_AVAILABLE}
+              className="group flex items-center justify-between rounded-2xl border border-stone-200/80 bg-white p-4 sm:p-5 shadow-xs transition hover:border-orange-300 hover:shadow-sm"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-orange-50 text-orange-600 group-hover:bg-orange-600 group-hover:text-white transition-colors">
+                  <Package className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-stone-900">
+                    Available Orders & Batch Drops
+                  </h3>
+                  <p className="text-xs text-stone-500">
+                    Claim single or bundled hostel deliveries (+₹20/drop)
+                  </p>
+                </div>
+              </div>
+              <ArrowRight className="h-5 w-5 text-stone-400 group-hover:text-orange-600 transition-colors" />
+            </Link>
 
-      {/* History & Payouts Link Card */}
-      <Link
-        href={ROUTES.DELIVERY_HISTORY}
-        className="block rounded-2xl sm:rounded-3xl border border-stone-200/80 bg-white p-5 sm:p-6 shadow-xs transition hover:border-orange-300 hover:shadow-sm"
-      >
-        <div className="flex items-center justify-between">
-          <div>
-            <h2 className="text-lg sm:text-xl font-bold text-stone-900">
-              📜 Delivery & Payout History
-            </h2>
-            <p className="mt-1 text-xs sm:text-sm text-stone-500">
-              View all completed campus runs, tip breakdowns, and weekly courier earnings.
-            </p>
+            <Link
+              href={ROUTES.DELIVERY_ORDERS}
+              className="group flex items-center justify-between rounded-2xl border border-stone-200/80 bg-white p-4 sm:p-5 shadow-xs transition hover:border-orange-300 hover:shadow-sm"
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-amber-50 text-amber-600 group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                  <Bike className="h-5 w-5" />
+                </div>
+                <div>
+                  <h3 className="text-sm sm:text-base font-bold text-stone-900">
+                    My Active Runs & Manifest
+                  </h3>
+                  <p className="text-xs text-stone-500">
+                    Canteen checklist, GPS navigation, and OTP handover
+                  </p>
+                </div>
+              </div>
+              <ArrowRight className="h-5 w-5 text-stone-400 group-hover:text-amber-600 transition-colors" />
+            </Link>
           </div>
-          <ArrowRight className="h-5 w-5 text-stone-400" />
-        </div>
-      </Link>
+
+          {/* Recent Assigned Orders Section */}
+          <RecentAssignedOrdersSection recent={recent} />
+
+          {/* History & Payouts Link Card */}
+          <Link
+            href={ROUTES.DELIVERY_HISTORY}
+            className="block rounded-2xl sm:rounded-3xl border border-stone-200/80 bg-white p-5 sm:p-6 shadow-xs transition hover:border-orange-300 hover:shadow-sm"
+          >
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold text-stone-900">
+                  📜 Delivery & Payout History
+                </h2>
+                <p className="mt-1 text-xs sm:text-sm text-stone-500">
+                  View all completed campus runs, tip breakdowns, and weekly courier earnings.
+                </p>
+              </div>
+              <ArrowRight className="h-5 w-5 text-stone-400" />
+            </div>
+          </Link>
+        </>
+      )}
 
       <RemitDuesModal
         isOpen={isRemitModalOpen}

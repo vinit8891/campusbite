@@ -18,6 +18,8 @@ export type DeliveryPartner = {
   cash_in_hand?: number;
   total_payout_earned?: number;
   net_cash_due?: number;
+  is_active?: boolean;
+  is_online?: boolean;
 };
 
 export type RiderCashReconciliation = {

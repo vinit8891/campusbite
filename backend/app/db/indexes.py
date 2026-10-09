@@ -187,4 +187,14 @@ async def ensure_app_indexes() -> None:
         [("customer_email", 1), ("date", 1)],
     )
 
+    # courier shift reservations
+    roster = database["courier_shift_reservations"]
+    await _safe_create_index(roster, "courier_phone")
+    await _safe_create_index(roster, [("shift_date", 1), ("wave_slot_id", 1)])
+    await _safe_create_index(
+        roster,
+        [("courier_phone", 1), ("shift_date", 1), ("wave_slot_id", 1)],
+    )
+    await _safe_create_index(roster, "status")
+
     logger.info("MongoDB indexes ensured")

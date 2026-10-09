@@ -58,8 +58,11 @@ def get_settlement_window_bounds(date_str: str) -> tuple[datetime, datetime]:
 def _extract_order_food_subtotal(order: dict) -> float:
     """
     Extracts pure food subtotal from order document, strictly excluding
-    delivery fees, platform tech fees, tips, and rider payouts.
+    delivery fees, delivery add-ons, platform tech fees, tips, and rider payouts.
     """
+    if order.get("base_meal_price") is not None and float(order["base_meal_price"]) > 0:
+        return round(float(order["base_meal_price"]), 2)
+
     pricing = order.get("pricing_breakdown") or {}
     if pricing.get("food_subtotal") is not None and float(pricing["food_subtotal"]) > 0:
         return round(float(pricing["food_subtotal"]), 2)
@@ -91,6 +94,10 @@ async def calculate_canteen_daily_settlement(
 ) -> dict[str, Any]:
     """
     Computes real-time settlement accrual for a single canteen for the specified date.
+    Strict loss-proof accounting:
+    - Only credits delivered / redeemed meals on that calendar day.
+    - Canteen Net per Meal = (base_meal_price * 1.05) - (base_meal_price * 0.18) = base_meal_price * 0.87.
+    - delivery_addon and platform_fee remain 100% isolated to platform pool.
     """
     clean_email = (restaurant_email or "").strip().lower()
     date_str = target_date or get_current_ist_date()
@@ -134,7 +141,7 @@ async def calculate_canteen_daily_settlement(
             {"restaurant_email": clean_email},
             {"restaurant_name": canteen_name},
         ],
-        "status": {"$in": ["Delivered", "delivered", "Completed", "completed"]},
+        "status": {"$in": ["Delivered", "delivered", "Completed", "completed", "REDEEMED", "redeemed"]},
     }
 
     cursor = database["orders"].find(order_query)
@@ -163,6 +170,29 @@ async def calculate_canteen_daily_settlement(
     gross_food_sales = 0.0
     for order in matching_orders:
         gross_food_sales += _extract_order_food_subtotal(order)
+
+    # Check for standalone meal redemptions (direct walk-in token scans) on that calendar date
+    standalone_redemptions = 0
+    try:
+        meal_col = database.get("meal_redemptions") if hasattr(database, "get") else database["meal_redemptions"]
+        if meal_col:
+            redemption_cursor = meal_col.find({
+                "restaurant_email": clean_email,
+                "date": date_str,
+            })
+            async for r in redemption_cursor:
+                token = str(r.get("token") or "")
+                # If token was an order OTP or order ID already in matching_orders, do not double-count
+                matched = any(
+                    str(o.get("delivery_otp")) == token or str(o.get("_id")) == token
+                    for o in matching_orders
+                )
+                if not matched:
+                    base_price = float(r.get("base_meal_price", 80.0))
+                    gross_food_sales += base_price
+                    standalone_redemptions += 1
+    except Exception:
+        pass
 
     gross_food_sales = round(gross_food_sales, 2)
     gst_collected = round(gross_food_sales * FOOD_GST_RATE, 2)

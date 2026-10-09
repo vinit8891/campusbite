@@ -15,6 +15,7 @@ import {
   CreateSubscriptionForm,
   SubscriptionEmptyState,
   SubscriptionGroupSection,
+  WeeklyMessSelector,
 } from "@/components/subscriptions";
 import {
   useSubscriptionGroups,
@@ -102,20 +103,39 @@ export default function SubscriptionsPage() {
         ) : null}
 
         {showCreate ? (
-          <CreateSubscriptionForm
-            restaurants={restaurants}
-            selectedRestaurant={selectedRestaurant}
-            onSelectRestaurant={setSelectedRestaurant}
-            plans={plans}
-            plansLoading={plansLoading}
-            selectedPlanId={selectedPlanId}
-            onSelectPlanId={setSelectedPlanId}
-            selectedPlan={selectedPlan}
-            startDate={startDate}
-            onStartDateChange={setStartDate}
-            subscribeBusy={subscribeBusy}
-            onSubmit={handleSubscribe}
-          />
+          <div className="mb-8 space-y-6">
+            <WeeklyMessSelector
+              restaurantEmail={selectedRestaurant || (restaurants[0]?.email ?? "")}
+              restaurantName={restaurants.find((r) => r.email === selectedRestaurant)?.name || "Campus Central Mess"}
+              isLoggedIn={isLoggedIn}
+              onSubscriptionCreated={() => {
+                void loadSubscriptions();
+                setShowCreate(false);
+              }}
+            />
+
+            <details className="rounded-2xl border border-stone-200 bg-white p-5 shadow-xs">
+              <summary className="cursor-pointer text-sm font-semibold text-stone-700 hover:text-stone-900">
+                ⚙️ Browse specific canteen fixed-menu plans instead
+              </summary>
+              <div className="mt-4 pt-4 border-t border-stone-100">
+                <CreateSubscriptionForm
+                  restaurants={restaurants}
+                  selectedRestaurant={selectedRestaurant}
+                  onSelectRestaurant={setSelectedRestaurant}
+                  plans={plans}
+                  plansLoading={plansLoading}
+                  selectedPlanId={selectedPlanId}
+                  onSelectPlanId={setSelectedPlanId}
+                  selectedPlan={selectedPlan}
+                  startDate={startDate}
+                  onStartDateChange={setStartDate}
+                  subscribeBusy={subscribeBusy}
+                  onSubmit={handleSubscribe}
+                />
+              </div>
+            </details>
+          </div>
         ) : null}
 
         {error ? (
