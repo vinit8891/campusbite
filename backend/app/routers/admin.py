@@ -696,6 +696,7 @@ async def record_canteen_settlement(
     }
 
 
+@router.get("/settlements")
 @router.get("/canteen-settlements")
 async def list_canteen_settlements(
     current_user: Annotated[
