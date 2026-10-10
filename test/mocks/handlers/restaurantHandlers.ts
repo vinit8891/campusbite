@@ -22,6 +22,14 @@ export const restaurantHandlers = [
     });
   }),
 
+  http.get(url("/restaurants/settlements"), () => {
+    return HttpResponse.json({ settlements: [] });
+  }),
+
+  http.get(url("/restaurant/settlements"), () => {
+    return HttpResponse.json({ settlements: [] });
+  }),
+
   http.get(url("/restaurants/:id"), () => {
     return HttpResponse.json({
       _id: "rest-1",

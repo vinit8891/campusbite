@@ -16,7 +16,7 @@ from app.models.restaurant import (
     delete_restaurant,
 )
 
-router = APIRouter(prefix="/restaurants", tags=["Restaurants"])
+router = APIRouter(tags=["Restaurants"])
 
 logger = get_logger(__name__)
 
@@ -78,6 +78,208 @@ async def fetch_restaurants(
 )
     logger.info("restaurants.list completed successfully")
     return result
+
+
+# ----------------------------------------
+# Settlements Endpoints (Declared before /{restaurant_id} to prevent path shadowing)
+# ----------------------------------------
+
+@router.get("/settlements/today")
+async def get_restaurant_today_settlement(
+    current_user: Annotated[
+        dict, Depends(require_roles(ADMIN, RESTAURANT_OWNER))
+    ],
+    date: Annotated[str | None, Query()] = None,
+    restaurant_email: Annotated[str | None, Query()] = None,
+    restaurant_id: Annotated[str | None, Query()] = None,
+    canteen_id: Annotated[str | None, Query()] = None,
+):
+    """
+    Returns today's live settlement accruals for a canteen leading up to the 9:00 PM batch payout.
+    """
+    from app.services.settlement_service import calculate_canteen_daily_settlement
+
+    role = current_user.get("role")
+    user_email = (
+        current_user.get("email") or current_user.get("sub") or ""
+    ).strip().lower()
+
+    target_id = restaurant_id or canteen_id
+    target_email = None
+
+    if role == RESTAURANT_OWNER:
+        target_email = user_email
+    elif restaurant_email:
+        target_email = restaurant_email.strip().lower()
+    elif target_id:
+        if "@" in target_id:
+            target_email = target_id.strip().lower()
+        else:
+            try:
+                r_doc = await get_restaurant_by_id(target_id)
+                if r_doc and r_doc.get("email"):
+                    target_email = r_doc["email"].strip().lower()
+                elif r_doc and r_doc.get("name"):
+                    target_email = r_doc["name"]
+            except Exception:
+                pass
+            if not target_email:
+                target_email = target_id
+
+    if not target_email:
+        target_email = user_email
+
+    return await calculate_canteen_daily_settlement(
+        restaurant_email=target_email,
+        target_date=date,
+    )
+
+
+@router.get("/settlements/today/{restaurant_id}")
+async def get_restaurant_today_settlement_by_id(
+    restaurant_id: str,
+    current_user: Annotated[
+        dict, Depends(require_roles(ADMIN, RESTAURANT_OWNER))
+    ],
+    date: Annotated[str | None, Query()] = None,
+    restaurant_email: Annotated[str | None, Query()] = None,
+):
+    return await get_restaurant_today_settlement(
+        current_user=current_user,
+        date=date,
+        restaurant_email=restaurant_email,
+        restaurant_id=restaurant_id,
+    )
+
+
+@router.get("/settlements/export")
+@router.get("/settlements/{canteen_id}/export")
+async def export_restaurant_settlement(
+    current_user: Annotated[
+        dict, Depends(require_roles(ADMIN, RESTAURANT_OWNER))
+    ],
+    canteen_id: str | None = None,
+    date: Annotated[str | None, Query()] = None,
+    format: Annotated[str, Query()] = "csv",
+    restaurant_id: Annotated[str | None, Query()] = None,
+    restaurant_email: Annotated[str | None, Query()] = None,
+):
+    """
+    Generates downloadable CSV or JSON daily settlement summary for the canteen owner.
+    """
+    from fastapi.responses import PlainTextResponse
+    from app.services.settlement_service import generate_canteen_settlement_export
+
+    role = current_user.get("role")
+    user_email = (
+        current_user.get("email") or current_user.get("sub") or ""
+    ).strip().lower()
+
+    target_id = canteen_id or restaurant_id or restaurant_email
+    target = user_email if role == RESTAURANT_OWNER or not target_id else target_id.strip()
+
+    result = await generate_canteen_settlement_export(
+        canteen_id_or_email=target,
+        target_date=date,
+        format_type=format,
+    )
+
+    if format.lower() == "json":
+        return result
+
+    return PlainTextResponse(
+        content=result,
+        media_type="text/csv",
+        headers={
+            "Content-Disposition": f"attachment; filename=settlement_slip_{date or 'today'}.csv"
+        },
+    )
+
+
+@router.get("/settlements/my")
+@router.get("/settlements")
+async def fetch_restaurant_settlements(
+    current_user: Annotated[
+        dict, Depends(require_roles(ADMIN, RESTAURANT_OWNER))
+    ],
+    date: Annotated[str | None, Query()] = None,
+    restaurant_email: Annotated[str | None, Query()] = None,
+    restaurant_id: Annotated[str | None, Query()] = None,
+    canteen_id: Annotated[str | None, Query()] = None,
+):
+    """
+    Fetches daily settlement records for a restaurant/canteen.
+    Handles restaurant_email, restaurant_id, or canteen_id as query params.
+    """
+    from app.db.database import database
+
+    role = current_user.get("role")
+    user_email = (
+        current_user.get("email") or current_user.get("sub") or ""
+    ).strip().lower()
+
+    target_id = restaurant_id or canteen_id
+    resolved_email = restaurant_email
+    restaurant_name = None
+
+    if target_id and not resolved_email:
+        if "@" in target_id:
+            resolved_email = target_id.strip().lower()
+        else:
+            try:
+                r_doc = await get_restaurant_by_id(target_id)
+                if r_doc:
+                    if r_doc.get("email"):
+                        resolved_email = r_doc["email"].strip().lower()
+                    if r_doc.get("name"):
+                        restaurant_name = r_doc["name"]
+            except Exception:
+                pass
+
+    query = {}
+    if role == RESTAURANT_OWNER:
+        query["restaurant_email"] = user_email
+    elif resolved_email or target_id or restaurant_name:
+        or_clauses = []
+        if resolved_email:
+            or_clauses.append({"restaurant_email": resolved_email.strip().lower()})
+        if target_id:
+            or_clauses.append({"restaurant_id": target_id})
+            or_clauses.append({"canteen_id": target_id})
+        if restaurant_name:
+            or_clauses.append({"restaurant_name": restaurant_name})
+        if len(or_clauses) == 1:
+            query.update(or_clauses[0])
+        elif len(or_clauses) > 1:
+            query["$or"] = or_clauses
+
+    if date:
+        query["settlement_date"] = date
+
+    cursor = database["canteen_settlements"].find(query).sort("settled_at", -1)
+    settlements = []
+    async for doc in cursor:
+        doc["_id"] = str(doc.get("_id", ""))
+        settlements.append(doc)
+
+    return {"settlements": settlements}
+
+
+@router.get("/settlements/{restaurant_id}")
+async def fetch_restaurant_settlements_by_id(
+    restaurant_id: str,
+    current_user: Annotated[
+        dict, Depends(require_roles(ADMIN, RESTAURANT_OWNER))
+    ],
+    date: Annotated[str | None, Query()] = None,
+    restaurant_email: Annotated[str | None, Query()] = None,
+):
+    return await fetch_restaurant_settlements(
+        current_user=current_user,
+        date=date,
+        restaurant_email=restaurant_email,
+        restaurant_id=restaurant_id,
+    )
 
 
 @router.get("/{restaurant_id}")
@@ -182,107 +384,4 @@ async def remove_restaurant(
         "message": "Restaurant deleted successfully"
     }
 
-
-@router.get("/settlements/today")
-async def get_restaurant_today_settlement(
-    current_user: Annotated[
-        dict, Depends(require_roles(ADMIN, RESTAURANT_OWNER))
-    ],
-    date: Annotated[str | None, Query()] = None,
-    restaurant_email: Annotated[str | None, Query()] = None,
-):
-    """
-    Returns today's live settlement accruals for a canteen leading up to the 9:00 PM batch payout.
-    """
-    from app.services.settlement_service import calculate_canteen_daily_settlement
-
-    role = current_user.get("role")
-    user_email = (
-        current_user.get("email") or current_user.get("sub") or ""
-    ).strip().lower()
-
-    target_email = user_email if role == RESTAURANT_OWNER or not restaurant_email else restaurant_email.strip().lower()
-
-    return await calculate_canteen_daily_settlement(
-        restaurant_email=target_email,
-        target_date=date,
-    )
-
-
-@router.get("/settlements/export")
-@router.get("/settlements/{canteen_id}/export")
-async def export_restaurant_settlement(
-    current_user: Annotated[
-        dict, Depends(require_roles(ADMIN, RESTAURANT_OWNER))
-    ],
-    canteen_id: str | None = None,
-    date: Annotated[str | None, Query()] = None,
-    format: Annotated[str, Query()] = "csv",
-):
-    """
-    Generates downloadable CSV or JSON daily settlement summary for the canteen owner.
-    """
-    from fastapi.responses import PlainTextResponse
-    from app.services.settlement_service import generate_canteen_settlement_export
-
-    role = current_user.get("role")
-    user_email = (
-        current_user.get("email") or current_user.get("sub") or ""
-    ).strip().lower()
-
-    target = user_email if role == RESTAURANT_OWNER or not canteen_id else canteen_id.strip()
-
-    result = await generate_canteen_settlement_export(
-        canteen_id_or_email=target,
-        target_date=date,
-        format_type=format,
-    )
-
-    if format.lower() == "json":
-        return result
-
-    return PlainTextResponse(
-        content=result,
-        media_type="text/csv",
-        headers={
-            "Content-Disposition": f"attachment; filename=settlement_slip_{date or 'today'}.csv"
-        },
-    )
-
-
-@router.get("/settlements/my")
-@router.get("/settlements")
-async def fetch_restaurant_settlements(
-    current_user: Annotated[
-        dict, Depends(require_roles(ADMIN, RESTAURANT_OWNER))
-    ],
-    date: Annotated[str | None, Query()] = None,
-    restaurant_email: Annotated[str | None, Query()] = None,
-):
-    """
-    Fetches daily settlement records for a restaurant/canteen.
-    """
-    from app.db.database import database
-
-    role = current_user.get("role")
-    user_email = (
-        current_user.get("email") or current_user.get("sub") or ""
-    ).strip().lower()
-
-    query = {}
-    if role == RESTAURANT_OWNER:
-        query["restaurant_email"] = user_email
-    elif restaurant_email:
-        query["restaurant_email"] = restaurant_email.strip().lower()
-
-    if date:
-        query["settlement_date"] = date
-
-    cursor = database["canteen_settlements"].find(query).sort("settled_at", -1)
-    settlements = []
-    async for doc in cursor:
-        doc["_id"] = str(doc.get("_id", ""))
-        settlements.append(doc)
-
-    return {"settlements": settlements}
 

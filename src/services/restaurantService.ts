@@ -202,12 +202,30 @@ export async function getRestaurantSettlements(
   }
 
   try {
-    const res = await authJson<{ settlements: CanteenDailySettlement[] }>(
-      withQuery("/restaurants/settlements", {
-        restaurant_email: cleanEmail,
-      }),
-      { role: "restaurant_owner", cache: "no-store" }
-    );
+    const isEmail = cleanEmail.includes("@");
+    const queryParams: Record<string, string> = {};
+    if (isEmail) {
+      queryParams.restaurant_email = cleanEmail;
+    } else if (cleanEmail) {
+      queryParams.restaurant_id = cleanEmail;
+    }
+    if (targetDate) {
+      queryParams.date = targetDate;
+    }
+
+    let res: { settlements: CanteenDailySettlement[] } | null = null;
+    try {
+      res = await authJson<{ settlements: CanteenDailySettlement[] }>(
+        withQuery("/restaurants/settlements", queryParams),
+        { role: "restaurant_owner", cache: "no-store" }
+      );
+    } catch (_) {
+      res = await authJson<{ settlements: CanteenDailySettlement[] }>(
+        withQuery("/restaurant/settlements", queryParams),
+        { role: "restaurant_owner", cache: "no-store" }
+      );
+    }
+
     if (res?.settlements && Array.isArray(res.settlements)) {
       for (const s of res.settlements) {
         if (!settledList.some((x) => x.settlement_date === s.settlement_date)) {

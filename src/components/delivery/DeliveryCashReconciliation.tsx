@@ -130,7 +130,10 @@ export function DeliveryCashReconciliation({
 
   if (!isMounted) {
     return (
-      <div className={`bg-neutral-900 rounded-3xl p-6 text-white text-center animate-pulse ${className}`}>
+      <div
+        suppressHydrationWarning
+        className={`bg-neutral-900 rounded-3xl p-6 text-white text-center animate-pulse ${className}`}
+      >
         <div className="h-6 w-48 bg-neutral-800 rounded mx-auto mb-2"></div>
         <div className="h-10 w-32 bg-neutral-800 rounded mx-auto"></div>
       </div>

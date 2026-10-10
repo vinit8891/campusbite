@@ -33,7 +33,7 @@ import { ROUTES } from "@/lib/routes";
 import type { DeliveryPartner } from "@/types";
 
 export default function DeliveryEarningsPage() {
-  const [mounted, setMounted] = useState(false);
+  const [isMounted, setIsMounted] = useState(false);
   const [partner, setPartner] = useState<DeliveryPartner | null>(null);
   const [cih, setCih] = useState<RiderCashReconciliation>({
     cash_in_hand: 0,
@@ -51,7 +51,7 @@ export default function DeliveryEarningsPage() {
   const [availablePoolCount, setAvailablePoolCount] = useState(0);
 
   useEffect(() => {
-    setMounted(true);
+    setIsMounted(true);
   }, []);
 
   const loadEarningsData = useCallback(async () => {
@@ -128,7 +128,7 @@ export default function DeliveryEarningsPage() {
   }, []);
 
   useEffect(() => {
-    if (!mounted) return;
+    if (!isMounted) return;
     void loadEarningsData();
 
     if (typeof window !== "undefined") {
@@ -137,7 +137,7 @@ export default function DeliveryEarningsPage() {
       return () =>
         window.removeEventListener("delivery_state_changed", handleSync);
     }
-  }, [mounted, loadEarningsData]);
+  }, [isMounted, loadEarningsData]);
 
   const filteredOrders = useMemo(() => {
     if (!searchQuery.trim()) return completedOrders;
@@ -153,10 +153,15 @@ export default function DeliveryEarningsPage() {
     });
   }, [completedOrders, searchQuery]);
 
-  if (!mounted) {
+  if (!isMounted) {
     return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-        <div className="animate-pulse text-gray-400 font-bold text-sm">Loading earnings ledger...</div>
+      <div
+        suppressHydrationWarning
+        className="min-h-screen bg-gray-50 flex items-center justify-center p-4"
+      >
+        <div className="animate-pulse text-gray-400 font-bold text-sm">
+          Loading earnings ledger...
+        </div>
       </div>
     );
   }
@@ -282,7 +287,7 @@ export default function DeliveryEarningsPage() {
                       <Bike className="h-5 w-5" />
                     </div>
                   </div>
-                  <p className="mt-2 text-3xl font-black text-stone-900">
+                  <p suppressHydrationWarning className="mt-2 text-3xl font-black text-stone-900">
                     {totalCompletedCount}
                   </p>
                   <p className="mt-1 text-xs text-stone-500">
@@ -299,7 +304,7 @@ export default function DeliveryEarningsPage() {
                       <IndianRupee className="h-5 w-5" />
                     </div>
                   </div>
-                  <p className="mt-2 text-3xl font-black text-emerald-700">
+                  <p suppressHydrationWarning className="mt-2 text-3xl font-black text-emerald-700">
                     ₹{totalFlatPayouts.toFixed(2)}
                   </p>
                   <p className="mt-1 text-xs text-stone-500">
@@ -318,6 +323,7 @@ export default function DeliveryEarningsPage() {
                   </div>
                   <div className="mt-2 flex items-center gap-2">
                     <span
+                      suppressHydrationWarning
                       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black uppercase tracking-wider ${
                         isDuesPending
                           ? "bg-amber-100 text-amber-800"
@@ -452,14 +458,23 @@ export default function DeliveryEarningsPage() {
                                     : "Online Pre-paid"}
                                 </span>
                               </td>
-                              <td className="px-4 py-3.5 text-right font-bold text-stone-900">
+                              <td
+                                suppressHydrationWarning
+                                className="px-4 py-3.5 text-right font-bold text-stone-900"
+                              >
                                 {isCod ? `₹${cashAmount.toFixed(2)}` : "₹0.00"}
                               </td>
                               <td className="px-4 py-3.5 text-right">
-                                <div className="font-black text-emerald-700 text-sm">
+                                <div
+                                  suppressHydrationWarning
+                                  className="font-black text-emerald-700 text-sm"
+                                >
                                   +₹{totalPayout.toFixed(2)}
                                 </div>
-                                <div className="text-[10px] font-bold text-stone-500">
+                                <div
+                                  suppressHydrationWarning
+                                  className="text-[10px] font-bold text-stone-500"
+                                >
                                   {wageLabel}{tip > 0 ? ` + ₹${tip.toFixed(2)} tip` : ""}
                                 </div>
                               </td>

@@ -16,6 +16,12 @@ export interface RiderStreakMilestoneCardProps {
 export function RiderStreakMilestoneCard({
   completedCount = 0,
 }: RiderStreakMilestoneCardProps) {
+  const [isMounted, setIsMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
   // Calculate current bonus unlocked
   let currentBonusEarned = 0;
   if (completedCount >= MILESTONE_TIER_3.count) {
@@ -31,6 +37,18 @@ export function RiderStreakMilestoneCard({
     RIDER_MILESTONES.find((m) => completedCount < m.count) || null;
   const dropsNeeded = nextMilestone ? nextMilestone.count - completedCount : 0;
 
+  if (!isMounted) {
+    return (
+      <div
+        data-testid="rider-streak-milestone-card"
+        className="w-full rounded-2xl sm:rounded-3xl border border-amber-200/90 bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-white p-5 sm:p-6 shadow-xs animate-pulse"
+      >
+        <div className="h-6 w-48 bg-amber-100/70 rounded mb-2" />
+        <div className="h-4 w-72 bg-amber-50 rounded" />
+      </div>
+    );
+  }
+
   return (
     <div
       data-testid="rider-streak-milestone-card"
@@ -44,7 +62,10 @@ export function RiderStreakMilestoneCard({
               Daily Courier Milestones
             </span>
             {currentBonusEarned > 0 && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-extrabold text-emerald-800">
+              <span
+                suppressHydrationWarning
+                className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-extrabold text-emerald-800"
+              >
                 <Sparkles className="h-3 w-3 text-emerald-600" />
                 Unlocked +₹{currentBonusEarned} Bonus
               </span>
@@ -63,7 +84,10 @@ export function RiderStreakMilestoneCard({
             <span className="block text-[10px] font-extrabold uppercase tracking-wider text-stone-500">
               Next Reward Tier
             </span>
-            <span className="text-sm sm:text-base font-black text-orange-600">
+            <span
+              suppressHydrationWarning
+              className="text-sm sm:text-base font-black text-orange-600"
+            >
               {dropsNeeded} more drop{dropsNeeded > 1 ? "s" : ""} for +₹{nextMilestone.bonus}
             </span>
           </div>
@@ -72,7 +96,10 @@ export function RiderStreakMilestoneCard({
             <span className="block text-[10px] font-extrabold uppercase tracking-wider text-emerald-800">
               Maximum Milestone Reached
             </span>
-            <span className="text-sm sm:text-base font-black text-emerald-900">
+            <span
+              suppressHydrationWarning
+              className="text-sm sm:text-base font-black text-emerald-900"
+            >
               🎉 +₹100 Max Tier Unlocked!
             </span>
           </div>
@@ -107,6 +134,7 @@ export function RiderStreakMilestoneCard({
                   <span>Tier {index + 1}</span>
                 </span>
                 <span
+                  suppressHydrationWarning
                   className={`text-xs font-black px-2 py-0.5 rounded-full ${
                     isUnlocked
                       ? "bg-emerald-600 text-white"
@@ -120,14 +148,21 @@ export function RiderStreakMilestoneCard({
               <div className="mt-2.5 space-y-1">
                 <div className="flex justify-between text-xs font-bold text-stone-900">
                   <span>{tier.count} Completed Drops</span>
-                  <span className={isUnlocked ? "text-emerald-700" : "text-stone-500"}>
+                  <span
+                    suppressHydrationWarning
+                    className={isUnlocked ? "text-emerald-700" : "text-stone-500"}
+                  >
                     {isUnlocked ? "Unlocked ✅" : `${completedCount}/${tier.count}`}
                   </span>
                 </div>
 
                 {/* Progress Bar */}
-                <div className="h-2 w-full rounded-full bg-stone-100 overflow-hidden">
+                <div
+                  suppressHydrationWarning
+                  className="h-2 w-full rounded-full bg-stone-100 overflow-hidden"
+                >
                   <div
+                    suppressHydrationWarning
                     className={`h-full transition-all rounded-full ${
                       isUnlocked ? "bg-emerald-500" : "bg-orange-500"
                     }`}

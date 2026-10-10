@@ -6,6 +6,7 @@ export * from "./menuService";
 export * from "./orderService";
 export * from "./paymentService";
 export * from "./restaurantService";
+export * from "./settlementService";
 export * from "./subscriptionPlanService";
 export * from "./subscriptionService";
 export * from "./userService";

@@ -159,7 +159,8 @@ app.include_router(
 )
 
 app.include_router(
-    restaurant_router
+    restaurant_router,
+    prefix="/restaurants",
 )
 app.include_router(
     restaurant_router,

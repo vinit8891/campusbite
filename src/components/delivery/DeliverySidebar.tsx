@@ -31,9 +31,7 @@ export function DeliverySidebar({
 }: DeliverySidebarProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const [partner, setPartner] = useState<DeliveryPartner | null>(() =>
-    getDeliveryPartnerSession()
-  );
+  const [partner, setPartner] = useState<DeliveryPartner | null>(null);
 
   useEffect(() => {
     const current = getDeliveryPartnerSession();
