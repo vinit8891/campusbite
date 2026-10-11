@@ -20,9 +20,11 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
     restaurant.image || DEFAULT_IMAGE
   );
 
+  const targetSlug = restaurant.slug || restaurant._id || "";
+
   return (
     <Link
-      href={restaurantDetailsPath(restaurant.slug)}
+      href={restaurantDetailsPath(targetSlug)}
       className="group block overflow-hidden rounded-3xl border bg-white shadow-md transition duration-300 hover:-translate-y-2 hover:shadow-2xl"
     >
       <div className="relative h-56 bg-gray-100">

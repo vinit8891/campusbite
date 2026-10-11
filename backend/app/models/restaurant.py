@@ -115,18 +115,28 @@ async def get_all_restaurants(
                 "$options": "i",
             }
 
-    # Filter by slug
+    # Filter by slug (or _id fallback if slug is a valid ObjectId)
     if slug and slug.strip():
-        query["slug"] = slug.strip()
+        s = slug.strip()
+        oid = _object_id(s)
+        if oid:
+            query["$or"] = [{"slug": s}, {"_id": oid}]
+        else:
+            query["slug"] = s
 
     # Search
     if q and q.strip():
         term = re.escape(q.strip())
-        query["$or"] = [
+        search_clauses = [
             {"name": {"$regex": term, "$options": "i"}},
             {"cuisine": {"$regex": term, "$options": "i"}},
             {"email": {"$regex": term, "$options": "i"}},
         ]
+        if "$or" in query:
+            existing_or = query.pop("$or")
+            query["$and"] = [{"$or": existing_or}, {"$or": search_clauses}]
+        else:
+            query["$or"] = search_clauses
 
     safe_page = normalize_page(page)
     safe_limit = normalize_limit(limit, default=20)

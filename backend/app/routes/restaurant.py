@@ -7,7 +7,7 @@ from app.auth.roles import ADMIN, RESTAURANT_OWNER
 from app.core.audit import log_admin_action
 from app.core.logging import get_logger
 from app.core.sanitize import sanitize_email, sanitize_search_query
-from app.schemas.restaurant import Restaurant
+from app.schemas.restaurant import Restaurant, RestaurantUpdate
 from app.models.restaurant import (
     create_restaurant,
     get_all_restaurants,
@@ -26,9 +26,16 @@ OWNER_PROFILE_FIELDS = {
     "address",
     "phone",
     "cuisine",
+    "cuisine_type",
     "opening_hours",
     "closing_hours",
+    "opening_time",
+    "closing_time",
     "image",
+    "banner_image",
+    "image_url",
+    "is_active",
+    "is_accepting_orders",
 }
 
 
@@ -305,7 +312,7 @@ async def fetch_restaurant_by_id(
 @router.put("/{restaurant_id}")
 async def edit_restaurant(
     restaurant_id: str,
-    restaurant: Restaurant,
+    restaurant: RestaurantUpdate,
     current_user: Annotated[
         dict, Depends(require_roles(ADMIN, RESTAURANT_OWNER))
     ],
@@ -320,6 +327,33 @@ async def edit_restaurant(
         )
 
     role = current_user.get("role")
+    raw = restaurant.model_dump(exclude_unset=True)
+
+    # Normalize aliases across frontend naming conventions
+    if "cuisine_type" in raw and "cuisine" not in raw:
+        raw["cuisine"] = raw["cuisine_type"]
+    elif "cuisine" in raw and "cuisine_type" not in raw:
+        raw["cuisine_type"] = raw["cuisine"]
+
+    if "banner_image" in raw and "image" not in raw:
+        raw["image"] = raw["banner_image"]
+    if "image_url" in raw and "image" not in raw:
+        raw["image"] = raw["image_url"]
+    if "image" in raw:
+        if "image_url" not in raw:
+            raw["image_url"] = raw["image"]
+        if "banner_image" not in raw:
+            raw["banner_image"] = raw["image"]
+
+    if "opening_time" in raw and "opening_hours" not in raw:
+        raw["opening_hours"] = raw["opening_time"]
+    elif "opening_hours" in raw and "opening_time" not in raw:
+        raw["opening_time"] = raw["opening_hours"]
+
+    if "closing_time" in raw and "closing_hours" not in raw:
+        raw["closing_hours"] = raw["closing_time"]
+    elif "closing_hours" in raw and "closing_time" not in raw:
+        raw["closing_time"] = raw["closing_hours"]
 
     if role == RESTAURANT_OWNER:
         assert_same_identity(
@@ -327,7 +361,6 @@ async def edit_restaurant(
             email=existing.get("email"),
         )
 
-        raw = restaurant.model_dump(exclude_unset=True)
         data = {
             key: value
             for key, value in raw.items()
@@ -341,7 +374,7 @@ async def edit_restaurant(
             )
     else:
         # Admin: only apply provided fields so omitted profile keys stay intact
-        data = restaurant.model_dump(exclude_unset=True)
+        data = {key: value for key, value in raw.items() if value is not None}
 
     await update_restaurant(restaurant_id, data)
 

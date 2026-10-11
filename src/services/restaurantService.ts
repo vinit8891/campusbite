@@ -62,14 +62,22 @@ export async function getRestaurants(
 export async function getRestaurantBySlug(
   slug: string
 ): Promise<BackendRestaurant | null> {
+  const cleanSlug = (slug || "").trim();
+  if (!cleanSlug) return null;
+
   const page = await getRestaurantsPage({
-    slug,
+    slug: cleanSlug,
     page: 1,
     limit: 1,
     include_menu: true,
   });
 
-  return page.items[0] || null;
+  if (page.items[0]) {
+    return page.items[0];
+  }
+
+  // Fallback: If slug is an ID or not matched by slug parameter, try getRestaurantById
+  return await getRestaurantById(cleanSlug);
 }
 
 export async function getRestaurantById(

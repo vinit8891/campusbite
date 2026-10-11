@@ -28,15 +28,22 @@ const IMAGE_PATTERN = /^(https?:\/\/|\/|data:image\/).+/i;
 
 
 function toForm(restaurant: BackendRestaurant): ProfileForm {
+  const r = restaurant as unknown as Record<string, unknown>;
   return {
     name: restaurant.name || "",
     description: restaurant.description || "",
     address: restaurant.address || "",
     phone: restaurant.phone || "",
-    cuisine: restaurant.cuisine || "",
-    opening_hours: restaurant.opening_hours || "",
-    closing_hours: restaurant.closing_hours || "",
-    image: restaurant.image || "",
+    cuisine: (r.cuisine_type as string) || restaurant.cuisine || "",
+    opening_hours:
+      (r.opening_time as string) || restaurant.opening_hours || "",
+    closing_hours:
+      (r.closing_time as string) || restaurant.closing_hours || "",
+    image:
+      (r.banner_image as string) ||
+      (r.image_url as string) ||
+      restaurant.image ||
+      "",
   };
 }
 
@@ -156,26 +163,27 @@ export function useRestaurantProfile() {
     setError("");
 
     try {
+      const payload = {
+        ...restaurant,
+        name: form.name.trim(),
+        description: form.description.trim(),
+        address: form.address.trim(),
+        phone: form.phone.trim(),
+        cuisine: form.cuisine.trim(),
+        cuisine_type: form.cuisine.trim(),
+        opening_hours: form.opening_hours.trim(),
+        opening_time: form.opening_hours.trim(),
+        closing_hours: form.closing_hours.trim(),
+        closing_time: form.closing_hours.trim(),
+        image: form.image.trim(),
+        image_url: form.image.trim(),
+        banner_image: form.image.trim(),
+      };
+
       await authJson(`/restaurants/${restaurant._id}`, {
         role: "restaurant_owner",
         method: "PUT",
-        body: JSON.stringify({
-          slug: restaurant.slug,
-          email: restaurant.email,
-          rating: restaurant.rating ?? 4.5,
-          delivery_time: restaurant.delivery_time || "30 min",
-          distance: restaurant.distance || "2 km",
-          latitude: restaurant.latitude ?? 18.52043,
-          longitude: restaurant.longitude ?? 73.856743,
-          name: form.name.trim(),
-          description: form.description.trim(),
-          address: form.address.trim(),
-          phone: form.phone.trim(),
-          cuisine: form.cuisine.trim(),
-          opening_hours: form.opening_hours.trim(),
-          closing_hours: form.closing_hours.trim(),
-          image: form.image.trim(),
-        }),
+        body: JSON.stringify(payload),
       });
 
       const next = { ...form };
