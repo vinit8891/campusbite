@@ -144,6 +144,10 @@ export type DeliveryPartnerSession = {
   phone: string;
   vehicle?: string;
   vehicle_number?: string;
+  is_verified?: boolean;
+  verification_status?: string;
+  is_active?: boolean;
+  is_on_duty?: boolean;
 };
 
 export function getDeliveryPartnerSession(): DeliveryPartnerSession | null {
@@ -172,6 +176,10 @@ export function getDeliveryPartnerSession(): DeliveryPartnerSession | null {
         phone: String(payload.phone),
         vehicle: payload.vehicle ? String(payload.vehicle) : "Bike",
         vehicle_number: payload.vehicle_number ? String(payload.vehicle_number) : undefined,
+        is_verified: payload.is_verified !== undefined ? Boolean(payload.is_verified) : undefined,
+        verification_status: payload.verification_status ? String(payload.verification_status) : undefined,
+        is_active: payload.is_active !== undefined ? Boolean(payload.is_active) : undefined,
+        is_on_duty: payload.is_on_duty !== undefined ? Boolean(payload.is_on_duty) : undefined,
       };
     }
 

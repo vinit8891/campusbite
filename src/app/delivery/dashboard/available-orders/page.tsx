@@ -78,24 +78,45 @@ export default function AvailableOrdersPage() {
   const [partnerPhone, setPartnerPhone] = useState<string>("");
   const [cashRecon, setCashRecon] = useState<RiderCashReconciliation | null>(null);
   const [isRemitModalOpen, setIsRemitModalOpen] = useState(false);
+  const [isUnverified, setIsUnverified] = useState(false);
 
   useEffect(() => {
     const p = getDeliveryPartnerSession();
-    if (p?.phone) {
-      setPartnerPhone(p.phone);
-      setCashRecon(getRiderCashReconciliation(p.phone));
+    if (p) {
+      if (p.phone) {
+        setPartnerPhone(p.phone);
+        setCashRecon(getRiderCashReconciliation(p.phone));
+      }
+      const unverified =
+        p.verification_status === "pending" ||
+        p.verification_status === "PENDING_VERIFICATION" ||
+        p.is_verified === false ||
+        (p.verification_status &&
+          p.verification_status !== "approved" &&
+          p.verification_status !== "APPROVED");
+      setIsUnverified(!!unverified);
     }
-    const updateRecon = () => {
+    const updatePartnerState = () => {
       const activePartner = getDeliveryPartnerSession();
-      if (activePartner?.phone) {
-        setCashRecon(getRiderCashReconciliation(activePartner.phone));
+      if (activePartner) {
+        if (activePartner.phone) {
+          setCashRecon(getRiderCashReconciliation(activePartner.phone));
+        }
+        const unverified =
+          activePartner.verification_status === "pending" ||
+          activePartner.verification_status === "PENDING_VERIFICATION" ||
+          activePartner.is_verified === false ||
+          (activePartner.verification_status &&
+            activePartner.verification_status !== "approved" &&
+            activePartner.verification_status !== "APPROVED");
+        setIsUnverified(!!unverified);
       }
     };
-    window.addEventListener("delivery_state_changed", updateRecon);
-    window.addEventListener("storage", updateRecon);
+    window.addEventListener("delivery_state_changed", updatePartnerState);
+    window.addEventListener("storage", updatePartnerState);
     return () => {
-      window.removeEventListener("delivery_state_changed", updateRecon);
-      window.removeEventListener("storage", updateRecon);
+      window.removeEventListener("delivery_state_changed", updatePartnerState);
+      window.removeEventListener("storage", updatePartnerState);
     };
   }, []);
 
@@ -152,6 +173,13 @@ export default function AvailableOrdersPage() {
 
   async function handleClaimBatch(orderIds: string[]) {
     if (!orderIds.length) return;
+
+    if (isUnverified) {
+      toast.error("Application under review", {
+        description: "Your delivery account is awaiting admin approval before you can claim runs.",
+      });
+      return;
+    }
 
     if (isLocked || netCashDue >= MAX_UNREMITTED_CASH_LIMIT) {
       toast.error(
@@ -287,6 +315,28 @@ export default function AvailableOrdersPage() {
         </div>
       </div>
 
+      {/* ⏳ Courier Verification Pending Alert Banner */}
+      {isUnverified ? (
+        <div className="rounded-2xl sm:rounded-3xl bg-amber-500 border border-amber-600 text-white p-4 sm:p-5 shadow-md">
+          <div className="flex items-start gap-3">
+            <div className="p-2 rounded-xl bg-white/20 shrink-0 text-xl">
+              ⏳
+            </div>
+            <div className="space-y-1">
+              <h2 className="text-sm sm:text-base font-black tracking-tight text-white flex items-center gap-2">
+                <span>Application Under Review</span>
+                <span className="rounded-full bg-amber-700/60 px-2.5 py-0.5 text-xs font-semibold">
+                  KYC Approval Pending
+                </span>
+              </h2>
+              <p className="text-xs sm:text-sm text-amber-50 font-medium leading-relaxed">
+                Your courier profile is currently awaiting admin KYC approval before you can accept deliveries or claim runs. Once verified, order claiming and on-duty toggles will be unlocked.
+              </p>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* ⚠️ Courier Cash-in-Hand (CIH) Hard Lockout Alert Banner */}
       {isLocked ? (
         <div className="rounded-2xl sm:rounded-3xl bg-rose-600 border border-rose-500 text-white p-4 sm:p-5 shadow-md">
@@ -367,6 +417,7 @@ export default function AvailableOrdersPage() {
               batch={batch}
               claimingIds={allClaimingIds}
               isLocked={isLocked}
+              isUnverified={isUnverified}
               onClaimBatch={(ids) => void handleClaimBatch(ids)}
               onClaimSingle={(id) => void handleAccept(id)}
               onNavigate={(o) => openNavigation(o)}
@@ -381,6 +432,7 @@ export default function AvailableOrdersPage() {
               order={order}
               isAccepting={allClaimingIds.includes(order._id)}
               isLocked={isLocked}
+              isUnverified={isUnverified}
               onAccept={(id) => void handleAccept(id)}
               onNavigate={(o) => openNavigation(o)}
             />

@@ -66,6 +66,10 @@ async def register_delivery_partner(
     partner_data["password"] = hash_password(
         partner.password
     )
+    partner_data["is_verified"] = False
+    partner_data["verification_status"] = "pending"
+    partner_data["is_active"] = False
+    partner_data["is_on_duty"] = False
 
     partner_id = await create_delivery_partner(
         partner_data
@@ -76,6 +80,10 @@ async def register_delivery_partner(
         "success": True,
         "message": "Delivery partner registered successfully",
         "id": partner_id,
+        "is_verified": False,
+        "verification_status": "pending",
+        "is_active": False,
+        "is_on_duty": False,
     }
 
 
@@ -126,6 +134,9 @@ async def login_delivery_partner(
 
     login_guard.record_success(ip, email)
 
+    is_verified = bool(partner.get("is_verified", False))
+    verification_status = partner.get("verification_status") or "pending"
+
     token = create_access_token(
         {
             "sub": str(partner["_id"]),
@@ -134,6 +145,8 @@ async def login_delivery_partner(
             "phone": partner["phone"],
             "vehicle": partner.get("vehicle"),
             "role": DELIVERY_PARTNER,
+            "is_verified": is_verified,
+            "verification_status": verification_status,
         }
     )
 
@@ -151,5 +164,9 @@ async def login_delivery_partner(
             "phone": partner["phone"],
             "vehicle": partner["vehicle"],
             "vehicle_number": partner["vehicle_number"],
+            "is_verified": is_verified,
+            "verification_status": verification_status,
+            "is_active": bool(partner.get("is_active", False)),
+            "is_on_duty": bool(partner.get("is_on_duty", False)),
         },
     }

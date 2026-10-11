@@ -142,12 +142,25 @@ export function DeliverySidebar({
         </nav>
       </div>
 
-      {/* Sidebar Footer */}
+        {/* Sidebar Footer */}
       <div className="border-t border-stone-100 p-4 space-y-3 bg-stone-50/50">
-        <div className="rounded-xl bg-white p-2.5 border border-stone-200/70 text-xs shadow-xs">
-          <p className="font-bold text-stone-900 truncate">
-            {partner?.name || "Delivery Partner"}
-          </p>
+        <div className="rounded-xl bg-white p-2.5 border border-stone-200/70 text-xs shadow-xs space-y-1">
+          <div className="flex items-center justify-between gap-1">
+            <p className="font-bold text-stone-900 truncate">
+              {partner?.name || "Delivery Partner"}
+            </p>
+            {partner?.verification_status === "pending" ||
+            partner?.verification_status === "PENDING_VERIFICATION" ||
+            partner?.is_verified === false ? (
+              <span className="rounded-md bg-amber-100 text-amber-900 text-[10px] font-black px-1.5 py-0.5 border border-amber-300 shrink-0">
+                Pending KYC
+              </span>
+            ) : (
+              <span className="rounded-md bg-emerald-100 text-emerald-800 text-[10px] font-black px-1.5 py-0.5 border border-emerald-300 shrink-0">
+                Verified
+              </span>
+            )}
+          </div>
           <p className="text-[11px] text-stone-500">
             {partner?.phone || "Live Runner Account"}
           </p>

@@ -40,6 +40,11 @@ def serialize_partner_profile(partner: dict | None) -> dict | None:
         "vehicle_number": partner.get("vehicle_number") or "",
         "profile_image": partner.get("profile_image") or "",
         "online": bool(partner.get("online", False)),
+        "is_online": bool(partner.get("is_online", partner.get("online", False))),
+        "is_on_duty": bool(partner.get("is_on_duty", False)),
+        "is_verified": bool(partner.get("is_verified", False)),
+        "verification_status": partner.get("verification_status") or "pending",
+        "is_active": bool(partner.get("is_active", False)),
         "created_at": partner.get("created_at"),
     }
 
@@ -52,6 +57,11 @@ async def create_delivery_partner(data: dict):
     data = data.copy()
 
     data["online"] = False
+    data["is_online"] = False
+    data["is_on_duty"] = False
+    data["is_verified"] = False
+    data["verification_status"] = "pending"
+    data["is_active"] = False
     data["created_at"] = datetime.utcnow()
 
     result = await delivery_collection.insert_one(data)
@@ -108,7 +118,9 @@ async def update_status(
         {"phone": phone},
         {
             "$set": {
-                "online": online
+                "online": online,
+                "is_online": online,
+                "is_on_duty": online,
             }
         },
         upsert=True,
@@ -124,12 +136,17 @@ async def get_status(phone: str):
 
     if not partner:
         return {
-            "online": False
+            "online": False,
+            "is_online": False,
+            "is_on_duty": False,
         }
 
+    online_val = partner.get(
+        "online",
+        False
+    )
     return {
-        "online": partner.get(
-            "online",
-            False
-        )
+        "online": online_val,
+        "is_online": bool(partner.get("is_online", online_val)),
+        "is_on_duty": bool(partner.get("is_on_duty", online_val)),
     }

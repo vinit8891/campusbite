@@ -148,6 +148,7 @@ async def update_my_profile(
 
 
 @router.put("/status")
+@router.put("/duty")
 async def change_status(
     data: dict,
     current_user: Annotated[
@@ -165,20 +166,48 @@ async def change_status(
 
     assert_same_identity(current_user, phone=phone)
 
-    if "online" not in data:
+    partner = await _resolve_partner(current_user)
+    if not partner and phone:
+        partner = await get_delivery_partner_by_phone(phone)
+
+    if current_user.get("role") == DELIVERY_PARTNER:
+        is_approved = (
+            partner is not None
+            and (
+                partner.get("verification_status") in ("approved", "APPROVED")
+                or partner.get("is_verified") is True
+            )
+            and partner.get("verification_status") not in ("pending", "PENDING_VERIFICATION", "rejected", "REJECTED", "suspended", "SUSPENDED")
+        )
+        if not is_approved:
+            raise HTTPException(
+                status_code=403,
+                detail="Courier account is pending verification and cannot toggle duty status.",
+            )
+
+    is_on = data.get("online")
+    if is_on is None:
+        is_on = data.get("is_on_duty")
+    if is_on is None and "status" in data:
+        is_on = data["status"] in ("on", "online", "on_duty", True)
+
+    if is_on is None:
         raise HTTPException(
             status_code=400,
-            detail="online status is required",
+            detail="online or is_on_duty status is required",
         )
 
+    is_on_bool = bool(is_on)
     await update_status(
         phone,
-        data["online"],
+        is_on_bool,
     )
 
     logger.info("delivery_partner.status.update completed successfully")
     return {
-        "message": "Status Updated"
+        "message": "Status Updated",
+        "online": is_on_bool,
+        "is_on_duty": is_on_bool,
     }
 
 

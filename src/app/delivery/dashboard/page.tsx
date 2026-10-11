@@ -88,8 +88,47 @@ export default function DeliveryDashboard() {
     localRecon?.isLocked ||
     netCashDue >= MAX_UNREMITTED_CASH_LIMIT;
 
+  const isUnverified =
+    partner?.verification_status === "pending" ||
+    partner?.verification_status === "PENDING_VERIFICATION" ||
+    partner?.is_verified === false ||
+    stats.verification_status === "pending" ||
+    stats.verification_status === "PENDING_VERIFICATION" ||
+    stats.is_verified === false;
+
   return (
     <div className="space-y-6 sm:space-y-8">
+      {/* ⏳ Courier Application Under Review Banner */}
+      {isUnverified ? (
+        <div className="rounded-2xl sm:rounded-3xl bg-amber-500/10 border-2 border-amber-400/80 p-5 sm:p-6 text-stone-900 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start gap-3.5">
+              <div className="p-2.5 rounded-2xl bg-amber-100 text-amber-900 shrink-0 text-2xl font-black">
+                ⏳
+              </div>
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <h2 className="text-base sm:text-lg font-black text-amber-950">
+                    Application Under Review
+                  </h2>
+                  <span className="rounded-full bg-amber-200/90 border border-amber-300 px-2.5 py-0.5 text-[11px] font-black text-amber-900 uppercase tracking-wide">
+                    KYC Approval Pending
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-stone-700 font-medium leading-relaxed max-w-2xl">
+                  Your delivery partner profile and verification documents are currently being reviewed by platform administrators. You cannot toggle On-Duty or accept live delivery runs until your account is approved.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 shrink-0">
+              <span className="text-xs font-bold text-amber-800 bg-amber-100/90 px-3.5 py-2 rounded-xl border border-amber-300">
+                Awaiting Admin Verification
+              </span>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
       {/* ⚠️ Courier Cash-in-Hand (CIH) Hard Lockout Crimson Alert Banner */}
       {isLocked ? (
         <div className="rounded-2xl sm:rounded-3xl bg-rose-600 border border-rose-500 text-white p-5 sm:p-6 shadow-lg">

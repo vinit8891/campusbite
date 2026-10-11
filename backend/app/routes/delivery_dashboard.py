@@ -237,6 +237,10 @@ async def delivery_stats(
             "max_limit": MAX_UNREMITTED_CASH_LIMIT,
         },
         # Extended read-only dashboard fields
+        "is_verified": bool((partner_doc or {}).get("is_verified", False)),
+        "verification_status": (partner_doc or {}).get("verification_status") or "pending",
+        "is_active": bool((partner_doc or {}).get("is_active", False)),
+        "is_on_duty": bool((partner_doc or {}).get("is_on_duty", False)),
         "assigned_orders": assigned_orders,
         "picked_up_orders": picked_up_orders,
         "delivered_today": delivered_today,

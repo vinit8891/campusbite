@@ -26,6 +26,7 @@ type BatchOrderGroupCardProps = {
   batch: BatchGroup;
   claimingIds: string[];
   isLocked?: boolean;
+  isUnverified?: boolean;
   onClaimBatch: (orderIds: string[]) => void;
   onClaimSingle: (orderId: string) => void;
   onNavigate?: (order: AvailableOrder) => void;
@@ -35,6 +36,7 @@ export function BatchOrderGroupCard({
   batch,
   claimingIds,
   isLocked = false,
+  isUnverified = false,
   onClaimBatch,
   onClaimSingle,
   onNavigate,
@@ -200,20 +202,26 @@ export function BatchOrderGroupCard({
 
                 <button
                   type="button"
-                  onClick={() => !isLocked && onClaimSingle(order._id)}
-                  disabled={isSingleClaiming || isBatchClaiming || isLocked}
+                  onClick={() => !isLocked && !isUnverified && onClaimSingle(order._id)}
+                  disabled={isSingleClaiming || isBatchClaiming || isLocked || isUnverified}
                   title={
-                    isLocked
+                    isUnverified
+                      ? "Application under review. Awaiting admin KYC approval before deliveries can be claimed."
+                      : isLocked
                       ? "Cash-in-Hand limit of ₹500 exceeded. Remit pending cash via UPI to unlock order claiming."
                       : undefined
                   }
                   className={`rounded-xl border px-3 py-2 text-xs font-bold transition-all ${
-                    isLocked
+                    isUnverified
+                      ? "border-amber-300 bg-amber-50 text-amber-800 cursor-not-allowed opacity-90"
+                      : isLocked
                       ? "border-rose-300 bg-rose-50 text-rose-700 cursor-not-allowed opacity-90"
                       : "border-orange-200 bg-orange-50 hover:bg-orange-100 text-orange-700 active:scale-95 disabled:opacity-50 cursor-pointer"
                   }`}
                 >
-                  {isLocked
+                  {isUnverified
+                    ? "🔒 Verification Pending"
+                    : isLocked
                     ? "🔒 Remit Cash to Claim"
                     : isSingleClaiming
                     ? "Claiming…"
@@ -246,20 +254,26 @@ export function BatchOrderGroupCard({
 
           <button
             type="button"
-            onClick={() => !isLocked && onClaimBatch(orderIds)}
-            disabled={isBatchClaiming || isLocked}
+            onClick={() => !isLocked && !isUnverified && onClaimBatch(orderIds)}
+            disabled={isBatchClaiming || isLocked || isUnverified}
             title={
-              isLocked
+              isUnverified
+                ? "Application under review. Awaiting admin KYC approval before deliveries can be claimed."
+                : isLocked
                 ? "Cash-in-Hand limit of ₹500 exceeded. Remit pending cash via UPI to unlock order claiming."
                 : undefined
             }
             className={`h-12 flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-xl px-5 sm:px-6 text-sm font-black transition-all ${
-              isLocked
+              isUnverified
+                ? "bg-amber-100 border border-amber-300 text-amber-800 cursor-not-allowed opacity-90 shadow-none"
+                : isLocked
                 ? "bg-rose-100 border border-rose-300 text-rose-800 cursor-not-allowed opacity-90 shadow-none"
                 : "bg-orange-600 hover:bg-orange-700 text-white shadow-sm hover:shadow active:scale-98 disabled:opacity-60 cursor-pointer"
             }`}
           >
-            {isLocked ? (
+            {isUnverified ? (
+              <span>🔒 Verification Pending</span>
+            ) : isLocked ? (
               <span>🔒 Remit Cash to Claim</span>
             ) : (
               <>

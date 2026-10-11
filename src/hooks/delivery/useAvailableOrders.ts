@@ -109,6 +109,13 @@ export function useAvailableOrders() {
     } catch (err) {
       console.error(err);
       if (err instanceof AuthHttpError && err.status === 401) return;
+      if (err instanceof AuthHttpError && err.status === 403) {
+        setError(
+          "Application Under Review: Your courier profile is awaiting admin approval."
+        );
+        setOrders([]);
+        return;
+      }
       setError(
         err instanceof Error ? err.message : "Unable to load available orders"
       );
@@ -131,6 +138,22 @@ export function useAvailableOrders() {
       if (!partner) {
         toast.error("Please log in as a delivery partner.");
         window.location.assign(ROUTES.DELIVERY_LOGIN);
+        return false;
+      }
+
+      const isUnverified =
+        partner.verification_status === "pending" ||
+        partner.verification_status === "PENDING_VERIFICATION" ||
+        partner.is_verified === false ||
+        (partner.verification_status &&
+          partner.verification_status !== "approved" &&
+          partner.verification_status !== "APPROVED");
+
+      if (isUnverified) {
+        toast.error("Application under review", {
+          description:
+            "Your courier account is awaiting admin approval before you can accept orders.",
+        });
         return false;
       }
 

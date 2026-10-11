@@ -1,4 +1,5 @@
 import { authJson } from "@/services/authFetch";
+import { getDeliveryPartnerSession } from "@/lib/authTokens";
 import {
   RIDER_BASE_PAYOUT,
   RIDER_BATCH_ADDON_PAYOUT,
@@ -549,6 +550,10 @@ export async function getDeliveryStats(phone: string) {
       earnings_today: cih.total_payout_earned,
       total_deliveries: cih.completed_deliveries ?? 0,
       recent_assigned_orders: [],
+      is_verified: getDeliveryPartnerSession()?.is_verified,
+      verification_status: getDeliveryPartnerSession()?.verification_status,
+      is_active: getDeliveryPartnerSession()?.is_active,
+      is_on_duty: getDeliveryPartnerSession()?.is_on_duty,
     };
   }
 }

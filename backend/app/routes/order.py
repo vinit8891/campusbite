@@ -518,19 +518,29 @@ async def available_orders(
 ):
     if current_user.get("role") == DELIVERY_PARTNER:
         phone = current_user.get("phone")
+        courier = None
         if phone:
-            try:
-                from app.models.delivery_partner import get_delivery_partner_by_phone
-                courier = await get_delivery_partner_by_phone(phone)
-                if courier and courier.get("verification_status") in ("PENDING_VERIFICATION", "REJECTED", "SUSPENDED"):
-                    raise HTTPException(
-                        status_code=403,
-                        detail="Courier account is pending verification and cannot view or claim available orders.",
-                    )
-            except HTTPException:
-                raise
-            except Exception:
-                pass
+            from app.models.delivery_partner import get_delivery_partner_by_phone
+            courier = await get_delivery_partner_by_phone(phone)
+        if not courier and current_user.get("email"):
+            from app.models.delivery_partner import get_delivery_partner_by_email
+            courier = await get_delivery_partner_by_email(current_user["email"])
+
+        is_approved = (
+            courier is not None
+            and (
+                courier.get("verification_status") in ("approved", "APPROVED")
+                or courier.get("is_verified") is True
+            )
+            and courier.get("verification_status") not in (
+                "pending", "PENDING_VERIFICATION", "rejected", "REJECTED", "suspended", "SUSPENDED"
+            )
+        )
+        if not is_approved:
+            raise HTTPException(
+                status_code=403,
+                detail="Courier account is pending verification and cannot view or claim available orders.",
+            )
     return _public_paginated(
         await get_available_orders(
             q=sanitize_search_query(q),
@@ -607,31 +617,55 @@ async def my_delivery_orders(
 
 @router.put("/delivery/accept/{order_id}")
 @router.post("/delivery/claim-order/{order_id}")
+@router.post("/delivery/orders/{order_id}/claim")
+@router.post("/delivery/orders/{order_id}/accept")
 async def accept_delivery(
     order_id: str,
     background_tasks: BackgroundTasks,
     current_user: Annotated[dict, Depends(require_roles(DELIVERY_PARTNER))],
     partner: dict | None = Body(default=None),
 ):
-    # Always use authenticated partner identity — never trust client body identity
-    partner_name = current_user.get("name")
-    partner_phone = current_user.get("phone")
+    # Always use authenticated partner identity — fallback to body or DB record
+    partner_name = current_user.get("name") or ((partner or {}).get("name") if partner else None)
+    partner_phone = current_user.get("phone") or ((partner or {}).get("phone") if partner else None)
     partner_vehicle = current_user.get("vehicle") or (
         (partner or {}).get("vehicle") if partner else ""
     ) or ""
+
+    # Courier Verification Status guard:
+    from app.models.delivery_partner import (
+        get_delivery_partner_by_phone as fetch_courier_by_phone,
+        get_delivery_partner_by_email as fetch_courier_by_email,
+    )
+    partner_doc_check = await fetch_courier_by_phone(partner_phone) if partner_phone else None
+    if not partner_doc_check and current_user.get("email"):
+        partner_doc_check = await fetch_courier_by_email(current_user["email"])
+
+    if not partner_phone and partner_doc_check:
+        partner_phone = partner_doc_check.get("phone")
+    if not partner_name and partner_doc_check:
+        partner_name = partner_doc_check.get("name") or partner_doc_check.get("full_name")
+
+    is_approved = (
+        partner_doc_check is not None
+        and (
+            partner_doc_check.get("verification_status") in ("approved", "APPROVED")
+            or partner_doc_check.get("is_verified") is True
+        )
+        and partner_doc_check.get("verification_status") not in (
+            "pending", "PENDING_VERIFICATION", "rejected", "REJECTED", "suspended", "SUSPENDED"
+        )
+    )
+    if not is_approved:
+        raise HTTPException(
+            status_code=403,
+            detail="Courier account is pending verification and not approved to claim orders.",
+        )
 
     if not partner_name or not partner_phone:
         raise HTTPException(
             status_code=400,
             detail="Delivery partner identity is incomplete. Please log in again.",
-        )
-
-    # Courier Verification Status guard:
-    partner_doc_check = await get_delivery_partner_by_phone(partner_phone)
-    if partner_doc_check and partner_doc_check.get("verification_status") in ("PENDING_VERIFICATION", "REJECTED", "SUSPENDED"):
-        raise HTTPException(
-            status_code=403,
-            detail="Courier account is pending verification and not approved to claim orders.",
         )
 
     target_order = await get_order_by_id(order_id)

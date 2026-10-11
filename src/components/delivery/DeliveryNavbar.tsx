@@ -8,19 +8,39 @@ import { updateDeliveryStatus } from "@/services/deliveryPartnerService";
 
 type DeliveryNavbarProps = {
   activeRunsCount?: number;
+  isUnverified?: boolean;
 };
 
-export function DeliveryNavbar({ activeRunsCount }: DeliveryNavbarProps) {
+export function DeliveryNavbar({ activeRunsCount, isUnverified: propIsUnverified }: DeliveryNavbarProps) {
   const [isOnDuty, setIsOnDuty] = useState(true);
+  const [sessionUnverified, setSessionUnverified] = useState(false);
 
   useEffect(() => {
+    const session = getDeliveryPartnerSession();
+    const unverified =
+      propIsUnverified ??
+      (session?.verification_status === "pending" ||
+        session?.verification_status === "PENDING_VERIFICATION" ||
+        session?.is_verified === false);
+
+    setSessionUnverified(Boolean(unverified));
+
+    if (unverified) {
+      setIsOnDuty(false);
+      return;
+    }
+
     const savedStatus = localStorage.getItem("cb_delivery_duty_status");
     if (savedStatus) {
       setIsOnDuty(savedStatus === "on");
     }
-  }, []);
+  }, [propIsUnverified]);
+
+  const effectiveUnverified = propIsUnverified ?? sessionUnverified;
 
   const toggleDutyStatus = async () => {
+    if (effectiveUnverified) return;
+
     const nextStatus = !isOnDuty;
     if (!nextStatus) {
       const confirmPause = window.confirm(
@@ -92,21 +112,37 @@ export function DeliveryNavbar({ activeRunsCount }: DeliveryNavbarProps) {
         <button
           type="button"
           onClick={toggleDutyStatus}
+          disabled={effectiveUnverified}
+          title={
+            effectiveUnverified
+              ? "Application under review. You cannot toggle On-Duty until admin KYC approval."
+              : "Toggle courier duty status"
+          }
           aria-label="Toggle courier duty status"
-          className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all shadow-xs border cursor-pointer active:scale-95 ${
-            isOnDuty
-              ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100"
-              : "bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-100"
+          className={`flex items-center gap-2 rounded-full px-3.5 py-1.5 text-xs font-bold transition-all shadow-xs border ${
+            effectiveUnverified
+              ? "bg-amber-50 text-amber-800 border-amber-300 opacity-80 cursor-not-allowed"
+              : isOnDuty
+              ? "bg-emerald-50 text-emerald-800 border-emerald-300 hover:bg-emerald-100 cursor-pointer active:scale-95"
+              : "bg-rose-50 text-rose-800 border-rose-300 hover:bg-rose-100 cursor-pointer active:scale-95"
           }`}
         >
           <span
             className={`h-2.5 w-2.5 rounded-full ${
-              isOnDuty
+              effectiveUnverified
+                ? "bg-amber-500"
+                : isOnDuty
                 ? "bg-emerald-500 animate-pulse"
                 : "bg-rose-500"
             }`}
           />
-          <span>{isOnDuty ? "🟢 On Duty" : "🔴 Off Duty"}</span>
+          <span>
+            {effectiveUnverified
+              ? "🔒 Verification Pending"
+              : isOnDuty
+              ? "🟢 On Duty"
+              : "🔴 Off Duty"}
+          </span>
         </button>
       </div>
     </header>

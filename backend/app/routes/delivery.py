@@ -1,6 +1,6 @@
 from typing import Annotated, Any
 
-from fastapi import APIRouter, Body, Depends, HTTPException
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query
 
 from app.auth.auth import require_roles
 from app.auth.roles import ADMIN, CUSTOMER, DELIVERY_PARTNER, RESTAURANT_OWNER
@@ -247,3 +247,144 @@ async def trigger_clustered_mess_batch_dispatch(
         assigned_courier_phone=payload.get("assigned_courier_phone"),
     )
     return result
+
+
+# ==============================================================================
+# Verification Gates for Available Orders, Duty Toggle & Order Claiming
+# ==============================================================================
+
+@router.get("/available")
+@router.get("/orders/available")
+async def get_available_delivery_orders(
+    current_user: Annotated[dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))],
+    q: Annotated[str | None, Query()] = None,
+    restaurant: Annotated[str | None, Query()] = None,
+    payment_method: Annotated[str | None, Query()] = None,
+    page: Annotated[int, Query(ge=1)] = 1,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+):
+    """
+    Fetch available runs/orders for couriers.
+    Strictly verifies courier account status: returns 403 Forbidden if not approved.
+    """
+    if current_user.get("role") == DELIVERY_PARTNER:
+        phone = current_user.get("phone")
+        courier = None
+        if phone:
+            from app.models.delivery_partner import get_delivery_partner_by_phone
+            courier = await get_delivery_partner_by_phone(phone)
+        if not courier and current_user.get("email"):
+            from app.models.delivery_partner import get_delivery_partner_by_email
+            courier = await get_delivery_partner_by_email(current_user["email"])
+
+        is_approved = (
+            courier is not None
+            and (
+                courier.get("verification_status") in ("approved", "APPROVED")
+                or courier.get("is_verified") is True
+            )
+            and courier.get("verification_status") not in (
+                "pending", "PENDING_VERIFICATION", "rejected", "REJECTED", "suspended", "SUSPENDED"
+            )
+        )
+        if not is_approved:
+            raise HTTPException(
+                status_code=403,
+                detail="Courier account is pending verification and cannot view or claim available orders.",
+            )
+
+    from app.models.order import get_available_orders
+    from app.core.sanitize import sanitize_search_query
+    from app.routes.order import _public_paginated
+
+    return _public_paginated(
+        await get_available_orders(
+            q=sanitize_search_query(q),
+            restaurant=restaurant,
+            payment_method=payment_method,
+            page=page,
+            limit=limit,
+        )
+    )
+
+
+@router.put("/status")
+@router.put("/duty")
+async def update_delivery_duty_status(
+    current_user: Annotated[dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))],
+    data: dict = Body(...),
+):
+    """
+    Toggles 'On Duty' / 'Off Duty' courier presence.
+    Rejects status changes with HTTP 403 Forbidden if courier is not verified/approved.
+    """
+    phone = current_user.get("phone") or data.get("phone")
+    courier = None
+    if phone:
+        from app.models.delivery_partner import get_delivery_partner_by_phone
+        courier = await get_delivery_partner_by_phone(phone)
+    if not courier and current_user.get("email"):
+        from app.models.delivery_partner import get_delivery_partner_by_email
+        courier = await get_delivery_partner_by_email(current_user["email"])
+
+    if current_user.get("role") == DELIVERY_PARTNER:
+        is_approved = (
+            courier is not None
+            and (
+                courier.get("verification_status") in ("approved", "APPROVED")
+                or courier.get("is_verified") is True
+            )
+            and courier.get("verification_status") not in (
+                "pending", "PENDING_VERIFICATION", "rejected", "REJECTED", "suspended", "SUSPENDED"
+            )
+        )
+        if not is_approved:
+            raise HTTPException(
+                status_code=403,
+                detail="Courier account is pending verification and cannot toggle duty status.",
+            )
+
+    is_on = data.get("online")
+    if is_on is None:
+        is_on = data.get("is_on_duty")
+    if is_on is None and "status" in data:
+        is_on = data["status"] in ("on", "online", "on_duty", True)
+
+    if is_on is None:
+        raise HTTPException(status_code=400, detail="online or is_on_duty status is required")
+
+    is_on_bool = bool(is_on)
+    target_phone = phone or (courier.get("phone") if courier else None)
+    if target_phone:
+        from app.models.delivery_partner import update_status
+        await update_status(target_phone, is_on_bool)
+
+    return {
+        "success": True,
+        "message": "Duty status updated successfully",
+        "online": is_on_bool,
+        "is_on_duty": is_on_bool,
+    }
+
+
+@router.post("/orders/{order_id}/claim")
+@router.post("/orders/{order_id}/accept")
+@router.put("/orders/{order_id}/accept")
+async def claim_delivery_order(
+    order_id: str,
+    background_tasks: BackgroundTasks,
+    current_user: Annotated[dict, Depends(require_roles(DELIVERY_PARTNER))],
+    partner: dict | None = Body(default=None),
+):
+    """
+    Accepts / claims an order run for delivery.
+    Blocks the claim with HTTP 403 Forbidden if courier is not verified.
+    """
+    from app.routes.order import accept_delivery
+    return await accept_delivery(
+        order_id=order_id,
+        background_tasks=background_tasks,
+        current_user=current_user,
+        partner=partner,
+    )
+

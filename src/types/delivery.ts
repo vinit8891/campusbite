@@ -28,6 +28,9 @@ export type DeliveryPartner = {
   net_cash_due?: number;
   is_active?: boolean;
   is_online?: boolean;
+  is_on_duty?: boolean;
+  is_verified?: boolean;
+  verification_status?: string;
 };
 
 export type RiderCashReconciliation = {
@@ -54,6 +57,11 @@ export type DeliveryPartnerProfile = {
   vehicle_number: string;
   profile_image?: string;
   online: boolean;
+  is_online?: boolean;
+  is_on_duty?: boolean;
+  is_verified?: boolean;
+  verification_status?: string;
+  is_active?: boolean;
   cash_in_hand?: number;
   total_payout_earned?: number;
   net_cash_due?: number;
@@ -70,6 +78,10 @@ export type DeliveryPartnerInfo = {
   cash_in_hand?: number;
   total_payout_earned?: number;
   net_cash_due?: number;
+  is_verified?: boolean;
+  verification_status?: string;
+  is_active?: boolean;
+  is_on_duty?: boolean;
 };
 
 export type DeliveryLoginResponse = {
@@ -185,6 +197,10 @@ export type DeliveryDashboardStats = {
   lockout_reason?: string;
   excess_amount?: number;
   max_limit?: number;
+  is_verified?: boolean;
+  verification_status?: string;
+  is_active?: boolean;
+  is_on_duty?: boolean;
   cash_reconciliation?: RiderCashReconciliation;
   recent_assigned_orders?: DeliveryDashboardOrder[];
 };

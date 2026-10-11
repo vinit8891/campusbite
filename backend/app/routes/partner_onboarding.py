@@ -142,6 +142,7 @@ async def onboard_restaurant(
 # ==============================================================================
 
 @router.post("/delivery/onboard")
+@router.post("/api/partner/courier")
 async def onboard_courier(
     payload: CourierOnboardingRequest,
 ):
@@ -185,6 +186,7 @@ async def onboard_courier(
         "is_verified": False,
         "verification_status": "pending",
         "is_active": False,
+        "is_on_duty": False,
         "is_online": False,
         "online": False,
         "cash_in_hand": 0.0,
@@ -457,6 +459,7 @@ async def process_verification_decision(
         update_fields["is_verified"] = True
         update_fields["is_active"] = True
         update_fields["verified_at"] = now
+        update_fields["approved_at"] = now
         update_fields["rejection_reason"] = None
     elif action == "REJECT":
         update_fields["verification_status"] = "rejected"
@@ -533,6 +536,7 @@ async def approve_partner_verification(
         "is_verified": True,
         "is_active": True,
         "verified_at": now,
+        "approved_at": now,
         "updated_at": now,
         "rejection_reason": None,
     }

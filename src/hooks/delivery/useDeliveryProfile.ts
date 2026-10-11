@@ -46,6 +46,10 @@ function syncSession(profile: DeliveryPartnerProfile) {
         phone: profile.phone,
         vehicle: profile.vehicle || profile.vehicle_type,
         vehicle_number: profile.vehicle_number,
+        is_verified: profile.is_verified,
+        verification_status: profile.verification_status,
+        is_active: profile.is_active,
+        is_on_duty: profile.is_on_duty,
       })
     );
   } catch {
