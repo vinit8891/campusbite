@@ -1,10 +1,7 @@
 "use client";
 
-import React from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Flame, ShieldCheck, Mail } from "lucide-react";
-import { ROUTES } from "@/lib/routes";
 
 export default function Footer() {
   const pathname = usePathname();
@@ -15,187 +12,68 @@ export default function Footer() {
   }
 
   return (
-    <footer className="mt-auto border-t border-zinc-800 bg-zinc-950 text-zinc-300">
-      <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-10 sm:grid-cols-2 lg:grid-cols-5 lg:gap-8">
-          {/* Brand Column */}
-          <div className="space-y-4 sm:col-span-2 lg:col-span-2">
-            <Link
-              href={ROUTES.HOME}
-              className="group inline-flex items-center gap-2.5"
-              aria-label="CampusBite Home"
-            >
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 text-white shadow-md shadow-orange-950/30 transition-transform duration-200 group-hover:scale-105">
-                <Flame className="h-5 w-5 fill-white/20 text-white" />
-              </div>
-              <span className="text-xl font-black tracking-tight text-white transition-colors duration-150 group-hover:text-orange-400">
-                Campus<span className="text-orange-500">Bite</span>
-              </span>
-            </Link>
-
-            <p className="text-xs leading-relaxed text-zinc-400 max-w-sm">
-              Hyperlocal closed-campus food delivery network connecting hostels with certified college canteens and messes.
-            </p>
-
-            {/* Live Status Indicator */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-500/20 bg-emerald-500/10 px-3 py-1 text-xs font-medium text-emerald-400">
-              <span className="relative flex h-2 w-2">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
-              </span>
-              <span>Canteens Live • 8:00 AM – 2:00 AM</span>
-            </div>
+    <footer className="mt-auto border-t border-zinc-800 bg-zinc-950 text-zinc-400">
+      <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
+        {/* Top Bar: Brand & Quick Status */}
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800/80 pb-5">
+          <Link className="flex items-center gap-2 text-white font-bold text-base" href="/">
+            <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-600 text-sm">🔥</span>
+            CampusBite
+          </Link>
+          <div className="flex items-center gap-2 rounded-full bg-emerald-950/60 border border-emerald-800/50 px-2.5 py-0.5 text-[11px] font-medium text-emerald-400">
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+            Canteens Live • 8 AM – 2 AM
           </div>
+        </div>
 
-          {/* Explore Links */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-orange-400">
-              Explore
-            </h3>
-            <ul className="space-y-2.5 text-xs">
-              <li>
-                <Link
-                  href="/restaurants"
-                  className="text-zinc-400 hover:text-orange-400 transition-colors duration-150 inline-flex items-center gap-1"
-                >
-                  Campus Canteens &amp; Stalls
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/subscriptions"
-                  className="text-zinc-400 hover:text-orange-400 transition-colors duration-150 inline-flex items-center gap-1"
-                >
-                  Hostel Tiffin &amp; Mess Plans
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/orders"
-                  className="text-zinc-400 hover:text-orange-400 transition-colors duration-150 inline-flex items-center gap-1"
-                >
-                  Live Order Tracking
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/restaurants?filter=deals"
-                  className="text-zinc-400 hover:text-orange-400 transition-colors duration-150 inline-flex items-center gap-1"
-                >
-                  Student Combo Deals
-                </Link>
-              </li>
+        {/* Compact Multi-Column Navigation */}
+        <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 md:grid-cols-4">
+          {/* Col 1: Explore */}
+          <div>
+            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-300">Explore</h4>
+            <ul className="mt-2 space-y-1.5 text-xs">
+              <li><Link className="hover:text-orange-400 transition-colors" href="/restaurants">Campus Canteens</Link></li>
+              <li><Link className="hover:text-orange-400 transition-colors" href="/subscriptions">Mess & Tiffin Plans</Link></li>
+              <li><Link className="hover:text-orange-400 transition-colors" href="/orders">Track Order</Link></li>
             </ul>
           </div>
 
-          {/* Partner & Operations Portals */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-orange-400">
-              Partner Portals
-            </h3>
-            <ul className="space-y-2.5 text-xs">
-              <li>
-                <Link
-                  href="/restaurant/login"
-                  className="text-zinc-400 hover:text-orange-400 transition-colors duration-150 inline-flex items-center gap-1"
-                >
-                  Canteen Partner Portal
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/restaurant/register"
-                  className="text-zinc-400 hover:text-orange-400 transition-colors duration-150 inline-flex items-center gap-1"
-                >
-                  Register New Kitchen
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/delivery/login"
-                  className="text-zinc-400 hover:text-orange-400 transition-colors duration-150 inline-flex items-center gap-1"
-                >
-                  Student Courier Portal
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/delivery/register"
-                  className="text-zinc-400 hover:text-orange-400 transition-colors duration-150 inline-flex items-center gap-1"
-                >
-                  Become a Campus Runner
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/admin/verifications"
-                  className="text-zinc-400 hover:text-orange-400 transition-colors duration-150 inline-flex items-center gap-1"
-                >
-                  Admin Verification Hub
-                </Link>
-              </li>
+          {/* Col 2: Partners */}
+          <div>
+            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-300">For Partners</h4>
+            <ul className="mt-2 space-y-1.5 text-xs">
+              <li><Link className="hover:text-orange-400 transition-colors" href="/restaurant/login">Canteen Login</Link></li>
+              <li><Link className="hover:text-orange-400 transition-colors" href="/restaurant/register">Register Eatery</Link></li>
+              <li><Link className="hover:text-orange-400 transition-colors" href="/delivery/login">Rider Login</Link></li>
+              <li><Link className="hover:text-orange-400 transition-colors" href="/delivery/register">Become a Courier</Link></li>
             </ul>
           </div>
 
-          {/* Help & Campus Safety */}
-          <div className="space-y-3">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-orange-400">
-              Help &amp; Campus Safety
-            </h3>
-            <ul className="space-y-2.5 text-xs">
-              <li>
-                <Link
-                  href="/help"
-                  className="text-zinc-400 hover:text-orange-400 transition-colors duration-150 inline-flex items-center gap-1"
-                >
-                  Zeal Campus Help Desk
-                </Link>
-              </li>
-              <li>
-                <a
-                  href="mailto:support@campusbite.in"
-                  className="text-zinc-400 hover:text-orange-400 hover:underline transition-colors duration-150 inline-flex items-center gap-1"
-                >
-                  <Mail className="h-3 w-3 text-orange-400/80 shrink-0" />
-                  <span>support@campusbite.in</span>
-                </a>
-              </li>
-              <li>
-                <Link
-                  href="/terms"
-                  className="text-zinc-400 hover:text-orange-400 transition-colors duration-150 inline-flex items-center gap-1"
-                >
-                  Terms of Service
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/privacy"
-                  className="text-zinc-400 hover:text-orange-400 transition-colors duration-150 inline-flex items-center gap-1"
-                >
-                  Privacy Policy
-                </Link>
-              </li>
-              <li>
-                <Link
-                  href="/terms#refunds"
-                  className="text-zinc-400 hover:text-orange-400 transition-colors duration-150 inline-flex items-center gap-1"
-                >
-                  Refunds &amp; Settlement Policy
-                </Link>
-              </li>
+          {/* Col 3: Support */}
+          <div>
+            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-300">Support</h4>
+            <ul className="mt-2 space-y-1.5 text-xs">
+              <li><a href="mailto:support@campusbite.in" className="hover:text-orange-400 transition-colors">Email Help Desk</a></li>
+              <li><Link className="hover:text-orange-400 transition-colors" href="/terms">Terms of Service</Link></li>
+              <li><Link className="hover:text-orange-400 transition-colors" href="/privacy">Privacy Policy</Link></li>
+            </ul>
+          </div>
+
+          {/* Col 4: Operations */}
+          <div className="col-span-2 sm:col-span-1">
+            <h4 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-300">Admin</h4>
+            <ul className="mt-2 space-y-1.5 text-xs">
+              <li><Link className="hover:text-orange-400 transition-colors" href="/admin/verifications">Admin Verification Hub</Link></li>
+              <li><span className="text-[11px] text-zinc-500">Zeal College Campus Network</span></li>
             </ul>
           </div>
         </div>
 
-        {/* Bottom Legal Bar */}
-        <div className="mt-12 flex flex-col items-center justify-between gap-3 border-t border-zinc-900 pt-6 text-xs text-zinc-500 sm:flex-row">
-          <p className="text-center sm:text-left">
-            © 2026 CampusBite Technologies. Built for Zeal College &amp; Campus Communities.
-          </p>
-          <div className="inline-flex items-center gap-1.5 font-medium text-zinc-400">
-            <ShieldCheck className="h-4 w-4 text-emerald-400 shrink-0" />
-            <span>100% Encrypted UPI Payments • FSSAI Verified Partners</span>
+        {/* Bottom Line */}
+        <div className="mt-6 flex flex-col items-center justify-between gap-2 border-t border-zinc-900 pt-4 text-center sm:flex-row sm:text-left text-[11px] text-zinc-500">
+          <p>© 2026 CampusBite Technologies. Built for campus communities.</p>
+          <div className="flex items-center gap-1.5 text-zinc-400">
+            <span className="text-emerald-400 text-xs">🔒</span> 100% Encrypted UPI • FSSAI Verified
           </div>
         </div>
       </div>

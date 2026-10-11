@@ -14,69 +14,56 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("Footer Component", () => {
-  it("renders professional modern 4-column layout on normal routes", () => {
+  it("renders ultra-compact mobile-responsive layout on normal routes", () => {
     mockPath = "/";
     const { container } = render(<Footer />);
 
     expect(container.firstChild).not.toBeNull();
 
-    // Brand & Concise Tagline
-    expect(
-      screen.getByText(/hyperlocal closed-campus food delivery network connecting hostels with certified college canteens and messes/i)
-    ).toBeInTheDocument();
-    expect(screen.getByText(/canteens live • 8:00 am – 2:00 am/i)).toBeInTheDocument();
+    // Brand & Live Status
+    expect(screen.getByText("CampusBite")).toBeInTheDocument();
+    expect(screen.getByText(/canteens live • 8 am – 2 am/i)).toBeInTheDocument();
 
     // Section Headings
     expect(screen.getByText("Explore")).toBeInTheDocument();
-    expect(screen.getByText("Partner Portals")).toBeInTheDocument();
-    expect(screen.getByText(/Help & Campus Safety/i)).toBeInTheDocument();
+    expect(screen.getByText("For Partners")).toBeInTheDocument();
+    expect(screen.getByText("Support")).toBeInTheDocument();
+    expect(screen.getByText("Admin")).toBeInTheDocument();
 
-    // Explore / Order Links
-    expect(screen.getByRole("link", { name: /campus canteens & stalls/i })).toHaveAttribute(
+    // Explore Links
+    expect(screen.getByRole("link", { name: /campus canteens/i })).toHaveAttribute(
       "href",
       "/restaurants"
     );
-    expect(screen.getByRole("link", { name: /hostel tiffin & mess plans/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /mess & tiffin plans/i })).toHaveAttribute(
       "href",
       "/subscriptions"
     );
-    expect(screen.getByRole("link", { name: /live order tracking/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /track order/i })).toHaveAttribute(
       "href",
       "/orders"
     );
-    expect(screen.getByRole("link", { name: /student combo deals/i })).toHaveAttribute(
-      "href",
-      "/restaurants?filter=deals"
-    );
 
-    // Partner Portals Links
-    expect(screen.getByRole("link", { name: /canteen partner portal/i })).toHaveAttribute(
+    // Partners Links
+    expect(screen.getByRole("link", { name: /canteen login/i })).toHaveAttribute(
       "href",
       "/restaurant/login"
     );
-    expect(screen.getByRole("link", { name: /register new kitchen/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /register eatery/i })).toHaveAttribute(
       "href",
       "/restaurant/register"
     );
-    expect(screen.getByRole("link", { name: /student courier portal/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /rider login/i })).toHaveAttribute(
       "href",
       "/delivery/login"
     );
-    expect(screen.getByRole("link", { name: /become a campus runner/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /become a courier/i })).toHaveAttribute(
       "href",
       "/delivery/register"
     );
-    expect(screen.getByRole("link", { name: /admin verification hub/i })).toHaveAttribute(
-      "href",
-      "/admin/verifications"
-    );
 
-    // Help & Campus Safety Links
-    expect(screen.getByRole("link", { name: /zeal campus help desk/i })).toHaveAttribute(
-      "href",
-      "/help"
-    );
-    expect(screen.getByRole("link", { name: /support@campusbite\.in/i })).toHaveAttribute(
+    // Support Links
+    expect(screen.getByRole("link", { name: /email help desk/i })).toHaveAttribute(
       "href",
       "mailto:support@campusbite.in"
     );
@@ -88,17 +75,20 @@ describe("Footer Component", () => {
       "href",
       "/privacy"
     );
-    expect(screen.getByRole("link", { name: /refunds & settlement policy/i })).toHaveAttribute(
+
+    // Operations / Admin
+    expect(screen.getByRole("link", { name: /admin verification hub/i })).toHaveAttribute(
       "href",
-      "/terms#refunds"
+      "/admin/verifications"
     );
+    expect(screen.getByText(/zeal college campus network/i)).toBeInTheDocument();
 
     // Bottom Bar
     expect(
-      screen.getByText(/© 2026 CampusBite Technologies\. Built for Zeal College & Campus Communities\./i)
+      screen.getByText(/© 2026 CampusBite Technologies\. Built for campus communities\./i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/100% Encrypted UPI Payments • FSSAI Verified Partners/i)
+      screen.getByText(/100% Encrypted UPI • FSSAI Verified/i)
     ).toBeInTheDocument();
   });
 
