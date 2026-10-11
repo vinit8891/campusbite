@@ -55,6 +55,13 @@ const DEFAULT_COUNTS = {
   externals: 0,
 };
 
+const resolveDocUrl = (url?: string) => {
+  if (!url) return '';
+  if (url.startsWith('http://') || url.startsWith('https://')) return url;
+  const baseUrl = (process.env.NEXT_PUBLIC_API_URL || '').replace(/\/$/, '');
+  return `${baseUrl}${url.startsWith('/') ? '' : '/'}${url}`;
+};
+
 export default function PartnerVerificationHub() {
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [searchQuery, setSearchQuery] = useState("");
@@ -797,37 +804,53 @@ export default function PartnerVerificationHub() {
       {/* DOCUMENT LIGHTBOX PREVIEW */}
       {previewMediaUrl && (
         <div className="fixed inset-0 z-60 flex items-center justify-center bg-black/80 p-4">
-          <div className="relative max-w-3xl w-full bg-stone-900 rounded-3xl overflow-hidden p-4 text-center">
+          <div className="relative max-w-3xl w-full bg-stone-900 rounded-3xl overflow-hidden p-4 text-center shadow-2xl">
             <button
               type="button"
               onClick={() => setPreviewMediaUrl(null)}
-              className="absolute top-4 right-4 h-9 w-9 rounded-full bg-stone-800 hover:bg-stone-700 flex items-center justify-center text-white cursor-pointer"
+              className="absolute top-4 right-4 h-9 w-9 rounded-full bg-stone-800 hover:bg-stone-700 flex items-center justify-center text-white cursor-pointer z-10"
             >
               <X className="h-5 w-5" />
             </button>
-            <h4 className="text-white text-xs font-mono mb-3 truncate">
+            <h4 className="text-white text-xs font-mono mb-3 truncate pr-10 text-left">
               {previewMediaUrl}
             </h4>
             <div className="bg-stone-950 rounded-2xl p-6 min-h-[300px] flex items-center justify-center">
-              {previewMediaUrl.endsWith(".pdf") ? (
-                <div className="text-stone-300 text-xs space-y-2">
-                  <FileText className="h-12 w-12 text-amber-400 mx-auto" />
-                  <p className="font-bold">PDF Document Uploaded</p>
+              {previewMediaUrl.toLowerCase().endsWith(".pdf") ? (
+                <div className="w-full flex flex-col items-center space-y-3">
+                  <iframe
+                    src={resolveDocUrl(previewMediaUrl)}
+                    title="KYC Document Preview"
+                    className="w-full h-[65vh] rounded-lg border border-stone-800 bg-stone-900"
+                  />
                   <a
-                    href={previewMediaUrl}
+                    href={resolveDocUrl(previewMediaUrl)}
                     target="_blank"
                     rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-500 text-stone-950 font-bold rounded-lg hover:bg-amber-400"
+                    className="text-orange-500 underline text-sm mt-2 block"
                   >
-                    <span>Open Full PDF in New Tab</span>
-                    <ExternalLink className="h-3.5 w-3.5" />
+                    Open full original document
                   </a>
                 </div>
               ) : (
-                <div className="text-stone-300 text-xs space-y-2">
-                  <Store className="h-12 w-12 text-emerald-400 mx-auto" />
-                  <p className="font-bold">KYC Image Preview</p>
-                  <p className="text-stone-500 text-[11px]">{previewMediaUrl}</p>
+                <div className="flex flex-col items-center justify-center w-full">
+                  <img
+                    src={resolveDocUrl(previewMediaUrl)}
+                    alt="KYC Document Preview"
+                    className="max-h-[75vh] w-auto max-w-full rounded-lg object-contain shadow-md"
+                    onError={(e) => {
+                      // Handle broken image fallback gracefully
+                      (e.target as HTMLElement).style.display = "none";
+                    }}
+                  />
+                  <a
+                    href={resolveDocUrl(previewMediaUrl)}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-orange-500 underline text-sm mt-2 block"
+                  >
+                    Open full original document
+                  </a>
                 </div>
               )}
             </div>

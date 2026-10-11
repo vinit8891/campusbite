@@ -88,8 +88,8 @@ from app.routes.subscription_payment import (
     customer_router as subscription_payment_customer_router,
     restaurant_router as subscription_payment_restaurant_router,
 )
-from starlette.staticfiles import StaticFiles
 import os
+from fastapi.staticfiles import StaticFiles
 
 from app.db.database import database
 
@@ -220,9 +220,8 @@ app.include_router(partner_onboarding_router)
 app.include_router(admin_router)
 
 # Mount local uploads directory
-uploads_dir = os.path.join(os.getcwd(), "uploads")
-os.makedirs(uploads_dir, exist_ok=True)
-app.mount("/uploads", StaticFiles(directory=uploads_dir), name="uploads")
+os.makedirs("uploads/kyc", exist_ok=True)
+app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 
 
 # ----------------------------------------
