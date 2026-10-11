@@ -97,6 +97,13 @@ export interface PendingVerificationsResponse {
     externals: number;
   };
   items: PendingVerificationItem[];
+  canteens?: PendingVerificationItem[];
+  tiffins?: PendingVerificationItem[];
+  stalls?: PendingVerificationItem[];
+  students?: PendingVerificationItem[];
+  externals?: PendingVerificationItem[];
+  total?: number;
+  success?: boolean;
 }
 
 export const IFSC_REGEX = /^[A-Z]{4}0[A-Z0-9]{6}$/;

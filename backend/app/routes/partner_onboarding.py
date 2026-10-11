@@ -252,110 +252,170 @@ async def upload_kyc_document(
 # 4. Admin Verification Queue & Decision Endpoints
 # ==============================================================================
 
+async def _iterate_cursor(cursor):
+    if hasattr(cursor, "__aiter__"):
+        async for doc in cursor:
+            yield doc
+    elif hasattr(cursor, "__iter__"):
+        for doc in cursor:
+            yield doc
+
+
 @router.get("/admin/verifications/pending")
 async def get_pending_verifications(
     _: Annotated[dict, Depends(require_roles(ADMIN))],
     partner_type: Annotated[str | None, Query()] = "all",
+    tab: Annotated[str | None, Query()] = None,
 ):
     """
     Returns pending partner applications across Canteens, Tiffin Dabbas, Stalls,
     Student Couriers, and External Couriers for Admin review.
+    Returns category arrays and an explicit counts dictionary.
     """
-    pt = (partner_type or "all").lower().strip()
-    results = []
+    pt = (tab or partner_type or "all").lower().strip()
 
-    # Fetch pending restaurants / food vendors
-    if pt in ("all", "canteens", "tiffins", "stalls", "restaurants", "vendor"):
-        restaurant_query: dict[str, Any] = {
-            "$or": [
-                {"verification_status": {"$in": ["PENDING_VERIFICATION", "pending"]}},
-                {"verification_status": {"$exists": False}},
-            ]
+    restaurant_query: dict[str, Any] = {
+        "$or": [
+            {"verification_status": {"$in": ["PENDING_VERIFICATION", "pending"]}},
+            {"verification_status": {"$exists": False}},
+        ]
+    }
+    courier_query: dict[str, Any] = {
+        "$or": [
+            {"verification_status": {"$in": ["PENDING_VERIFICATION", "pending"]}},
+            {"verification_status": {"$exists": False}},
+        ]
+    }
+
+    canteens = []
+    tiffins = []
+    stalls = []
+
+    restaurant_cursor = database["restaurants"].find(restaurant_query).sort("created_at", -1)
+    async for doc in _iterate_cursor(restaurant_cursor):
+        v_type = doc.get("vendor_type") or "CAMPUS_CANTEEN"
+        item = {
+            "id": str(doc["_id"]),
+            "partner_type": "restaurant",
+            "partner_category": "RESTAURANT",
+            "vendor_type": v_type,
+            "courier_type": None,
+            "business_name": doc.get("business_name") or doc.get("name") or "Unnamed Kitchen",
+            "owner_name": doc.get("owner_name") or doc.get("name") or "Partner",
+            "applicant_name": doc.get("owner_name") or doc.get("name") or "Partner",
+            "email": doc.get("email") or "",
+            "phone": doc.get("phone") or "",
+            "address": doc.get("address_or_stall_landmark") or doc.get("address") or "",
+            "address_or_stall_landmark": doc.get("address_or_stall_landmark") or doc.get("address") or "",
+            "is_inside_campus": doc.get("is_inside_campus", True),
+            "compliance_doc_type": doc.get("compliance_doc_type") or "COLLEGE_PERMIT",
+            "compliance_doc_url": doc.get("compliance_doc_url") or "",
+            "kitchen_or_stall_photo_url": doc.get("kitchen_or_stall_photo_url") or "",
+            "id_proof_type": None,
+            "id_proof_doc_url": None,
+            "student_details": None,
+            "transit_mode": None,
+            "vehicle_number": None,
+            "bank_account_holder": doc.get("bank_account_holder") or "",
+            "bank_account_number": doc.get("bank_account_number") or "",
+            "bank_ifsc_code": doc.get("bank_ifsc_code") or "",
+            "settlement_upi_id": doc.get("settlement_upi_id") or "",
+            "bank_details": {
+                "account_holder": doc.get("bank_account_holder") or "",
+                "account_number": doc.get("bank_account_number") or "",
+                "ifsc": doc.get("bank_ifsc_code") or "",
+            },
+            "upi_id": doc.get("settlement_upi_id") or "",
+            "emergency_contact_phone": None,
+            "verification_status": doc.get("verification_status") or "PENDING_VERIFICATION",
+            "rejection_reason": doc.get("rejection_reason"),
+            "created_at": doc.get("created_at").isoformat() if hasattr(doc.get("created_at"), "isoformat") else str(doc.get("created_at") or ""),
         }
-        if pt == "canteens":
-            restaurant_query["vendor_type"] = VendorType.CAMPUS_CANTEEN.value
-        elif pt == "tiffins":
-            restaurant_query["vendor_type"] = VendorType.HOME_TIFFIN.value
-        elif pt == "stalls":
-            restaurant_query["vendor_type"] = VendorType.STREET_STALL.value
+        if v_type == VendorType.CAMPUS_CANTEEN.value:
+            canteens.append(item)
+        elif v_type == VendorType.HOME_TIFFIN.value:
+            tiffins.append(item)
+        elif v_type == VendorType.STREET_STALL.value:
+            stalls.append(item)
+        else:
+            canteens.append(item)
 
-        async for doc in database["restaurants"].find(restaurant_query).sort("created_at", -1):
-            results.append({
-                "id": str(doc["_id"]),
-                "partner_category": "RESTAURANT",
-                "vendor_type": doc.get("vendor_type") or "CAMPUS_CANTEEN",
-                "courier_type": None,
-                "business_name": doc.get("business_name") or doc.get("name") or "Unnamed Kitchen",
-                "applicant_name": doc.get("owner_name") or doc.get("name") or "Partner",
-                "email": doc.get("email") or "",
-                "phone": doc.get("phone") or "",
-                "address": doc.get("address_or_stall_landmark") or doc.get("address") or "",
-                "is_inside_campus": doc.get("is_inside_campus", True),
-                "compliance_doc_type": doc.get("compliance_doc_type") or "COLLEGE_PERMIT",
-                "compliance_doc_url": doc.get("compliance_doc_url") or "",
-                "kitchen_or_stall_photo_url": doc.get("kitchen_or_stall_photo_url") or "",
-                "id_proof_type": None,
-                "id_proof_doc_url": None,
-                "student_details": None,
-                "transit_mode": None,
-                "vehicle_number": None,
-                "bank_details": {
-                    "account_holder": doc.get("bank_account_holder") or "",
-                    "account_number": doc.get("bank_account_number") or "",
-                    "ifsc": doc.get("bank_ifsc_code") or "",
-                },
-                "upi_id": doc.get("settlement_upi_id") or "",
-                "emergency_contact_phone": None,
-                "verification_status": doc.get("verification_status") or "PENDING_VERIFICATION",
-                "rejection_reason": doc.get("rejection_reason"),
-                "created_at": doc.get("created_at").isoformat() if hasattr(doc.get("created_at"), "isoformat") else str(doc.get("created_at") or ""),
-            })
+    students = []
+    externals = []
 
-    # Fetch pending couriers / riders
-    if pt in ("all", "students", "externals", "couriers", "delivery", "riders"):
-        courier_query: dict[str, Any] = {
-            "$or": [
-                {"verification_status": {"$in": ["PENDING_VERIFICATION", "pending"]}},
-                {"verification_status": {"$exists": False}},
-            ]
+    courier_cursor = database["delivery_partners"].find(courier_query).sort("created_at", -1)
+    async for doc in _iterate_cursor(courier_cursor):
+        c_type = doc.get("courier_type") or ("STUDENT" if doc.get("student_details") else "EXTERNAL_GIG")
+        item = {
+            "id": str(doc["_id"]),
+            "partner_type": "courier",
+            "partner_category": "COURIER",
+            "vendor_type": None,
+            "courier_type": c_type,
+            "business_name": None,
+            "full_name": doc.get("full_name") or doc.get("name") or "Courier Runner",
+            "applicant_name": doc.get("full_name") or doc.get("name") or "Courier Runner",
+            "email": doc.get("email") or "",
+            "phone": doc.get("phone") or "",
+            "address": doc.get("address") or "",
+            "is_inside_campus": True,
+            "compliance_doc_type": None,
+            "compliance_doc_url": None,
+            "kitchen_or_stall_photo_url": None,
+            "id_proof_type": doc.get("id_proof_type") or "STUDENT_ID",
+            "id_proof_doc_url": doc.get("id_proof_doc_url") or "",
+            "student_details": doc.get("student_details"),
+            "transit_mode": doc.get("transit_mode") or doc.get("vehicle_type") or "BICYCLE",
+            "vehicle_number": doc.get("vehicle_number") or "",
+            "bank_details": None,
+            "payout_upi_id": doc.get("payout_upi_id") or "",
+            "upi_id": doc.get("payout_upi_id") or "",
+            "emergency_contact_phone": doc.get("emergency_contact_phone") or "",
+            "verification_status": doc.get("verification_status") or "PENDING_VERIFICATION",
+            "rejection_reason": doc.get("rejection_reason"),
+            "created_at": doc.get("created_at").isoformat() if hasattr(doc.get("created_at"), "isoformat") else str(doc.get("created_at") or ""),
         }
-        if pt == "students":
-            courier_query["courier_type"] = CourierType.STUDENT.value
-        elif pt in ("externals", "riders"):
-            courier_query["courier_type"] = CourierType.EXTERNAL_GIG.value
+        if c_type == CourierType.STUDENT.value:
+            students.append(item)
+        else:
+            externals.append(item)
 
-        async for doc in database["delivery_partners"].find(courier_query).sort("created_at", -1):
-            results.append({
-                "id": str(doc["_id"]),
-                "partner_category": "COURIER",
-                "vendor_type": None,
-                "courier_type": doc.get("courier_type") or ("STUDENT" if doc.get("student_details") else "EXTERNAL_GIG"),
-                "business_name": None,
-                "applicant_name": doc.get("full_name") or doc.get("name") or "Courier Runner",
-                "email": doc.get("email") or "",
-                "phone": doc.get("phone") or "",
-                "address": doc.get("address") or "",
-                "is_inside_campus": True,
-                "compliance_doc_type": None,
-                "compliance_doc_url": None,
-                "kitchen_or_stall_photo_url": None,
-                "id_proof_type": doc.get("id_proof_type") or "STUDENT_ID",
-                "id_proof_doc_url": doc.get("id_proof_doc_url") or "",
-                "student_details": doc.get("student_details"),
-                "transit_mode": doc.get("transit_mode") or doc.get("vehicle_type") or "BICYCLE",
-                "vehicle_number": doc.get("vehicle_number") or "",
-                "bank_details": None,
-                "upi_id": doc.get("payout_upi_id") or "",
-                "emergency_contact_phone": doc.get("emergency_contact_phone") or "",
-                "verification_status": doc.get("verification_status") or "PENDING_VERIFICATION",
-                "rejection_reason": doc.get("rejection_reason"),
-                "created_at": doc.get("created_at").isoformat() if hasattr(doc.get("created_at"), "isoformat") else str(doc.get("created_at") or ""),
-            })
+    counts = {
+        "all": len(canteens) + len(tiffins) + len(stalls) + len(students) + len(externals),
+        "canteens": len(canteens),
+        "tiffins": len(tiffins),
+        "stalls": len(stalls),
+        "students": len(students),
+        "externals": len(externals),
+    }
+
+    if pt == "canteens":
+        filtered_items = canteens
+    elif pt == "tiffins":
+        filtered_items = tiffins
+    elif pt == "stalls":
+        filtered_items = stalls
+    elif pt in ("students",):
+        filtered_items = students
+    elif pt in ("externals", "riders"):
+        filtered_items = externals
+    elif pt in ("restaurants", "vendor"):
+        filtered_items = canteens + tiffins + stalls
+    elif pt in ("couriers", "delivery"):
+        filtered_items = students + externals
+    else:
+        filtered_items = canteens + tiffins + stalls + students + externals
 
     return {
         "success": True,
-        "total": len(results),
-        "items": results,
+        "total": len(filtered_items),
+        "canteens": canteens,
+        "tiffins": tiffins,
+        "stalls": stalls,
+        "students": students,
+        "externals": externals,
+        "counts": counts,
+        "items": filtered_items,
     }
 
 

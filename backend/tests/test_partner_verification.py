@@ -261,3 +261,72 @@ async def test_platform_guard_blocks_unapproved_courier_access(client, courier_t
         )
         assert resp.status_code == 403
         assert "pending verification" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_admin_get_pending_verifications_returns_counts(client, admin_token):
+    """Tests that GET /admin/verifications/pending returns explicit counts dictionary and category arrays."""
+    fake_rest_id = ObjectId()
+    fake_courier_id = ObjectId()
+
+    mock_rest_docs = [
+        {
+            "_id": fake_rest_id,
+            "name": "Campus Canteen 1",
+            "vendor_type": "CAMPUS_CANTEEN",
+            "verification_status": "PENDING_VERIFICATION",
+            "email": "canteen@campus.edu",
+            "phone": "9876543210",
+        }
+    ]
+    mock_courier_docs = [
+        {
+            "_id": fake_courier_id,
+            "full_name": "Student Runner 1",
+            "courier_type": "STUDENT",
+            "verification_status": "PENDING_VERIFICATION",
+            "email": "runner@campus.edu",
+            "phone": "9876500001",
+        }
+    ]
+
+    mock_restaurants = MagicMock()
+    mock_delivery = MagicMock()
+
+    class FakeCursor:
+        def __init__(self, docs):
+            self.docs = docs
+
+        def sort(self, *args, **kwargs):
+            return self
+
+        def __iter__(self):
+            return iter(self.docs)
+
+    mock_restaurants.find = MagicMock(return_value=FakeCursor(mock_rest_docs))
+    mock_delivery.find = MagicMock(return_value=FakeCursor(mock_courier_docs))
+
+    mock_db = {
+        "restaurants": mock_restaurants,
+        "delivery_partners": mock_delivery,
+    }
+
+    with patch("app.routes.partner_onboarding.database", mock_db):
+        resp = client.get(
+            "/admin/verifications/pending",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        assert "counts" in data
+        assert data["counts"]["all"] == 2
+        assert data["counts"]["canteens"] == 1
+        assert data["counts"]["tiffins"] == 0
+        assert data["counts"]["stalls"] == 0
+        assert data["counts"]["students"] == 1
+        assert data["counts"]["externals"] == 0
+        assert len(data["items"]) == 2
+        assert len(data["canteens"]) == 1
+        assert len(data["students"]) == 1
+

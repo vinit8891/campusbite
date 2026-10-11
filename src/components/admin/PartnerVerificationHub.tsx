@@ -46,19 +46,21 @@ type FilterTab =
   | "students"
   | "externals";
 
+const DEFAULT_COUNTS = {
+  all: 0,
+  canteens: 0,
+  tiffins: 0,
+  stalls: 0,
+  students: 0,
+  externals: 0,
+};
+
 export default function PartnerVerificationHub() {
   const [activeTab, setActiveTab] = useState<FilterTab>("all");
   const [searchQuery, setSearchQuery] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [data, setData] = useState<PendingVerificationsResponse>({
-    counts: {
-      all: 0,
-      canteens: 0,
-      tiffins: 0,
-      stalls: 0,
-      students: 0,
-      externals: 0,
-    },
+    counts: DEFAULT_COUNTS,
     items: [],
   });
 
@@ -75,9 +77,80 @@ export default function PartnerVerificationHub() {
     setIsLoading(true);
     try {
       const res = await getPendingVerifications(tab);
-      setData(res);
+      const resCounts = (res as any)?.counts;
+      const resItems = Array.isArray((res as any)?.items)
+        ? (res as any).items
+        : [
+            ...((res as any)?.canteens || []),
+            ...((res as any)?.tiffins || []),
+            ...((res as any)?.stalls || []),
+            ...((res as any)?.students || []),
+            ...((res as any)?.externals || []),
+          ];
+
+      const safeCounts = {
+        all:
+          resCounts?.all ??
+          (res as any)?.total ??
+          (resItems?.length ?? 0),
+        canteens:
+          resCounts?.canteens ??
+          ((res as any)?.canteens?.length ??
+            resItems.filter(
+              (i: any) =>
+                (i.partner_type === "restaurant" ||
+                  i.partner_category === "RESTAURANT") &&
+                i.vendor_type === "CAMPUS_CANTEEN"
+            ).length),
+        tiffins:
+          resCounts?.tiffins ??
+          ((res as any)?.tiffins?.length ??
+            resItems.filter(
+              (i: any) =>
+                (i.partner_type === "restaurant" ||
+                  i.partner_category === "RESTAURANT") &&
+                i.vendor_type === "HOME_TIFFIN"
+            ).length),
+        stalls:
+          resCounts?.stalls ??
+          ((res as any)?.stalls?.length ??
+            resItems.filter(
+              (i: any) =>
+                (i.partner_type === "restaurant" ||
+                  i.partner_category === "RESTAURANT") &&
+                i.vendor_type === "STREET_STALL"
+            ).length),
+        students:
+          resCounts?.students ??
+          ((res as any)?.students?.length ??
+            resItems.filter(
+              (i: any) =>
+                (i.partner_type === "courier" ||
+                  i.partner_category === "COURIER") &&
+                i.courier_type === "STUDENT"
+            ).length),
+        externals:
+          resCounts?.externals ??
+          ((res as any)?.externals?.length ??
+            resItems.filter(
+              (i: any) =>
+                (i.partner_type === "courier" ||
+                  i.partner_category === "COURIER") &&
+                (i.courier_type === "EXTERNAL_GIG" ||
+                  i.courier_type === "EXTERNAL")
+            ).length),
+      };
+
+      setData({
+        counts: safeCounts,
+        items: resItems,
+      });
     } catch (err: any) {
       toast.error(err.message || "Failed to load verification queue.");
+      setData((prev) => ({
+        counts: prev?.counts ?? DEFAULT_COUNTS,
+        items: prev?.items ?? [],
+      }));
     } finally {
       setIsLoading(false);
     }
@@ -90,14 +163,17 @@ export default function PartnerVerificationHub() {
   const handleApprove = async (item: PendingVerificationItem) => {
     setIsProcessing(true);
     try {
+      const partnerType =
+        item.partner_type ||
+        ((item as any).partner_category === "RESTAURANT" ? "restaurant" : "courier");
       await submitVerificationDecision(
-        item.partner_type,
+        partnerType,
         item.id,
         "APPROVE"
       );
       toast.success(
         `✓ ${
-          item.business_name || item.full_name
+          item.business_name || item.full_name || (item as any).applicant_name
         } approved and activated for orders!`
       );
       if (selectedItem?.id === item.id) {
@@ -126,8 +202,11 @@ export default function PartnerVerificationHub() {
 
     setIsProcessing(true);
     try {
+      const partnerType =
+        itemToReject.partner_type ||
+        ((itemToReject as any).partner_category === "RESTAURANT" ? "restaurant" : "courier");
       await submitVerificationDecision(
-        itemToReject.partner_type,
+        partnerType,
         itemToReject.id,
         "REJECT",
         rejectionReason.trim()
@@ -146,13 +225,22 @@ export default function PartnerVerificationHub() {
     }
   };
 
-  const filteredItems = data.items.filter((item) => {
+  const counts = data?.counts ?? DEFAULT_COUNTS;
+  const items = Array.isArray(data?.items) ? data.items : [];
+
+  const filteredItems = items.filter((item) => {
+    if (!item) return false;
     if (!searchQuery.trim()) return true;
     const q = searchQuery.toLowerCase();
-    const name = (item.business_name || item.full_name || "").toLowerCase();
+    const name = (
+      item.business_name ||
+      item.full_name ||
+      (item as any).applicant_name ||
+      ""
+    ).toLowerCase();
     const owner = (item.owner_name || "").toLowerCase();
-    const email = item.email.toLowerCase();
-    const phone = item.phone.toLowerCase();
+    const email = (item.email || "").toLowerCase();
+    const phone = (item.phone || "").toLowerCase();
     return (
       name.includes(q) ||
       owner.includes(q) ||
@@ -162,7 +250,10 @@ export default function PartnerVerificationHub() {
   });
 
   const getTierBadge = (item: PendingVerificationItem) => {
-    if (item.partner_type === "restaurant") {
+    const isRestaurant =
+      item.partner_type === "restaurant" ||
+      (item as any).partner_category === "RESTAURANT";
+    if (isRestaurant) {
       switch (item.vendor_type) {
         case "CAMPUS_CANTEEN":
           return (
@@ -242,12 +333,12 @@ export default function PartnerVerificationHub() {
       {/* Filter Chips Bar */}
       <div className="flex flex-wrap items-center gap-2 border-b border-stone-200 pb-4">
         {[
-          { id: "all", label: "All Applicants", count: data.counts.all },
-          { id: "canteens", label: "Canteens & Mess", count: data.counts.canteens },
-          { id: "tiffins", label: "Home Tiffins", count: data.counts.tiffins },
-          { id: "stalls", label: "Small Stalls", count: data.counts.stalls },
-          { id: "students", label: "Student Runners", count: data.counts.students },
-          { id: "externals", label: "External Couriers", count: data.counts.externals },
+          { id: "all", label: "All Applicants", count: counts?.all ?? 0 },
+          { id: "canteens", label: "Canteens & Mess", count: counts?.canteens ?? 0 },
+          { id: "tiffins", label: "Home Tiffins", count: counts?.tiffins ?? 0 },
+          { id: "stalls", label: "Small Stalls", count: counts?.stalls ?? 0 },
+          { id: "students", label: "Student Runners", count: counts?.students ?? 0 },
+          { id: "externals", label: "External Couriers", count: counts?.externals ?? 0 },
         ].map((tab) => {
           const isSelected = activeTab === tab.id;
           return (
@@ -309,10 +400,12 @@ export default function PartnerVerificationHub() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
           {filteredItems.map((item) => {
-            const isRestaurant = item.partner_type === "restaurant";
+            const isRestaurant =
+              item.partner_type === "restaurant" ||
+              (item as any).partner_category === "RESTAURANT";
             const displayName = isRestaurant
-              ? item.business_name
-              : item.full_name;
+              ? item.business_name || (item as any).applicant_name || "Restaurant Partner"
+              : item.full_name || (item as any).applicant_name || "Courier Runner";
 
             return (
               <div
@@ -425,7 +518,9 @@ export default function PartnerVerificationHub() {
             {/* Applicant Title */}
             <div>
               <h2 className="text-2xl font-black text-stone-900">
-                {selectedItem.business_name || selectedItem.full_name}
+                {selectedItem.business_name ||
+                  selectedItem.full_name ||
+                  (selectedItem as any).applicant_name}
               </h2>
               {selectedItem.owner_name && (
                 <p className="text-xs text-stone-500 mt-0.5">
@@ -452,7 +547,8 @@ export default function PartnerVerificationHub() {
                 </span>
               </div>
 
-              {selectedItem.partner_type === "restaurant" && (
+              {(selectedItem.partner_type === "restaurant" ||
+                (selectedItem as any).partner_category === "RESTAURANT") && (
                 <>
                   <div>
                     <span className="text-stone-400 block">Campus Location</span>
@@ -465,36 +561,51 @@ export default function PartnerVerificationHub() {
                   <div>
                     <span className="text-stone-400 block">Address / Stall</span>
                     <span className="font-bold text-stone-900">
-                      {selectedItem.address_or_stall_landmark}
+                      {selectedItem.address_or_stall_landmark ||
+                        (selectedItem as any).address}
                     </span>
                   </div>
                   <div>
                     <span className="text-stone-400 block">Bank Account Holder</span>
                     <span className="font-bold text-stone-900">
-                      {selectedItem.bank_account_holder}
+                      {selectedItem.bank_account_holder ||
+                        (selectedItem as any).bank_details?.account_holder ||
+                        "N/A"}
                     </span>
                   </div>
                   <div>
                     <span className="text-stone-400 block">Bank & IFSC</span>
                     <span className="font-mono font-bold text-stone-900">
-                      {selectedItem.bank_account_number} ({selectedItem.bank_ifsc_code})
+                      {(selectedItem.bank_account_number ||
+                        (selectedItem as any).bank_details?.account_number ||
+                        "") +
+                        ((selectedItem.bank_ifsc_code ||
+                          (selectedItem as any).bank_details?.ifsc)
+                          ? ` (${
+                              selectedItem.bank_ifsc_code ||
+                              (selectedItem as any).bank_details?.ifsc
+                            })`
+                          : "")}
                     </span>
                   </div>
                   <div className="sm:col-span-2">
                     <span className="text-stone-400 block">Daily 9PM Settlement UPI</span>
                     <span className="font-mono font-bold text-emerald-700">
-                      {selectedItem.settlement_upi_id}
+                      {selectedItem.settlement_upi_id ||
+                        (selectedItem as any).upi_id ||
+                        "N/A"}
                     </span>
                   </div>
                 </>
               )}
 
-              {selectedItem.partner_type === "courier" && (
+              {(selectedItem.partner_type === "courier" ||
+                (selectedItem as any).partner_category === "COURIER") && (
                 <>
                   <div>
                     <span className="text-stone-400 block">Transit Mode</span>
                     <span className="font-bold text-stone-900">
-                      {selectedItem.transit_mode}
+                      {selectedItem.transit_mode || "BICYCLE"}
                       {selectedItem.vehicle_number
                         ? ` (${selectedItem.vehicle_number})`
                         : ""}
@@ -503,7 +614,7 @@ export default function PartnerVerificationHub() {
                   <div>
                     <span className="text-stone-400 block">Emergency Contact</span>
                     <span className="font-bold text-stone-900">
-                      {selectedItem.emergency_contact_phone}
+                      {selectedItem.emergency_contact_phone || "N/A"}
                     </span>
                   </div>
                   {selectedItem.student_details && (
@@ -526,7 +637,9 @@ export default function PartnerVerificationHub() {
                   <div className="sm:col-span-2">
                     <span className="text-stone-400 block">Instant Payout UPI</span>
                     <span className="font-mono font-bold text-emerald-700">
-                      {selectedItem.payout_upi_id}
+                      {selectedItem.payout_upi_id ||
+                        (selectedItem as any).upi_id ||
+                        "N/A"}
                     </span>
                   </div>
                 </>
