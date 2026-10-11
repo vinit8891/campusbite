@@ -8,6 +8,14 @@ export interface User {
   email: string;
   phone?: string;
   created_at?: string | null;
+  referral_code?: string;
+  referral_vouchers?: {
+    code: string;
+    amount: number;
+    created_at?: string;
+    reason?: string;
+    is_used?: boolean;
+  }[];
 }
 
 export type Customer = User;
@@ -17,6 +25,7 @@ export type CustomerRegisterPayload = {
   email: string;
   phone: string;
   password: string;
+  referral_code?: string;
 };
 
 export type LoginCredentials = {

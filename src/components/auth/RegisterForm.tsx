@@ -2,7 +2,7 @@
 
 import { useAuth } from "@/context/AuthContext";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
@@ -10,9 +10,9 @@ import { Input } from "@/components/ui/input";
 import { ROUTES } from "@/lib/routes";
 import { loginCustomer, registerCustomer } from "@/services/authService";
 
-
 export default function RegisterForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { login } = useAuth();
 
   const [fullName, setFullName] = useState("");
@@ -20,6 +20,7 @@ export default function RegisterForm() {
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [referralCode, setReferralCode] = useState(searchParams?.get("ref") || "");
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -60,6 +61,7 @@ export default function RegisterForm() {
         email: trimmedEmail,
         phone: trimmedPhone,
         password,
+        referral_code: referralCode.trim() ? referralCode.trim().toUpperCase() : undefined,
       });
 
       // Existing Phase 2 flow: register → login → AuthContext JWT
@@ -180,6 +182,21 @@ export default function RegisterForm() {
             onChange={(e) => setConfirmPassword(e.target.value)}
             required
             minLength={6}
+          />
+        </div>
+
+        <div>
+          <label htmlFor="reg-referral" className="mb-2 block font-medium flex items-center justify-between">
+            <span>Referral Code (Optional)</span>
+            <span className="text-xs text-orange-600 font-semibold">Get ₹25 reward</span>
+          </label>
+          <Input
+            id="reg-referral"
+            type="text"
+            placeholder="e.g. ZEAL-A1B2"
+            value={referralCode}
+            onChange={(e) => setReferralCode(e.target.value.toUpperCase())}
+            className="uppercase font-mono tracking-wider font-semibold"
           />
         </div>
 

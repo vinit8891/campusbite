@@ -8,6 +8,7 @@ import { Menu, ShoppingCart, MapPin, ChevronDown } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
 import { useLocation } from "@/context/LocationContext";
+import { useUserLocation } from "@/hooks/useUserLocation";
 import { ROUTES } from "@/lib/routes";
 import { Button } from "@/components/ui/button";
 import { MobileDrawer } from "@/components/layout/MobileDrawer";
@@ -17,8 +18,11 @@ export function Navbar() {
   const pathname = usePathname();
   const { isLoggedIn } = useAuth();
   const { cart } = useCart();
-  const { fullAddressLabel, openLocationModal } = useLocation();
+  const { openLocationModal } = useLocation();
+  const { campusLabel } = useUserLocation();
   const [isMobileNavOpen, setIsMobileNavOpen] = useState(false);
+
+  const displayLocation = campusLabel || "Near Zeal College, Narhe";
 
   const totalItems = cart.reduce(
     (total, item) => total + item.quantity,
@@ -53,16 +57,20 @@ export function Navbar() {
               </span>
             </Link>
 
-            {/* Desktop Location Pill */}
+            {/* Top Location Pill */}
             <button
               type="button"
               onClick={openLocationModal}
-              className="hidden lg:flex items-center gap-1.5 rounded-xl border border-orange-100 bg-orange-50/50 px-3 py-1.5 text-xs font-semibold text-stone-700 hover:border-orange-200 hover:bg-orange-100/60 hover:text-orange-600 transition-all cursor-pointer active:scale-98"
+              className="flex items-center gap-1.5 rounded-xl border border-orange-200/90 bg-orange-50/80 px-2.5 py-1.5 sm:px-3 text-xs font-semibold text-stone-800 hover:border-orange-300 hover:bg-orange-100 hover:text-orange-700 transition-all cursor-pointer active:scale-98 shadow-xs"
               aria-label="Change campus delivery location"
             >
-              <MapPin className="h-3.5 w-3.5 text-orange-500 shrink-0" />
-              <span className="truncate max-w-[150px]">{fullAddressLabel}</span>
-              <ChevronDown className="h-3 w-3 text-stone-400 shrink-0" />
+              <span className="text-sm shrink-0" aria-hidden="true">📍</span>
+              <span className="truncate max-w-[140px] sm:max-w-[210px] text-stone-800 font-medium">
+                {displayLocation}
+              </span>
+              <span className="text-orange-600 font-semibold underline text-[11px] ml-0.5 shrink-0 hover:text-orange-700">
+                (Change)
+              </span>
             </button>
           </div>
 

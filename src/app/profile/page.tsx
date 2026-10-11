@@ -36,6 +36,7 @@ import EditContactModal from "@/components/profile/EditContactModal";
 import ChangePasswordModal from "@/components/profile/ChangePasswordModal";
 import DeleteAccountModal from "@/components/profile/DeleteAccountModal";
 import CampusAddressCard from "@/components/profile/CampusAddressCard";
+import ReferralCard from "@/components/profile/ReferralModal";
 
 export default function ProfilePage() {
   const router = useRouter();
@@ -443,6 +444,9 @@ export default function ProfilePage() {
                 onSave={handleSaveCampusAddress}
               />
             </div>
+
+            {/* Student Referral Advantage */}
+            <ReferralCard profile={profileData} />
 
             {/* Quick Links Section */}
             <section className="rounded-2xl border border-gray-100 bg-white p-6 shadow-sm">

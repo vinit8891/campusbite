@@ -43,6 +43,8 @@ export type BackendRestaurant = {
   is_verified?: boolean;
   verification_status?: string;
   is_active?: boolean;
+  min_order_amount?: number;
+  price_for_two?: number;
   menu?: BackendMenuItem[];
 };
 

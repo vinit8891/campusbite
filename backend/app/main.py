@@ -78,6 +78,7 @@ from app.routes.review import (
 from app.routes.health import router as health_router
 from app.routers.admin import router as admin_router
 from app.routes.partner_onboarding import router as partner_onboarding_router
+from app.routes.coupons import router as coupons_router
 from app.routes.payment import router as payment_router
 from app.routes.subscription import router as subscription_router
 from app.routes.subscription_billing import router as subscription_billing_router
@@ -218,6 +219,7 @@ app.include_router(
 
 app.include_router(partner_onboarding_router)
 app.include_router(admin_router)
+app.include_router(coupons_router)
 
 # Mount local uploads directory
 os.makedirs("uploads/kyc", exist_ok=True)

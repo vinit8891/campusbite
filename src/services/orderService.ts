@@ -25,6 +25,8 @@ export async function placeOrder(data: PlaceOrderPayload): Promise<Order> {
     restaurant_longitude: data.restaurant_longitude ?? 73.856743,
     latitude: data.latitude ?? null,
     longitude: data.longitude ?? null,
+    coupon_code: data.coupon_code || null,
+    discount_amount: data.discount_amount ?? 0,
     items: (data.items || []).map((item) => ({
       id: String(item.id),
       name: item.name,

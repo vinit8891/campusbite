@@ -38,6 +38,7 @@ import {
   verifyRazorpayPayment,
   type CreatePaymentResponse,
 } from "@/services/paymentService";
+import { validateCouponCode } from "@/services/adminService";
 import { useMemo } from "react";
 
 const MockCheckoutModal = dynamic(
@@ -73,6 +74,48 @@ export default function OrderSummary() {
   const [mockBusy, setMockBusy] = useState(false);
   const [pendingPayment, setPendingPayment] =
     useState<CreatePaymentResponse | null>(null);
+
+  const [couponCodeInput, setCouponCodeInput] = useState("");
+  const [appliedCoupon, setAppliedCoupon] = useState<{
+    code: string;
+    discount_amount: number;
+    discount_type: string;
+    discount_value: number;
+  } | null>(null);
+  const [isValidatingCoupon, setIsValidatingCoupon] = useState(false);
+
+  async function handleApplyCoupon(e?: React.FormEvent) {
+    if (e) e.preventDefault();
+    const cleanCode = couponCodeInput.trim().toUpperCase();
+    if (!cleanCode) {
+      toast.error("Please enter a coupon code.");
+      return;
+    }
+    try {
+      setIsValidatingCoupon(true);
+      const res = await validateCouponCode(cleanCode, pricing.appSubtotal);
+      if (res.valid) {
+        setAppliedCoupon({
+          code: res.code,
+          discount_amount: res.discount_amount,
+          discount_type: res.discount_type,
+          discount_value: res.discount_value,
+        });
+        toast.success(res.message || `Coupon ${res.code} applied!`);
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : "Invalid coupon code";
+      toast.error(msg);
+    } finally {
+      setIsValidatingCoupon(false);
+    }
+  }
+
+  function handleRemoveCoupon() {
+    setAppliedCoupon(null);
+    setCouponCodeInput("");
+    toast.info("Coupon removed.");
+  }
 
   const cartInput: CartItemInput[] = useMemo(
     () =>
@@ -294,8 +337,12 @@ export default function OrderSummary() {
         fullAddress += ` (Note: ${checkout.delivery_instructions.trim()})`;
       }
 
+      const discountDeduction = appliedCoupon ? appliedCoupon.discount_amount : 0;
       const unroundedPayable = Number(
-        (pricing.totalStudentPayable + Number(checkout.tip_amount || 0)).toFixed(2)
+        Math.max(
+          0,
+          pricing.totalStudentPayable + Number(checkout.tip_amount || 0) - discountDeduction
+        ).toFixed(2)
       );
       const { roundedTotal: codRoundedTotal, roundOff: codRoundOff } =
         calculateCodRounding(unroundedPayable);
@@ -310,6 +357,8 @@ export default function OrderSummary() {
         payment_method: isOnline ? ONLINE_PAYMENT_METHOD : COD_PAYMENT_METHOD,
         items: cart,
         total: finalPayableNum,
+        coupon_code: appliedCoupon ? appliedCoupon.code : undefined,
+        discount_amount: discountDeduction > 0 ? discountDeduction : undefined,
         delivery_for: checkout.delivery_for,
         delivery_type: effectiveMode,
         hostel_block:
@@ -467,8 +516,12 @@ export default function OrderSummary() {
     }
   }
 
+  const discountDeduction = appliedCoupon ? appliedCoupon.discount_amount : 0;
   const unroundedPayable = Number(
-    (pricing.totalStudentPayable + Number(checkout.tip_amount || 0)).toFixed(2)
+    Math.max(
+      0,
+      pricing.totalStudentPayable + Number(checkout.tip_amount || 0) - discountDeduction
+    ).toFixed(2)
   );
 
   const { roundedTotal, roundOff } = useMemo(
@@ -574,6 +627,57 @@ export default function OrderSummary() {
           </div>
         </div>
 
+        {/* Apply Promo / Voucher Coupon Box */}
+        <div className="rounded-xl border border-stone-200 bg-stone-50/70 p-3">
+          <div className="flex items-center justify-between mb-2">
+            <span className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
+              <span>🎟️</span> Promo Coupon
+            </span>
+            {appliedCoupon && (
+              <span className="text-[10px] font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-full">
+                Saved ₹{appliedCoupon.discount_amount.toFixed(2)}
+              </span>
+            )}
+          </div>
+
+          {appliedCoupon ? (
+            <div className="flex items-center justify-between bg-white border border-emerald-200 rounded-xl px-3 py-2">
+              <div className="flex items-center gap-2">
+                <span className="font-mono text-xs font-black tracking-wide text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
+                  {appliedCoupon.code}
+                </span>
+                <span className="text-xs font-semibold text-emerald-700">
+                  -₹{appliedCoupon.discount_amount.toFixed(2)} OFF
+                </span>
+              </div>
+              <button
+                type="button"
+                onClick={handleRemoveCoupon}
+                className="text-xs font-bold text-stone-400 hover:text-rose-600 transition cursor-pointer"
+              >
+                Remove
+              </button>
+            </div>
+          ) : (
+            <form onSubmit={handleApplyCoupon} className="flex gap-2">
+              <input
+                type="text"
+                value={couponCodeInput}
+                onChange={(e) => setCouponCodeInput(e.target.value.toUpperCase())}
+                placeholder="Enter code (e.g. CAMPUS30)"
+                className="flex-1 h-9 px-3 rounded-xl border border-stone-200 bg-white text-xs font-mono font-bold uppercase text-stone-900 placeholder:normal-case placeholder:font-normal placeholder:text-stone-400 focus:border-amber-500 focus:outline-none"
+              />
+              <button
+                type="submit"
+                disabled={isValidatingCoupon || !couponCodeInput.trim()}
+                className="h-9 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition disabled:opacity-50 cursor-pointer"
+              >
+                {isValidatingCoupon ? "Checking..." : "Apply"}
+              </button>
+            </form>
+          )}
+        </div>
+
         {/* Bill Breakdown from pricingEngine */}
         <div className="space-y-2 text-xs text-stone-600">
           <div className="flex justify-between">
@@ -625,6 +729,13 @@ export default function OrderSummary() {
             <div className="flex justify-between text-amber-700 font-bold">
               <span>Rider Tip</span>
               <span>+₹{Number(checkout.tip_amount || 0).toFixed(2)}</span>
+            </div>
+          )}
+
+          {discountDeduction > 0 && (
+            <div className="flex justify-between text-emerald-600 font-bold">
+              <span>Coupon Discount ({appliedCoupon?.code})</span>
+              <span>-₹{discountDeduction.toFixed(2)}</span>
             </div>
           )}
 

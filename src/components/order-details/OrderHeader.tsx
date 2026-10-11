@@ -20,10 +20,24 @@ export function OrderHeader({
   showRestaurantMap,
   hasRestaurantLocation,
 }: OrderHeaderProps) {
-  const restaurantName = order.restaurant_name || "Restaurant";
+  const restaurantName =
+    order.restaurant_info?.name || order.restaurant_name || "Restaurant";
   const restaurantImage = order.restaurant_image;
-  const restaurantLocation =
-    order.address?.split(",")[0]?.trim() || "Campus Area";
+  const restaurantAddress =
+    order.restaurant_info?.address ||
+    order.address?.split(",")[0]?.trim() ||
+    "Campus Eatery";
+  const restaurantPhone =
+    order.restaurant_info?.phone || order.restaurant_phone;
+  const restaurantLat =
+    order.restaurant_info?.latitude ?? order.restaurant_latitude;
+  const restaurantLng =
+    order.restaurant_info?.longitude ?? order.restaurant_longitude;
+  const hasMapCoords =
+    restaurantLat != null &&
+    restaurantLng != null &&
+    !isNaN(Number(restaurantLat)) &&
+    !isNaN(Number(restaurantLng));
 
   return (
     <>
@@ -73,9 +87,55 @@ export function OrderHeader({
       </section>
 
       {/* ========================================================= */}
-      {/* RESTAURANT CARD */}
+      {/* IMMEDIATE PICKUP SPOT CARD */}
       {/* ========================================================= */}
-      <section className="mt-8 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
+      <section className="mt-6 overflow-hidden rounded-3xl border border-orange-200 bg-gradient-to-r from-orange-50/90 via-white to-amber-50/80 p-5 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex items-start gap-4">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-600 text-2xl text-white shadow-sm">
+              📍
+            </div>
+            <div>
+              <div className="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-2.5 py-0.5 text-xs font-semibold text-orange-800">
+                <span className="h-1.5 w-1.5 rounded-full bg-orange-500 animate-pulse"></span>
+                Pickup Spot
+              </div>
+              <h3 className="mt-1 text-xl font-bold text-gray-900">
+                {restaurantName}
+              </h3>
+              <p className="mt-0.5 text-sm text-gray-600">
+                {restaurantAddress}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {hasMapCoords && (
+              <a
+                href={`https://maps.google.com/?q=${restaurantLat},${restaurantLng}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-500 active:scale-95"
+              >
+                📍 View Restaurant on Map
+              </a>
+            )}
+            {restaurantPhone && (
+              <a
+                href={`tel:${restaurantPhone}`}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-gray-200 bg-white px-3.5 py-2.5 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
+              >
+                📞 Call Eatery
+              </a>
+            )}
+          </div>
+        </div>
+      </section>
+
+      {/* ========================================================= */}
+      {/* RESTAURANT DETAILS CARD */}
+      {/* ========================================================= */}
+      <section className="mt-6 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
         <div className="flex items-center gap-4">
           {restaurantImage ? (
             <Image
@@ -109,7 +169,7 @@ export function OrderHeader({
           <div className="rounded-2xl bg-gray-50 p-4">
             <p className="text-xs text-gray-500">Location</p>
             <p className="mt-1 font-semibold text-gray-900">
-              {restaurantLocation}
+              {restaurantAddress}
             </p>
           </div>
 
@@ -121,23 +181,23 @@ export function OrderHeader({
           </div>
         </div>
 
-        {order.restaurant_phone && (
+        {restaurantPhone && (
           <a
-            href={`tel:${order.restaurant_phone}`}
+            href={`tel:${restaurantPhone}`}
             className="mt-4 inline-block rounded-full bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600"
           >
             📞 Call Restaurant
           </a>
         )}
 
-        {/* Restaurant location before pickup */}
-        {showRestaurantMap && !isDelivered && (
+        {/* Embedded Restaurant Map */}
+        {(showRestaurantMap || hasMapCoords) && !isDelivered && (
           <div className="mt-6">
             <h3 className="text-sm font-bold text-gray-900">
-              Restaurant Location
+              Restaurant Map View
             </h3>
 
-            {hasRestaurantLocation ? (
+            {hasMapCoords ? (
               <>
                 <div className="mt-3 overflow-hidden rounded-2xl border">
                   <iframe
@@ -146,12 +206,12 @@ export function OrderHeader({
                     height="320"
                     loading="lazy"
                     className="border-0"
-                    src={`https://maps.google.com/maps?q=${order.restaurant_latitude},${order.restaurant_longitude}&z=15&output=embed`}
+                    src={`https://maps.google.com/maps?q=${restaurantLat},${restaurantLng}&z=15&output=embed`}
                   />
                 </div>
 
                 <a
-                  href={`https://www.google.com/maps?q=${order.restaurant_latitude},${order.restaurant_longitude}`}
+                  href={`https://maps.google.com/?q=${restaurantLat},${restaurantLng}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-4 inline-block rounded-full bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600"
@@ -162,7 +222,7 @@ export function OrderHeader({
             ) : (
               <div className="mt-3 rounded-2xl bg-orange-50 p-5">
                 <p className="font-semibold text-orange-800">
-                  Restaurant location is not available yet.
+                  Restaurant location coordinates are not available yet.
                 </p>
               </div>
             )}

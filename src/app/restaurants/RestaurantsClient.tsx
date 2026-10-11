@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 
 import { RestaurantCard } from "@/components/restaurant/RestaurantCard";
@@ -12,7 +12,8 @@ import {
   getRestaurantsPage,
 } from "@/services/restaurantService";
 import { ROUTES } from "@/lib/routes";
-
+import { SortFilterBar, SortOption } from "@/components/restaurants/SortFilterBar";
+import { useUserLocation, formatDistance } from "@/hooks/useUserLocation";
 
 const categories = [
   "All",
@@ -42,6 +43,21 @@ export default function RestaurantsClient() {
   const [page, setPage] = useState(1);
   const [pages, setPages] = useState(1);
   const [total, setTotal] = useState(0);
+
+  const [currentSort, setCurrentSort] = useState<SortOption>("distance");
+  const {
+    campusLabel,
+    isLocating,
+    requestLocation,
+    calculateDistance,
+  } = useUserLocation();
+
+  useEffect(() => {
+    // Prompt for browser location on mount if supported
+    if (typeof window !== "undefined" && navigator.geolocation) {
+      requestLocation();
+    }
+  }, [requestLocation]);
 
   useEffect(() => {
     setQuery(initialQuery);
@@ -105,12 +121,47 @@ export default function RestaurantsClient() {
     setQuery(draftQuery.trim());
   }
 
-  const visibleRestaurants = restaurants.filter(
-    (r) =>
-      r.is_verified === true ||
-      r.verification_status === "approved" ||
-      r.verification_status === "APPROVED"
-  );
+  const visibleRestaurants = useMemo(() => {
+    const list = restaurants.filter(
+      (r) =>
+        r.is_verified === true ||
+        r.verification_status === "approved" ||
+        r.verification_status === "APPROVED"
+    );
+
+    const withDistance = list.map((r) => {
+      const dist = calculateDistance(r.latitude, r.longitude);
+      return {
+        ...r,
+        computedDistanceKm: dist,
+        distanceBadge: formatDistance(dist),
+      };
+    });
+
+    return withDistance.sort((a, b) => {
+      if (currentSort === "distance") {
+        const distA = a.computedDistanceKm ?? 9999;
+        const distB = b.computedDistanceKm ?? 9999;
+        return distA - distB;
+      }
+      if (currentSort === "rating") {
+        const ratingA = Number(a.rating) || 0;
+        const ratingB = Number(b.rating) || 0;
+        return ratingB - ratingA;
+      }
+      if (currentSort === "delivery_time") {
+        const timeA = parseInt(String(a.delivery_time || "30"), 10) || 30;
+        const timeB = parseInt(String(b.delivery_time || "30"), 10) || 30;
+        return timeA - timeB;
+      }
+      if (currentSort === "price") {
+        const priceA = Number(a.min_order_amount ?? 0);
+        const priceB = Number(b.min_order_amount ?? 0);
+        return priceA - priceB;
+      }
+      return 0;
+    });
+  }, [restaurants, currentSort, calculateDistance]);
 
   return (
     <main className="min-h-screen bg-gray-50">
@@ -165,6 +216,15 @@ export default function RestaurantsClient() {
           ))}
         </div>
 
+        {/* Modern Sort & Filter Bar with Geolocation */}
+        <SortFilterBar
+          currentSort={currentSort}
+          onSortChange={setCurrentSort}
+          userCampusLabel={campusLabel}
+          isLocating={isLocating}
+          onDetectLocation={requestLocation}
+        />
+
         {loading && (
           <div className="rounded-2xl border bg-white p-10 text-center shadow-sm">
             Loading restaurants...
@@ -193,7 +253,11 @@ export default function RestaurantsClient() {
           <>
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
               {visibleRestaurants.map((restaurant) => (
-                <RestaurantCard key={restaurant._id} restaurant={restaurant} />
+                <RestaurantCard
+                  key={restaurant._id}
+                  restaurant={restaurant}
+                  distanceLabel={restaurant.distanceBadge}
+                />
               ))}
             </div>
 

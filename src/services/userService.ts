@@ -15,6 +15,14 @@ export interface UserProfile {
   };
   order_count?: number;
   created_at?: string;
+  referral_code?: string;
+  referral_vouchers?: {
+    code: string;
+    amount: number;
+    created_at?: string;
+    reason?: string;
+    is_used?: boolean;
+  }[];
 }
 
 export interface UpdateUserProfilePayload {

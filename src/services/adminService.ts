@@ -741,4 +741,78 @@ export async function getAdminCanteenDailyBreakdown(
   return results;
 }
 
+export interface AdminCoupon {
+  id: string;
+  _id?: string;
+  code: string;
+  discount_type: "flat" | "percent";
+  discount_value: number;
+  min_order_value: number;
+  max_discount?: number | null;
+  is_active: boolean;
+  usage_limit: number;
+  used_count: number;
+  expires_at?: string | null;
+  created_at?: string;
+  created_by?: string;
+}
+
+export interface CreateCouponInput {
+  code: string;
+  discount_type: "flat" | "percent";
+  discount_value: number;
+  min_order_value: number;
+  max_discount?: number | null;
+  is_active?: boolean;
+  usage_limit?: number;
+  expires_at?: string | null;
+}
+
+export interface CouponValidationResult {
+  valid: boolean;
+  code: string;
+  discount_type: "flat" | "percent";
+  discount_value: number;
+  discount_amount: number;
+  final_total: number;
+  message: string;
+}
+
+export async function getAdminCoupons(activeOnly: boolean = false): Promise<AdminCoupon[]> {
+  const query = activeOnly ? "?active_only=true" : "";
+  const res = await authJson<{ success: boolean; count: number; coupons: AdminCoupon[] }>(
+    `/admin/coupons${query}`,
+    ADMIN_JSON
+  );
+  return res.coupons || [];
+}
+
+export async function createAdminCoupon(data: CreateCouponInput): Promise<{ success: boolean; coupon: AdminCoupon; message: string }> {
+  return await authJson<{ success: boolean; coupon: AdminCoupon; message: string }>(
+    "/admin/coupons",
+    {
+      ...ADMIN_JSON,
+      method: "POST",
+      body: JSON.stringify(data),
+    }
+  );
+}
+
+export async function deleteOrToggleAdminCoupon(id: string, hardDelete: boolean = false): Promise<{ success: boolean; message: string }> {
+  return await authJson<{ success: boolean; message: string }>(
+    `/admin/coupons/${id}?hard_delete=${hardDelete}`,
+    {
+      ...ADMIN_JSON,
+      method: "DELETE",
+    }
+  );
+}
+
+export async function validateCouponCode(code: string, subtotal: number): Promise<CouponValidationResult> {
+  return await publicJson<CouponValidationResult>("/api/coupons/validate", {
+    method: "POST",
+    body: JSON.stringify({ code, subtotal }),
+  });
+}
+
 

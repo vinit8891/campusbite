@@ -59,12 +59,33 @@ async def register(user: UserRegister):
         user.password
     )
 
+    # Student Referral Advantage System
+    user_data["referral_vouchers"] = []
+    input_referral = (user.referral_code or "").strip().upper()
+    if input_referral:
+        referrer = await database["users"].find_one({"referral_code": input_referral})
+        if referrer:
+            user_data["referred_by"] = input_referral
+
     user_id = await create_user(user_data)
+
+    # Set user's unique referral code based on id
+    final_referral_code = f"ZEAL-{str(user_id)[:4].upper()}"
+    try:
+        from bson import ObjectId
+        query_id = ObjectId(user_id) if ObjectId.is_valid(user_id) else user_id
+        await database["users"].update_one(
+            {"_id": query_id},
+            {"$set": {"referral_code": final_referral_code}}
+        )
+    except Exception as e:
+        logger.warning(f"Failed to persist referral code: {e}")
 
     logger.info("auth.register completed successfully")
     return {
         "message": "User registered successfully",
         "id": user_id,
+        "referral_code": final_referral_code,
     }
 
 

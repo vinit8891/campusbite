@@ -100,6 +100,8 @@ async def get_my_profile(
             "promo_offers": False,
         },
         "order_count": order_count,
+        "referral_code": user_doc.get("referral_code") or f"ZEAL-{str(user_doc.get('_id'))[:4].upper()}",
+        "referral_vouchers": user_doc.get("referral_vouchers") or [],
         "created_at": user_doc.get("created_at"),
     }
 

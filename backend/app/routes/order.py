@@ -3,6 +3,7 @@ import re
 from datetime import datetime, UTC
 from typing import Annotated
 
+from bson import ObjectId
 from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query
 
 from app.auth.auth import assert_same_identity, require_roles
@@ -51,7 +52,10 @@ from app.services.location_service import (
 from app.db.database import database
 from app.core.logging import get_logger
 from app.core.sanitize import sanitize_email, sanitize_search_query
-from app.models.delivery_partner import get_delivery_partner_by_phone
+from app.models.delivery_partner import (
+    get_delivery_partner_by_phone,
+    get_delivery_partner_by_email,
+)
 from app.payments.amounts import (
     MIN_DELIVERY_SUBTOTAL,
     SMALL_ORDER_THRESHOLD,
@@ -286,6 +290,64 @@ def _assert_order_access(order: dict, user: dict):
     )
 
 
+async def award_referral_reward_if_eligible(order: dict):
+    """When a referred student completes their first order:
+    Credit the referrer with a ₹25 referral voucher code automatically added to their account.
+    """
+    try:
+        customer_id = order.get("customer_id")
+        customer_email = order.get("customer_email")
+        user = None
+        if customer_id and ObjectId.is_valid(str(customer_id)):
+            user = await database["users"].find_one({"_id": ObjectId(str(customer_id))})
+        if not user and customer_email:
+            user = await database["users"].find_one({"email": customer_email.strip().lower()})
+
+        if not user or not user.get("referred_by") or user.get("referral_rewarded"):
+            return
+
+        referrer_code = user.get("referred_by")
+        referrer = await database["users"].find_one({"referral_code": referrer_code})
+        if not referrer:
+            return
+
+        import secrets
+        voucher_code = f"REF25-{secrets.token_hex(2).upper()}"
+        voucher_item = {
+            "code": voucher_code,
+            "amount": 25.0,
+            "created_at": datetime.now(UTC).isoformat(),
+            "reason": f"Referral reward for student {user.get('full_name') or user.get('email')}",
+            "is_used": False,
+        }
+
+        # Also insert into coupons collection so it can be applied directly in checkout
+        await database["coupons"].insert_one({
+            "code": voucher_code,
+            "discount_type": "flat",
+            "discount_value": 25.0,
+            "min_order_value": 50.0,
+            "max_discount": 25.0,
+            "is_active": True,
+            "usage_limit": 1,
+            "used_count": 0,
+            "created_at": datetime.now(UTC),
+            "created_by": str(referrer["_id"]),
+        })
+
+        await database["users"].update_one(
+            {"_id": referrer["_id"]},
+            {"$push": {"referral_vouchers": voucher_item}}
+        )
+        await database["users"].update_one(
+            {"_id": user["_id"]},
+            {"$set": {"referral_rewarded": True}}
+        )
+        logger.info(f"Awarded ₹25 referral voucher {voucher_code} to referrer {referrer.get('email')}")
+    except Exception as e:
+        logger.warning(f"Error in award_referral_reward_if_eligible: {e}")
+
+
 @router.post("/")
 async def add_order(
     order: Order,
@@ -338,6 +400,19 @@ async def add_order(
                     status_code=403,
                     detail=f"Restaurant is {rest_doc.get('verification_status')} and not approved to accept orders.",
                 )
+            data["restaurant_id"] = str(rest_doc.get("_id", data.get("restaurant_id", "")))
+            data["restaurant_name"] = rest_doc.get("name") or data.get("restaurant_name")
+            data["restaurant_address"] = rest_doc.get("address") or rest_doc.get("stall_location", "Campus Eatery")
+            data["restaurant_phone"] = rest_doc.get("phone")
+            data["restaurant_latitude"] = rest_doc.get("latitude")
+            data["restaurant_longitude"] = rest_doc.get("longitude")
+            data["restaurant_info"] = {
+                "name": rest_doc.get("name"),
+                "address": data["restaurant_address"],
+                "phone": rest_doc.get("phone"),
+                "latitude": rest_doc.get("latitude"),
+                "longitude": rest_doc.get("longitude"),
+            }
     except HTTPException:
         raise
     except Exception:
@@ -372,6 +447,20 @@ async def add_order(
         )
 
     server_total = pricing["total_payable"]
+    coupon_code = data.get("coupon_code")
+    discount_amount = float(data.get("discount_amount") or 0.0)
+    if coupon_code and discount_amount > 0:
+        server_total = max(0.0, round(server_total - discount_amount, 2))
+        data["coupon_code"] = coupon_code
+        data["discount_amount"] = discount_amount
+        try:
+            await database["coupons"].update_one(
+                {"code": coupon_code.strip().upper()},
+                {"$inc": {"used_count": 1}}
+            )
+        except Exception:
+            pass
+
     assert_client_total_matches(data.get("total"), server_total)
     data["total"] = server_total
     data["amount_paise"] = to_paise(server_total)
@@ -633,13 +722,9 @@ async def accept_delivery(
     ) or ""
 
     # Courier Verification Status guard:
-    from app.models.delivery_partner import (
-        get_delivery_partner_by_phone as fetch_courier_by_phone,
-        get_delivery_partner_by_email as fetch_courier_by_email,
-    )
-    partner_doc_check = await fetch_courier_by_phone(partner_phone) if partner_phone else None
+    partner_doc_check = await get_delivery_partner_by_phone(partner_phone) if partner_phone else None
     if not partner_doc_check and current_user.get("email"):
-        partner_doc_check = await fetch_courier_by_email(current_user["email"])
+        partner_doc_check = await get_delivery_partner_by_email(current_user["email"])
 
     if not partner_phone and partner_doc_check:
         partner_phone = partner_doc_check.get("phone")
@@ -1082,6 +1167,8 @@ async def verify_otp(
         order_id,
     )
 
+    await award_referral_reward_if_eligible(order)
+
     return {
         "success": True,
         "message": "OTP Verified",
@@ -1156,6 +1243,8 @@ async def emergency_deliver(
         order_id,
     )
 
+    await award_referral_reward_if_eligible(order)
+
     return {
         "success": True,
         "message": "Emergency delivery completed successfully",
@@ -1186,6 +1275,32 @@ async def fetch_order(
         )
 
     _assert_order_access(order, current_user)
+
+    # Always populate restaurant snapshot on order retrieval
+    restaurant = None
+    restaurant_id = order.get("restaurant_id")
+    if restaurant_id and ObjectId.is_valid(str(restaurant_id)):
+        restaurant = await database["restaurants"].find_one({"_id": ObjectId(str(restaurant_id))})
+    if not restaurant and order.get("restaurant_email"):
+        restaurant = await database["restaurants"].find_one({"email": order["restaurant_email"]})
+
+    if restaurant:
+        order["restaurant_info"] = {
+            "name": restaurant.get("name"),
+            "address": restaurant.get("address") or restaurant.get("stall_location", "Campus Eatery"),
+            "phone": restaurant.get("phone"),
+            "latitude": restaurant.get("latitude"),
+            "longitude": restaurant.get("longitude"),
+        }
+    elif not order.get("restaurant_info"):
+        order["restaurant_info"] = {
+            "name": order.get("restaurant_name", "Campus Eatery"),
+            "address": order.get("restaurant_address") or order.get("stall_location", "Campus Eatery"),
+            "phone": order.get("restaurant_phone"),
+            "latitude": order.get("restaurant_latitude"),
+            "longitude": order.get("restaurant_longitude"),
+        }
+
     return _public_order(order)
 
 
@@ -1359,6 +1474,13 @@ async def change_status(
             notify_order_accepted,
             order_id,
         )
+    elif canonical_target == "delivered":
+        schedule_notification(
+            background_tasks,
+            notify_order_delivered,
+            order_id,
+        )
+        await award_referral_reward_if_eligible(order)
 
     refreshed_order = await get_order_by_id(order_id) or order
     return {

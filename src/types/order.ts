@@ -42,6 +42,8 @@ export type PlaceOrderPayload = {
   restaurant_longitude?: number | null;
   latitude?: number | null;
   longitude?: number | null;
+  coupon_code?: string;
+  discount_amount?: number;
   items: OrderItemPayload[];
 };
 
@@ -55,6 +57,15 @@ export type Order = {
   restaurant_cuisine?: string;
   restaurant_phone?: string;
   restaurant_slug?: string;
+  restaurant_info?: {
+    name?: string;
+    address?: string;
+    phone?: string;
+    latitude?: number | null;
+    longitude?: number | null;
+  };
+  coupon_code?: string;
+  discount_amount?: number;
   customer_name: string;
   customer_email?: string;
   phone: string;

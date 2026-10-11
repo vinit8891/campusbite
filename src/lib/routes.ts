@@ -63,6 +63,7 @@ export const ROUTES = {
   ADMIN_SUBSCRIPTIONS: "/admin/subscriptions",
   ADMIN_VERIFICATIONS: "/admin/verifications",
   ADMIN_SETTINGS: "/admin/settings",
+  ADMIN_COUPONS: "/admin/coupons",
 } as const;
 
 // Dynamic route helpers

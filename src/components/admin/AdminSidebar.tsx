@@ -13,6 +13,7 @@ import {
   X,
   ChevronRight,
   Sliders,
+  Ticket,
 } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 
@@ -67,6 +68,14 @@ export function AdminSidebar({
           isActive: (path) =>
             path === ROUTES.ADMIN_SUBSCRIPTIONS ||
             path.startsWith("/admin/subscriptions/"),
+        },
+        {
+          name: "Coupon Hub",
+          href: ROUTES.ADMIN_COUPONS,
+          icon: Ticket,
+          isActive: (path) =>
+            path === ROUTES.ADMIN_COUPONS ||
+            path.startsWith("/admin/coupons"),
         },
       ],
     },

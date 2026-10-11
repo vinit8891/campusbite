@@ -13,14 +13,16 @@ const DEFAULT_IMAGE = "/images/restaurants/default.jpg";
 
 export type RestaurantCardProps = {
   restaurant: BackendRestaurant;
+  distanceLabel?: string;
 };
 
-export function RestaurantCard({ restaurant }: RestaurantCardProps) {
+export function RestaurantCard({ restaurant, distanceLabel }: RestaurantCardProps) {
   const [imgSrc, setImgSrc] = useState<string>(
     restaurant.image || DEFAULT_IMAGE
   );
 
   const targetSlug = restaurant.slug || restaurant._id || "";
+  const computedDistance = distanceLabel || restaurant.distance || "Nearby";
 
   return (
     <Link
@@ -28,6 +30,14 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
       className="group block overflow-hidden rounded-3xl border bg-white shadow-md transition duration-300 hover:-translate-y-2 hover:shadow-2xl"
     >
       <div className="relative h-56 bg-gray-100">
+        {/* Distance Badge */}
+        {computedDistance && (
+          <div className="absolute top-3 left-3 z-10 flex items-center gap-1 rounded-full bg-white/95 px-2.5 py-1 text-xs font-semibold text-stone-800 shadow-sm backdrop-blur-sm">
+            <span className="text-orange-500">📍</span>
+            <span>{computedDistance}</span>
+          </div>
+        )}
+
         {imgSrc ? (
           <Image
             src={imgSrc}
@@ -68,8 +78,8 @@ export function RestaurantCard({ restaurant }: RestaurantCardProps) {
           </div>
 
           <div className="flex items-center gap-1">
-            <MapPin className="h-4 w-4" />
-            {restaurant.distance || "Nearby"}
+            <MapPin className="h-4 w-4 text-orange-500" />
+            {computedDistance}
           </div>
         </div>
 
