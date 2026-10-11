@@ -105,6 +105,13 @@ export default function RestaurantsClient() {
     setQuery(draftQuery.trim());
   }
 
+  const visibleRestaurants = restaurants.filter(
+    (r) =>
+      r.is_verified === true ||
+      r.verification_status === "approved" ||
+      r.verification_status === "APPROVED"
+  );
+
   return (
     <main className="min-h-screen bg-gray-50">
       <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
@@ -170,7 +177,7 @@ export default function RestaurantsClient() {
           </div>
         )}
 
-        {!loading && !error && restaurants.length === 0 && (
+        {!loading && !error && visibleRestaurants.length === 0 && (
           <EmptyState
             icon="🍽️"
             title="No restaurants found"
@@ -182,10 +189,10 @@ export default function RestaurantsClient() {
           />
         )}
 
-        {!loading && !error && restaurants.length > 0 && (
+        {!loading && !error && visibleRestaurants.length > 0 && (
           <>
             <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-3">
-              {restaurants.map((restaurant) => (
+              {visibleRestaurants.map((restaurant) => (
                 <RestaurantCard key={restaurant._id} restaurant={restaurant} />
               ))}
             </div>

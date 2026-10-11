@@ -330,11 +330,14 @@ async def add_order(
     try:
         from app.models.restaurant import get_restaurant_by_email
         rest_doc = await get_restaurant_by_email(rest_email)
-        if rest_doc and rest_doc.get("verification_status") in ("PENDING_VERIFICATION", "REJECTED", "SUSPENDED"):
-            raise HTTPException(
-                status_code=403,
-                detail=f"Restaurant is {rest_doc.get('verification_status')} and not approved to accept orders.",
-            )
+        if rest_doc:
+            v_status = str(rest_doc.get("verification_status", "")).strip().upper()
+            is_ver = rest_doc.get("is_verified")
+            if v_status in ("PENDING_VERIFICATION", "PENDING", "REJECTED", "SUSPENDED") or is_ver is False:
+                raise HTTPException(
+                    status_code=403,
+                    detail=f"Restaurant is {rest_doc.get('verification_status')} and not approved to accept orders.",
+                )
     except HTTPException:
         raise
     except Exception:

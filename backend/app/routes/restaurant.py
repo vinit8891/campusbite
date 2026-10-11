@@ -46,6 +46,9 @@ async def add_restaurant(
 ):
     logger.info("restaurants.create request received")
     restaurant_data = restaurant.model_dump(exclude_none=True)
+    restaurant_data.setdefault("is_verified", True)
+    restaurant_data.setdefault("verification_status", "approved")
+    restaurant_data.setdefault("is_active", True)
 
     restaurant_id = await create_restaurant(restaurant_data)
 
@@ -72,17 +75,19 @@ async def fetch_restaurants(
     email: Annotated[str | None, Query()] = None,
     slug: Annotated[str | None, Query()] = None,
     include_menu: Annotated[bool, Query()] = True,
+    only_verified: Annotated[bool, Query()] = True,
 ):
     logger.info("restaurants.list request received")
     result = await get_all_restaurants(
-    page=page,
-    limit=limit,
-    q=sanitize_search_query(q),
-    category=(category.strip().lower() if category else None),
-    email=sanitize_email(email),
-    slug=(slug.strip() if slug else None),
-    include_menu=include_menu,
-)
+        page=page,
+        limit=limit,
+        q=sanitize_search_query(q),
+        category=(category.strip().lower() if category else None),
+        email=sanitize_email(email),
+        slug=(slug.strip() if slug else None),
+        include_menu=include_menu,
+        only_verified=only_verified,
+    )
     logger.info("restaurants.list completed successfully")
     return result
 

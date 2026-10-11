@@ -34,6 +34,7 @@ export async function getRestaurantsPage(
     email: filters.email,
     slug: filters.slug,
     include_menu: filters.include_menu,
+    only_verified: filters.only_verified,
   });
 
   const data = await publicJson<unknown>(path, { cache: "no-store" });
@@ -54,6 +55,7 @@ export async function getRestaurants(
     email: filters.email,
     slug: filters.slug,
     include_menu: filters.include_menu,
+    only_verified: filters.only_verified,
   });
 
   return page.items;
@@ -107,6 +109,7 @@ export async function getRestaurantByEmail(
       page: 1,
       limit: 1,
       include_menu: true,
+      only_verified: false,
     });
 
     const matching = page.items.find(

@@ -101,7 +101,8 @@ async def onboard_restaurant(
         "bank_account_number": payload.bank_account_number,
         "bank_ifsc_code": payload.bank_ifsc_code,
         "settlement_upi_id": payload.settlement_upi_id,
-        "verification_status": VerificationStatus.PENDING_VERIFICATION.value,
+        "is_verified": False,
+        "verification_status": "pending",
         "is_active": False,
         "is_open": False,
         "created_at": now,
@@ -120,7 +121,9 @@ async def onboard_restaurant(
         "password": hashed_pwd,
         "restaurant_name": payload.business_name,
         "vendor_type": payload.vendor_type.value,
-        "verification_status": VerificationStatus.PENDING_VERIFICATION.value,
+        "is_verified": False,
+        "verification_status": "pending",
+        "is_active": False,
         "created_at": now,
     }
     await database["restaurant_owners"].insert_one(owner_doc)
@@ -179,7 +182,8 @@ async def onboard_courier(
         "student_details": payload.student_details.model_dump() if payload.student_details else None,
         "payout_upi_id": payload.payout_upi_id,
         "emergency_contact_phone": payload.emergency_contact_phone,
-        "verification_status": VerificationStatus.PENDING_VERIFICATION.value,
+        "is_verified": False,
+        "verification_status": "pending",
         "is_active": False,
         "is_online": False,
         "online": False,
@@ -449,13 +453,19 @@ async def process_verification_decision(
         "updated_at": now,
     }
     if action == "APPROVE":
+        update_fields["verification_status"] = "approved"
+        update_fields["is_verified"] = True
         update_fields["is_active"] = True
         update_fields["verified_at"] = now
         update_fields["rejection_reason"] = None
     elif action == "REJECT":
+        update_fields["verification_status"] = "rejected"
+        update_fields["is_verified"] = False
         update_fields["is_active"] = False
         update_fields["rejection_reason"] = payload.rejection_reason or "Application did not meet compliance criteria."
     elif action == "SUSPEND":
+        update_fields["verification_status"] = "suspended"
+        update_fields["is_verified"] = False
         update_fields["is_active"] = False
         update_fields["rejection_reason"] = payload.rejection_reason or "Account suspended by platform admin."
 
@@ -499,3 +509,65 @@ async def process_verification_decision(
 
     else:
         raise HTTPException(status_code=400, detail="Unknown partner type. Must be 'restaurant' or 'courier'.")
+
+
+@router.post("/admin/verifications/{partner_id}/approve")
+@router.post("/admin/verifications/{partner_type}/{partner_id}/approve")
+async def approve_partner_verification(
+    partner_id: str,
+    _: Annotated[dict, Depends(require_roles(ADMIN))],
+    partner_type: str = "restaurant",
+):
+    """
+    Direct approval endpoint to approve and activate partner live.
+    Updates MongoDB with verification_status='approved', is_verified=True, is_active=True, verified_at=now.
+    """
+    try:
+        oid = ObjectId(partner_id)
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid partner ID format.")
+
+    now = datetime.now(UTC)
+    update_fields = {
+        "verification_status": "approved",
+        "is_verified": True,
+        "is_active": True,
+        "verified_at": now,
+        "updated_at": now,
+        "rejection_reason": None,
+    }
+
+    norm_type = partner_type.lower().strip()
+    res = None
+    if norm_type in ("restaurant", "restaurants", "vendor", "canteen", "tiffin", "stall"):
+        res = await database["restaurants"].find_one_and_update(
+            {"_id": oid},
+            {"$set": update_fields},
+            return_document=True,
+        )
+        if res:
+            await database["restaurant_owners"].update_many(
+                {"$or": [{"restaurant_id": partner_id}, {"email": res.get("email")}]},
+                {"$set": update_fields},
+            )
+
+    if not res:
+        res = await database["delivery_partners"].find_one_and_update(
+            {"_id": oid},
+            {"$set": update_fields},
+            return_document=True,
+        )
+
+    if not res:
+        raise HTTPException(status_code=404, detail="Partner applicant not found.")
+
+    partner_name = res.get("name") or res.get("business_name") or res.get("full_name") or ""
+    return {
+        "success": True,
+        "message": f"Partner {partner_name} approved and activated live successfully.",
+        "partner_id": partner_id,
+        "verification_status": "approved",
+        "is_verified": True,
+        "is_active": True,
+        "verified_at": now.isoformat(),
+    }
