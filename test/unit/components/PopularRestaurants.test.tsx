@@ -15,6 +15,8 @@ const mockRestaurants: BackendRestaurant[] = [
     description: "Authentic student thali and mess plans",
     image: "/images/rest1.jpg",
     rating: 4.8,
+    is_verified: true,
+    verification_status: "approved",
   },
   {
     _id: "rest-2",
@@ -25,6 +27,8 @@ const mockRestaurants: BackendRestaurant[] = [
     description: "Open until 3 AM for late night hunger",
     image: "/images/rest2.jpg",
     rating: 4.6,
+    is_verified: true,
+    verification_status: "approved",
   },
   {
     _id: "rest-3",
@@ -35,6 +39,8 @@ const mockRestaurants: BackendRestaurant[] = [
     description: "Affordable budget bites under 99",
     image: "/images/rest3.jpg",
     rating: 4.5,
+    is_verified: true,
+    verification_status: "approved",
   },
 ];
 

@@ -1,7 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import Footer from "@/components/layout/Footer";
-import { ROUTES } from "@/lib/routes";
 
 let mockPath = "/";
 
@@ -15,7 +14,7 @@ vi.mock("next/navigation", () => ({
 }));
 
 describe("Footer Component", () => {
-  it("renders compact, sleek, mobile-friendly 2-to-4 column layout on normal routes", () => {
+  it("renders professional modern 4-column layout on normal routes", () => {
     mockPath = "/";
     const { container } = render(<Footer />);
 
@@ -23,71 +22,83 @@ describe("Footer Component", () => {
 
     // Brand & Concise Tagline
     expect(
-      screen.getByText(/closed-campus food delivery network connecting hostels with top campus eateries/i)
+      screen.getByText(/hyperlocal closed-campus food delivery network connecting hostels with certified college canteens and messes/i)
     ).toBeInTheDocument();
-    expect(screen.getByText(/daily 8 am – 2 am/i)).toBeInTheDocument();
+    expect(screen.getByText(/canteens live • 8:00 am – 2:00 am/i)).toBeInTheDocument();
 
     // Section Headings
     expect(screen.getByText("Explore")).toBeInTheDocument();
-    expect(screen.getByText("Portals")).toBeInTheDocument();
-    expect(screen.getByText("Help")).toBeInTheDocument();
+    expect(screen.getByText("Partner Portals")).toBeInTheDocument();
+    expect(screen.getByText(/Help & Campus Safety/i)).toBeInTheDocument();
 
     // Explore / Order Links
-    expect(screen.getByRole("link", { name: /^restaurants$/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /campus canteens & stalls/i })).toHaveAttribute(
       "href",
-      ROUTES.RESTAURANTS
+      "/restaurants"
     );
-    expect(screen.getByRole("link", { name: /hostel mess plans/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /hostel tiffin & mess plans/i })).toHaveAttribute(
       "href",
-      ROUTES.SUBSCRIPTIONS
+      "/subscriptions"
     );
-    expect(screen.getByRole("link", { name: /student specials/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /live order tracking/i })).toHaveAttribute(
       "href",
-      ROUTES.RESTAURANTS
+      "/orders"
     );
-    expect(screen.getByRole("link", { name: /track order/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /student combo deals/i })).toHaveAttribute(
       "href",
-      ROUTES.MY_ORDERS
+      "/restaurants?filter=deals"
     );
 
     // Partner Portals Links
-    expect(screen.getByRole("link", { name: /restaurant portal/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /canteen partner portal/i })).toHaveAttribute(
       "href",
-      ROUTES.RESTAURANT_LOGIN
+      "/restaurant/login"
     );
-    expect(screen.getByRole("link", { name: /courier partner/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /register new kitchen/i })).toHaveAttribute(
       "href",
-      ROUTES.DELIVERY_LOGIN
+      "/restaurant/register"
     );
-    expect(screen.getByRole("link", { name: /^admin$/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /student courier portal/i })).toHaveAttribute(
       "href",
-      ROUTES.ADMIN_LOGIN
+      "/delivery/login"
+    );
+    expect(screen.getByRole("link", { name: /become a campus runner/i })).toHaveAttribute(
+      "href",
+      "/delivery/register"
+    );
+    expect(screen.getByRole("link", { name: /admin verification hub/i })).toHaveAttribute(
+      "href",
+      "/admin/verifications"
     );
 
-    // Help & Support Links
-    expect(screen.getByRole("link", { name: /campus help desk/i })).toHaveAttribute(
+    // Help & Campus Safety Links
+    expect(screen.getByRole("link", { name: /zeal campus help desk/i })).toHaveAttribute(
       "href",
-      ROUTES.TERMS
+      "/help"
     );
-    expect(screen.getByRole("link", { name: "support@campusbite.in" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /support@campusbite\.in/i })).toHaveAttribute(
       "href",
       "mailto:support@campusbite.in"
     );
-    expect(screen.getByRole("link", { name: /^terms$/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /terms of service/i })).toHaveAttribute(
       "href",
-      ROUTES.TERMS
+      "/terms"
     );
-    expect(screen.getByRole("link", { name: /^privacy$/i })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: /privacy policy/i })).toHaveAttribute(
       "href",
-      ROUTES.PRIVACY_POLICY
+      "/privacy"
+    );
+    expect(screen.getByRole("link", { name: /refunds & settlement policy/i })).toHaveAttribute(
+      "href",
+      "/terms#refunds"
     );
 
     // Bottom Bar
     expect(
-      screen.getByText(/© \d{4} CampusBite • Closed Campus Delivery/i)
+      screen.getByText(/© 2026 CampusBite Technologies\. Built for Zeal College & Campus Communities\./i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/razorpay verified & encrypted/i)
+      screen.getByText(/100% Encrypted UPI Payments • FSSAI Verified Partners/i)
     ).toBeInTheDocument();
   });
 
