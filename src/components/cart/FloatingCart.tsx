@@ -24,8 +24,8 @@ export default function FloatingCart() {
   );
 
   return (
-    <div className="fixed bottom-5 left-1/2 z-50 w-[92%] max-w-xl -translate-x-1/2">
-      <div className="flex items-center justify-between gap-4 rounded-2xl border border-orange-400/20 bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4 text-white shadow-2xl transition-all duration-200 hover:scale-[1.02]">
+    <div className="fixed bottom-0 inset-x-0 z-40 flex justify-center pb-[calc(env(safe-area-inset-bottom)+0.75rem)] px-4 pointer-events-none">
+      <div className="pointer-events-auto w-full max-w-xl flex items-center justify-between gap-4 rounded-2xl border border-orange-400/20 bg-gradient-to-r from-orange-500 to-orange-600 px-6 py-4 text-white shadow-2xl transition-all duration-200 hover:scale-[1.02]">
         {/* Cart Info */}
         <div className="flex min-w-0 items-center gap-3">
           <ShoppingCart className="h-6 w-6 shrink-0" />
