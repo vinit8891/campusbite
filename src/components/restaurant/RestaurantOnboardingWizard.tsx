@@ -87,6 +87,10 @@ export default function RestaurantOnboardingWizard() {
     email: "",
     password: "",
     address_or_stall_landmark: "",
+    address: "",
+    stall_location: "",
+    latitude: undefined,
+    longitude: undefined,
     is_inside_campus: true,
     compliance_doc_type: "COLLEGE_PERMIT",
     compliance_doc_url: "",
@@ -96,6 +100,56 @@ export default function RestaurantOnboardingWizard() {
     bank_ifsc_code: "",
     settlement_upi_id: "",
   });
+
+  const [isLocating, setIsLocating] = useState(false);
+
+  const handleGetLocation = () => {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        const coordsStr = `Lat: ${latitude.toFixed(5)}, Lng: ${longitude.toFixed(5)}`;
+        setFormData((prev: any) => ({
+          ...prev,
+          latitude,
+          longitude,
+          address: prev.address || prev.address_or_stall_landmark || coordsStr,
+          address_or_stall_landmark:
+            prev.address_or_stall_landmark || prev.address || coordsStr,
+          stall_location: prev.stall_location || prev.address || coordsStr,
+        }));
+        // Reverse geocode if OSM Nominatim or fallback is available
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+          );
+          const data = await res.json();
+          if (data?.display_name) {
+            setFormData((prev: any) => ({
+              ...prev,
+              address: data.display_name,
+              address_or_stall_landmark: data.display_name,
+              stall_location: data.display_name,
+            }));
+          }
+        } catch (e) {
+          // Fallback cleanly to coordinate string if geocoding fails
+        } finally {
+          setIsLocating(false);
+          toast.success("Location fetched successfully!");
+        }
+      },
+      (error) => {
+        setIsLocating(false);
+        toast.error("Unable to retrieve location. Please type manually.");
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -131,7 +185,12 @@ export default function RestaurantOnboardingWizard() {
       if (!formData.password || formData.password.length < 6) {
         newErrors.password = "Password must be at least 6 characters";
       }
-      if (!formData.address_or_stall_landmark.trim()) {
+      const addr =
+        formData.address?.trim() ||
+        formData.address_or_stall_landmark?.trim() ||
+        formData.stall_location?.trim();
+      if (!addr) {
+        newErrors.address = "Address / Physical Location is required";
         newErrors.address_or_stall_landmark =
           "Address or stall landmark is required";
       }
@@ -560,30 +619,42 @@ export default function RestaurantOnboardingWizard() {
 
               {/* Dynamic Address / Landmark */}
               <div className="sm:col-span-2">
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
-                  {formData.is_inside_campus
-                    ? "Campus Building, Floor & Stall/Counter No. *"
-                    : "Off-Campus Address & Nearest Gate / Landmark *"}
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-bold uppercase tracking-wider text-stone-700">
+                    ADDRESS / PHYSICAL LOCATION *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={handleGetLocation}
+                    disabled={isLocating}
+                    className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-orange-600 bg-orange-50 hover:bg-orange-100 rounded-lg border border-orange-200 transition-colors cursor-pointer disabled:opacity-50"
+                  >
+                    <MapPin className="h-3.5 w-3.5 shrink-0" />
+                    <span>
+                      {isLocating ? "Fetching Location..." : "📍 Use Current Location"}
+                    </span>
+                  </button>
+                </div>
                 <input
                   type="text"
-                  placeholder={
-                    formData.is_inside_campus
-                      ? "e.g. Ground Floor, Student Activity Centre (SAC) Counter #3"
-                      : "e.g. Flat 201, Green View Apts, 300m from Main Gate #1"
+                  placeholder="e.g. Near Zeal College, Narhe / Ground Floor, Mess Hall..."
+                  value={
+                    formData.address || formData.address_or_stall_landmark || ""
                   }
-                  value={formData.address_or_stall_landmark}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    const val = e.target.value;
                     setFormData((prev) => ({
                       ...prev,
-                      address_or_stall_landmark: e.target.value,
-                    }))
-                  }
+                      address: val,
+                      address_or_stall_landmark: val,
+                      stall_location: val,
+                    }));
+                  }}
                   className="w-full px-4 py-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-stone-900 text-sm"
                 />
-                {errors.address_or_stall_landmark && (
+                {(errors.address || errors.address_or_stall_landmark) && (
                   <p className="text-xs text-rose-600 mt-1">
-                    {errors.address_or_stall_landmark}
+                    {errors.address || errors.address_or_stall_landmark}
                   </p>
                 )}
               </div>

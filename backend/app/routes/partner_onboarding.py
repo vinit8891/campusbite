@@ -83,6 +83,13 @@ async def onboard_restaurant(
     hashed_pwd = hash_password(payload.password)
     now = datetime.now(UTC)
 
+    address_val = (
+        payload.address
+        or payload.stall_location
+        or payload.address_or_stall_landmark
+        or ""
+    )
+
     restaurant_doc = {
         "name": payload.business_name,
         "business_name": payload.business_name,
@@ -91,8 +98,11 @@ async def onboard_restaurant(
         "phone": phone,
         "password": hashed_pwd,
         "vendor_type": payload.vendor_type.value,
-        "address": payload.address_or_stall_landmark,
-        "address_or_stall_landmark": payload.address_or_stall_landmark,
+        "address": address_val,
+        "stall_location": payload.stall_location or address_val,
+        "address_or_stall_landmark": address_val,
+        "latitude": payload.latitude,
+        "longitude": payload.longitude,
         "is_inside_campus": payload.is_inside_campus,
         "compliance_doc_type": payload.compliance_doc_type.value,
         "compliance_doc_url": payload.compliance_doc_url,
@@ -167,6 +177,18 @@ async def onboard_courier(
     hashed_pwd = hash_password(payload.password)
     now = datetime.now(UTC)
 
+    courier_address = (
+        payload.address
+        or payload.residence_address
+        or payload.hostel_block
+        or (payload.student_details.address if payload.student_details else None)
+        or (payload.student_details.residence_address if payload.student_details else None)
+        or (payload.student_details.hostel_block if payload.student_details else None)
+        or ""
+    )
+    courier_lat = payload.latitude or (payload.student_details.latitude if payload.student_details else None)
+    courier_lng = payload.longitude or (payload.student_details.longitude if payload.student_details else None)
+
     courier_doc = {
         "name": payload.full_name,
         "full_name": payload.full_name,
@@ -181,6 +203,11 @@ async def onboard_courier(
         "id_proof_type": payload.id_proof_type.value,
         "id_proof_doc_url": payload.id_proof_doc_url,
         "student_details": payload.student_details.model_dump() if payload.student_details else None,
+        "address": courier_address,
+        "residence_address": courier_address,
+        "hostel_block": courier_address,
+        "latitude": courier_lat,
+        "longitude": courier_lng,
         "payout_upi_id": payload.payout_upi_id,
         "emergency_contact_phone": payload.emergency_contact_phone,
         "is_verified": False,
@@ -311,8 +338,11 @@ async def get_pending_verifications(
             "applicant_name": doc.get("owner_name") or doc.get("name") or "Partner",
             "email": doc.get("email") or "",
             "phone": doc.get("phone") or "",
-            "address": doc.get("address_or_stall_landmark") or doc.get("address") or "",
+            "address": doc.get("address") or doc.get("address_or_stall_landmark") or doc.get("stall_location") or "",
             "address_or_stall_landmark": doc.get("address_or_stall_landmark") or doc.get("address") or "",
+            "stall_location": doc.get("stall_location") or doc.get("address") or "",
+            "latitude": doc.get("latitude"),
+            "longitude": doc.get("longitude"),
             "is_inside_campus": doc.get("is_inside_campus", True),
             "compliance_doc_type": doc.get("compliance_doc_type") or "COLLEGE_PERMIT",
             "compliance_doc_url": doc.get("compliance_doc_url") or "",
@@ -363,7 +393,11 @@ async def get_pending_verifications(
             "applicant_name": doc.get("full_name") or doc.get("name") or "Courier Runner",
             "email": doc.get("email") or "",
             "phone": doc.get("phone") or "",
-            "address": doc.get("address") or "",
+            "address": doc.get("address") or doc.get("residence_address") or doc.get("hostel_block") or (doc.get("student_details", {}).get("hostel_block") if isinstance(doc.get("student_details"), dict) else "") or "",
+            "residence_address": doc.get("residence_address") or doc.get("address") or "",
+            "hostel_block": doc.get("hostel_block") or (doc.get("student_details", {}).get("hostel_block") if isinstance(doc.get("student_details"), dict) else "") or "",
+            "latitude": doc.get("latitude") or (doc.get("student_details", {}).get("latitude") if isinstance(doc.get("student_details"), dict) else None),
+            "longitude": doc.get("longitude") or (doc.get("student_details", {}).get("longitude") if isinstance(doc.get("student_details"), dict) else None),
             "is_inside_campus": True,
             "compliance_doc_type": None,
             "compliance_doc_url": None,

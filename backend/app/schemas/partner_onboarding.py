@@ -56,7 +56,11 @@ class RestaurantOnboardingRequest(BaseModel):
     phone: str = Field(..., min_length=10, max_length=15)
     email: EmailStr
     password: str = Field(..., min_length=6)
-    address_or_stall_landmark: str = Field(..., min_length=3, max_length=255)
+    address_or_stall_landmark: Optional[str] = None
+    address: Optional[str] = None
+    stall_location: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     is_inside_campus: bool = True
     compliance_doc_type: ComplianceDocType
     compliance_doc_url: str = Field(..., min_length=1)
@@ -82,11 +86,37 @@ class RestaurantOnboardingRequest(BaseModel):
             raise ValueError("Invalid UPI ID format (e.g., business@okhdfcbank, name@upi).")
         return v_clean
 
+    def model_post_init(self, __context: Any) -> None:
+        resolved_addr = self.address or self.stall_location or self.address_or_stall_landmark
+        if not resolved_addr or not resolved_addr.strip():
+            raise ValueError("address / physical location is required.")
+        if not self.address:
+            self.address = resolved_addr
+        if not self.address_or_stall_landmark:
+            self.address_or_stall_landmark = resolved_addr
+        if not self.stall_location:
+            self.stall_location = resolved_addr
+
 
 class StudentDetails(BaseModel):
     roll_no: str = Field(..., min_length=1, max_length=50)
-    hostel_block: str = Field(..., min_length=1, max_length=50)
+    hostel_block: Optional[str] = None
+    residence_address: Optional[str] = None
+    address: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     year: str = Field(..., min_length=1, max_length=20)
+
+    def model_post_init(self, __context: Any) -> None:
+        resolved_addr = self.address or self.residence_address or self.hostel_block
+        if not resolved_addr or not resolved_addr.strip():
+            raise ValueError("hostel_block / residence address is required.")
+        if not self.hostel_block:
+            self.hostel_block = resolved_addr
+        if not self.residence_address:
+            self.residence_address = resolved_addr
+        if not self.address:
+            self.address = resolved_addr
 
 
 class CourierOnboardingRequest(BaseModel):
@@ -99,6 +129,12 @@ class CourierOnboardingRequest(BaseModel):
     id_proof_type: CourierIdProofType
     id_proof_doc_url: str = Field(..., min_length=1)
     student_details: Optional[StudentDetails] = None
+    address: Optional[str] = None
+    hostel_block: Optional[str] = None
+    residence_address: Optional[str] = None
+    stall_location: Optional[str] = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
     vehicle_number: Optional[str] = None
     payout_upi_id: str = Field(...)
     emergency_contact_phone: str = Field(..., min_length=10, max_length=15)
@@ -115,6 +151,37 @@ class CourierOnboardingRequest(BaseModel):
         if self.courier_type == CourierType.STUDENT:
             if not self.student_details or not self.student_details.roll_no:
                 raise ValueError("student_details (roll_no, hostel_block, year) is required for Student Couriers.")
+            if self.student_details:
+                if self.latitude is not None and self.student_details.latitude is None:
+                    self.student_details.latitude = self.latitude
+                elif self.student_details.latitude is not None and self.latitude is None:
+                    self.latitude = self.student_details.latitude
+
+                if self.longitude is not None and self.student_details.longitude is None:
+                    self.student_details.longitude = self.longitude
+                elif self.student_details.longitude is not None and self.longitude is None:
+                    self.longitude = self.student_details.longitude
+
+                resolved_addr = (
+                    self.address
+                    or self.residence_address
+                    or self.hostel_block
+                    or self.student_details.address
+                    or self.student_details.hostel_block
+                )
+                if resolved_addr:
+                    self.address = self.address or resolved_addr
+                    self.residence_address = self.residence_address or resolved_addr
+                    self.hostel_block = self.hostel_block or resolved_addr
+                    self.student_details.hostel_block = self.student_details.hostel_block or resolved_addr
+                    self.student_details.address = self.student_details.address or resolved_addr
+        else:
+            resolved_addr = self.address or self.residence_address or self.hostel_block
+            if resolved_addr:
+                self.address = self.address or resolved_addr
+                self.residence_address = self.residence_address or resolved_addr
+                self.hostel_block = self.hostel_block or resolved_addr
+
         if self.transit_mode in (TransitMode.MOTORCYCLE, TransitMode.EV_SCOOTER):
             if not self.vehicle_number or not self.vehicle_number.strip():
                 raise ValueError("vehicle_number is required for Motorcycle and EV Scooter couriers.")

@@ -16,6 +16,7 @@ import {
   CreditCard,
   FileCheck,
   Flame,
+  MapPin,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -69,6 +70,7 @@ export default function CourierOnboardingWizard() {
   const [uploadingDoc, setUploadingDoc] = useState(false);
   const [registeredId, setRegisteredId] = useState<string | null>(null);
   const [agreedToConduct, setAgreedToConduct] = useState(false);
+  const [isLocating, setIsLocating] = useState(false);
 
   const [formData, setFormData] = useState<CourierOnboardingPayload>({
     courier_type: "STUDENT",
@@ -82,14 +84,95 @@ export default function CourierOnboardingWizard() {
     student_details: {
       roll_no: "",
       hostel_block: "",
+      residence_address: "",
+      address: "",
       year: "1st Year",
     },
+    address: "",
+    residence_address: "",
+    hostel_block: "",
+    latitude: undefined,
+    longitude: undefined,
     vehicle_number: "",
     payout_upi_id: "",
     emergency_contact_phone: "",
   });
 
   const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const handleGetLocation = () => {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser");
+      return;
+    }
+    setIsLocating(true);
+    navigator.geolocation.getCurrentPosition(
+      async (position) => {
+        const { latitude, longitude } = position.coords;
+        const coordsStr = `Lat: ${latitude.toFixed(5)}, Lng: ${longitude.toFixed(5)}`;
+        setFormData((prev: any) => ({
+          ...prev,
+          latitude,
+          longitude,
+          address: prev.address || prev.student_details?.hostel_block || coordsStr,
+          residence_address: prev.residence_address || prev.address || coordsStr,
+          hostel_block: prev.hostel_block || prev.address || coordsStr,
+          student_details: prev.student_details
+            ? {
+                ...prev.student_details,
+                latitude,
+                longitude,
+                hostel_block:
+                  prev.student_details.hostel_block ||
+                  prev.address ||
+                  coordsStr,
+                residence_address:
+                  prev.student_details.residence_address ||
+                  prev.address ||
+                  coordsStr,
+                address:
+                  prev.student_details.address ||
+                  prev.address ||
+                  coordsStr,
+              }
+            : undefined,
+        }));
+        // Reverse geocode if OSM Nominatim or fallback is available
+        try {
+          const res = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?format=json&lat=${latitude}&lon=${longitude}`
+          );
+          const data = await res.json();
+          if (data?.display_name) {
+            setFormData((prev: any) => ({
+              ...prev,
+              address: data.display_name,
+              residence_address: data.display_name,
+              hostel_block: data.display_name,
+              student_details: prev.student_details
+                ? {
+                    ...prev.student_details,
+                    hostel_block: data.display_name,
+                    residence_address: data.display_name,
+                    address: data.display_name,
+                  }
+                : undefined,
+            }));
+          }
+        } catch (e) {
+          // Fallback cleanly to coordinate string if geocoding fails
+        } finally {
+          setIsLocating(false);
+          toast.success("Location fetched successfully!");
+        }
+      },
+      (error) => {
+        setIsLocating(false);
+        toast.error("Unable to retrieve location. Please type manually.");
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  };
 
   const handleRoleSelect = (type: CourierType) => {
     const matched = ROLE_OPTIONS.find((r) => r.type === type);
@@ -103,6 +186,8 @@ export default function CourierOnboardingWizard() {
           ? prev.student_details || {
               roll_no: "",
               hostel_block: "",
+              residence_address: "",
+              address: "",
               year: "1st Year",
             }
           : undefined,
@@ -138,8 +223,12 @@ export default function CourierOnboardingWizard() {
         if (!formData.student_details?.roll_no.trim()) {
           newErrors.roll_no = "College Roll Number is required";
         }
-        if (!formData.student_details?.hostel_block.trim()) {
-          newErrors.hostel_block = "Hostel / Hall block is required";
+        const hostelOrAddress =
+          formData.student_details?.hostel_block?.trim() ||
+          formData.student_details?.residence_address?.trim() ||
+          formData.address?.trim();
+        if (!hostelOrAddress) {
+          newErrors.hostel_block = "Hostel / Residence address is required";
         }
       }
 
@@ -220,6 +309,20 @@ export default function CourierOnboardingWizard() {
 
       if (payload.courier_type === "EXTERNAL_GIG") {
         delete payload.student_details;
+      } else if (payload.courier_type === "STUDENT" && payload.student_details) {
+        const addr =
+          payload.student_details.hostel_block ||
+          payload.student_details.residence_address ||
+          payload.address ||
+          "";
+        payload.student_details.hostel_block = addr;
+        payload.student_details.residence_address = addr;
+        payload.student_details.address = addr;
+        payload.address = payload.address || addr;
+        payload.residence_address = payload.residence_address || addr;
+        payload.hostel_block = payload.hostel_block || addr;
+        if (payload.latitude != null) payload.student_details.latitude = payload.latitude;
+        if (payload.longitude != null) payload.student_details.longitude = payload.longitude;
       }
 
       const res = await onboardCourier(payload);
@@ -509,7 +612,7 @@ export default function CourierOnboardingWizard() {
 
               {/* Student Details Fields */}
               {formData.courier_type === "STUDENT" && (
-                <div className="sm:col-span-2 bg-stone-50 rounded-2xl p-4 border border-stone-200 grid grid-cols-1 sm:grid-cols-3 gap-3">
+                <div className="sm:col-span-2 bg-stone-50 rounded-2xl p-4 border border-stone-200 grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
                       College Roll No *
@@ -531,41 +634,11 @@ export default function CourierOnboardingWizard() {
                           },
                         }))
                       }
-                      className="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-stone-900 text-sm"
+                      className="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-stone-900 text-sm bg-white"
                     />
                     {errors.roll_no && (
                       <p className="text-xs text-rose-600 mt-1">
                         {errors.roll_no}
-                      </p>
-                    )}
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
-                      Hostel / Hall Block *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="e.g. Hall 4 / Tagore"
-                      value={formData.student_details?.hostel_block || ""}
-                      onChange={(e) =>
-                        setFormData((prev) => ({
-                          ...prev,
-                          student_details: {
-                            ...(prev.student_details || {
-                              roll_no: "",
-                              hostel_block: "",
-                              year: "1st Year",
-                            }),
-                            hostel_block: e.target.value,
-                          },
-                        }))
-                      }
-                      className="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-stone-900 text-sm"
-                    />
-                    {errors.hostel_block && (
-                      <p className="text-xs text-rose-600 mt-1">
-                        {errors.hostel_block}
                       </p>
                     )}
                   </div>
@@ -598,6 +671,97 @@ export default function CourierOnboardingWizard() {
                       <option value="Postgraduate">Postgraduate</option>
                     </select>
                   </div>
+
+                  <div className="sm:col-span-2">
+                    <div className="flex items-center justify-between mb-1">
+                      <label className="block text-xs font-bold uppercase tracking-wider text-stone-700">
+                        HOSTEL / CURRENT RESIDENCE ADDRESS *
+                      </label>
+                      <button
+                        type="button"
+                        onClick={handleGetLocation}
+                        disabled={isLocating}
+                        className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors cursor-pointer disabled:opacity-50"
+                      >
+                        <MapPin className="h-3.5 w-3.5 shrink-0" />
+                        <span>
+                          {isLocating ? "Fetching Location..." : "📍 Use Current Location"}
+                        </span>
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="e.g. Sai Apartment, Narhe / Hostel Block B, Room 204..."
+                      value={
+                        formData.student_details?.hostel_block ||
+                        formData.student_details?.residence_address ||
+                        formData.address ||
+                        ""
+                      }
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setFormData((prev) => ({
+                          ...prev,
+                          address: val,
+                          residence_address: val,
+                          hostel_block: val,
+                          student_details: {
+                            ...(prev.student_details || {
+                              roll_no: "",
+                              hostel_block: "",
+                              year: "1st Year",
+                            }),
+                            hostel_block: val,
+                            residence_address: val,
+                            address: val,
+                          },
+                        }));
+                      }}
+                      className="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-stone-900 text-sm bg-white"
+                    />
+                    {errors.hostel_block && (
+                      <p className="text-xs text-rose-600 mt-1">
+                        {errors.hostel_block}
+                      </p>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* External Gig Address Field */}
+              {formData.courier_type === "EXTERNAL_GIG" && (
+                <div className="sm:col-span-2 bg-stone-50 rounded-2xl p-4 border border-stone-200">
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="block text-xs font-bold uppercase tracking-wider text-stone-700">
+                      HOSTEL / CURRENT RESIDENCE ADDRESS *
+                    </label>
+                    <button
+                      type="button"
+                      onClick={handleGetLocation}
+                      disabled={isLocating}
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 text-xs font-bold text-emerald-600 bg-emerald-50 hover:bg-emerald-100 rounded-lg border border-emerald-200 transition-colors cursor-pointer disabled:opacity-50"
+                    >
+                      <MapPin className="h-3.5 w-3.5 shrink-0" />
+                      <span>
+                        {isLocating ? "Fetching Location..." : "📍 Use Current Location"}
+                      </span>
+                    </button>
+                  </div>
+                  <input
+                    type="text"
+                    placeholder="e.g. Sai Apartment, Narhe / Hostel Block B, Room 204..."
+                    value={formData.address || formData.residence_address || ""}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setFormData((prev) => ({
+                        ...prev,
+                        address: val,
+                        residence_address: val,
+                        hostel_block: val,
+                      }));
+                    }}
+                    className="w-full px-3 py-2 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-stone-900 text-sm bg-white"
+                  />
                 </div>
               )}
 

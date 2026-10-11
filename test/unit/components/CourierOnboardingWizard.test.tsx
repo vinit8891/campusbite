@@ -32,7 +32,7 @@ describe("CourierOnboardingWizard Component", () => {
 
     expect(screen.getByText(/Step 2: Profile & KYC Verification/i)).toBeInTheDocument();
     expect(screen.getByText(/College Roll No \*/i)).toBeInTheDocument();
-    expect(screen.getByText(/Hostel \/ Hall Block \*/i)).toBeInTheDocument();
+    expect(screen.getByText(/HOSTEL \/ CURRENT RESIDENCE ADDRESS \*/i)).toBeInTheDocument();
 
     // Attempting next without filling student details fails validation
     await user.click(screen.getByText(/Continue to Vehicle & Payout/i));
@@ -49,7 +49,6 @@ describe("CourierOnboardingWizard Component", () => {
 
     expect(screen.getByText(/Step 2: Profile & KYC Verification/i)).toBeInTheDocument();
     expect(screen.queryByText(/College Roll No \*/i)).not.toBeInTheDocument();
-    expect(screen.queryByText(/Hostel \/ Hall Block \*/i)).not.toBeInTheDocument();
   });
 
   it("shows transit mode options on Step 3", async () => {
@@ -66,7 +65,7 @@ describe("CourierOnboardingWizard Component", () => {
     await user.type(screen.getByPlaceholderText(/Min 6 characters/i), "secret123");
     await user.type(screen.getByPlaceholderText(/Parent \/ Guardian/i), "9876500000");
     await user.type(screen.getByPlaceholderText(/e.g. 2024CS01/i), "2024CS01");
-    await user.type(screen.getByPlaceholderText(/Hall 4/i), "Hall 4");
+    await user.type(screen.getByPlaceholderText(/Sai Apartment/i), "Hall 4");
 
     // Manually trigger doc url
     // Continue to Step 3

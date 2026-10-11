@@ -658,4 +658,102 @@ async def test_admin_approves_courier_sets_approved_at(client, admin_token):
         assert "approved_at" in called_set
 
 
+@pytest.mark.asyncio
+async def test_restaurant_onboarding_address_and_coordinates(client):
+    """Verifies RestaurantOnboardingRequest accepts address, stall_location, latitude, longitude."""
+    mock_restaurants = MagicMock()
+    mock_restaurant_owners = MagicMock()
+
+    mock_restaurants.find_one = AsyncMock(return_value=None)
+    mock_restaurant_owners.find_one = AsyncMock(return_value=None)
+    fake_id = ObjectId()
+    mock_restaurants.insert_one = AsyncMock(return_value=MagicMock(inserted_id=fake_id))
+    mock_restaurant_owners.insert_one = AsyncMock(return_value=MagicMock(inserted_id=ObjectId()))
+
+    mock_db = {
+        "restaurants": mock_restaurants,
+        "restaurant_owners": mock_restaurant_owners,
+    }
+
+    with patch("app.routes.partner_onboarding.database", mock_db):
+        resp = client.post(
+            "/restaurant/onboard",
+            json={
+                "vendor_type": "CAMPUS_CANTEEN",
+                "business_name": "Zeal Canteen",
+                "owner_name": "Ramesh Patil",
+                "phone": "9876543299",
+                "email": "ramesh.zeal@example.com",
+                "password": "securepassword123",
+                "address": "Near Zeal College, Narhe / Ground Floor, Mess Hall",
+                "latitude": 18.4485,
+                "longitude": 73.8256,
+                "is_inside_campus": True,
+                "compliance_doc_type": "COLLEGE_PERMIT",
+                "compliance_doc_url": "/uploads/kyc/permit.pdf",
+                "kitchen_or_stall_photo_url": "/uploads/kyc/zeal_stall.jpg",
+                "bank_account_holder": "Ramesh Patil",
+                "bank_account_number": "123456789012",
+                "bank_ifsc_code": "SBIN0001234",
+                "settlement_upi_id": "zeal@upi",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+
+        # Check saved doc
+        inserted_doc = mock_restaurants.insert_one.call_args[0][0]
+        assert inserted_doc["address"] == "Near Zeal College, Narhe / Ground Floor, Mess Hall"
+        assert inserted_doc["stall_location"] == "Near Zeal College, Narhe / Ground Floor, Mess Hall"
+        assert inserted_doc["latitude"] == 18.4485
+        assert inserted_doc["longitude"] == 73.8256
+
+
+@pytest.mark.asyncio
+async def test_courier_onboarding_address_and_coordinates(client):
+    """Verifies CourierOnboardingRequest accepts address, residence_address, latitude, longitude."""
+    mock_delivery = MagicMock()
+    mock_delivery.find_one = AsyncMock(return_value=None)
+    fake_id = ObjectId()
+    mock_delivery.insert_one = AsyncMock(return_value=MagicMock(inserted_id=fake_id))
+
+    mock_db = {
+        "delivery_partners": mock_delivery,
+    }
+
+    with patch("app.routes.partner_onboarding.database", mock_db):
+        resp = client.post(
+            "/delivery/onboard",
+            json={
+                "courier_type": "STUDENT",
+                "full_name": "Aman Runner",
+                "phone": "9876500077",
+                "email": "aman.runner@campus.edu",
+                "password": "securepassword123",
+                "transit_mode": "BICYCLE",
+                "id_proof_type": "STUDENT_ID",
+                "id_proof_doc_url": "/uploads/kyc/aman_id.jpg",
+                "student_details": {
+                    "roll_no": "2024CS09",
+                    "hostel_block": "Sai Apartment, Narhe / Hostel Block B, Room 204",
+                    "year": "2nd Year",
+                },
+                "latitude": 18.4490,
+                "longitude": 73.8260,
+                "payout_upi_id": "amanrunner@upi",
+                "emergency_contact_phone": "9876500000",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+
+        inserted_doc = mock_delivery.insert_one.call_args[0][0]
+        assert "Sai Apartment, Narhe" in inserted_doc["address"]
+        assert inserted_doc["latitude"] == 18.4490
+        assert inserted_doc["longitude"] == 73.8260
+
+
+
 

@@ -566,11 +566,25 @@ export default function PartnerVerificationHub() {
                     </span>
                   </div>
                   <div>
-                    <span className="text-stone-400 block">Address / Stall</span>
-                    <span className="font-bold text-stone-900">
-                      {selectedItem.address_or_stall_landmark ||
-                        (selectedItem as any).address}
+                    <span className="text-stone-400 block">Address / Location</span>
+                    <span className="font-bold text-stone-900 block">
+                      {selectedItem.address ||
+                        selectedItem.address_or_stall_landmark ||
+                        (selectedItem as any).stall_location ||
+                        "N/A"}
                     </span>
+                    {selectedItem.latitude != null &&
+                      selectedItem.longitude != null && (
+                        <a
+                          href={`https://maps.google.com/?q=${selectedItem.latitude},${selectedItem.longitude}`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] text-orange-600 hover:text-orange-700 font-semibold underline mt-1"
+                        >
+                          <MapPin className="h-3 w-3" />
+                          <span>View on Google Maps</span>
+                        </a>
+                      )}
                   </div>
                   <div>
                     <span className="text-stone-400 block">Bank Account Holder</span>
@@ -624,22 +638,45 @@ export default function PartnerVerificationHub() {
                       {selectedItem.emergency_contact_phone || "N/A"}
                     </span>
                   </div>
+                  <div>
+                    <span className="text-stone-400 block">Address / Location</span>
+                    <span className="font-bold text-stone-900 block">
+                      {selectedItem.address ||
+                        selectedItem.residence_address ||
+                        selectedItem.student_details?.residence_address ||
+                        selectedItem.student_details?.hostel_block ||
+                        selectedItem.hostel_block ||
+                        "N/A"}
+                    </span>
+                    {(selectedItem.latitude ??
+                      selectedItem.student_details?.latitude) != null &&
+                      (selectedItem.longitude ??
+                        selectedItem.student_details?.longitude) != null && (
+                        <a
+                          href={`https://maps.google.com/?q=${
+                            selectedItem.latitude ??
+                            selectedItem.student_details?.latitude
+                          },${
+                            selectedItem.longitude ??
+                            selectedItem.student_details?.longitude
+                          }`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1 text-[11px] text-emerald-600 hover:text-emerald-700 font-semibold underline mt-1"
+                        >
+                          <MapPin className="h-3 w-3" />
+                          <span>View on Google Maps</span>
+                        </a>
+                      )}
+                  </div>
                   {selectedItem.student_details && (
-                    <>
-                      <div>
-                        <span className="text-stone-400 block">Roll No</span>
-                        <span className="font-mono font-bold text-stone-900">
-                          {selectedItem.student_details.roll_no}
-                        </span>
-                      </div>
-                      <div>
-                        <span className="text-stone-400 block">Hostel & Year</span>
-                        <span className="font-bold text-stone-900">
-                          {selectedItem.student_details.hostel_block} (
-                          {selectedItem.student_details.year})
-                        </span>
-                      </div>
-                    </>
+                    <div>
+                      <span className="text-stone-400 block">Roll No & Year</span>
+                      <span className="font-mono font-bold text-stone-900">
+                        {selectedItem.student_details.roll_no} (
+                        {selectedItem.student_details.year})
+                      </span>
+                    </div>
                   )}
                   <div className="sm:col-span-2">
                     <span className="text-stone-400 block">Instant Payout UPI</span>

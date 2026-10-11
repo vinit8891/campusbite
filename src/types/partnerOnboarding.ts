@@ -20,6 +20,10 @@ export type CourierIdProofType = "STUDENT_ID" | "AADHAAR" | "DRIVING_LICENSE";
 export interface StudentDetails {
   roll_no: string;
   hostel_block: string;
+  residence_address?: string;
+  address?: string;
+  latitude?: number;
+  longitude?: number;
   year: string;
 }
 
@@ -31,6 +35,10 @@ export interface RestaurantOnboardingPayload {
   email: string;
   password: string;
   address_or_stall_landmark: string;
+  address?: string;
+  stall_location?: string;
+  latitude?: number;
+  longitude?: number;
   is_inside_campus: boolean;
   compliance_doc_type: ComplianceDocType;
   compliance_doc_url: string;
@@ -51,6 +59,11 @@ export interface CourierOnboardingPayload {
   id_proof_type: CourierIdProofType;
   id_proof_doc_url: string;
   student_details?: StudentDetails;
+  address?: string;
+  hostel_block?: string;
+  residence_address?: string;
+  latitude?: number;
+  longitude?: number;
   vehicle_number?: string;
   payout_upi_id: string;
   emergency_contact_phone: string;
@@ -68,7 +81,13 @@ export interface PendingVerificationItem {
   email: string;
   verification_status: VerificationStatus;
   created_at: string;
+  address?: string;
   address_or_stall_landmark?: string;
+  stall_location?: string;
+  hostel_block?: string;
+  residence_address?: string;
+  latitude?: number;
+  longitude?: number;
   is_inside_campus?: boolean;
   compliance_doc_type?: ComplianceDocType;
   compliance_doc_url?: string;
