@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
@@ -119,6 +120,13 @@ export default function DeliveryLoginForm() {
       <button type="submit" className="w-full rounded-xl bg-orange-600 py-3 font-semibold text-white">
         Login
       </button>
+
+      <div className="mt-6 text-center text-sm text-gray-600">
+        New to CampusBite?{' '}
+        <Link className="font-medium text-orange-600 hover:text-orange-500 underline" href="/delivery/register">
+          Register as a Delivery Partner
+        </Link>
+      </div>
     </form>
   );
 }

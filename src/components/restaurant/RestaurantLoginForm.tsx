@@ -117,15 +117,12 @@ export default function RestaurantLoginForm() {
         </Button>
       </form>
 
-      <p className="mt-6 text-center text-sm text-gray-500">
-        Don&apos;t have a restaurant owner account?{" "}
-        <Link
-          href={ROUTES.RESTAURANT_REGISTER}
-          className="font-semibold text-orange-600 hover:underline"
-        >
-          Register Here
+      <div className="mt-6 text-center text-sm text-gray-600">
+        Want to list your campus food business?{' '}
+        <Link className="font-medium text-orange-600 hover:text-orange-500 underline" href="/restaurant/register">
+          Register as Food Partner
         </Link>
-      </p>
+      </div>
 
     </div>
   );
