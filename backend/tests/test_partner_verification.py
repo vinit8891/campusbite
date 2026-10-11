@@ -330,3 +330,133 @@ async def test_admin_get_pending_verifications_returns_counts(client, admin_toke
         assert len(data["canteens"]) == 1
         assert len(data["students"]) == 1
 
+
+@pytest.mark.asyncio
+async def test_onboard_restaurant_enforces_unverified_defaults(client):
+    """Verifies that newly registered restaurant has is_verified=False, verification_status='pending', is_active=False."""
+    mock_restaurants = MagicMock()
+    mock_owners = MagicMock()
+    mock_restaurants.find_one = AsyncMock(return_value=None)
+    mock_owners.find_one = AsyncMock(return_value=None)
+    fake_id = ObjectId()
+    mock_restaurants.insert_one = AsyncMock(return_value=MagicMock(inserted_id=fake_id))
+    mock_owners.insert_one = AsyncMock(return_value=MagicMock(inserted_id=ObjectId()))
+
+    mock_db = {
+        "restaurants": mock_restaurants,
+        "restaurant_owners": mock_owners,
+    }
+
+    with patch("app.routes.partner_onboarding.database", mock_db):
+        resp = client.post(
+            "/restaurant/onboard",
+            json={
+                "vendor_type": "CAMPUS_CANTEEN",
+                "business_name": "Campus Night Canteen",
+                "owner_name": "Ramesh Gupta",
+                "phone": "9876543299",
+                "email": "nightcanteen@campus.edu",
+                "password": "securepassword123",
+                "address_or_stall_landmark": "Near Hostel 7 Ground",
+                "is_inside_campus": True,
+                "compliance_doc_type": "COLLEGE_PERMIT",
+                "compliance_doc_url": "/uploads/kyc/permit.pdf",
+                "kitchen_or_stall_photo_url": "/uploads/kyc/kitchen.jpg",
+                "bank_account_holder": "Ramesh Gupta",
+                "bank_account_number": "987654321098",
+                "bank_ifsc_code": "SBIN0004321",
+                "settlement_upi_id": "nightcanteen@upi",
+            },
+        )
+        assert resp.status_code == 200
+        inserted_doc = mock_restaurants.insert_one.call_args[0][0]
+        assert inserted_doc["is_verified"] is False
+        assert inserted_doc["verification_status"] == "pending"
+        assert inserted_doc["is_active"] is False
+
+
+@pytest.mark.asyncio
+async def test_admin_direct_approval_handler(client, admin_token):
+    """Verifies POST /admin/verifications/{id}/approve updates MongoDB with approved flags and timestamp."""
+    mock_restaurants = MagicMock()
+    mock_owners = MagicMock()
+    fake_id = ObjectId()
+
+    mock_restaurants.find_one_and_update = AsyncMock(
+        return_value={"_id": fake_id, "name": "Campus Night Canteen", "verification_status": "approved"}
+    )
+    mock_owners.update_many = AsyncMock()
+
+    mock_db = {
+        "restaurants": mock_restaurants,
+        "restaurant_owners": mock_owners,
+    }
+
+    with patch("app.routes.partner_onboarding.database", mock_db):
+        resp = client.post(
+            f"/admin/verifications/{fake_id}/approve",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        assert data["verification_status"] == "approved"
+        assert data["is_verified"] is True
+        assert data["is_active"] is True
+
+        called_set = mock_restaurants.find_one_and_update.call_args[0][1]["$set"]
+        assert called_set["verification_status"] == "approved"
+        assert called_set["is_verified"] is True
+        assert called_set["is_active"] is True
+        assert "verified_at" in called_set
+
+
+@pytest.mark.asyncio
+async def test_public_storefront_filters_unapproved_restaurants(client):
+    """Verifies public GET /restaurants/ query filters by verification status and active state."""
+    captured_queries = []
+
+    class FakeCursor:
+        def __init__(self, docs):
+            self.docs = docs
+        def sort(self, *args, **kwargs):
+            return self
+        def skip(self, *args, **kwargs):
+            return self
+        def limit(self, *args, **kwargs):
+            return self
+        def __aiter__(self):
+            return self._gen()
+        async def _gen(self):
+            for d in self.docs:
+                yield d
+
+    def fake_find(query):
+        captured_queries.append(query)
+        return FakeCursor([
+            {
+                "_id": ObjectId(),
+                "name": "Approved Canteen",
+                "email": "approved@canteen.edu",
+                "is_verified": True,
+                "verification_status": "approved",
+                "is_active": True,
+            }
+        ])
+
+    with patch("app.models.restaurant.restaurant_collection.find", side_effect=fake_find), \
+         patch("app.models.restaurant.menu_collection.find", return_value=FakeCursor([])), \
+         patch("app.models.restaurant.restaurant_collection.count_documents", new=AsyncMock(return_value=1)):
+        resp = client.get("/restaurants/")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert len(data["items"]) == 1
+
+        assert len(captured_queries) == 1
+        query = captured_queries[0]
+        assert query.get("is_active") is True
+        assert "$or" in query
+        or_conditions = query["$or"]
+        assert {"verification_status": "approved"} in or_conditions or {"is_verified": True} in or_conditions
+
+

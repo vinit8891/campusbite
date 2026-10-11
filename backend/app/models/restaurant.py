@@ -66,6 +66,7 @@ async def get_all_restaurants(
     email: str | None = None,
     slug: str | None = None,
     include_menu: bool = True,
+    only_verified: bool = True,
 ):
     from app.core.pagination import (
         normalize_limit,
@@ -137,6 +138,24 @@ async def get_all_restaurants(
             query["$and"] = [{"$or": existing_or}, {"$or": search_clauses}]
         else:
             query["$or"] = search_clauses
+
+    # Public Storefront Guard: filter by verification status and active state
+    if only_verified:
+        query["is_active"] = True
+        verified_clause = {
+            "$or": [
+                {"verification_status": "approved"},
+                {"verification_status": "APPROVED"},
+                {"is_verified": True},
+            ]
+        }
+        if "$and" in query:
+            query["$and"].append(verified_clause)
+        elif "$or" in query:
+            existing_or = query.pop("$or")
+            query["$and"] = [{"$or": existing_or}, verified_clause]
+        else:
+            query["$or"] = verified_clause["$or"]
 
     safe_page = normalize_page(page)
     safe_limit = normalize_limit(limit, default=20)

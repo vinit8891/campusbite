@@ -64,10 +64,19 @@ function PopularRestaurantsComponent() {
     };
   }, []);
 
-  const filteredRestaurants = useMemo(() => {
-    if (activeChip === "all") return restaurants;
+  const verifiedRestaurants = useMemo(() => {
+    return restaurants.filter(
+      (r) =>
+        r.is_verified === true ||
+        r.verification_status === "approved" ||
+        r.verification_status === "APPROVED"
+    );
+  }, [restaurants]);
 
-    return restaurants.filter((r) => {
+  const filteredRestaurants = useMemo(() => {
+    if (activeChip === "all") return verifiedRestaurants;
+
+    return verifiedRestaurants.filter((r) => {
       const text = `${r.name || ""} ${r.cuisine || ""} ${r.description || ""}`.toLowerCase();
 
       switch (activeChip) {

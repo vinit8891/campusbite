@@ -40,6 +40,9 @@ export type BackendRestaurant = {
   closing_hours?: string;
   latitude?: number;
   longitude?: number;
+  is_verified?: boolean;
+  verification_status?: string;
+  is_active?: boolean;
   menu?: BackendMenuItem[];
 };
 
@@ -51,6 +54,7 @@ export type RestaurantsQuery = {
   email?: string;
   slug?: string;
   include_menu?: boolean;
+  only_verified?: boolean;
 };
 
 export type AdminRestaurantInput = {
