@@ -460,3 +460,202 @@ async def test_public_storefront_filters_unapproved_restaurants(client):
         assert {"verification_status": "approved"} in or_conditions or {"is_verified": True} in or_conditions
 
 
+@pytest.mark.asyncio
+async def test_courier_registration_defaults_enforced(client):
+    """Verifies that courier registration sets is_verified=False, verification_status='pending', is_active=False, is_on_duty=False."""
+    with patch("app.routes.delivery_auth.get_delivery_partner_by_email", new=AsyncMock(return_value=None)), \
+         patch("app.routes.delivery_auth.get_delivery_partner_by_phone", new=AsyncMock(return_value=None)), \
+         patch("app.routes.delivery_auth.create_delivery_partner", new=AsyncMock(return_value="courier_123")) as mock_create, \
+         patch("app.models.delivery_partner.get_delivery_partner_by_email", new=AsyncMock(return_value=None)), \
+         patch("app.models.delivery_partner.get_delivery_partner_by_phone", new=AsyncMock(return_value=None)), \
+         patch("app.models.delivery_partner.create_delivery_partner", new=AsyncMock(return_value="courier_123")):
+        resp = client.post(
+            "/delivery/register",
+            json={
+                "name": "Student Runner",
+                "email": "runner.student@campus.edu",
+                "phone": "9876543219",
+                "password": "strongPassword123",
+                "vehicle": "Bicycle",
+                "vehicle_number": "UP32AB1234",
+            },
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["is_verified"] is False
+        assert data["verification_status"] == "pending"
+        assert data["is_active"] is False
+        assert data["is_on_duty"] is False
+
+        created_doc = mock_create.call_args[0][0]
+        assert created_doc["is_verified"] is False
+        assert created_doc["verification_status"] == "pending"
+        assert created_doc["is_active"] is False
+        assert created_doc["is_on_duty"] is False
+
+
+@pytest.mark.asyncio
+async def test_api_partner_courier_registration_defaults_enforced(client):
+    """Verifies that courier registration via /api/partner/courier sets unverified defaults."""
+    mock_couriers = MagicMock()
+    mock_couriers.find_one = AsyncMock(return_value=None)
+    fake_id = ObjectId()
+    mock_couriers.insert_one = AsyncMock(return_value=MagicMock(inserted_id=fake_id))
+
+    mock_db = {"delivery_partners": mock_couriers}
+
+    with patch("app.routes.partner_onboarding.database", mock_db):
+        resp = client.post(
+            "/api/partner/courier",
+            json={
+                "courier_type": "STUDENT",
+                "full_name": "Aman Runner",
+                "phone": "9876500077",
+                "email": "aman.runner@campus.edu",
+                "password": "securepassword123",
+                "transit_mode": "BICYCLE",
+                "id_proof_type": "STUDENT_ID",
+                "id_proof_doc_url": "/uploads/kyc/aman_id.jpg",
+                "student_details": {
+                    "roll_no": "2024CS02",
+                    "hostel_block": "Aryabhatta Hall B",
+                    "year": "2nd Year",
+                },
+                "payout_upi_id": "aman@upi",
+                "emergency_contact_phone": "9876500000",
+            },
+        )
+        assert resp.status_code == 200
+        inserted_doc = mock_couriers.insert_one.call_args[0][0]
+        assert inserted_doc["is_verified"] is False
+        assert inserted_doc["verification_status"] == "pending"
+        assert inserted_doc["is_active"] is False
+        assert inserted_doc["is_on_duty"] is False
+
+
+@pytest.mark.asyncio
+async def test_guard_delivery_available_orders_blocks_unverified(client, courier_token):
+    """Verifies GET /delivery/available blocks unapproved couriers with 403 Forbidden."""
+    unverified_courier = {
+        "phone": "9876500001",
+        "email": "runner@campus.edu",
+        "verification_status": "pending",
+        "is_verified": False,
+    }
+
+    with patch("app.models.delivery_partner.get_delivery_partner_by_phone", new=AsyncMock(return_value=unverified_courier)):
+        resp = client.get(
+            "/delivery/available",
+            headers={"Authorization": f"Bearer {courier_token}"},
+        )
+        assert resp.status_code == 403
+        assert "pending verification" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_guard_delivery_available_orders_allows_approved(client, courier_token):
+    """Verifies GET /delivery/available allows approved courier."""
+    approved_courier = {
+        "phone": "9876500001",
+        "email": "runner@campus.edu",
+        "verification_status": "approved",
+        "is_verified": True,
+        "is_active": True,
+    }
+
+    with patch("app.models.delivery_partner.get_delivery_partner_by_phone", new=AsyncMock(return_value=approved_courier)), \
+         patch("app.models.order.get_available_orders", new=AsyncMock(return_value={"items": [], "total": 0, "page": 1, "pages": 1})):
+        resp = client.get(
+            "/delivery/available",
+            headers={"Authorization": f"Bearer {courier_token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert "items" in data or "orders" in data or "data" in data
+
+
+@pytest.mark.asyncio
+async def test_guard_delivery_duty_toggle_blocks_unverified(client, courier_token):
+    """Verifies PUT /delivery/duty and PUT /delivery/status reject duty toggle with 403 if unverified."""
+    unverified_courier = {
+        "phone": "9876500001",
+        "email": "runner@campus.edu",
+        "verification_status": "pending",
+        "is_verified": False,
+    }
+
+    with patch("app.models.delivery_partner.get_delivery_partner_by_phone", new=AsyncMock(return_value=unverified_courier)):
+        resp = client.put(
+            "/delivery/duty",
+            headers={"Authorization": f"Bearer {courier_token}"},
+            json={"online": True},
+        )
+        assert resp.status_code == 403
+        assert "pending verification" in resp.json()["detail"].lower()
+
+        resp2 = client.put(
+            "/delivery/status",
+            headers={"Authorization": f"Bearer {courier_token}"},
+            json={"online": True},
+        )
+        assert resp2.status_code == 403
+
+
+@pytest.mark.asyncio
+async def test_guard_delivery_claim_order_blocks_unverified(client, courier_token):
+    """Verifies POST /delivery/orders/{order_id}/claim rejects claim with 403 if courier is unverified."""
+    unverified_courier = {
+        "phone": "9876500001",
+        "email": "runner@campus.edu",
+        "verification_status": "pending",
+        "is_verified": False,
+    }
+
+    with patch("app.models.delivery_partner.get_delivery_partner_by_phone", new=AsyncMock(return_value=unverified_courier)), \
+         patch("app.routes.order.get_delivery_partner_by_phone", new=AsyncMock(return_value=unverified_courier)):
+        resp = client.post(
+            "/delivery/orders/order_12345/claim",
+            headers={"Authorization": f"Bearer {courier_token}"},
+            json={"name": "Runner", "phone": "9876500001"},
+        )
+        assert resp.status_code == 403
+        assert "pending verification" in resp.json()["detail"].lower()
+
+
+@pytest.mark.asyncio
+async def test_admin_approves_courier_sets_approved_at(client, admin_token):
+    """Verifies admin approving a courier updates MongoDB with approved_at, is_verified, and is_active."""
+    mock_restaurants = MagicMock()
+    mock_delivery = MagicMock()
+    fake_id = ObjectId()
+
+    mock_restaurants.find_one_and_update = AsyncMock(return_value=None)
+    mock_delivery.find_one_and_update = AsyncMock(
+        return_value={"_id": fake_id, "full_name": "Student Runner", "verification_status": "approved"}
+    )
+
+    mock_db = {
+        "restaurants": mock_restaurants,
+        "delivery_partners": mock_delivery,
+    }
+
+    with patch("app.routes.partner_onboarding.database", mock_db):
+        resp = client.post(
+            f"/admin/verifications/{fake_id}/approve",
+            headers={"Authorization": f"Bearer {admin_token}"},
+        )
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["success"] is True
+        assert data["is_verified"] is True
+        assert data["is_active"] is True
+        assert data["verification_status"] == "approved"
+
+        called_set = mock_delivery.find_one_and_update.call_args[0][1]["$set"]
+        assert called_set["verification_status"] == "approved"
+        assert called_set["is_verified"] is True
+        assert called_set["is_active"] is True
+        assert "approved_at" in called_set
+
+
+
