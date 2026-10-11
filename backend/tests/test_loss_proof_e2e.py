@@ -203,6 +203,8 @@ def test_courier_claim_rejected_when_cih_exceeds_500(client, courier_auth_header
         "unremitted_cod_balance": 604.50,
         "total_payout_earned": 100.00,
         "total_remitted": 0.0,
+        "is_verified": True,
+        "verification_status": "approved",
     }
 
     mock_db = MagicMock()
@@ -239,6 +241,8 @@ def test_courier_claim_allowed_when_cih_below_500(client, courier_auth_headers):
         "unremitted_cod_balance": 240.00,
         "total_payout_earned": 60.00,
         "total_remitted": 0.0,
+        "is_verified": True,
+        "verification_status": "approved",
     }
 
     mock_db = MagicMock()
