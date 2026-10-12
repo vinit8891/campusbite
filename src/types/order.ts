@@ -64,6 +64,15 @@ export type Order = {
   restaurant_info?: {
     name?: string;
     address?: string;
+    stall_location?: string;
+    phone?: string;
+    latitude?: number | null;
+    longitude?: number | null;
+  };
+  restaurant?: {
+    name?: string;
+    address?: string;
+    stall_location?: string;
     phone?: string;
     latitude?: number | null;
     longitude?: number | null;

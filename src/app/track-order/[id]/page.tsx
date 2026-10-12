@@ -156,6 +156,7 @@ export default function TrackOrderPage() {
           location={location}
           partnerHasLocation={partnerHasLocation}
           lastUpdated={lastUpdated}
+          restaurantName={restaurantName}
         />
 
         {error && location && (

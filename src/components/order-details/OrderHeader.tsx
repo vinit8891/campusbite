@@ -20,19 +20,24 @@ export function OrderHeader({
   showRestaurantMap,
   hasRestaurantLocation,
 }: OrderHeaderProps) {
+  const restaurant =
+    order.restaurant_info ||
+    (order as unknown as { restaurant?: Record<string, unknown> })?.restaurant ||
+    {};
   const restaurantName =
-    order.restaurant_info?.name || order.restaurant_name || "Restaurant";
+    (restaurant as { name?: string })?.name || order.restaurant_name || "Campus Canteen";
   const restaurantImage = order.restaurant_image;
   const restaurantAddress =
-    order.restaurant_info?.address ||
+    (restaurant as { address?: string })?.address ||
+    (restaurant as { stall_location?: string })?.stall_location ||
     order.address?.split(",")[0]?.trim() ||
-    "Campus Eatery";
+    "Zeal College Campus, Narhe";
   const restaurantPhone =
-    order.restaurant_info?.phone || order.restaurant_phone;
+    (restaurant as { phone?: string })?.phone || order.restaurant_phone;
   const restaurantLat =
-    order.restaurant_info?.latitude ?? order.restaurant_latitude;
+    (restaurant as { latitude?: number })?.latitude ?? order.restaurant_latitude ?? 18.4485;
   const restaurantLng =
-    order.restaurant_info?.longitude ?? order.restaurant_longitude;
+    (restaurant as { longitude?: number })?.longitude ?? order.restaurant_longitude ?? 73.8242;
   const hasMapCoords =
     restaurantLat != null &&
     restaurantLng != null &&
@@ -112,7 +117,7 @@ export function OrderHeader({
           <div className="flex flex-wrap items-center gap-2">
             {hasMapCoords && (
               <a
-                href={`https://maps.google.com/?q=${restaurantLat},${restaurantLng}`}
+                href={`https://www.google.com/maps/search/?api=1&query=${restaurantLat},${restaurantLng}`}
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center gap-1.5 rounded-xl bg-orange-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-orange-500 active:scale-95"
@@ -211,7 +216,7 @@ export function OrderHeader({
                 </div>
 
                 <a
-                  href={`https://maps.google.com/?q=${restaurantLat},${restaurantLng}`}
+                  href={`https://www.google.com/maps/search/?api=1&query=${restaurantLat},${restaurantLng}`}
                   target="_blank"
                   rel="noopener noreferrer"
                   className="mt-4 inline-block rounded-full bg-orange-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-orange-600"

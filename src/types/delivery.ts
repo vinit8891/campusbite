@@ -280,6 +280,24 @@ export type TrackingLocation = {
   status: string;
   restaurant_name?: string;
   restaurant_cuisine?: string;
+  restaurant_address?: string;
+  restaurant_phone?: string;
+  restaurant?: {
+    name?: string;
+    address?: string;
+    stall_location?: string;
+    phone?: string;
+    latitude?: number | null;
+    longitude?: number | null;
+  };
+  restaurant_info?: {
+    name?: string;
+    address?: string;
+    stall_location?: string;
+    phone?: string;
+    latitude?: number | null;
+    longitude?: number | null;
+  };
   delivery_partner_name?: string;
   delivery_partner_phone?: string;
   delivery_partner_vehicle?: string;

@@ -13,7 +13,7 @@ from app.auth.roles import (
     DELIVERY_PARTNER,
     RESTAURANT_OWNER,
 )
-from app.schemas.order import Order
+from app.schemas.order import Order, OrderResponse, RestaurantSnapshot
 
 from app.models.order import (
     create_order,
@@ -1044,6 +1044,57 @@ async def update_location(
     }
 
 
+async def _resolve_restaurant_snapshot(order: dict) -> dict:
+    rest_id = order.get("restaurant_id") or order.get("canteen_id")
+    restaurant_data = {}
+    if rest_id:
+        try:
+            or_conditions = []
+            if ObjectId.is_valid(str(rest_id)):
+                or_conditions.append({"_id": ObjectId(str(rest_id))})
+            or_conditions.append({"_id": str(rest_id)})
+            rest_doc = await database["restaurants"].find_one({"$or": or_conditions})
+            if not rest_doc and order.get("restaurant_email"):
+                rest_doc = await database["restaurants"].find_one({"email": order["restaurant_email"]})
+            if rest_doc:
+                restaurant_data = {
+                    "name": rest_doc.get("name") or rest_doc.get("business_name", "Campus Canteen"),
+                    "address": rest_doc.get("address") or rest_doc.get("stall_location", "Zeal Campus Grounds"),
+                    "stall_location": rest_doc.get("stall_location"),
+                    "phone": rest_doc.get("phone") or rest_doc.get("mobile"),
+                    "latitude": rest_doc.get("latitude") or 18.4485,
+                    "longitude": rest_doc.get("longitude") or 73.8242,
+                }
+        except Exception:
+            pass
+
+    if not restaurant_data and order.get("restaurant_email"):
+        try:
+            rest_doc = await database["restaurants"].find_one({"email": order["restaurant_email"]})
+            if rest_doc:
+                restaurant_data = {
+                    "name": rest_doc.get("name") or rest_doc.get("business_name", "Campus Canteen"),
+                    "address": rest_doc.get("address") or rest_doc.get("stall_location", "Zeal Campus Grounds"),
+                    "stall_location": rest_doc.get("stall_location"),
+                    "phone": rest_doc.get("phone") or rest_doc.get("mobile"),
+                    "latitude": rest_doc.get("latitude") or 18.4485,
+                    "longitude": rest_doc.get("longitude") or 73.8242,
+                }
+        except Exception:
+            pass
+
+    if not restaurant_data:
+        restaurant_data = {
+            "name": order.get("restaurant_name", "Campus Canteen"),
+            "address": order.get("restaurant_address") or order.get("stall_location", "Zeal Campus Grounds"),
+            "stall_location": order.get("stall_location"),
+            "phone": order.get("restaurant_phone"),
+            "latitude": order.get("restaurant_latitude") or 18.4485,
+            "longitude": order.get("restaurant_longitude") or 73.8242,
+        }
+    return restaurant_data
+
+
 @router.get("/delivery/location/{order_id}")
 @router.get("/{order_id}/courier-location")
 @router.get("/courier-location/{order_id}")
@@ -1071,6 +1122,7 @@ async def get_location(
 
     _assert_order_access(order, current_user)
     
+    rest_data = await _resolve_restaurant_snapshot(order)
     proximity_data = await get_courier_location_and_proximity(order_id, order_doc=order)
     partner = order.get("delivery_partner") or {}
     legacy_data = {
@@ -1078,8 +1130,13 @@ async def get_location(
         "partner_longitude": partner.get("longitude"),
         "customer_latitude": order.get("latitude"),
         "customer_longitude": order.get("longitude"),
-        "restaurant_latitude": order.get("restaurant_latitude"),
-        "restaurant_longitude": order.get("restaurant_longitude"),
+        "restaurant_latitude": rest_data.get("latitude") or order.get("restaurant_latitude") or 18.4485,
+        "restaurant_longitude": rest_data.get("longitude") or order.get("restaurant_longitude") or 73.8242,
+        "restaurant_name": rest_data.get("name") or order.get("restaurant_name", "Campus Canteen"),
+        "restaurant_address": rest_data.get("address"),
+        "restaurant_phone": rest_data.get("phone"),
+        "restaurant": rest_data,
+        "restaurant_info": rest_data,
         "last_location_update": partner.get("last_location_update"),
         "status": order.get("status"),
     }
@@ -1351,7 +1408,7 @@ async def emergency_deliver(
     }
 
 
-@router.get("/{order_id}")
+@router.get("/{order_id}", response_model=OrderResponse)
 async def fetch_order(
     order_id: str,
     current_user: Annotated[
@@ -1376,30 +1433,16 @@ async def fetch_order(
 
     _assert_order_access(order, current_user)
 
-    # Always populate restaurant snapshot on order retrieval
-    restaurant = None
-    restaurant_id = order.get("restaurant_id")
-    if restaurant_id and ObjectId.is_valid(str(restaurant_id)):
-        restaurant = await database["restaurants"].find_one({"_id": ObjectId(str(restaurant_id))})
-    if not restaurant and order.get("restaurant_email"):
-        restaurant = await database["restaurants"].find_one({"email": order["restaurant_email"]})
+    # Retrieve restaurant info
+    restaurant_data = await _resolve_restaurant_snapshot(order)
 
-    if restaurant:
-        order["restaurant_info"] = {
-            "name": restaurant.get("name"),
-            "address": restaurant.get("address") or restaurant.get("stall_location", "Campus Eatery"),
-            "phone": restaurant.get("phone"),
-            "latitude": restaurant.get("latitude"),
-            "longitude": restaurant.get("longitude"),
-        }
-    elif not order.get("restaurant_info"):
-        order["restaurant_info"] = {
-            "name": order.get("restaurant_name", "Campus Eatery"),
-            "address": order.get("restaurant_address") or order.get("stall_location", "Campus Eatery"),
-            "phone": order.get("restaurant_phone"),
-            "latitude": order.get("restaurant_latitude"),
-            "longitude": order.get("restaurant_longitude"),
-        }
+    order["restaurant"] = restaurant_data
+    order["restaurant_info"] = restaurant_data
+    order["restaurant_name"] = restaurant_data.get("name", order.get("restaurant_name", "Campus Canteen"))
+    if not order.get("restaurant_latitude"):
+        order["restaurant_latitude"] = restaurant_data.get("latitude", 18.4485)
+    if not order.get("restaurant_longitude"):
+        order["restaurant_longitude"] = restaurant_data.get("longitude", 73.8242)
 
     return _public_order(order)
 

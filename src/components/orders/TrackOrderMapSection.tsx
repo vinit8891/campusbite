@@ -15,12 +15,14 @@ type TrackOrderMapSectionProps = {
   location: TrackingLocation;
   partnerHasLocation: boolean;
   lastUpdated: Date | null;
+  restaurantName?: string;
 };
 
 export function TrackOrderMapSection({
   location,
   partnerHasLocation,
   lastUpdated,
+  restaurantName,
 }: TrackOrderMapSectionProps) {
   const normStatus = (location.status || "").toLowerCase().trim();
   const isDelivered = normStatus === "delivered" || normStatus === "completed";
@@ -28,6 +30,11 @@ export function TrackOrderMapSection({
   if (isDelivered) {
     return null;
   }
+
+  const effectiveRestName =
+    restaurantName ||
+    location.restaurant_name ||
+    "Zeal Campus Eatery";
 
   return (
     <section className="mt-4 overflow-hidden rounded-3xl border border-gray-100 bg-white p-2 shadow-sm sm:p-3">
@@ -41,7 +48,7 @@ export function TrackOrderMapSection({
             <p className="text-sm text-gray-500">
               {partnerHasLocation
                 ? "Your delivery partner's current location."
-                : "Waiting for the partner's live location."}
+                : "Food being prepared at kitchen • Partner assigning soon"}
             </p>
           </div>
 
@@ -53,35 +60,17 @@ export function TrackOrderMapSection({
           </span>
         </div>
 
-        {partnerHasLocation ? (
-          <div className="h-[500px] overflow-hidden rounded-2xl">
-            <LiveTrackingMap
-              partnerLat={location.partner_latitude as number}
-              partnerLng={location.partner_longitude as number}
-              customerLat={location.customer_latitude}
-              customerLng={location.customer_longitude}
-              restaurantLat={location.restaurant_latitude}
-              restaurantLng={location.restaurant_longitude}
-            />
-          </div>
-        ) : (
-          <div className="flex h-[500px] items-center justify-center rounded-2xl border border-dashed border-gray-200 bg-white px-6 text-center">
-            <div>
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-blue-50 text-3xl">
-                🛵
-              </div>
-
-              <h3 className="mt-4 text-lg font-bold text-gray-900">
-                Waiting for live location
-              </h3>
-
-              <p className="mt-2 max-w-md text-sm leading-6 text-gray-500">
-                The map will update automatically when your
-                delivery partner starts sharing their location.
-              </p>
-            </div>
-          </div>
-        )}
+        <div className="overflow-hidden rounded-2xl">
+          <LiveTrackingMap
+            partnerLat={partnerHasLocation ? (location.partner_latitude as number) : null}
+            partnerLng={partnerHasLocation ? (location.partner_longitude as number) : null}
+            customerLat={location.customer_latitude}
+            customerLng={location.customer_longitude}
+            restaurantLat={location.restaurant_latitude}
+            restaurantLng={location.restaurant_longitude}
+            restaurantName={effectiveRestName}
+          />
+        </div>
       </div>
     </section>
   );

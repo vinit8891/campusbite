@@ -26,6 +26,8 @@ type Props = {
 
   restaurantLat: number | null;
   restaurantLng: number | null;
+
+  restaurantName?: string;
 };
 
 const containerStyle = {
@@ -40,6 +42,7 @@ export default function LiveTrackingMap({
   customerLng,
   restaurantLat,
   restaurantLng,
+  restaurantName,
 }: Props) {
   const mapRef =
     useRef<google.maps.Map | null>(null);
@@ -47,10 +50,21 @@ export default function LiveTrackingMap({
   const animationRef =
     useRef<number | undefined>(undefined);
 
-    const previousPosition =
+  const restLat = restaurantLat ?? 18.4485;
+  const restLng = restaurantLng ?? 73.8242;
+  const custLat = customerLat ?? 18.4482;
+  const custLng = customerLng ?? 73.8260;
+
+  const hasPartner =
+    partnerLat != null &&
+    partnerLng != null &&
+    !Number.isNaN(partnerLat) &&
+    !Number.isNaN(partnerLng);
+
+  const previousPosition =
     useRef({
-      lat: partnerLat ?? customerLat ?? 0,
-      lng: partnerLng ?? customerLng ?? 0,
+      lat: hasPartner ? partnerLat! : restLat,
+      lng: hasPartner ? partnerLng! : restLng,
     });
 
   const apiKey = process.env.NEXT_PUBLIC_GOOGLE_MAPS_API_KEY || "";
@@ -106,8 +120,8 @@ export default function LiveTrackingMap({
 
     const [animatedPosition, setAnimatedPosition] =
     useState({
-      lat: partnerLat ?? customerLat ?? 0,
-      lng: partnerLng ?? customerLng ?? 0,
+      lat: hasPartner ? partnerLat! : restLat,
+      lng: hasPartner ? partnerLng! : restLng,
     });
 
   const [_heading, setHeading] = useState(0);
@@ -159,15 +173,15 @@ export default function LiveTrackingMap({
     if (!isLoaded) return;
 
     if (
+      !hasPartner ||
       partnerLat == null ||
       partnerLng == null ||
-      customerLat == null ||
-      customerLng == null ||
       Number.isNaN(partnerLat) ||
-      Number.isNaN(partnerLng) ||
-      Number.isNaN(customerLat) ||
-      Number.isNaN(customerLng)
+      Number.isNaN(partnerLng)
     ) {
+      setDirections(undefined);
+      setDistance("--");
+      setDuration("--");
       return;
     }
 
@@ -181,8 +195,8 @@ export default function LiveTrackingMap({
           lng: partnerLng,
         },
         destination: {
-          lat: customerLat,
-          lng: customerLng,
+          lat: custLat,
+          lng: custLng,
         },
         travelMode:
           google.maps.TravelMode.DRIVING,
@@ -210,10 +224,11 @@ export default function LiveTrackingMap({
     );
   }, [
     isLoaded,
+    hasPartner,
     partnerLat,
     partnerLng,
-    customerLat,
-    customerLng,
+    custLat,
+    custLng,
   ]);
 
    // -----------------------------
@@ -221,6 +236,7 @@ export default function LiveTrackingMap({
   // -----------------------------
   useEffect(() => {
     if (
+      !hasPartner ||
       partnerLat == null ||
       partnerLng == null ||
       Number.isNaN(partnerLat) ||
@@ -297,7 +313,7 @@ export default function LiveTrackingMap({
         );
       }
     };
-  }, [partnerLat, partnerLng]);
+  }, [hasPartner, partnerLat, partnerLng]);
 
   if (loadError || authError || !apiKey) {
     return (
@@ -305,17 +321,29 @@ export default function LiveTrackingMap({
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-100 text-orange-600 text-lg">
-              🛵
+              🍽️
             </div>
             <div>
-              <h3 className="text-sm font-bold text-stone-900">Live Delivery Progress</h3>
-              <p className="text-xs text-stone-500">Real-time status updates from your courier</p>
+              <h3 className="text-sm font-bold text-stone-900">{restaurantName || "Zeal Campus Eatery"}</h3>
+              <p className="text-xs text-stone-500">
+                {hasPartner ? "Real-time delivery progress" : "Food being prepared at kitchen • Partner assigning soon"}
+              </p>
             </div>
           </div>
-          <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-bold text-emerald-800">
-            Active
+          <span className="rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-bold text-amber-800">
+            {hasPartner ? "In Transit" : "Preparing"}
           </span>
         </div>
+
+        {/* Clean Static Banner */}
+        {!hasPartner && (
+          <div className="rounded-xl bg-amber-50/90 p-3.5 border border-amber-200/80 text-xs font-semibold text-amber-900 flex items-center gap-2">
+            <span className="text-base">🍳</span>
+            <p className="leading-snug">
+              Food being prepared at kitchen • Partner assigning soon
+            </p>
+          </div>
+        )}
 
         {/* Clean Static Stepper Timeline */}
         <div className="py-2">
@@ -338,10 +366,16 @@ export default function LiveTrackingMap({
 
             {/* Step 3 */}
             <div className="flex flex-col items-center gap-1.5">
-              <div className="flex h-7 w-7 items-center justify-center rounded-full bg-amber-500 text-white text-xs font-bold shadow-2xs animate-pulse ring-4 ring-amber-100">
-                ●
+              <div className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-bold shadow-2xs ${
+                hasPartner
+                  ? "bg-amber-500 text-white animate-pulse ring-4 ring-amber-100"
+                  : "bg-stone-100 text-stone-400 border border-stone-200"
+              }`}>
+                {hasPartner ? "●" : "○"}
               </div>
-              <span className="text-amber-700 font-extrabold text-[11px]">Out for Delivery</span>
+              <span className={`text-[11px] ${hasPartner ? "text-amber-700 font-extrabold" : "text-stone-400 font-medium"}`}>
+                Out for Delivery
+              </span>
             </div>
 
             {/* Step 4 */}
@@ -358,7 +392,9 @@ export default function LiveTrackingMap({
           <div className="flex items-center gap-2">
             <span className="text-base">📍</span>
             <p className="leading-snug">
-              Courier is heading towards your campus drop point. Have your phone ready for arrival call.
+              {hasPartner
+                ? "Courier is heading towards your campus drop point. Have your phone ready for arrival call."
+                : "Restaurant is preparing your order at Zeal Campus. A delivery partner will be assigned shortly."}
             </p>
           </div>
         </div>
@@ -374,57 +410,50 @@ export default function LiveTrackingMap({
     );
   }
 
-  if (
-    customerLat == null ||
-    customerLng == null ||
-    Number.isNaN(customerLat) ||
-    Number.isNaN(customerLng)
-  ) {
-    return (
-      <div className="flex h-[350px] items-center justify-center rounded-2xl border border-dashed border-stone-200 bg-stone-50 text-xs text-stone-500">
-        Customer location coordinates not available.
-      </div>
-    );
-  }
-
   return (
     <div>
-      <div className="mb-6 grid gap-4 md:grid-cols-2">
-        <div className="rounded-xl bg-orange-100 p-5">
-          <p className="text-sm text-gray-500">
-            Remaining Distance
-          </p>
-
-          <h2 className="text-2xl font-bold text-orange-600">
-            📍 {distance}
-          </h2>
+      {!hasPartner ? (
+        <div className="mb-4 flex items-center gap-2.5 rounded-2xl border border-amber-200/80 bg-amber-50/90 p-4 text-xs font-semibold text-amber-900 shadow-2xs">
+          <span className="text-lg shrink-0">🍳</span>
+          <span>Food being prepared at kitchen • Partner assigning soon</span>
         </div>
+      ) : (
+        <div className="mb-6 grid gap-4 md:grid-cols-2">
+          <div className="rounded-xl bg-orange-100 p-5">
+            <p className="text-sm text-gray-500">
+              Remaining Distance
+            </p>
 
-        <div className="rounded-xl bg-green-100 p-5">
-          <p className="text-sm text-gray-500">
-            Estimated Arrival
-          </p>
+            <h2 className="text-2xl font-bold text-orange-600">
+              📍 {distance}
+            </h2>
+          </div>
 
-          <h2 className="text-2xl font-bold text-green-600">
-            ⏱ {duration}
-          </h2>
+          <div className="rounded-xl bg-green-100 p-5">
+            <p className="text-sm text-gray-500">
+              Estimated Arrival
+            </p>
+
+            <h2 className="text-2xl font-bold text-green-600">
+              ⏱ {duration}
+            </h2>
+          </div>
         </div>
-      </div>
+      )}
 
       <GoogleMap
         mapContainerStyle={
           containerStyle
         }
         center={
-          partnerLat != null &&
-          partnerLng != null
+          hasPartner
             ? {
                 lat: partnerLat,
                 lng: partnerLng,
               }
             : {
-                lat: customerLat,
-                lng: customerLng,
+                lat: restLat,
+                lng: restLng,
               }
         }
         zoom={15}
@@ -438,28 +467,30 @@ export default function LiveTrackingMap({
           zoomControl: true,
         }}
       >
-        {restaurantLat != null &&
-          restaurantLng != null && (
-            <Marker
-              position={{
-                lat: restaurantLat,
-                lng: restaurantLng,
-              }}
-              icon={restaurantMarker}
-            />
-          )}
-
         <Marker
-          position={animatedPosition}
-          icon={bikeMarker}
+          position={{
+            lat: restLat,
+            lng: restLng,
+          }}
+          icon={restaurantMarker}
+          title={`🍽️ ${restaurantName || "Zeal Campus Eatery"}`}
         />
+
+        {hasPartner && (
+          <Marker
+            position={animatedPosition}
+            icon={bikeMarker}
+            title="🛵 Delivery Partner"
+          />
+        )}
 
         <Marker
           position={{
-            lat: customerLat,
-            lng: customerLng,
+            lat: custLat,
+            lng: custLng,
           }}
           icon={homeMarker}
+          title="🏠 Delivery Spot"
         />
 
         {directions && (

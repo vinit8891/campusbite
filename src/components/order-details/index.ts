@@ -10,3 +10,4 @@ export {
   type OrderTimelineSectionProps,
 } from "./OrderTimelineSection";
 export { OrderActions, type OrderActionsProps } from "./OrderActions";
+export { RestaurantCard, type RestaurantCardProps } from "./RestaurantCard";

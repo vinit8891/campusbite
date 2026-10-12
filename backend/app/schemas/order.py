@@ -1,5 +1,5 @@
 from typing import Any, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class OrderItem(BaseModel):
@@ -67,8 +67,34 @@ class Order(BaseModel):
 
     items: list[OrderItem]
 
+    restaurant: Optional["RestaurantSnapshot"] = None
+    restaurant_info: Optional["RestaurantSnapshot"] = None
+    restaurant_id: Optional[str] = None
+    restaurant_name: Optional[str] = None
+
+
+class RestaurantSnapshot(BaseModel):
+    name: Optional[str] = "Zeal Campus Eatery"
+    address: Optional[str] = "Zeal College Campus, Narhe"
+    stall_location: Optional[str] = None
+    phone: Optional[str] = None
+    latitude: Optional[float] = 18.4485
+    longitude: Optional[float] = 73.8242
+
+
+class OrderResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True, extra="allow")
+
+    id: Optional[str] = None
+    _id: Optional[str] = None
+    restaurant_id: Optional[str] = None
+    restaurant_name: Optional[str] = None
+    restaurant: Optional[RestaurantSnapshot] = None
+    restaurant_info: Optional[RestaurantSnapshot] = None
+
 
 # Aliases for flexible schema usage
 OrderCreate = Order
 OrderCreateRequest = Order
+
 
