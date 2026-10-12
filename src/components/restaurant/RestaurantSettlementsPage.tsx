@@ -139,14 +139,27 @@ export function RestaurantSettlementsPage() {
   }
 
   const today = overview?.today;
-  const grossSales = today?.gross_food_sales ?? 0;
-  const commissionDeducted = today?.commission_deducted ?? (0.18 * Number(grossSales || 0));
-  const gstAmount = today?.gst_amount ?? (0.05 * Number(grossSales || 0));
-  const netPayable = today?.net_payable_subtotal ?? (Number(grossSales || 0) + Number(gstAmount || 0) - Number(commissionDeducted || 0));
+  const grossSales = today?.gross_food_sales ?? today?.gross_sales ?? 0;
+  const commissionDeducted = today?.commission_deducted ?? today?.commission ?? (0.18 * Number(grossSales || 0));
+  const gstAmount = today?.gst_amount ?? today?.gst ?? (0.05 * Number(grossSales || 0));
+  const netPayable = today?.net_payable_subtotal ?? today?.net_payout ?? (Number(grossSales || 0) + Number(gstAmount || 0) - Number(commissionDeducted || 0));
   const upiId = today?.upi_id || "canteen.orders@okaxis";
-  const isTodaySettled = today?.status === "Settled";
+  const isTodaySettled =
+    today?.status?.toLowerCase() === "paid" ||
+    today?.status?.toLowerCase() === "settled" ||
+    Boolean(today?.is_settled);
   const ordersCount = today?.orders_count ?? 0;
-  const todayUtr = today?.transaction_ref;
+  const todayUtr = today?.utr_number || today?.transaction_ref;
+
+  const settlement = {
+    status: isTodaySettled ? 'paid' : (today?.status || 'Pending'),
+    is_settled: isTodaySettled,
+    utr_number: todayUtr,
+    gross_sales: grossSales,
+    gst: gstAmount,
+    commission: commissionDeducted,
+    net_payout: netPayable,
+  };
 
   return (
     <div className="space-y-6 sm:space-y-8 pb-12">
@@ -309,24 +322,23 @@ export function RestaurantSettlementsPage() {
               <div className="text-3xl sm:text-4xl font-black text-emerald-950 tracking-tight">
                 ₹{formatINR(netPayable)}
               </div>
-              <p className="mt-2 text-[11px] font-medium text-emerald-800/90 leading-relaxed">
-                Gross (₹{formatINR(grossSales)}) + 5% GST (₹{formatINR(gstAmount)}) − 18% Comm (₹{formatINR(commissionDeducted)})
+              <p className="text-xs text-zinc-500 mt-1">
+                Gross (₹{formatINR(settlement.gross_sales)}) + 5% GST (₹{formatINR(settlement.gst)}) − 18% Comm (₹{formatINR(settlement.commission)})
               </p>
             </div>
           </div>
 
           <div className="mt-4 pt-3 border-t border-emerald-200/80 space-y-1.5">
             <div className="flex items-center justify-between">
-              {isTodaySettled ? (
-                <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-1 text-[11px] font-black text-emerald-900 border border-emerald-200">
-                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-                  <span>✅ Paid via Bank UTR: {todayUtr || "SETTLED"}</span>
-                </span>
+              {settlement.status === 'paid' ? (
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-3 py-1 text-xs font-bold text-emerald-700 border border-emerald-200">
+                  <span>✓ Disbursed & Settled via UPI</span>
+                  {settlement.utr_number && <span className="font-mono text-[10px] text-emerald-600">({settlement.utr_number})</span>}
+                </div>
               ) : (
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-1 text-[11px] font-black text-amber-900 border border-amber-200 animate-pulse">
-                  <Clock className="h-3.5 w-3.5 text-amber-600" />
+                <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 px-3 py-1 text-xs font-bold text-amber-700 border border-amber-200">
                   <span>⏰ Scheduled for 9:00 PM Batch Transfer</span>
-                </span>
+                </div>
               )}
             </div>
           </div>
@@ -462,7 +474,7 @@ export function RestaurantSettlementsPage() {
                         ₹{formatINR(gross)}
                       </td>
 
-                      <td className="py-3.5 px-4 whitespace-nowrap text-purple-700 font-bold">
+                      <td className="py-3.5 px-4 min-w-[100px] whitespace-nowrap text-red-600 font-semibold text-xs">
                         -₹{formatINR(comm)}
                       </td>
 

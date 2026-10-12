@@ -244,6 +244,22 @@ export async function getRestaurantSettlements(
         }
       }
     }
+
+    try {
+      const todayRemote = await authJson<CanteenDailySettlement>(
+        withQuery("/restaurant/settlements/today", queryParams),
+        { role: "restaurant_owner", cache: "no-store" }
+      );
+      if (todayRemote && (todayRemote.status?.toLowerCase() === "paid" || todayRemote.status?.toLowerCase() === "settled" || todayRemote.is_settled)) {
+        const d = todayRemote.settlement_date || todayRemote.date || dateStr;
+        const existingIdx = settledList.findIndex((x) => x.settlement_date === d || x.date === d);
+        if (existingIdx >= 0) {
+          settledList[existingIdx] = { ...settledList[existingIdx], ...todayRemote, settlement_date: d };
+        } else {
+          settledList.push({ ...todayRemote, settlement_date: d });
+        }
+      }
+    } catch (_) {}
   } catch (_) {
     // Non-blocking fallback
   }
@@ -362,13 +378,26 @@ export async function getRestaurantSettlements(
     Number((todayGrossFoodSales + todayGst - todayCommission).toFixed(2))
   );
 
-  const settledToday = settledList.find((s) => s.settlement_date === dateStr);
+  const settledToday = settledList.find((s) => s.settlement_date === dateStr || s.date === dateStr);
+
+  const isTodayPaid =
+    settledToday?.status?.toLowerCase() === "paid" ||
+    settledToday?.status?.toLowerCase() === "settled" ||
+    settledToday?.is_settled === true;
 
   const todaySettlement: CanteenDailySettlement = settledToday
     ? {
         ...settledToday,
-        gst_amount: todayGst,
-        net_disbursed: settledToday.net_payable_subtotal,
+        gross_sales: settledToday.gross_sales ?? settledToday.gross_food_sales ?? todayGrossFoodSales,
+        gst: settledToday.gst ?? settledToday.gst_amount ?? todayGst,
+        gst_amount: settledToday.gst_amount ?? settledToday.gst ?? todayGst,
+        commission: settledToday.commission ?? settledToday.commission_deducted ?? todayCommission,
+        commission_deducted: settledToday.commission_deducted ?? settledToday.commission ?? todayCommission,
+        net_payable_subtotal: settledToday.net_payable_subtotal || todayNetPayable,
+        net_disbursed: settledToday.net_payable_subtotal || todayNetPayable,
+        status: settledToday.status || (isTodayPaid ? "paid" : "Pending"),
+        is_settled: isTodayPaid,
+        utr_number: settledToday.utr_number ?? settledToday.transaction_ref,
       }
     : {
         restaurant_email: cleanEmail,
@@ -376,20 +405,32 @@ export async function getRestaurantSettlements(
         upi_id: upiId,
         orders_count: todayDeliveredOrders.length,
         gross_food_sales: todayGrossFoodSales,
+        gross_sales: todayGrossFoodSales,
         commission_deducted: todayCommission,
+        commission: todayCommission,
         gst_amount: todayGst,
+        gst: todayGst,
         net_payable_subtotal: todayNetPayable,
         net_disbursed: todayNetPayable,
         status: "Pending",
+        is_settled: false,
         settlement_date: dateStr,
       };
 
   // 5. Build historical ledger
   const historyMap = new Map<string, CanteenDailySettlement>();
   for (const s of settledList) {
+    const isPaid = s.status?.toLowerCase() === "paid" || s.status?.toLowerCase() === "settled" || s.is_settled;
     historyMap.set(s.settlement_date, {
       ...s,
-      gst_amount: Number((0.05 * s.gross_food_sales).toFixed(2)),
+      gross_sales: s.gross_sales ?? s.gross_food_sales,
+      gst: s.gst ?? s.gst_amount ?? Number((0.05 * s.gross_food_sales).toFixed(2)),
+      gst_amount: s.gst_amount ?? s.gst ?? Number((0.05 * s.gross_food_sales).toFixed(2)),
+      commission: s.commission ?? s.commission_deducted,
+      commission_deducted: s.commission_deducted ?? s.commission,
+      status: s.status || (isPaid ? "paid" : "Pending"),
+      is_settled: isPaid,
+      utr_number: s.utr_number ?? s.transaction_ref,
       net_disbursed: s.net_payable_subtotal,
     });
   }

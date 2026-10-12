@@ -127,10 +127,31 @@ async def calculate_canteen_daily_settlement(
     phone = (restaurant_doc or {}).get("phone") or ""
 
     # 2. Check if a finalized settlement record already exists in database
-    settled_record = await database["canteen_settlements"].find_one({
-        "restaurant_email": clean_email,
-        "settlement_date": date_str,
-    })
+    rest_id_str = str((restaurant_doc or {}).get("_id", clean_email))
+    id_clauses = [{"restaurant_email": clean_email}]
+    if rest_id_str:
+        id_clauses.append({"restaurant_id": rest_id_str})
+        if ObjectId.is_valid(rest_id_str):
+            id_clauses.append({"restaurant_id": ObjectId(rest_id_str)})
+    if canteen_name:
+        id_clauses.append({"restaurant_name": canteen_name})
+
+    settlement_query = {
+        "$and": [
+            {"$or": id_clauses},
+            {"$or": [{"settlement_date": date_str}, {"date": date_str}]},
+        ]
+    }
+
+    settled_record = None
+    settlements_col = database.get("settlements") if hasattr(database, "get") else (database["settlements"] if "settlements" in database else None)
+    if settlements_col is not None:
+        settled_record = await settlements_col.find_one(settlement_query)
+
+    if not settled_record:
+        canteen_col = database.get("canteen_settlements") if hasattr(database, "get") else (database["canteen_settlements"] if "canteen_settlements" in database else None)
+        if canteen_col is not None:
+            settled_record = await canteen_col.find_one(settlement_query)
 
     # 3. Query delivered orders for this canteen
     # Query delivered orders within the settlement window
@@ -194,14 +215,36 @@ async def calculate_canteen_daily_settlement(
     except Exception:
         pass
 
+    # If orders count is 0 but settled_record exists, backfill gross sales from settled_record
+    if gross_food_sales <= 0.0 and settled_record:
+        rec_gross = float(
+            settled_record.get("gross_food_sales")
+            or settled_record.get("gross_sales")
+            or 0.0
+        )
+        if rec_gross <= 0.0:
+            rec_amt = float(settled_record.get("amount") or settled_record.get("net_payout") or 0.0)
+            if rec_amt > 0.0:
+                rec_gross = round(rec_amt / 0.87, 2)
+        if rec_gross > 0.0:
+            gross_food_sales = rec_gross
+
     gross_food_sales = round(gross_food_sales, 2)
     gst_collected = round(gross_food_sales * FOOD_GST_RATE, 2)
     platform_commission = round(gross_food_sales * CANTEEN_COMMISSION_RATE, 2)
     net_canteen_payable = max(0.0, round(gross_food_sales + gst_collected - platform_commission, 2))
 
-    status = "SETTLED" if settled_record else "PENDING"
-    txn_ref = (settled_record or {}).get("transaction_ref") or (
-        f"UPI/{date_str.replace('-', '')}/PENDING" if status == "PENDING" else ""
+    is_paid = (
+        str((settled_record or {}).get("status", "")).lower() == "paid"
+        or (settled_record or {}).get("is_settled") is True
+    )
+
+    status = "paid" if is_paid else ("SETTLED" if settled_record else "PENDING")
+    is_settled = True if (is_paid or (settled_record and status == "SETTLED")) else False
+    utr_no = (
+        (settled_record or {}).get("utr_number")
+        or (settled_record or {}).get("transaction_ref")
+        or (f"UPI/{date_str.replace('-', '')}/PENDING" if not is_paid else "UPI/CAMPUS/2026")
     )
     settled_at = (settled_record or {}).get("settled_at")
 
@@ -217,25 +260,30 @@ async def calculate_canteen_daily_settlement(
             "upi_id": upi_id,
         },
         "settlement_date": date_str,
+        "date": date_str,
         "settlement_window": "00:00:00 to 21:00:00 IST",
-        "orders_count": len(matching_orders),
+        "orders_count": len(matching_orders) or int((settled_record or {}).get("orders_count", 0)),
         "gross_food_sales": gross_food_sales,
+        "gross_sales": gross_food_sales,
         "gst_collected": gst_collected,
         "gst_amount": gst_collected,
+        "gst": gst_collected,
         "platform_commission": platform_commission,
+        "commission": platform_commission,
         "commission_deducted": platform_commission,
         "commission_rate": CANTEEN_COMMISSION_RATE,
         "gst_rate": FOOD_GST_RATE,
         "net_canteen_payable": net_canteen_payable,
         "net_payable_subtotal": net_canteen_payable,
-        "net_disbursed": net_canteen_payable if status == "SETTLED" else 0.0,
+        "net_disbursed": net_canteen_payable if (is_settled or is_paid) else 0.0,
         "status": status,
-        "transaction_ref": txn_ref,
+        "is_settled": is_settled,
+        "utr_number": utr_no,
+        "transaction_ref": utr_no,
         "settled_at": settled_at,
         "scheduled_transfer_time": "09:00 PM IST",
         # Standard non-null financial attributes
         "items_subtotal": float(gross_food_sales),
-        "gst": float(gst_collected),
         "delivery_fee": 0.0,
         "platform_fee": 0.0,
         "commission_amount": float(platform_commission),

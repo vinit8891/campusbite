@@ -103,3 +103,27 @@ async def get_settlement_daily_summary(
         normalize_settlement_financials(s) for s in settlements
     ]
     return summary
+
+
+@router.post("/mark-paid")
+@router.post("/canteens/{canteen_id}/mark-paid")
+async def mark_settlement_paid_route(
+    current_user: Annotated[dict, Depends(require_roles(ADMIN))],
+    canteen_id: str | None = None,
+    payload: dict | None = None,
+):
+    from app.routers.admin import mark_canteen_settlement_paid
+    payload = payload or {}
+    target_id = (
+        canteen_id
+        or payload.get("restaurant_id")
+        or payload.get("canteen_id")
+        or payload.get("restaurant_email")
+        or payload.get("id")
+        or "canteen"
+    )
+    return await mark_canteen_settlement_paid(
+        canteen_id=target_id,
+        current_user=current_user,
+        payload=payload,
+    )

@@ -55,4 +55,41 @@ describe("RemitDuesModal Component", () => {
     expect(input.value).toBe("400.00");
     expect(screen.getByText(/Full Due \(₹400.00\)/i)).toBeInTheDocument();
   });
+
+  it("handles duesAmount override with ₹699.25 and updates all modal elements", () => {
+    render(
+      <RemitDuesModal
+        isOpen={true}
+        onClose={vi.fn()}
+        duesAmount={699.25}
+      />
+    );
+
+    const input = screen.getByLabelText(/Amount to Remit/i) as HTMLInputElement;
+    expect(input.value).toBe("699.25");
+    expect(input.placeholder).toBe("e.g. 699.25");
+
+    expect(screen.getByText("Pending: ₹699.25")).toBeInTheDocument();
+    expect(screen.getByText("Full Due (₹699.25)")).toBeInTheDocument();
+    expect(screen.getByText("Current Net Dues: ₹699.25")).toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: /Confirm Remitted ₹699.25/i })
+    ).toBeInTheDocument();
+  });
+
+  it("resolves dues from courier.cash_in_hand or cih_balance", () => {
+    render(
+      <RemitDuesModal
+        isOpen={true}
+        onClose={vi.fn()}
+        courier={{
+          cash_in_hand: 550.5,
+        }}
+      />
+    );
+
+    const input = screen.getByLabelText(/Amount to Remit/i) as HTMLInputElement;
+    expect(input.value).toBe("550.50");
+    expect(screen.getByText("Pending: ₹550.50")).toBeInTheDocument();
+  });
 });

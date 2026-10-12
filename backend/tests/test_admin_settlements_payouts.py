@@ -165,3 +165,55 @@ async def test_get_courier_settlements_breakdown_aggregations():
         assert rider["net_cash_due_to_admin"] == 260.0
         assert rider["is_locked"] is False
         assert rider["status"] == "ACTIVE"
+
+
+@pytest.mark.asyncio
+async def test_mark_canteen_settlement_paid_syncs_settlements_collection():
+    """Validates that mark_canteen_settlement_paid writes status='paid', is_settled=True, and utr_number to settlements and canteen_settlements."""
+    from app.routers.admin import mark_canteen_settlement_paid
+
+    mock_settlements = AsyncMock()
+    mock_canteen_settlements = AsyncMock()
+    mock_restaurants = AsyncMock()
+    mock_restaurants.find_one = AsyncMock(return_value={
+        "_id": "rest-1",
+        "name": "Taj Canteen",
+        "email": "taj@campusbite.in",
+        "settlement_upi_id": "taj@okaxis",
+    })
+
+    mock_db = {
+        "restaurants": mock_restaurants,
+        "settlements": mock_settlements,
+        "canteen_settlements": mock_canteen_settlements,
+        "audit_logs": AsyncMock(),
+    }
+
+    with patch("app.routers.admin.database", mock_db):
+        res = await mark_canteen_settlement_paid(
+            canteen_id="rest-1",
+            current_user={"role": "admin", "email": "admin@campusbite.in"},
+            payload={
+                "date": "2026-10-12",
+                "amount": 696.0,
+                "transaction_ref": "UPI/2026/TEST1234",
+            },
+        )
+
+        assert res["success"] is True
+        assert res["settlement"]["status"] == "paid"
+        assert res["settlement"]["is_settled"] is True
+        assert res["settlement"]["utr_number"] == "UPI/2026/TEST1234"
+
+        # Assert settlements collection update_one was called with status="paid" and is_settled=True
+        mock_settlements.update_one.assert_called_once()
+        settle_call_args = mock_settlements.update_one.call_args
+        assert settle_call_args[0][1]["$set"]["status"] == "paid"
+        assert settle_call_args[0][1]["$set"]["is_settled"] is True
+        assert settle_call_args[0][1]["$set"]["utr_number"] == "UPI/2026/TEST1234"
+
+        # Assert canteen_settlements update_one was called
+        mock_canteen_settlements.update_one.assert_called_once()
+        canteen_call_args = mock_canteen_settlements.update_one.call_args
+        assert canteen_call_args[0][1]["$set"]["status"] == "paid"
+        assert canteen_call_args[0][1]["$set"]["is_settled"] is True

@@ -944,8 +944,51 @@ export async function markCanteenSettlementPaidAdmin(
     restaurant_email?: string;
   }
 ) {
+  const dateStr = payload?.date || new Date().toISOString().split("T")[0];
+  const email = payload?.restaurant_email || (canteenId.includes("@") ? canteenId : "");
+  const name = payload?.restaurant_name || canteenId;
+  const utr = payload?.transaction_ref || `UPI/${Date.now()}`;
+
+  const syncLocal = () => {
+    if (typeof window !== "undefined") {
+      try {
+        const key = `cb_canteen_settlements`;
+        const raw = localStorage.getItem(key);
+        const existing: CanteenDailySettlement[] = raw ? JSON.parse(raw) : [];
+        const record: CanteenDailySettlement = {
+          restaurant_email: email,
+          restaurant_name: name,
+          upi_id: payload?.upi_id || "",
+          orders_count: payload?.orders_count || 0,
+          gross_food_sales: payload?.amount || 0,
+          gross_sales: payload?.amount || 0,
+          commission_deducted: 0,
+          commission: 0,
+          net_payable_subtotal: payload?.amount || 0,
+          net_payout: payload?.amount || 0,
+          status: "paid",
+          is_settled: true,
+          settled_at: new Date().toISOString(),
+          transaction_ref: utr,
+          utr_number: utr,
+          settlement_date: dateStr,
+        };
+        const filtered = existing.filter(
+          (s) =>
+            !(
+              (s.restaurant_email === email || s.restaurant_name === name) &&
+              s.settlement_date === dateStr
+            )
+        );
+        filtered.unshift(record);
+        localStorage.setItem(key, JSON.stringify(filtered));
+        window.dispatchEvent(new Event("admin_settlement_changed"));
+      } catch (_) {}
+    }
+  };
+
   try {
-    return await authJson<{ success: boolean; message: string; settlement?: unknown }>(
+    const res = await authJson<{ success: boolean; message: string; settlement?: unknown }>(
       `/admin/settlements/canteens/${encodeURIComponent(canteenId)}/mark-paid`,
       {
         ...ADMIN_JSON,
@@ -953,7 +996,10 @@ export async function markCanteenSettlementPaidAdmin(
         body: JSON.stringify(payload || {}),
       }
     );
+    syncLocal();
+    return res;
   } catch (_) {
+    syncLocal();
     return await recordCanteenSettlementAdmin({
       restaurant_email: payload?.restaurant_email || canteenId,
       restaurant_name: payload?.restaurant_name || canteenId,

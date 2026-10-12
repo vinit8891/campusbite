@@ -261,20 +261,29 @@ export type RiderReconciliationSummary = {
 };
 
 export type CanteenDailySettlement = {
+  restaurant_id?: string;
   restaurant_email: string;
   restaurant_name: string;
   upi_id: string;
   orders_count: number;
   gross_food_sales: number;
+  gross_sales?: number;
   commission_deducted: number;
+  commission?: number;
+  platform_commission?: number;
   gst_amount?: number;
+  gst?: number;
   net_payable_subtotal: number;
   net_disbursed?: number;
-  status: "Settled" | "Pending";
+  net_payout?: number;
+  status: "Settled" | "Pending" | "paid" | "PAID" | string;
+  is_settled?: boolean;
+  utr_number?: string;
   settled_at?: string;
   settled_by?: string;
   transaction_ref?: string;
   settlement_date: string;
+  date?: string;
 };
 
 export type TrackingLocation = {

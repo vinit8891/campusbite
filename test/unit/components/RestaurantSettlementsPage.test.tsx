@@ -108,4 +108,33 @@ describe("RestaurantSettlementsPage", () => {
 
     expect(screen.getByText("Print / Download Slip")).toBeInTheDocument();
   });
+
+  it("renders green Disbursed & Settled badge when today settlement is paid", async () => {
+    const todayStr = new Date().toISOString().split("T")[0];
+    localStorage.setItem(
+      "cb_canteen_settlements",
+      JSON.stringify([
+        {
+          restaurant_email: "taj@campusbite.in",
+          restaurant_name: "Taj Canteen",
+          settlement_date: todayStr,
+          status: "paid",
+          is_settled: true,
+          utr_number: "UPI/2026/TEST889",
+          transaction_ref: "UPI/2026/TEST889",
+          gross_food_sales: 1000,
+          commission_deducted: 180,
+          gst_amount: 50,
+          net_payable_subtotal: 870,
+        },
+      ])
+    );
+
+    render(<RestaurantSettlementsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("✓ Disbursed & Settled via UPI")).toBeInTheDocument();
+      expect(screen.getByText("(UPI/2026/TEST889)")).toBeInTheDocument();
+    });
+  });
 });

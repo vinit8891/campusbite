@@ -458,6 +458,8 @@ export default function AvailableOrdersPage() {
       <RemitDuesModal
         isOpen={isRemitModalOpen}
         onClose={() => setIsRemitModalOpen(false)}
+        courier={cashRecon}
+        duesAmount={cashRecon?.net_cash_due ?? cashRecon?.cash_in_hand}
         phone={partnerPhone}
         onRemitSuccess={() => {
           const p = getDeliveryPartnerSession();

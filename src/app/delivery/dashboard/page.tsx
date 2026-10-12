@@ -45,7 +45,7 @@ export default function DeliveryDashboard() {
     recent,
   } = useDeliveryDashboard();
 
-  const [activeTab, setActiveTab] = useState<"orders" | "roster">("orders");
+  const [activeTab, setActiveTab] = useState<"live" | "orders" | "roster">("live");
   const [isRemitModalOpen, setIsRemitModalOpen] = useState(false);
   const [localRecon, setLocalRecon] = useState(() =>
     partner?.phone ? getRiderCashReconciliation(partner.phone) : null
@@ -81,6 +81,12 @@ export default function DeliveryDashboard() {
     stats.cash_reconciliation?.net_cash_due ??
     localRecon?.net_cash_due ??
     (stats.net_cash_due ?? 0);
+
+  const cashInHand =
+    localRecon?.cash_in_hand ??
+    partner?.cash_in_hand ??
+    stats?.cash_in_hand ??
+    netCashDue;
 
   const isLocked =
     stats.cash_reconciliation?.isLocked ||
@@ -223,30 +229,34 @@ export default function DeliveryDashboard() {
       />
 
       {/* Navigation Tabs */}
-      <div className="flex rounded-2xl bg-stone-100 p-1.5 border border-stone-200/80">
-        <button
-          type="button"
-          onClick={() => setActiveTab("orders")}
-          className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold transition ${
-            activeTab === "orders"
-              ? "bg-white text-stone-900 shadow-xs"
-              : "text-stone-600 hover:text-stone-900"
-          }`}
-        >
-          <Package className="h-4 w-4 text-orange-600" />
-          <span>⚡ Live Orders & Dispatch</span>
-        </button>
-        <button
-          type="button"
-          onClick={() => setActiveTab("roster")}
-          className={`flex-1 flex items-center justify-center gap-2 rounded-xl py-2.5 text-sm font-bold transition ${
-            activeTab === "roster"
-              ? "bg-white text-stone-900 shadow-xs"
-              : "text-stone-600 hover:text-stone-900"
-          }`}
-        >
-          <span>📅 Mess Shift Roster (Guaranteed Runs)</span>
-        </button>
+      <div className="w-full my-3">
+        <div className="grid grid-cols-2 gap-2 p-1 bg-zinc-100/80 rounded-2xl border border-zinc-200/70">
+          <button
+            type="button"
+            onClick={() => setActiveTab('live')}
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'live' || activeTab === 'orders'
+                ? 'bg-white text-orange-600 shadow-sm border border-zinc-200/50'
+                : 'text-zinc-600 hover:text-zinc-900'
+            }`}
+          >
+            <span>⚡</span>
+            <span>Live Orders & Dispatch</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setActiveTab('roster')}
+            className={`flex items-center justify-center gap-1.5 py-2.5 px-3 rounded-xl text-xs font-bold transition-all ${
+              activeTab === 'roster'
+                ? 'bg-white text-orange-600 shadow-sm border border-zinc-200/50'
+                : 'text-zinc-600 hover:text-zinc-900'
+            }`}
+          >
+            <span>📅</span>
+            <span>Mess Shift Roster</span>
+          </button>
+        </div>
       </div>
 
       {activeTab === "roster" ? (
@@ -325,6 +335,8 @@ export default function DeliveryDashboard() {
       <RemitDuesModal
         isOpen={isRemitModalOpen}
         onClose={() => setIsRemitModalOpen(false)}
+        courier={partner}
+        duesAmount={cashInHand || netCashDue}
         phone={partner?.phone}
         onRemitSuccess={() => {
           if (partner?.phone) {

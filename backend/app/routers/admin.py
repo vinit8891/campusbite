@@ -762,44 +762,118 @@ async def mark_canteen_settlement_paid(
     upi_id = payload.get("upi_id") or (rest_doc.get("settlement_upi_id") if rest_doc else "") or ""
     txn_ref = payload.get("transaction_ref") or payload.get("utr") or f"UPI/{dt.now().strftime('%Y%m%d%H%M%S')}"
 
+    from bson import ObjectId
+    rest_id = str(rest_doc["_id"]) if rest_doc else canteen_id
+    id_matches = [
+        {"restaurant_id": rest_id},
+        {"restaurant_name": restaurant_name},
+        {"restaurant_email": restaurant_email},
+    ]
+    if ObjectId.is_valid(rest_id):
+        id_matches.append({"restaurant_id": ObjectId(rest_id)})
+
+    target_date_str = date_prefix
+    gross_val = float(payload.get("gross_food_sales") or payload.get("gross_sales") or 0.0)
+    if gross_val <= 0.0 and amount > 0:
+        gross_val = round(amount / 0.87, 2)
+    comm_val = float(payload.get("platform_commission") or payload.get("commission") or round(gross_val * 0.18, 2))
+    gst_val = float(payload.get("gst") or payload.get("gst_amount") or round(gross_val * 0.05, 2))
+    utr_no = txn_ref or "UPI/CAMPUS/2026"
+
     settlement_record = {
-        "restaurant_id": str(rest_doc["_id"]) if rest_doc else canteen_id,
+        "restaurant_id": rest_id,
         "restaurant_email": restaurant_email,
         "restaurant_name": restaurant_name,
         "settlement_date": date_prefix,
+        "date": date_prefix,
         "amount": amount,
         "net_payout": amount,
         "net_payable_subtotal": amount,
+        "gross_food_sales": gross_val,
+        "gross_sales": gross_val,
+        "platform_commission": comm_val,
+        "commission": comm_val,
+        "gst": gst_val,
+        "gst_amount": gst_val,
         "orders_count": int(payload.get("orders_count") or 0),
-        "transaction_ref": txn_ref,
+        "transaction_ref": utr_no,
+        "utr_number": utr_no,
         "upi_id": upi_id,
-        "settled_at": dt.now(dt_tz.utc).isoformat(),
+        "settled_at": dt.now(dt_tz.utc),
         "settled_by": admin_email,
-        "status": "Paid",
+        "status": "paid",
+        "is_settled": True,
     }
 
-    await database["canteen_settlements"].update_one(
-        {
-            "restaurant_email": restaurant_email,
-            "settlement_date": date_prefix,
-        },
-        {"$set": settlement_record},
-        upsert=True,
-    )
+    # 1. Update shared settlements collection
+    settlements_col = database.get("settlements") if hasattr(database, "get") else (database["settlements"] if "settlements" in database else None)
+    if settlements_col is not None:
+        await settlements_col.update_one(
+            {
+                "$and": [
+                    {"$or": id_matches},
+                    {"$or": [{"date": target_date_str}, {"settlement_date": target_date_str}]},
+                ]
+            },
+            {
+                "$set": {
+                    **settlement_record,
+                    "status": "paid",
+                    "is_settled": True,
+                    "utr_number": utr_no,
+                    "settled_at": dt.now(dt_tz.utc),
+                }
+            },
+            upsert=True,
+        )
+
+    # 2. Update canteen_settlements collection
+    canteen_col = database.get("canteen_settlements") if hasattr(database, "get") else (database["canteen_settlements"] if "canteen_settlements" in database else None)
+    if canteen_col is not None:
+        await canteen_col.update_one(
+            {
+                "$and": [
+                    {"$or": id_matches},
+                    {"$or": [{"settlement_date": date_prefix}, {"date": date_prefix}]},
+                ]
+            },
+            {"$set": settlement_record},
+            upsert=True,
+        )
 
     await log_admin_action(
         admin_email=admin_email,
         action="mark_canteen_settlement_paid",
         resource="canteen_settlements",
         resource_id=f"{restaurant_email}_{date_prefix}",
-        metadata=settlement_record,
+        metadata={**settlement_record, "settled_at": dt.now(dt_tz.utc).isoformat()},
     )
 
     return {
         "success": True,
         "message": f"Settlement of ₹{amount:.2f} marked as Paid for {restaurant_name}",
-        "settlement": settlement_record,
+        "settlement": {**settlement_record, "settled_at": dt.now(dt_tz.utc).isoformat()},
     }
+
+
+@router.post("/settlements/mark-paid")
+async def mark_canteen_settlement_paid_alias(
+    current_user: Annotated[dict, Depends(require_roles(ADMIN))],
+    payload: dict | None = None,
+):
+    payload = payload or {}
+    canteen_id = (
+        payload.get("restaurant_id")
+        or payload.get("canteen_id")
+        or payload.get("restaurant_email")
+        or payload.get("id")
+        or "canteen"
+    )
+    return await mark_canteen_settlement_paid(
+        canteen_id=canteen_id,
+        current_user=current_user,
+        payload=payload,
+    )
 
 
 @router.get("/settlements/couriers")

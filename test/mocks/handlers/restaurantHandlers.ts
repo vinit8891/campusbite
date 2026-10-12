@@ -30,6 +30,14 @@ export const restaurantHandlers = [
     return HttpResponse.json({ settlements: [] });
   }),
 
+  http.get(url("/restaurant/settlements/today"), () => {
+    return HttpResponse.json({});
+  }),
+
+  http.get(url("/restaurant/settlements/history"), () => {
+    return HttpResponse.json({ settlements: [] });
+  }),
+
   http.get(url("/restaurants/:id"), () => {
     return HttpResponse.json({
       _id: "rest-1",

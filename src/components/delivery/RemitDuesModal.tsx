@@ -13,63 +13,69 @@ export const CAMPUSBITE_UPI_ID = "campusbite.ops@okaxis";
 export const CAMPUSBITE_UPI_NAME = "CampusBite Operations";
 
 export type CourierDueInfo = {
+  cash_in_hand?: number;
+  cih_balance?: number;
   net_cash_due?: number;
   collected_cod?: number;
   wages_earned?: number;
+  [key: string]: any;
 };
 
-export type RemitDuesModalProps = {
+export interface RemitDuesModalProps {
   isOpen: boolean;
   onClose: () => void;
+  courier?: any;
+  duesAmount?: number; // Optional direct override from lockout card
   netCashDue?: number;
-  courier?: CourierDueInfo;
   phone?: string;
   onRemitSuccess?: (updated: RiderCashReconciliation) => void | Promise<void>;
-};
+}
 
 export function RemitDuesModal({
   isOpen,
   onClose,
-  netCashDue,
   courier,
+  duesAmount,
+  netCashDue,
   phone,
   onRemitSuccess,
 }: RemitDuesModalProps) {
+  // Exhaustively resolve the pending cash balance across all possible schema fields:
+  const calculatedCodDiff =
+    courier && (courier.collected_cod !== undefined || courier.wages_earned !== undefined)
+      ? Number(courier?.collected_cod || 0) - Number(courier?.wages_earned || 0)
+      : undefined;
+
   const fallbackDue =
     netCashDue !== undefined
       ? netCashDue
-      : getRiderCashReconciliation(phone).net_cash_due;
+      : phone
+      ? getRiderCashReconciliation(phone).net_cash_due
+      : undefined;
 
-  const netDueAmount = Math.max(
+  const resolvedDues = Math.max(
     0,
-    courier?.net_cash_due ??
-      (courier?.collected_cod !== undefined && courier?.wages_earned !== undefined
-        ? courier.collected_cod - courier.wages_earned
-        : fallbackDue) ??
+    Number(
+      duesAmount ??
+      courier?.cash_in_hand ??
+      courier?.cih_balance ??
+      courier?.net_cash_due ??
+      calculatedCodDiff ??
+      fallbackDue ??
       0
+    )
   );
 
-  const [remitAmount, setRemitAmount] = useState<string>(
-    netDueAmount > 0 ? netDueAmount.toFixed(2) : ""
-  );
+  const [remitAmount, setRemitAmount] = useState<string>('');
+
+  useEffect(() => {
+    if (resolvedDues > 0) {
+      setRemitAmount(resolvedDues.toFixed(2));
+    }
+  }, [resolvedDues, isOpen]);
+
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  // Sync state whenever netDueAmount changes
-  useEffect(() => {
-    if (netDueAmount > 0) {
-      setRemitAmount(netDueAmount.toFixed(2));
-    }
-  }, [netDueAmount]);
-
-  useEffect(() => {
-    if (isOpen) {
-      if (netDueAmount > 0) {
-        setRemitAmount(netDueAmount.toFixed(2));
-      }
-      setCopiedUpi(false);
-    }
-  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -208,7 +214,7 @@ export function RemitDuesModal({
               Amount to Remit (₹)
             </label>
             <span className="text-[11px] font-medium text-stone-500">
-              Pending: ₹{netDueAmount.toFixed(2)}
+              Pending: ₹{resolvedDues.toFixed(2)}
             </span>
           </div>
 
@@ -216,12 +222,12 @@ export function RemitDuesModal({
           <div className="flex items-center gap-2 my-2">
             <button
               type="button"
-              onClick={() => setRemitAmount(netDueAmount.toFixed(2))}
+              onClick={() => setRemitAmount(resolvedDues.toFixed(2))}
               className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer"
             >
-              Full Due (₹{netDueAmount.toFixed(2)})
+              Full Due (₹{resolvedDues.toFixed(2)})
             </button>
-            {netDueAmount > 200 && (
+            {resolvedDues > 200 && (
               <button
                 type="button"
                 onClick={() => setRemitAmount('200.00')}
@@ -244,11 +250,11 @@ export function RemitDuesModal({
               value={remitAmount}
               onChange={(e) => setRemitAmount(e.target.value)}
               className="w-full rounded-xl border border-stone-300 bg-white py-2.5 pl-8 pr-4 text-sm font-bold text-stone-900 focus:border-orange-500 focus:outline-none focus:ring-2 focus:ring-orange-500/20"
-              placeholder="Enter amount"
+              placeholder={`e.g. ${resolvedDues.toFixed(2)}`}
             />
           </div>
           <p className="text-[11px] text-stone-500">
-            Current Net Dues: ₹{netDueAmount.toFixed(2)}
+            Current Net Dues: ₹{resolvedDues.toFixed(2)}
           </p>
         </div>
 
