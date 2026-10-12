@@ -70,6 +70,21 @@ export function formatTime(
 }
 
 /**
+ * Safely formats a numeric or string value to a decimal string (default 2 decimals).
+ * Never throws on null/undefined/NaN; defaults safely to "0.00".
+ */
+export const formatINR = (
+  value: number | string | null | undefined,
+  decimals: number = 2
+): string => {
+  const num = typeof value === "string" ? parseFloat(value) : value;
+  if (num === null || num === undefined || isNaN(num)) {
+    return "0.00";
+  }
+  return num.toFixed(decimals);
+};
+
+/**
  * Formats a numeric or string amount to Indian Rupee (INR) currency format.
  * e.g., 250 -> "₹250", 250.5 -> "₹250.50"
  */

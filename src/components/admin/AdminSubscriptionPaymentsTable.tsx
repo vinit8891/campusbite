@@ -1,6 +1,6 @@
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminTableSkeleton from "@/components/admin/AdminTableSkeleton";
-import { formatDateTime, selectClassName } from "@/lib/formatters";
+import { formatDateTime, selectClassName, formatINR } from "@/lib/formatters";
 import {
   ADMIN_SUBSCRIPTION_PAYMENT_STATUSES,
 } from "@/hooks/admin/useAdminSubscriptions";
@@ -65,7 +65,7 @@ export function AdminSubscriptionPaymentsTable({
                   </td>
                   <td className="px-4 py-3">{payment.billing_period || "—"}</td>
                   <td className="px-4 py-3">
-                    ₹{Number(payment.amount).toFixed(2)}
+                    ₹{formatINR(payment.amount)}
                   </td>
                   <td className="px-4 py-3 capitalize">
                     {payment.payment_status}

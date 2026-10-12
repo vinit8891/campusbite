@@ -233,6 +233,14 @@ async def calculate_canteen_daily_settlement(
         "transaction_ref": txn_ref,
         "settled_at": settled_at,
         "scheduled_transfer_time": "09:00 PM IST",
+        # Standard non-null financial attributes
+        "items_subtotal": float(gross_food_sales),
+        "gst": float(gst_collected),
+        "delivery_fee": 0.0,
+        "platform_fee": 0.0,
+        "commission_amount": float(platform_commission),
+        "net_payout": float(net_canteen_payable),
+        "total_amount": float(round(gross_food_sales + gst_collected, 2)),
     }
 
 

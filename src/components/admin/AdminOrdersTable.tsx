@@ -5,7 +5,7 @@ import {
 } from "@/components/common";
 import { formatAdminDate } from "@/lib/adminFormat";
 import { formatPaymentMethod } from "@/lib/paymentLabels";
-import { shortId } from "@/lib/formatters";
+import { shortId, formatINR } from "@/lib/formatters";
 import type { AdminOrder } from "@/services/adminService";
 
 export type AdminOrdersTableProps = {
@@ -114,7 +114,7 @@ export function AdminOrdersTable({
                 </td>
                 <td className="px-4 py-3 font-semibold text-stone-900 whitespace-nowrap">
                   <div className="flex flex-col items-start gap-1">
-                    <span>₹{Number(order.total ?? 0).toFixed(2)}</span>
+                    <span>₹{formatINR(order?.total)}</span>
                     {smallOrderFee > 0 && (
                       <span
                         data-testid="small-order-tag"

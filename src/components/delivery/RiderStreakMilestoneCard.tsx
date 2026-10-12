@@ -17,9 +17,28 @@ export function RiderStreakMilestoneCard({
   completedCount = 0,
 }: RiderStreakMilestoneCardProps) {
   const [isMounted, setIsMounted] = React.useState(false);
+  const [timeLeft, setTimeLeft] = React.useState("");
 
   React.useEffect(() => {
     setIsMounted(true);
+  }, []);
+
+  React.useEffect(() => {
+    const calculateTimeRemaining = () => {
+      const now = new Date();
+      const endOfDay = new Date();
+      endOfDay.setHours(23, 59, 59, 999);
+      const diffMs = endOfDay.getTime() - now.getTime();
+      if (diffMs <= 0) return "Resetting...";
+
+      const hours = Math.floor(diffMs / (1000 * 60 * 60));
+      const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      return `${hours}h ${minutes}m left`;
+    };
+
+    setTimeLeft(calculateTimeRemaining());
+    const timer = setInterval(() => setTimeLeft(calculateTimeRemaining()), 60000);
+    return () => clearInterval(timer);
   }, []);
 
   // Calculate current bonus unlocked
@@ -56,10 +75,15 @@ export function RiderStreakMilestoneCard({
     >
       <div className="flex flex-wrap items-center justify-between gap-3 border-b border-amber-200/60 pb-4">
         <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <span className="inline-flex items-center gap-1 rounded-full bg-orange-600 px-2.5 py-0.5 text-[11px] font-black uppercase tracking-wider text-white shadow-xs">
-              <Flame className="h-3 w-3 fill-white" />
-              Daily Courier Milestones
+          <div className="flex items-center justify-between sm:justify-start gap-2 flex-wrap">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-500/10 px-2.5 py-1 text-[11px] font-bold text-orange-600 border border-orange-500/20">
+              🔥 DAILY MILESTONES
+            </span>
+            <span
+              suppressHydrationWarning
+              className="inline-flex items-center gap-1 text-[11px] font-bold text-zinc-500 bg-zinc-100 px-2 py-0.5 rounded-full"
+            >
+              ⏰ {timeLeft || "Calculating..."}
             </span>
             {currentBonusEarned > 0 && (
               <span
@@ -75,7 +99,7 @@ export function RiderStreakMilestoneCard({
             Complete Daily Drops, Unlock Guaranteed Cash
           </h2>
           <p className="text-xs text-stone-600">
-            Earn extra cash rewards on top of base wages (₹20/drop) and customer tips.
+            Resets daily at 11:59 PM • Completed runs count towards today&apos;s payout
           </p>
         </div>
 
@@ -178,4 +202,5 @@ export function RiderStreakMilestoneCard({
   );
 }
 
+export const CourierMilestones = RiderStreakMilestoneCard;
 export default RiderStreakMilestoneCard;

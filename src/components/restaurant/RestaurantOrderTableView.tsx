@@ -2,7 +2,7 @@ import {
   OrderStatusBadge,
   PaymentStatusBadge,
 } from "@/components/common";
-import { formatDateTime, shortId } from "@/lib/formatters";
+import { formatDateTime, shortId, formatINR } from "@/lib/formatters";
 import { formatPaymentMethod } from "@/lib/paymentLabels";
 import { RestaurantOrderActions } from "./RestaurantOrderActions";
 import { OrderPrepTimer } from "./OrderPrepTimer";
@@ -17,6 +17,7 @@ export function RestaurantOrderTableView({
   orders,
   onUpdateStatus,
 }: RestaurantOrderTableViewProps) {
+  const ordersList = Array.isArray(orders) ? orders : [];
   return (
     <div className="w-full overflow-x-auto rounded-2xl border border-stone-200/90 bg-white">
       <table className="min-w-full text-left text-sm">
@@ -34,65 +35,67 @@ export function RestaurantOrderTableView({
           </tr>
         </thead>
         <tbody>
-          {orders.map((order) => (
-            <tr key={order._id} className="border-t align-top hover:bg-stone-50/50 transition-colors">
-              <td
-                className="px-4 py-3 font-mono text-xs font-bold text-stone-600"
-                title={order._id}
-              >
-                #{shortId(order._id)}
-              </td>
-              <td className="px-4 py-3 whitespace-nowrap">
-                <OrderPrepTimer
-                  createdAt={order.created_at}
-                  acceptedAt={order.accepted_at}
-                  updatedAt={order.updated_at}
-                  status={order.status}
-                />
-              </td>
-              <td className="px-4 py-3">
-                <div className="font-bold text-stone-900">
-                  {order.customer_name || "—"}
-                </div>
-                <div className="text-xs text-gray-500">{order.phone}</div>
-                {order.customer_email && (
-                  <div className="text-xs text-gray-500">
-                    {order.customer_email}
+          {ordersList.map((order) => {
+            const itemsList = Array.isArray(order?.items) ? order.items : [];
+            return (
+              <tr key={order._id} className="border-t align-top hover:bg-stone-50/50 transition-colors">
+                <td
+                  className="px-4 py-3 font-mono text-xs font-bold text-stone-600"
+                  title={order._id}
+                >
+                  #{shortId(order._id)}
+                </td>
+                <td className="px-4 py-3 whitespace-nowrap">
+                  <OrderPrepTimer
+                    createdAt={order.created_at}
+                    acceptedAt={order.accepted_at}
+                    updatedAt={order.updated_at}
+                    status={order.status}
+                  />
+                </td>
+                <td className="px-4 py-3">
+                  <div className="font-bold text-stone-900">
+                    {order.customer_name || "—"}
                   </div>
-                )}
-                {order.hostel_block && (
-                  <div className="text-[11px] font-medium text-orange-700 mt-0.5">
-                    📍 {order.hostel_block}
-                  </div>
-                )}
-              </td>
-              <td className="px-4 py-3">
-                <div className="space-y-1">
-                  {order.items.map((item) => (
-                    <div key={`${order._id}-${item.id}`} className="text-xs font-medium">
-                      <span className="font-bold text-orange-600 mr-1">{item.quantity}×</span>
-                      {item.name}
+                  <div className="text-xs text-gray-500">{order.phone}</div>
+                  {order.customer_email && (
+                    <div className="text-xs text-gray-500">
+                      {order.customer_email}
                     </div>
-                  ))}
-                </div>
-              </td>
-              <td className="px-4 py-3">
-                <OrderStatusBadge status={order.status} />
-              </td>
-              <td className="px-4 py-3">
-                <div className="text-xs font-medium text-stone-700">
-                  {formatPaymentMethod(order.payment_method)}
-                </div>
-                <PaymentStatusBadge
-                  status={order.payment_status}
-                  method={order.payment_method}
-                  orderStatus={order.status}
-                  className="mt-1"
-                />
-              </td>
-              <td className="px-4 py-3 font-bold text-orange-600">
-                ₹{Number(order.total ?? 0).toFixed(2)}
-              </td>
+                  )}
+                  {order.hostel_block && (
+                    <div className="text-[11px] font-medium text-orange-700 mt-0.5">
+                      📍 {order.hostel_block}
+                    </div>
+                  )}
+                </td>
+                <td className="px-4 py-3">
+                  <div className="space-y-1">
+                    {itemsList.map((item) => (
+                      <div key={`${order._id}-${item.id}`} className="text-xs font-medium">
+                        <span className="font-bold text-orange-600 mr-1">{item.quantity}×</span>
+                        {item.name}
+                      </div>
+                    ))}
+                  </div>
+                </td>
+                <td className="px-4 py-3">
+                  <OrderStatusBadge status={order.status} />
+                </td>
+                <td className="px-4 py-3">
+                  <div className="text-xs font-medium text-stone-700">
+                    {formatPaymentMethod(order.payment_method)}
+                  </div>
+                  <PaymentStatusBadge
+                    status={order.payment_status}
+                    method={order.payment_method}
+                    orderStatus={order.status}
+                    className="mt-1"
+                  />
+                </td>
+                <td className="px-4 py-3 font-bold text-orange-600">
+                  ₹{formatINR(order?.total ?? order?.total_amount)}
+                </td>
               <td
                 suppressHydrationWarning
                 className="px-4 py-3 whitespace-nowrap text-xs text-gray-500"
@@ -106,7 +109,8 @@ export function RestaurantOrderTableView({
                 />
               </td>
             </tr>
-          ))}
+          );
+        })}
         </tbody>
       </table>
     </div>

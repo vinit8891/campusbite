@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { getRestaurantOwnerEmail } from "@/lib/authTokens";
+import { formatINR } from "@/lib/formatters";
 import {
   getRestaurantSettlements,
   type RestaurantSettlementOverview,
@@ -109,15 +110,17 @@ export function RestaurantSettlementsPage() {
 
   // Filtered ledger records
   const filteredHistory = useMemo(() => {
-    if (!overview?.history) return [];
-    return overview.history.filter((item) => {
+    const historyList = Array.isArray(overview?.history) ? overview.history : [];
+    return historyList.filter((item) => {
+      if (!item) return false;
       const matchesStatus =
         statusFilter === "ALL" || item.status === statusFilter;
       const q = searchQuery.toLowerCase().trim();
+      const settlementDate = item.settlement_date ? String(item.settlement_date) : "";
       const matchesSearch =
         !q ||
-        item.settlement_date.toLowerCase().includes(q) ||
-        formatDate(item.settlement_date).toLowerCase().includes(q) ||
+        settlementDate.toLowerCase().includes(q) ||
+        formatDate(settlementDate).toLowerCase().includes(q) ||
         (item.transaction_ref || "").toLowerCase().includes(q) ||
         (item.upi_id || "").toLowerCase().includes(q);
       return matchesStatus && matchesSearch;
@@ -137,9 +140,9 @@ export function RestaurantSettlementsPage() {
 
   const today = overview?.today;
   const grossSales = today?.gross_food_sales ?? 0;
-  const commissionDeducted = today?.commission_deducted ?? Number((0.18 * grossSales).toFixed(2));
-  const gstAmount = today?.gst_amount ?? Number((0.05 * grossSales).toFixed(2));
-  const netPayable = today?.net_payable_subtotal ?? Number((grossSales + gstAmount - commissionDeducted).toFixed(2));
+  const commissionDeducted = today?.commission_deducted ?? (0.18 * Number(grossSales || 0));
+  const gstAmount = today?.gst_amount ?? (0.05 * Number(grossSales || 0));
+  const netPayable = today?.net_payable_subtotal ?? (Number(grossSales || 0) + Number(gstAmount || 0) - Number(commissionDeducted || 0));
   const upiId = today?.upi_id || "canteen.orders@okaxis";
   const isTodaySettled = today?.status === "Settled";
   const ordersCount = today?.orders_count ?? 0;
@@ -215,7 +218,7 @@ export function RestaurantSettlementsPage() {
             <div className="mt-2">
               <div className="text-2xl sm:text-3xl font-black text-blue-950 tracking-tight flex items-center">
                 <IndianRupee className="h-6 w-6 text-blue-700" />
-                <span>{grossSales.toFixed(2)}</span>
+                <span>{formatINR(grossSales)}</span>
               </div>
               <p className="mt-2 text-[11px] font-medium text-blue-800/80 leading-relaxed">
                 Kitchen item subtotals (strictly excludes delivery & tech fees).
@@ -246,7 +249,7 @@ export function RestaurantSettlementsPage() {
 
             <div className="mt-2">
               <div className="text-2xl sm:text-3xl font-black text-purple-950 tracking-tight flex items-center">
-                <span>-₹{commissionDeducted.toFixed(2)}</span>
+                <span>-₹{formatINR(commissionDeducted)}</span>
               </div>
               <p className="mt-2 text-[11px] font-medium text-purple-800/80 leading-relaxed">
                 CampusBite cloud infrastructure, hostelite reach & dispatching.
@@ -275,7 +278,7 @@ export function RestaurantSettlementsPage() {
 
             <div className="mt-2">
               <div className="text-2xl sm:text-3xl font-black text-amber-950 tracking-tight flex items-center">
-                <span>+₹{gstAmount.toFixed(2)}</span>
+                <span>+₹{formatINR(gstAmount)}</span>
               </div>
               <p className="mt-2 text-[11px] font-medium text-amber-800/80 leading-relaxed">
                 Food tax pass-through collected and disbursed to canteen account.
@@ -304,10 +307,10 @@ export function RestaurantSettlementsPage() {
 
             <div className="mt-2">
               <div className="text-3xl sm:text-4xl font-black text-emerald-950 tracking-tight">
-                ₹{netPayable.toFixed(2)}
+                ₹{formatINR(netPayable)}
               </div>
               <p className="mt-2 text-[11px] font-medium text-emerald-800/90 leading-relaxed">
-                Gross (₹{grossSales.toFixed(2)}) + 5% GST (₹{gstAmount.toFixed(2)}) − 18% Comm (₹{commissionDeducted.toFixed(2)})
+                Gross (₹{formatINR(grossSales)}) + 5% GST (₹{formatINR(gstAmount)}) − 18% Comm (₹{formatINR(commissionDeducted)})
               </p>
             </div>
           </div>
@@ -456,16 +459,16 @@ export function RestaurantSettlementsPage() {
                       </td>
 
                       <td className="py-3.5 px-4 whitespace-nowrap font-bold text-stone-900">
-                        ₹{gross.toFixed(2)}
+                        ₹{formatINR(gross)}
                       </td>
 
                       <td className="py-3.5 px-4 whitespace-nowrap text-purple-700 font-bold">
-                        -₹{comm.toFixed(2)}
+                        -₹{formatINR(comm)}
                       </td>
 
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         <span className="font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200/60">
-                          ₹{net.toFixed(2)}
+                          ₹{formatINR(net)}
                         </span>
                       </td>
 
@@ -612,25 +615,25 @@ export function RestaurantSettlementsPage() {
                 <div className="flex justify-between items-center text-stone-600">
                   <span>Gross Food Sales Subtotal:</span>
                   <span className="font-bold text-stone-900">
-                    ₹{selectedSlip.gross_food_sales.toFixed(2)}
+                    ₹{formatINR(selectedSlip?.gross_food_sales)}
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-stone-600">
                   <span>Food GST Added (5%):</span>
                   <span className="font-bold text-stone-900">
-                    +₹{(selectedSlip.gst_amount ?? (selectedSlip.gross_food_sales * 0.05)).toFixed(2)}
+                    +₹{formatINR(selectedSlip?.gst_amount ?? (Number(selectedSlip?.gross_food_sales || 0) * 0.05))}
                   </span>
                 </div>
                 <div className="flex justify-between items-center text-purple-700">
                   <span>CampusBite Platform Commission (18%):</span>
                   <span className="font-bold">
-                    -₹{selectedSlip.commission_deducted.toFixed(2)}
+                    -₹{formatINR(selectedSlip?.commission_deducted)}
                   </span>
                 </div>
                 <div className="border-t border-stone-200 pt-2.5 flex justify-between items-center text-sm font-black text-stone-900">
                   <span>Net Disbursed to Canteen:</span>
                   <span className="text-base text-emerald-700">
-                    ₹{selectedSlip.net_payable_subtotal.toFixed(2)}
+                    ₹{formatINR(selectedSlip?.net_payable_subtotal)}
                   </span>
                 </div>
               </div>

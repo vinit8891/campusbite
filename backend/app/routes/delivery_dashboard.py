@@ -55,10 +55,13 @@ def _as_utc(value: Any) -> datetime | None:
     return None
 
 
+from app.models.order import normalize_order_financials
+
+
 def _serialize_order(order: dict) -> dict:
     item = dict(order)
     item["_id"] = str(item["_id"])
-    return item
+    return normalize_order_financials(item)
 
 
 @router.get("/stats/{phone}")

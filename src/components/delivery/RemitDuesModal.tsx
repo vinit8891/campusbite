@@ -12,10 +12,17 @@ import {
 export const CAMPUSBITE_UPI_ID = "campusbite.ops@okaxis";
 export const CAMPUSBITE_UPI_NAME = "CampusBite Operations";
 
+export type CourierDueInfo = {
+  net_cash_due?: number;
+  collected_cod?: number;
+  wages_earned?: number;
+};
+
 export type RemitDuesModalProps = {
   isOpen: boolean;
   onClose: () => void;
   netCashDue?: number;
+  courier?: CourierDueInfo;
   phone?: string;
   onRemitSuccess?: (updated: RiderCashReconciliation) => void | Promise<void>;
 };
@@ -24,23 +31,45 @@ export function RemitDuesModal({
   isOpen,
   onClose,
   netCashDue,
+  courier,
   phone,
   onRemitSuccess,
 }: RemitDuesModalProps) {
-  const [remitAmount, setRemitAmount] = useState<string>("");
+  const fallbackDue =
+    netCashDue !== undefined
+      ? netCashDue
+      : getRiderCashReconciliation(phone).net_cash_due;
+
+  const netDueAmount = Math.max(
+    0,
+    courier?.net_cash_due ??
+      (courier?.collected_cod !== undefined && courier?.wages_earned !== undefined
+        ? courier.collected_cod - courier.wages_earned
+        : fallbackDue) ??
+      0
+  );
+
+  const [remitAmount, setRemitAmount] = useState<string>(
+    netDueAmount > 0 ? netDueAmount.toFixed(2) : ""
+  );
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Sync state whenever netDueAmount changes
+  useEffect(() => {
+    if (netDueAmount > 0) {
+      setRemitAmount(netDueAmount.toFixed(2));
+    }
+  }, [netDueAmount]);
+
   useEffect(() => {
     if (isOpen) {
-      const due =
-        netCashDue !== undefined
-          ? netCashDue
-          : getRiderCashReconciliation(phone).net_cash_due;
-      setRemitAmount(Math.max(0, due).toFixed(2));
+      if (netDueAmount > 0) {
+        setRemitAmount(netDueAmount.toFixed(2));
+      }
       setCopiedUpi(false);
     }
-  }, [isOpen, netCashDue, phone]);
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -84,13 +113,10 @@ export function RemitDuesModal({
     }
   }
 
-  const currentRemitNum = parseFloat(remitAmount || "0");
-  const upiQrAmount = isNaN(currentRemitNum) ? "0.00" : currentRemitNum.toFixed(2);
-  const upiQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
-    `upi://pay?pa=${CAMPUSBITE_UPI_ID}&pn=${encodeURIComponent(
-      CAMPUSBITE_UPI_NAME
-    )}&am=${upiQrAmount}&cu=INR&tn=Rider%20COD%20Deposit`
-  )}`;
+  const vpa = CAMPUSBITE_UPI_ID;
+  const cleanAmount = parseFloat(remitAmount) || 0;
+  const upiUri = `upi://pay?pa=${vpa}&pn=CampusBite%20Ops&am=${cleanAmount.toFixed(2)}&cu=INR&tn=Courier%20COD%20Remittance`;
+  const upiQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(upiUri)}`;
 
   return (
     <div
@@ -172,14 +198,40 @@ export function RemitDuesModal({
           </button>
         </div>
 
-        {/* Remittance Amount Input */}
+        {/* Remittance Amount Input & Quick-Selection Preset Pills */}
         <div className="mt-4 space-y-1.5">
-          <label
-            htmlFor="remit-amount-input"
-            className="block text-xs font-bold text-stone-700"
-          >
-            Amount to Remit (₹)
-          </label>
+          <div className="flex items-center justify-between">
+            <label
+              htmlFor="remit-amount-input"
+              className="block text-xs font-bold text-stone-700"
+            >
+              Amount to Remit (₹)
+            </label>
+            <span className="text-[11px] font-medium text-stone-500">
+              Pending: ₹{netDueAmount.toFixed(2)}
+            </span>
+          </div>
+
+          {/* Quick-Selection Preset Pills */}
+          <div className="flex items-center gap-2 my-2">
+            <button
+              type="button"
+              onClick={() => setRemitAmount(netDueAmount.toFixed(2))}
+              className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100 transition-colors cursor-pointer"
+            >
+              Full Due (₹{netDueAmount.toFixed(2)})
+            </button>
+            {netDueAmount > 200 && (
+              <button
+                type="button"
+                onClick={() => setRemitAmount('200.00')}
+                className="px-2.5 py-1 text-xs font-semibold rounded-lg bg-zinc-100 text-zinc-700 hover:bg-zinc-200 transition-colors cursor-pointer"
+              >
+                ₹200
+              </button>
+            )}
+          </div>
+
           <div className="relative">
             <div className="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3.5 text-stone-400 font-bold">
               ₹
@@ -196,11 +248,7 @@ export function RemitDuesModal({
             />
           </div>
           <p className="text-[11px] text-stone-500">
-            Current Net Dues: ₹
-            {(netCashDue !== undefined
-              ? netCashDue
-              : getRiderCashReconciliation(phone).net_cash_due
-            ).toFixed(2)}
+            Current Net Dues: ₹{netDueAmount.toFixed(2)}
           </p>
         </div>
 
@@ -209,13 +257,13 @@ export function RemitDuesModal({
           <button
             type="button"
             onClick={() => void handleConfirm()}
-            disabled={isSubmitting || parseFloat(remitAmount || "0") <= 0}
+            disabled={isSubmitting || cleanAmount <= 0}
             className="w-full inline-flex items-center justify-center gap-2 rounded-2xl bg-emerald-600 hover:bg-emerald-700 py-3 px-4 text-sm font-black text-white shadow-lg shadow-emerald-600/30 transition active:scale-98 disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer"
           >
             <ShieldCheck className="h-5 w-5" />
             {isSubmitting
               ? "Recording Remittance..."
-              : `Confirm Remitted ₹${parseFloat(remitAmount || "0").toFixed(2)}`}
+              : `Confirm Remitted ₹${cleanAmount.toFixed(2)}`}
           </button>
 
           <button
@@ -231,4 +279,6 @@ export function RemitDuesModal({
   );
 }
 
+export const RemitCashModal = RemitDuesModal;
 export default RemitDuesModal;
+

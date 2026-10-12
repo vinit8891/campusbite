@@ -25,6 +25,12 @@ class Order(BaseModel):
 
     total: float = 0.0
     total_amount: Optional[float] = None
+    items_subtotal: Optional[float] = None
+    gst: Optional[float] = None
+    delivery_fee: Optional[float] = None
+    platform_fee: Optional[float] = None
+    commission_amount: Optional[float] = None
+    net_payout: Optional[float] = None
 
     # Delivery recipient type
     delivery_for: str = "self"
@@ -91,6 +97,13 @@ class OrderResponse(BaseModel):
     restaurant_name: Optional[str] = None
     restaurant: Optional[RestaurantSnapshot] = None
     restaurant_info: Optional[RestaurantSnapshot] = None
+    items_subtotal: float = 0.0
+    gst: float = 0.0
+    delivery_fee: float = 0.0
+    platform_fee: float = 0.0
+    commission_amount: float = 0.0
+    net_payout: float = 0.0
+    total_amount: float = 0.0
 
 
 # Aliases for flexible schema usage

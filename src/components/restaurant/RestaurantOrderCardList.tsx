@@ -2,7 +2,7 @@ import {
   OrderStatusBadge,
   PaymentStatusBadge,
 } from "@/components/common";
-import { formatDateTime, shortId } from "@/lib/formatters";
+import { formatDateTime, shortId, formatINR } from "@/lib/formatters";
 import { formatPaymentMethod } from "@/lib/paymentLabels";
 import { RestaurantOrderActions } from "./RestaurantOrderActions";
 import { OrderPrepTimer } from "./OrderPrepTimer";
@@ -65,9 +65,10 @@ export function RestaurantOrderCardList({
   isHistoryView = false,
   className = "",
 }: RestaurantOrderCardListProps) {
+  const ordersList = Array.isArray(orders) ? orders : [];
   return (
     <div className={`space-y-4 ${className}`}>
-      {orders.map((order) => {
+      {ordersList.map((order) => {
         const isStale = isOrderStale(order.created_at);
         const isCompleted = isCompletedOrInactiveOrder(order.status) || isStale;
         const statusPill = getHistoryStatusPill(order.status, order.created_at);
@@ -171,7 +172,7 @@ export function RestaurantOrderCardList({
 
                 <div className="text-right">
                   <span className="text-base font-black text-stone-900">
-                    ₹{Number(order.total ?? 0).toFixed(2)}
+                    ₹{formatINR(order?.total ?? order?.total_amount)}
                   </span>
                 </div>
               </div>
@@ -237,7 +238,7 @@ export function RestaurantOrderCardList({
 
               <div className="text-right flex flex-col items-end">
                 <p className="text-2xl font-black text-orange-600">
-                  ₹{Number(order.total ?? 0).toFixed(2)}
+                  ₹{formatINR(order?.total ?? order?.total_amount)}
                 </p>
                 <p className="font-semibold text-xs text-stone-500 mt-0.5">
                   {formatPaymentMethod(order.payment_method)}

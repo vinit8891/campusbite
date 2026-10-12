@@ -5,7 +5,7 @@ import { X, Store, User, MapPin, Receipt, Bike, ShoppingBag, ShieldCheck } from 
 import { OrderStatusBadge, PaymentStatusBadge } from "@/components/common";
 import { formatAdminDate } from "@/lib/adminFormat";
 import { formatPaymentMethod } from "@/lib/paymentLabels";
-import { shortId } from "@/lib/formatters";
+import { shortId, formatINR } from "@/lib/formatters";
 import type { AdminOrder } from "@/services/adminService";
 import type { OrderPricingBreakdown, PricingBreakdown } from "@/types";
 
@@ -250,7 +250,7 @@ export function AdminOrderDetailsModal({
                       </span>
                     </div>
                     <span className="font-semibold text-stone-900">
-                      ₹{(Number(it.price || 0) * Number(it.quantity || 1)).toFixed(2)}
+                      ₹{formatINR((Number(it.price || 0) * Number(it.quantity || 1)))}
                     </span>
                   </div>
                 ))}
@@ -267,14 +267,14 @@ export function AdminOrderDetailsModal({
               <div className="flex justify-between text-stone-600">
                 <span>Food Subtotal</span>
                 <span className="font-semibold text-stone-900">
-                  ₹{foodSubtotal.toFixed(2)}
+                  ₹{formatINR(foodSubtotal)}
                 </span>
               </div>
 
               <div className="flex justify-between text-stone-600">
                 <span>Restaurant GST (5%)</span>
                 <span className="font-semibold text-stone-900">
-                  ₹{gst.toFixed(2)}
+                  ₹{formatINR(gst)}
                 </span>
               </div>
 
@@ -283,14 +283,14 @@ export function AdminOrderDetailsModal({
                   Delivery Fee {isTakeaway ? "(Takeaway Waived)" : "(Hostel Delivery)"}
                 </span>
                 <span className="font-semibold text-stone-900">
-                  ₹{deliveryFee.toFixed(2)}
+                  ₹{formatINR(deliveryFee)}
                 </span>
               </div>
 
               <div className="flex justify-between text-stone-600">
                 <span>Platform Tech Fee</span>
                 <span className="font-semibold text-stone-900">
-                  ₹{platformFee.toFixed(2)}
+                  ₹{formatINR(platformFee)}
                 </span>
               </div>
 
@@ -303,14 +303,14 @@ export function AdminOrderDetailsModal({
                   <span className="flex items-center gap-1">
                     <span>⚡ Small Order Surcharge (under ₹50)</span>
                   </span>
-                  <span>+₹{smallOrderFee.toFixed(2)}</span>
+                  <span>+₹{formatINR(smallOrderFee)}</span>
                 </div>
               )}
 
               <div className="border-t border-stone-200 pt-2.5 flex justify-between text-sm font-black text-stone-900">
                 <span>Grand Total</span>
                 <span className="text-base text-emerald-700">
-                  ₹{total.toFixed(2)}
+                  ₹{formatINR(total)}
                 </span>
               </div>
             </div>

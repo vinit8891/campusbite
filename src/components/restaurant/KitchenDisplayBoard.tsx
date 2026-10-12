@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 import { OrderPrepTimer } from "./OrderPrepTimer";
 import { PaymentStatusBadge } from "@/components/common";
-import { shortId } from "@/lib/formatters";
+import { shortId, formatINR } from "@/lib/formatters";
 import { isOnlinePayment, formatPaymentMethod } from "@/lib/paymentLabels";
 import {
   isNewOrder,
@@ -38,13 +38,15 @@ export function KitchenDisplayBoard({
   activeMobileTab = "all",
   onSwitchToHistory,
 }: KitchenDisplayBoardProps) {
-  const pendingOrders = orders.filter(
+  const ordersList = Array.isArray(orders) ? orders : [];
+
+  const pendingOrders = ordersList.filter(
     (o) => isNewOrder(o.status) && !isOrderStale(o.created_at)
   );
-  const inKitchenOrders = orders.filter(
+  const inKitchenOrders = ordersList.filter(
     (o) => isCookingOrder(o.status) && !isOrderStale(o.created_at)
   );
-  const readyOrders = orders.filter(
+  const readyOrders = ordersList.filter(
     (o) => isReadyOrder(o.status) && !isOrderStale(o.created_at)
   );
 
@@ -163,7 +165,7 @@ export function KitchenDisplayBoard({
                         status={order.status}
                       />
                       <span className="text-sm font-black text-orange-600">
-                        ₹{Number(order.total ?? 0).toFixed(2)}
+                        ₹{formatINR(order?.total ?? order?.total_amount)}
                       </span>
                     </div>
                   </div>
@@ -202,7 +204,7 @@ export function KitchenDisplayBoard({
 
                   {/* Itemized Order Breakdown */}
                   <div className="space-y-1.5 my-3">
-                    {order.items.map((item) => (
+                    {(Array.isArray(order?.items) ? order.items : []).map((item) => (
                       <div
                         key={`${order._id}-${item.id}`}
                         className="flex items-center justify-between text-sm bg-orange-50/30 rounded-xl px-3 py-2 border border-orange-100/60"
@@ -216,7 +218,7 @@ export function KitchenDisplayBoard({
                           </span>
                         </div>
                         <span className="font-extrabold text-stone-700 shrink-0 ml-2">
-                          ₹{item.price * item.quantity}
+                          ₹{formatINR(Number(item?.price || 0) * Number(item?.quantity || 1))}
                         </span>
                       </div>
                     ))}
@@ -339,7 +341,7 @@ export function KitchenDisplayBoard({
 
                   {/* Dishes to Prepare */}
                   <div className="space-y-1.5 my-3">
-                    {order.items.map((item) => (
+                    {(Array.isArray(order?.items) ? order.items : []).map((item) => (
                       <div
                         key={`${order._id}-${item.id}`}
                         className="flex items-center justify-between p-2.5 rounded-xl bg-blue-50/50 border border-blue-100/80"
@@ -459,7 +461,7 @@ export function KitchenDisplayBoard({
 
                   <div className="my-3 text-xs text-stone-700 space-y-1.5">
                     <p className="font-bold text-stone-900 text-sm">
-                      {order.items.map((i) => `${i.name} × ${i.quantity}`).join(", ")}
+                      {(Array.isArray(order?.items) ? order.items : []).map((i) => `${i.name} × ${i.quantity}`).join(", ")}
                     </p>
                     <p className="text-xs text-stone-500">
                       📍 {order.hostel_block || order.address}
@@ -471,7 +473,7 @@ export function KitchenDisplayBoard({
                       ✅ Ready at Counter • Awaiting Runner
                     </span>
                     <span className="font-black text-stone-900 text-sm">
-                      ₹{Number(order.total ?? 0).toFixed(2)}
+                      ₹{formatINR(order?.total ?? order?.total_amount)}
                     </span>
                   </div>
                 </div>

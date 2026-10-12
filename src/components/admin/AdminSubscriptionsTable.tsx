@@ -1,5 +1,5 @@
 import { Trash2 } from "lucide-react";
-import { formatDate } from "@/lib/formatters";
+import { formatDate, formatINR } from "@/lib/formatters";
 import type { Subscription } from "@/services/subscriptionService";
 
 export type AdminSubscriptionsTableProps = {
@@ -81,7 +81,7 @@ export function AdminSubscriptionsTable({
                   </span>
                 </td>
                 <td className="px-4 py-3 font-semibold text-stone-900">
-                  ₹{Number(item.price || 0).toFixed(2)}
+                  ₹{formatINR(item.price)}
                 </td>
                 <td className="px-4 py-3 text-right">
                   <div className="flex items-center gap-1.5 justify-end">

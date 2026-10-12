@@ -19,6 +19,99 @@ def get_object_id(order_id: str):
         return None
 
 
+def normalize_order_financials(order: dict) -> dict:
+    """Ensures non-null float defaults for all standard financial breakdown attributes."""
+    if not isinstance(order, dict):
+        return order
+
+    pricing = order.get("pricing_breakdown") or {}
+    items = order.get("items") or []
+
+    # 1. items_subtotal
+    subtotal = order.get("items_subtotal")
+    if subtotal is None:
+        subtotal = order.get("food_subtotal")
+    if subtotal is None:
+        subtotal = (
+            pricing.get("food_subtotal")
+            or pricing.get("subtotal")
+            or pricing.get("items_subtotal")
+        )
+    if subtotal is None and items:
+        try:
+            subtotal = sum(
+                float(it.get("price", 0)) * int(it.get("quantity", 1))
+                for it in items
+            )
+        except Exception:
+            subtotal = 0.0
+    subtotal = float(subtotal or 0.0)
+
+    # 2. gst
+    gst = order.get("gst")
+    if gst is None:
+        gst = (
+            order.get("restaurant_gst")
+            or pricing.get("restaurant_gst")
+            or pricing.get("gst")
+        )
+    if gst is None:
+        gst = round(subtotal * 0.05, 2)
+    gst = float(gst or 0.0)
+
+    # 3. delivery_fee
+    delivery_fee = order.get("delivery_fee")
+    if delivery_fee is None:
+        delivery_fee = pricing.get("delivery_fee") or pricing.get("deliveryFee")
+    delivery_fee = float(delivery_fee or 0.0)
+
+    # 4. platform_fee
+    platform_fee = order.get("platform_fee")
+    if platform_fee is None:
+        platform_fee = pricing.get("platform_fee") or pricing.get("platformTechFee")
+    platform_fee = float(platform_fee or 0.0)
+
+    # 5. commission_amount
+    comm = order.get("commission_amount")
+    if comm is None:
+        comm = (
+            order.get("commission")
+            or pricing.get("commission")
+            or pricing.get("commission_amount")
+        )
+    if comm is None:
+        comm = round(subtotal * 0.18, 2)
+    comm = float(comm or 0.0)
+
+    # 6. total_amount
+    total_val = order.get("total_amount")
+    if total_val is None:
+        total_val = order.get("total") or pricing.get("total")
+    if total_val is None:
+        total_val = round(subtotal + gst + delivery_fee + platform_fee, 2)
+    total_val = float(total_val or 0.0)
+
+    # 7. net_payout
+    net_payout = order.get("net_payout")
+    if net_payout is None:
+        net_payout = order.get("canteen_net_payout") or pricing.get("canteen_net_payout")
+    if net_payout is None:
+        net_payout = round(subtotal - comm, 2)
+    net_payout = float(net_payout or 0.0)
+
+    order["items_subtotal"] = float(subtotal)
+    order["gst"] = float(gst)
+    order["delivery_fee"] = float(delivery_fee)
+    order["platform_fee"] = float(platform_fee)
+    order["commission_amount"] = float(comm)
+    order["net_payout"] = float(net_payout)
+    order["total_amount"] = float(total_val)
+    if "total" not in order or order["total"] is None:
+        order["total"] = float(total_val)
+
+    return order
+
+
 def get_order_query(order_id: str) -> dict:
     if not order_id:
         return {"_id": None}
@@ -118,7 +211,7 @@ async def get_last_subscription_order_for_customer(customer_email: str) -> dict 
     if not order:
         return None
     order["_id"] = str(order["_id"])
-    return order
+    return normalize_order_financials(order)
 
 
 async def get_order_by_id(order_id: str):
@@ -131,7 +224,7 @@ async def get_order_by_id(order_id: str):
         return None
 
     order["_id"] = str(order["_id"])
-    return order
+    return normalize_order_financials(order)
 
 
 async def get_orders(
@@ -192,7 +285,7 @@ async def get_orders(
 
     async for order in cursor:
         order["_id"] = str(order["_id"])
-        orders.append(order)
+        orders.append(normalize_order_financials(order))
 
     return paginated_response(
         orders, total=total, page=meta_page, limit=safe_limit
@@ -206,7 +299,7 @@ async def get_customer_orders(phone: str):
         "created_at", -1
     ):
         order["_id"] = str(order["_id"])
-        orders.append(order)
+        orders.append(normalize_order_financials(order))
 
     return orders
 
@@ -255,7 +348,7 @@ async def get_restaurant_orders(
 
     async for order in cursor:
         order["_id"] = str(order["_id"])
-        orders.append(order)
+        orders.append(normalize_order_financials(order))
 
     return orders
 
@@ -353,7 +446,7 @@ async def get_available_orders(
 
     async for order in cursor:
         order["_id"] = str(order["_id"])
-        orders.append(order)
+        orders.append(normalize_order_financials(order))
 
     return paginated_response(
         orders, total=total, page=meta_page, limit=safe_limit
@@ -385,7 +478,7 @@ async def get_my_customer_orders(
         "created_at", -1
     ):
         order["_id"] = str(order["_id"])
-        orders.append(order)
+        orders.append(normalize_order_financials(order))
 
     return orders
 
@@ -448,7 +541,7 @@ async def get_delivered_orders(
 
     async for order in cursor:
         order["_id"] = str(order["_id"])
-        orders.append(order)
+        orders.append(normalize_order_financials(order))
 
     return paginated_response(
         orders, total=total, page=meta_page, limit=safe_limit
@@ -520,7 +613,7 @@ async def get_delivery_orders(
         )
         async for order in cursor:
             order["_id"] = str(order["_id"])
-            orders.append(order)
+            orders.append(normalize_order_financials(order))
         return orders
 
     safe_page = normalize_page(page)
@@ -539,7 +632,7 @@ async def get_delivery_orders(
 
     async for order in cursor:
         order["_id"] = str(order["_id"])
-        orders.append(order)
+        orders.append(normalize_order_financials(order))
 
     return paginated_response(
         orders, total=total, page=meta_page, limit=safe_limit

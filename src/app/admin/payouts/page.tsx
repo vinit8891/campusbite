@@ -23,6 +23,7 @@ import {
 import { toast } from "sonner";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminTableSkeleton from "@/components/admin/AdminTableSkeleton";
+import { formatINR } from "@/lib/formatters";
 import {
   fetchCanteenSettlements,
   fetchCourierSettlements,
@@ -118,10 +119,10 @@ export default function AdminPayoutsPage() {
         `"${c.phone || ""}"`,
         `"${c.upi_id}"`,
         c.orders_count,
-        c.gross_food_sales.toFixed(2),
-        c.platform_commission.toFixed(2),
-        c.gst_collected.toFixed(2),
-        c.net_payout.toFixed(2),
+        formatINR(c.gross_food_sales),
+        formatINR(c.platform_commission),
+        formatINR(c.gst_collected),
+        formatINR(c.net_payout),
         c.status,
         `"${c.transaction_ref || ""}"`,
         `"${c.settled_at || ""}"`,
@@ -159,9 +160,9 @@ export default function AdminPayoutsPage() {
         `"${r.email || ""}"`,
         `"${r.vehicle || ""}"`,
         r.orders_completed,
-        r.cod_collected.toFixed(2),
-        r.wages_earned.toFixed(2),
-        r.net_cash_due_to_admin.toFixed(2),
+        formatINR(r.cod_collected),
+        formatINR(r.wages_earned),
+        formatINR(r.net_cash_due_to_admin),
         r.status,
         r.settlement_date || selectedDate,
       ]);
@@ -198,7 +199,7 @@ export default function AdminPayoutsPage() {
         restaurant_name: selectedCanteenForPay.restaurant_name,
         restaurant_email: selectedCanteenForPay.restaurant_email,
       });
-      toast.success(`Marked ₹${selectedCanteenForPay.net_payout.toFixed(2)} as Paid for ${selectedCanteenForPay.restaurant_name}`);
+      toast.success(`Marked ₹${formatINR(selectedCanteenForPay?.net_payout)} as Paid for ${selectedCanteenForPay.restaurant_name}`);
       setSelectedCanteenForPay(null);
       await loadData(selectedDate);
     } catch (err) {
@@ -217,11 +218,11 @@ export default function AdminPayoutsPage() {
       `Hello *${item.restaurant_name}*,\n\n` +
       `CampusBite Daily Settlement Summary for *${selectedDate}*:\n` +
       `• Completed Orders: *${item.orders_count}*\n` +
-      `• Gross Food Sales: *₹${item.gross_food_sales.toFixed(2)}*\n` +
-      `• 18% Platform Commission: *-₹${item.platform_commission.toFixed(2)}*\n` +
-      `• GST (5%): *+₹${item.gst_collected.toFixed(2)}*\n` +
+      `• Gross Food Sales: *₹${formatINR(item?.gross_food_sales)}*\n` +
+      `• 18% Platform Commission: *-₹${formatINR(item?.platform_commission)}*\n` +
+      `• GST (5%): *+₹${formatINR(item?.gst_collected)}*\n` +
       `------------------------------------\n` +
-      `• Net Amount: *₹${item.net_payout.toFixed(2)}*\n` +
+      `• Net Amount: *₹${formatINR(item?.net_payout)}*\n` +
       `• Status: *${item.status.toUpperCase()}*\n` +
       `• Payout UPI ID: *${item.upi_id}*\n` +
       (item.transaction_ref ? `• UTR / Ref: *${item.transaction_ref}*\n` : "") +
@@ -234,7 +235,7 @@ export default function AdminPayoutsPage() {
   // Courier Action: Open Remittance modal
   const handleOpenRemitModal = (courier: CourierSettlementItem) => {
     setSelectedCourierForRemit(courier);
-    setRemitAmount(courier.net_cash_due_to_admin.toFixed(2));
+    setRemitAmount(formatINR(courier?.net_cash_due_to_admin));
     const dateFormatted = selectedDate.replace(/-/g, "");
     setRemitUtr(`CASH/${dateFormatted}/${Math.floor(1000 + Math.random() * 9000)}`);
   };
@@ -249,7 +250,7 @@ export default function AdminPayoutsPage() {
         amount: parsedAmount,
         utr: remitUtr,
       });
-      toast.success(`Remittance of ₹${parsedAmount.toFixed(2)} acknowledged for ${selectedCourierForRemit.name}`);
+      toast.success(`Remittance of ₹${formatINR(parsedAmount)} acknowledged for ${selectedCourierForRemit.name}`);
       setSelectedCourierForRemit(null);
       await loadData(selectedDate);
     } catch (err) {
@@ -523,13 +524,13 @@ export default function AdminPayoutsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right font-mono font-semibold text-zinc-900">
-                        ₹{c.gross_food_sales.toFixed(2)}
+                        ₹{formatINR(c?.gross_food_sales)}
                       </td>
                       <td className="px-4 py-3 text-right font-mono font-semibold text-red-600">
-                        -₹{c.platform_commission.toFixed(2)}
+                        -₹{formatINR(c?.platform_commission)}
                       </td>
                       <td className="px-4 py-3 text-right font-mono font-bold text-emerald-700 text-sm">
-                        ₹{c.net_payout.toFixed(2)}
+                        ₹{formatINR(c?.net_payout)}
                       </td>
                       <td className="px-4 py-3 text-center">
                         {c.status === "Paid" || c.status === "Settled" ? (
@@ -664,14 +665,14 @@ export default function AdminPayoutsPage() {
                         </span>
                       </td>
                       <td className="px-4 py-3 text-right font-mono font-semibold text-zinc-900">
-                        ₹{r.cod_collected.toFixed(2)}
+                        ₹{formatINR(r?.cod_collected)}
                       </td>
                       <td className="px-4 py-3 text-right font-mono font-semibold text-emerald-600">
-                        ₹{r.wages_earned.toFixed(2)}
+                        ₹{formatINR(r?.wages_earned)}
                       </td>
                       <td className="px-4 py-3 text-right font-mono font-bold text-sm">
-                        <span className={r.net_cash_due_to_admin >= 500 ? "text-red-600" : r.net_cash_due_to_admin >= 400 ? "text-amber-600" : "text-zinc-900"}>
-                          ₹{r.net_cash_due_to_admin.toFixed(2)}
+                        <span className={(r?.net_cash_due_to_admin ?? 0) >= 500 ? "text-red-600" : (r?.net_cash_due_to_admin ?? 0) >= 400 ? "text-amber-600" : "text-zinc-900"}>
+                          ₹{formatINR(r?.net_cash_due_to_admin)}
                         </span>
                       </td>
                       <td className="px-4 py-3 text-center">
@@ -740,19 +741,19 @@ export default function AdminPayoutsPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-zinc-500">Gross Food Sales:</span>
-                <span className="font-mono text-zinc-900">₹{selectedCanteenForPay.gross_food_sales.toFixed(2)}</span>
+                <span className="font-mono text-zinc-900">₹{formatINR(selectedCanteenForPay.gross_food_sales)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-zinc-500">18% CampusBite Cut:</span>
-                <span className="font-mono text-red-600">-₹{selectedCanteenForPay.platform_commission.toFixed(2)}</span>
+                <span className="font-mono text-red-600">-₹{formatINR(selectedCanteenForPay.platform_commission)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-zinc-500">GST (5%):</span>
-                <span className="font-mono text-zinc-900">+₹{selectedCanteenForPay.gst_collected.toFixed(2)}</span>
+                <span className="font-mono text-zinc-900">+₹{formatINR(selectedCanteenForPay.gst_collected)}</span>
               </div>
               <div className="flex justify-between border-t border-zinc-200 pt-2 font-bold text-sm">
                 <span className="text-zinc-900">Net Disbursed:</span>
-                <span className="font-mono text-emerald-600">₹{selectedCanteenForPay.net_payout.toFixed(2)}</span>
+                <span className="font-mono text-emerald-600">₹{formatINR(selectedCanteenForPay.net_payout)}</span>
               </div>
               <div className="flex justify-between pt-1">
                 <span className="text-zinc-500">UPI ID:</span>
@@ -823,15 +824,15 @@ export default function AdminPayoutsPage() {
               </div>
               <div className="flex justify-between">
                 <span className="text-zinc-500">COD Cash Collected:</span>
-                <span className="font-mono text-zinc-900">₹{selectedCourierForRemit.cod_collected.toFixed(2)}</span>
+                <span className="font-mono text-zinc-900">₹{formatINR(selectedCourierForRemit.cod_collected)}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-zinc-500">Earned Wages Kept:</span>
-                <span className="font-mono text-emerald-600">-₹{selectedCourierForRemit.wages_earned.toFixed(2)}</span>
+                <span className="font-mono text-emerald-600">-₹{formatINR(selectedCourierForRemit.wages_earned)}</span>
               </div>
               <div className="flex justify-between border-t border-zinc-200 pt-2 font-bold text-sm">
                 <span className="text-zinc-900">Net Due Owed to Admin:</span>
-                <span className="font-mono text-red-600">₹{selectedCourierForRemit.net_cash_due_to_admin.toFixed(2)}</span>
+                <span className="font-mono text-red-600">₹{formatINR(selectedCourierForRemit.net_cash_due_to_admin)}</span>
               </div>
             </div>
 

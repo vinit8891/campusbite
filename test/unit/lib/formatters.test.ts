@@ -11,6 +11,7 @@ import {
   formatOrderDate,
   formatUpdatedTime,
   selectClassName,
+  formatINR,
 } from "@/lib/formatters";
 
 describe("formatters utilities", () => {
@@ -119,6 +120,26 @@ describe("formatters utilities", () => {
       expect(formatUpdatedTime(null)).toBe("Waiting for update");
 
       vi.useRealTimers();
+    });
+  });
+
+  describe("formatINR", () => {
+    it("safely formats numbers to 2 decimal places by default", () => {
+      expect(formatINR(120)).toBe("120.00");
+      expect(formatINR(45.678)).toBe("45.68");
+      expect(formatINR("89.5")).toBe("89.50");
+    });
+
+    it("safely returns 0.00 for null, undefined, or NaN", () => {
+      expect(formatINR(null)).toBe("0.00");
+      expect(formatINR(undefined)).toBe("0.00");
+      expect(formatINR("not-a-number")).toBe("0.00");
+      expect(formatINR(NaN)).toBe("0.00");
+    });
+
+    it("supports custom decimal precision", () => {
+      expect(formatINR(10.555, 3)).toBe("10.555");
+      expect(formatINR(10, 0)).toBe("10");
     });
   });
 });

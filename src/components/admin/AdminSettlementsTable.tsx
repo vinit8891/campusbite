@@ -20,6 +20,7 @@ import {
   X,
 } from "lucide-react";
 import { toast } from "sonner";
+import { formatINR } from "@/lib/formatters";
 import {
   getAdminCanteenDailyBreakdown,
   recordCanteenSettlementAdmin,
@@ -159,7 +160,7 @@ export function AdminSettlementsTable() {
 
   const getWhatsAppShareUrl = (item: CanteenDailySettlement) => {
     const utr = item.transaction_ref || "PENDING-9PM-BATCH";
-    const text = `CampusBite Daily Settlement (${selectedDate}): Orders: ${item.orders_count} | Gross: ₹${item.gross_food_sales.toFixed(2)} | Net Transferred: ₹${item.net_payable_subtotal.toFixed(2)} | Ref: ${utr}`;
+    const text = `CampusBite Daily Settlement (${selectedDate}): Orders: ${item.orders_count} | Gross: ₹${formatINR(item?.gross_food_sales)} | Net Transferred: ₹${formatINR(item?.net_payable_subtotal)} | Ref: ${utr}`;
     return `https://wa.me/?text=${encodeURIComponent(text)}`;
   };
 
@@ -184,10 +185,10 @@ export function AdminSettlementsTable() {
       s.restaurant_email,
       s.upi_id,
       s.orders_count,
-      s.gross_food_sales.toFixed(2),
-      (s.gst_amount ?? (s.gross_food_sales * 0.05)).toFixed(2),
-      s.commission_deducted.toFixed(2),
-      s.net_payable_subtotal.toFixed(2),
+      formatINR(s?.gross_food_sales),
+      formatINR(s?.gst_amount ?? ((s?.gross_food_sales ?? 0) * 0.05)),
+      formatINR(s?.commission_deducted),
+      formatINR(s?.net_payable_subtotal),
       s.status,
       s.transaction_ref || "",
     ]);

@@ -1,6 +1,7 @@
 import { Button } from "@/components/ui/button";
 import { isBestseller } from "@/lib/menuDomain";
 import { menuEditPath } from "@/lib/routes";
+import { formatINR } from "@/lib/formatters";
 import type { MenuItem } from "@/types";
 import { useRouter } from "next/navigation";
 
@@ -18,6 +19,7 @@ export function MenuTableView({
   onDeleteItem,
 }: MenuTableViewProps) {
   const router = useRouter();
+  const menuList = Array.isArray(menu) ? menu : [];
 
   return (
     <div className="hidden overflow-x-auto rounded-2xl border bg-white xl:block">
@@ -32,7 +34,7 @@ export function MenuTableView({
           </tr>
         </thead>
         <tbody>
-          {menu.map((item) => (
+          {menuList.map((item) => (
             <tr key={item._id} className="border-t align-middle">
               <td className="px-4 py-3">
                 <div className="flex items-center gap-3">
@@ -59,7 +61,7 @@ export function MenuTableView({
               </td>
               <td className="px-4 py-3">{item.category || "—"}</td>
               <td className="px-4 py-3 font-semibold text-orange-600">
-                ₹{Number(item.price).toFixed(2)}
+                ₹{formatINR(item?.price)}
               </td>
               <td className="px-4 py-3">
                 <div className="flex flex-col gap-2">

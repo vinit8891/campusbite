@@ -1,4 +1,4 @@
-import { formatDate, formatDateTime } from "@/lib/formatters";
+import { formatDate, formatDateTime, formatINR } from "@/lib/formatters";
 import type {
   SubscriptionGenerationStatus,
   AdminSubscriptionPaymentSummary,
@@ -59,7 +59,7 @@ export function AdminSubscriptionSummaryCards({
             Total Subscription Revenue
           </p>
           <p className="mt-1 text-2xl font-semibold text-emerald-700">
-            ₹{Number(paymentSummary?.total_subscription_revenue ?? 0).toFixed(2)}
+            ₹{formatINR(paymentSummary?.total_subscription_revenue)}
           </p>
         </div>
         <div>

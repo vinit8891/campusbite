@@ -5,6 +5,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { isBestseller } from "@/lib/menuDomain";
 import { menuEditPath } from "@/lib/routes";
+import { formatINR } from "@/lib/formatters";
 import type { MenuItem } from "@/types";
 
 type MenuCardGridProps = {
@@ -21,10 +22,11 @@ export function MenuCardGrid({
   onDeleteItem,
 }: MenuCardGridProps) {
   const router = useRouter();
+  const menuList = Array.isArray(menu) ? menu : [];
 
   return (
     <div className="space-y-3 md:space-y-0 md:grid md:gap-5 md:grid-cols-2 lg:grid-cols-3 xl:hidden">
-      {menu.map((item) => {
+      {menuList.map((item) => {
         const isVeg = item.isVeg === true || item.type?.toLowerCase() === "veg";
         const isNonVeg =
           item.isVeg === false ||
@@ -81,7 +83,7 @@ export function MenuCardGrid({
 
                 <div className="flex items-center gap-2 text-xs">
                   <span className="font-black text-orange-600">
-                    ₹{Number(item.price).toFixed(2)}
+                    ₹{formatINR(item?.price)}
                   </span>
                   {item.category && (
                     <>
@@ -196,7 +198,7 @@ export function MenuCardGrid({
 
                   <div className="flex items-center justify-between gap-3">
                     <p className="text-xl font-black text-orange-600">
-                      ₹{Number(item.price).toFixed(2)}
+                      ₹{formatINR(item?.price)}
                     </p>
                     <span className="rounded-xl bg-stone-100 px-3 py-1 text-xs font-bold text-stone-700 border border-stone-200">
                       {item.category || "General"}

@@ -11,6 +11,7 @@ import {
   CardTitle,
 } from "@/components/ui/card";
 import { ROUTES } from "@/lib/routes";
+import { formatINR } from "@/lib/formatters";
 import type {
   DashboardData,
   StatCard,
@@ -57,7 +58,7 @@ export function DashboardMetricCards({
           </CardHeader>
           <CardContent className="px-3.5 pb-3.5 sm:px-4 sm:pb-4 pt-1">
             <p className="text-2xl sm:text-3xl lg:text-4xl font-black text-emerald-900 tracking-tight truncate">
-              ₹{todayRevenue.toFixed(2)}
+              ₹{formatINR(todayRevenue)}
             </p>
             <CardDescription className="text-[11px] sm:text-xs font-medium text-emerald-700 mt-1 truncate flex items-center gap-1">
               <span>⚡</span>
@@ -209,7 +210,7 @@ export function DashboardMetricCards({
               <div className="flex justify-between gap-2">
                 <span className="text-stone-600 truncate">Monthly rev</span>
                 <span className="font-extrabold text-emerald-700 shrink-0">
-                  ₹{Number(subscriptionRevenue?.monthly_subscription_revenue ?? 0).toFixed(2)}
+                  ₹{formatINR(subscriptionRevenue?.monthly_subscription_revenue)}
                 </span>
               </div>
               <div className="flex justify-between gap-2">
@@ -288,7 +289,7 @@ export function DashboardMetricCards({
                   Revenue
                 </p>
                 <p className="text-xl sm:text-2xl font-black text-emerald-700 mt-0.5">
-                  ₹{Number(dashboard.revenue || 0).toFixed(2)}
+                  ₹{formatINR(dashboard.revenue)}
                 </p>
                 <p className="text-[10px] text-stone-400 mt-0.5">Lifetime</p>
               </div>
@@ -299,7 +300,7 @@ export function DashboardMetricCards({
                   Avg Order Value
                 </p>
                 <p className="text-xl sm:text-2xl font-black text-teal-700 mt-0.5">
-                  ₹{Number(analytics?.average_order_value ?? 0).toFixed(2)}
+                  ₹{formatINR(analytics?.average_order_value)}
                 </p>
               </div>
 

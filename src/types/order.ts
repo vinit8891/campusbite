@@ -87,6 +87,16 @@ export type Order = {
   payment_method: string;
   payment_status?: string;
   total: number;
+  total_amount?: number;
+  items_subtotal?: number;
+  food_subtotal?: number;
+  gst?: number;
+  restaurant_gst?: number;
+  delivery_fee?: number;
+  platform_fee?: number;
+  commission?: number;
+  commission_amount?: number;
+  net_payout?: number;
   delivery_type?: DeliveryMode | "HOSTEL_BATCH" | "STANDARD";
   hostel_block?: string | null;
   batch_window_id?: string;

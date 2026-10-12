@@ -702,6 +702,13 @@ async def get_canteen_settlements_breakdown(
             "settled_at": settled.get("settled_at") if settled else None,
             "transaction_ref": settled.get("transaction_ref") if settled else None,
             "settlement_date": date_prefix,
+            # Standard non-null financial attributes
+            "items_subtotal": float(gross),
+            "gst": float(gst),
+            "delivery_fee": 0.0,
+            "platform_fee": 0.0,
+            "commission_amount": float(comm),
+            "total_amount": float(round(gross + gst, 2)),
         })
 
     return {
@@ -906,6 +913,14 @@ async def get_courier_settlements_breakdown(
             "status": status,
             "remittance_status": "DUES_PENDING" if net_cash_due > 0 else "CLEAR",
             "settlement_date": date_prefix,
+            # Standard non-null financial attributes
+            "items_subtotal": 0.0,
+            "gst": 0.0,
+            "delivery_fee": float(wages_earned),
+            "platform_fee": 0.0,
+            "commission_amount": 0.0,
+            "net_payout": float(wages_earned),
+            "total_amount": float(cod_collected),
         })
 
     return {

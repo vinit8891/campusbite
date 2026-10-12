@@ -18,6 +18,7 @@ from app.schemas.order import Order, OrderResponse, RestaurantSnapshot
 from app.models.order import (
     create_order,
     get_order_by_id,
+    normalize_order_financials,
     get_orders,
     get_customer_orders,
     get_my_customer_orders,
@@ -178,6 +179,7 @@ def _apply_payment_defaults(order: dict) -> dict:
 def _public_order(order: dict) -> dict:
     """Order payload for clients: payment defaults, never expose OTP/secrets."""
     response = _apply_payment_defaults(order)
+    normalize_order_financials(response)
     response.pop("delivery_otp", None)
     # Signature is verification material — do not expose on generic APIs
     response.pop("razorpay_signature", None)
@@ -515,7 +517,7 @@ async def add_order(
 
     # 4. Anti-Tamper Check with float tolerance & round-off support:
     raw_client_total = data.get("total_amount")
-    if raw_client_total is None:
+    if raw_client_total is None or (raw_client_total == 0.0 and data.get("total")):
         raw_client_total = data.get("total")
     client_total = float(raw_client_total if raw_client_total is not None else expected_rounded_total)
 

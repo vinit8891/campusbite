@@ -1,5 +1,6 @@
 import { Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { formatINR } from "@/lib/formatters";
 import {
   type SubscriptionPlan,
   formatPlanTiming,
@@ -19,9 +20,11 @@ export function SubscriptionPlanCardList({
   onToggleActive,
   onDelete,
 }: SubscriptionPlanCardListProps) {
+  const plansList = Array.isArray(plans) ? plans : [];
+
   return (
     <div className="grid gap-4">
-      {plans.map((plan) => (
+      {plansList.map((plan) => (
         <article
           key={plan.plan_id}
           className="rounded-2xl border bg-white p-5 shadow-sm"
@@ -57,7 +60,7 @@ export function SubscriptionPlanCardList({
             </div>
             <div>
               <dt className="text-muted-foreground">Price</dt>
-              <dd>₹{plan.price.toFixed(2)}</dd>
+              <dd>₹{formatINR(plan?.price)}</dd>
             </div>
             <div>
               <dt className="text-muted-foreground">Timing</dt>

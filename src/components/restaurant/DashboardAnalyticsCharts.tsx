@@ -9,6 +9,7 @@ import {
   formatPaymentMethod,
   formatPaymentStatus,
 } from "@/lib/paymentLabels";
+import { formatINR } from "@/lib/formatters";
 import type {
   AnalyticsOverview,
   CountRow,
@@ -102,7 +103,7 @@ export function DashboardAnalyticsCharts({
                         point.revenue > 0 ? 8 : 2
                       )}%`,
                     }}
-                    title={`₹${point.revenue.toFixed(2)} · ${point.orders} orders`}
+                    title={`₹${formatINR(point?.revenue)} · ${point.orders} orders`}
                   />
                   <span className="text-[9px] sm:text-[10px] font-bold text-stone-500 truncate">
                     {point.date.slice(5)}

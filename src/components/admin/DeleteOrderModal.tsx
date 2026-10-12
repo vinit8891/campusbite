@@ -3,7 +3,7 @@
 import React from "react";
 import { Trash2, AlertTriangle } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { shortId } from "@/lib/formatters";
+import { shortId, formatINR } from "@/lib/formatters";
 import type { AdminOrder } from "@/services/adminService";
 
 export interface DeleteOrderModalProps {
@@ -66,7 +66,7 @@ export function DeleteOrderModal({
           <div className="flex justify-between">
             <span className="text-stone-500">Total Price:</span>
             <span className="font-bold text-stone-900">
-              ₹{Number(order.total ?? 0).toFixed(2)}
+              ₹{formatINR(order.total)}
             </span>
           </div>
         </div>
