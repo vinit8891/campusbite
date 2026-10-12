@@ -30,6 +30,8 @@ class Order(BaseModel):
 
     # Delivery Type: "HOSTEL_BATCH" | "STANDARD" | "EXPRESS_DOOR" | "COUNTER_TAKEAWAY"
     delivery_type: str = "HOSTEL_BATCH"
+    # Modern fulfillment mode: "delivery" | "takeaway"
+    fulfillment_mode: str | None = None
     order_type: str | None = None
     hostel_block: str | None = None
     batch_window_id: str | None = None

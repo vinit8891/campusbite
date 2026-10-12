@@ -11,19 +11,14 @@ import { useCheckout } from "@/context/CheckoutContext";
 import { placeOrder } from "@/services/orderService";
 import { AuthHttpError } from "@/services/authFetch";
 import { ROUTES } from "@/lib/routes";
-import { BatchWindowCountdown } from "@/components/checkout/BatchWindowCountdown";
-import { getNextBatchWindow } from "@/lib/batchWindows";
 import {
   calculateCheckoutPricing,
   calculateCodRounding,
   getCalibratedAppPrice,
   type DeliveryMode,
   type CartItemInput,
-  MICRO_CART_THRESHOLD,
-  MIN_DELIVERY_SUBTOTAL,
-  PLATFORM_FEE_STANDARD,
-  PLATFORM_FEE_SMALL_CART,
-  SMALL_CART_THRESHOLD,
+  PLATFORM_FEE_DELIVERY,
+  PLATFORM_FEE_TAKEAWAY,
 } from "@/lib/pricingEngine";
 import {
   COD_PAYMENT_METHOD,
@@ -128,12 +123,14 @@ export default function OrderSummary() {
     [cart]
   );
 
-  const selectedMode: DeliveryMode =
-    checkout.delivery_type === "STANDARD"
-      ? "EXPRESS_DOOR"
-      : (checkout.delivery_type as DeliveryMode);
+  const normType = String(checkout.delivery_type || "delivery").toLowerCase();
+  const isTakeaway =
+    normType === "takeaway" ||
+    normType === "counter_takeaway" ||
+    normType === "pickup";
+  const effectiveMode: DeliveryMode = isTakeaway ? "COUNTER_TAKEAWAY" : "HOSTEL_BATCH";
 
-  const basePricing = useMemo(() => {
+  const pricing = useMemo(() => {
     if (cartInput.length === 0) {
       return {
         appSubtotal: 0,
@@ -147,29 +144,18 @@ export default function OrderSummary() {
         is_below_min_delivery: false,
         min_delivery_error: undefined,
         totalStudentPayable: 0,
-        isMicroCart: true,
-        amountToUnlockExpress: MICRO_CART_THRESHOLD,
+        isMicroCart: false,
+        amountToUnlockExpress: 0,
         canteenPayout: { baseFood: 0, gstPassThrough: 0, totalDisbursal: 0 },
         allowedDeliveryModes: ["HOSTEL_BATCH", "COUNTER_TAKEAWAY"] as DeliveryMode[],
       };
     }
-    return calculateCheckoutPricing(cartInput, "HOSTEL_BATCH");
-  }, [cartInput]);
-
-  const effectiveMode: DeliveryMode =
-    basePricing.isMicroCart &&
-    (selectedMode === "EXPRESS_DOOR" || (selectedMode as string) === "STANDARD")
-      ? "HOSTEL_BATCH"
-      : selectedMode;
-
-  const pricing = useMemo(() => {
-    if (cartInput.length === 0) return basePricing;
     return calculateCheckoutPricing(cartInput, effectiveMode);
-  }, [cartInput, effectiveMode, basePricing]);
+  }, [cartInput, effectiveMode]);
 
-  const isDelivery = effectiveMode !== "COUNTER_TAKEAWAY";
-  const isBelowMinDelivery = isDelivery && pricing.appSubtotal > 0 && pricing.appSubtotal < MIN_DELIVERY_SUBTOTAL;
-  const missingToMinDelivery = Math.max(0, Number((MIN_DELIVERY_SUBTOTAL - pricing.appSubtotal).toFixed(2)));
+  const isDelivery = !isTakeaway;
+  const isBelowMinDelivery = false;
+  const missingToMinDelivery = 0;
 
   const isCod = checkout.payment_method === COD_PAYMENT_METHOD;
   const isOnline = checkout.payment_method === ONLINE_PAYMENT_METHOD;
@@ -182,7 +168,6 @@ export default function OrderSummary() {
     !loading &&
     paymentState !== "processing" &&
     paymentState !== "success" &&
-    !isBelowMinDelivery &&
     (isCod ? checkout.cod_confirmed : checkout.online_confirmed);
 
   function finishSuccess(orderId: string) {
@@ -348,42 +333,24 @@ export default function OrderSummary() {
         calculateCodRounding(unroundedPayable);
       const finalPayableNum = isCod ? codRoundedTotal : unroundedPayable;
 
-      const batchWindow = getNextBatchWindow();
       const orderData = {
         restaurant_email: restaurantEmail,
         customer_name: effectiveName.trim(),
         phone: deliveryPhone.replace(/\D/g, ""),
-        address: fullAddress,
+        address: isTakeaway ? "Canteen Counter (Self Pickup)" : fullAddress,
         payment_method: isOnline ? ONLINE_PAYMENT_METHOD : COD_PAYMENT_METHOD,
         items: cart,
         total: finalPayableNum,
         coupon_code: appliedCoupon ? appliedCoupon.code : undefined,
         discount_amount: discountDeduction > 0 ? discountDeduction : undefined,
+        fulfillment_mode: isTakeaway ? "takeaway" : "delivery",
         delivery_for: checkout.delivery_for,
         delivery_type: effectiveMode,
-        hostel_block:
-          effectiveMode === "HOSTEL_BATCH"
-            ? checkout.hostel_block
-            : null,
-        batch_window_id:
-          effectiveMode === "HOSTEL_BATCH"
-            ? batchWindow.slotId
-            : undefined,
-        scheduled_wave:
-          effectiveMode === "HOSTEL_BATCH"
-            ? batchWindow.scheduledWave || batchWindow.deliveryWindow
-            : undefined,
-        tip_amount: checkout.tip_amount,
+        hostel_block: isTakeaway ? null : checkout.hostel_block,
+        tip_amount: isTakeaway ? 0 : checkout.tip_amount,
         pricing_breakdown: {
           ...pricing,
-          batch_window_id:
-            effectiveMode === "HOSTEL_BATCH"
-              ? batchWindow.slotId
-              : undefined,
-          scheduled_wave:
-            effectiveMode === "HOSTEL_BATCH"
-              ? batchWindow.scheduledWave || batchWindow.deliveryWindow
-              : undefined,
+          fulfillment_mode: isTakeaway ? "takeaway" : "delivery",
           codRounding: isCod
             ? { roundedTotal: codRoundedTotal, roundOff: codRoundOff }
             : undefined,
@@ -550,31 +517,44 @@ export default function OrderSummary() {
           </span>
         </div>
 
-        {/* Minimum Delivery Cart Warning Banner */}
-        {isBelowMinDelivery && (
-          <div className="rounded-xl border border-amber-300 bg-amber-50 p-3.5 text-xs text-amber-900 shadow-2xs">
-            <div className="flex items-start gap-2">
-              <span className="text-base">⚠️</span>
-              <div className="flex-1 space-y-2">
-                <p className="font-semibold leading-snug">
-                  Hostel delivery requires a minimum food order of ₹35.00. Add ₹{missingToMinDelivery.toFixed(2)} more or switch to Takeaway.
-                </p>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setCheckout((prev) => ({
-                      ...prev,
-                      delivery_type: "COUNTER_TAKEAWAY",
-                    }))
-                  }
-                  className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-amber-700 transition cursor-pointer"
-                >
-                  Switch to Counter Takeaway (Self Pickup)
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
+        {/* Streamlined Fulfillment Toggle Card */}
+        <div className="grid grid-cols-2 gap-3 p-1 bg-zinc-100 rounded-2xl" role="group" aria-label="Fulfillment mode">
+          <button
+            type="button"
+            onClick={() =>
+              setCheckout((prev) => ({
+                ...prev,
+                delivery_type: "HOSTEL_BATCH",
+              }))
+            }
+            className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all cursor-pointer ${
+              !isTakeaway
+                ? "bg-white shadow-sm border border-orange-500/20 text-orange-600 font-bold"
+                : "text-zinc-600 hover:text-zinc-900 font-medium"
+            }`}
+          >
+            <span className="text-sm font-bold flex items-center gap-1.5">🛵 Campus Delivery</span>
+            <span className="text-xs text-zinc-500 mt-0.5">₹15 • 20-30 mins</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() =>
+              setCheckout((prev) => ({
+                ...prev,
+                delivery_type: "COUNTER_TAKEAWAY",
+              }))
+            }
+            className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all cursor-pointer ${
+              isTakeaway
+                ? "bg-white shadow-sm border border-orange-500/20 text-orange-600 font-bold"
+                : "text-zinc-600 hover:text-zinc-900 font-medium"
+            }`}
+          >
+            <span className="text-sm font-bold flex items-center gap-1.5">🛍️ Takeaway</span>
+            <span className="text-xs text-emerald-600 font-semibold mt-0.5">FREE • 10-15 mins</span>
+          </button>
+        </div>
 
         {/* Cart Items List */}
         <div className="space-y-2 border-b border-stone-100 pb-3">
@@ -697,19 +677,13 @@ export default function OrderSummary() {
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <span>Delivery Fee</span>
-              {effectiveMode === "HOSTEL_BATCH" && (
+              {!isTakeaway ? (
                 <span className="rounded-full bg-emerald-100 px-1.5 py-0.2 text-[10px] font-bold text-emerald-700">
-                  Hostel Batch (₹15)
+                  Campus Delivery (₹15)
                 </span>
-              )}
-              {effectiveMode === "COUNTER_TAKEAWAY" && (
+              ) : (
                 <span className="rounded-full bg-blue-100 px-1.5 py-0.2 text-[10px] font-bold text-blue-700">
                   Self Pickup (₹0)
-                </span>
-              )}
-              {effectiveMode === "EXPRESS_DOOR" && (
-                <span className="rounded-full bg-purple-100 px-1.5 py-0.2 text-[10px] font-bold text-purple-700">
-                  Direct Room (₹40)
                 </span>
               )}
             </div>
@@ -719,13 +693,13 @@ export default function OrderSummary() {
           </div>
 
           <div className="flex justify-between">
-            <span>Platform Tech Fee</span>
+            <span>Platform Fee</span>
             <span className="font-semibold text-stone-900">
               ₹{pricing.platformTechFee.toFixed(2)}
             </span>
           </div>
 
-          {Number(checkout.tip_amount || 0) > 0 && (
+          {Number(checkout.tip_amount || 0) > 0 && !isTakeaway && (
             <div className="flex justify-between text-amber-700 font-bold">
               <span>Rider Tip</span>
               <span>+₹{Number(checkout.tip_amount || 0).toFixed(2)}</span>
@@ -766,30 +740,21 @@ export default function OrderSummary() {
         <div className="rounded-xl bg-stone-50 p-2.5 text-[11px] text-stone-600 border border-stone-200/60">
           <div className="flex items-center justify-between font-bold text-stone-800">
             <span>
-              {effectiveMode === "HOSTEL_BATCH"
-                ? "🏢 Hostel Batch Drop"
-                : effectiveMode === "COUNTER_TAKEAWAY"
-                ? "🏪 Counter Takeaway (Self Pickup)"
-                : "🚀 Direct Room Delivery"}
+              {isTakeaway
+                ? "🛍️ Quick Self-Pickup (Takeaway)"
+                : "🛵 Campus Delivery"}
             </span>
             <span className="text-amber-700">
-              {effectiveMode === "COUNTER_TAKEAWAY" ? "Canteen Counter" : checkout.hostel_block}
+              {isTakeaway ? "Canteen Counter" : checkout.hostel_block}
             </span>
           </div>
           <p className="truncate mt-0.5 text-stone-500">
-            {effectiveMode === "COUNTER_TAKEAWAY"
-              ? "Pickup at canteen counter when ready"
-              : checkout.address || "Room pending"}
-            {effectiveMode !== "COUNTER_TAKEAWAY" && checkout.landmark ? ` • Ref: ${checkout.landmark}` : ""}
+            {isTakeaway
+              ? "Skip the counter queue • Pick up when ready"
+              : checkout.address || "Hostel Lobby Drop"}
+            {!isTakeaway && checkout.landmark ? ` • Ref: ${checkout.landmark}` : ""}
           </p>
         </div>
-        {/* Live Batch Window Countdown Banner */}
-        {effectiveMode === "HOSTEL_BATCH" && (
-          <BatchWindowCountdown
-            hostelBlock={checkout.hostel_block}
-            deliveryMode={effectiveMode}
-          />
-        )}
       </section>
 
       {/* =========================================================
@@ -811,7 +776,7 @@ export default function OrderSummary() {
                 : "bg-amber-600 hover:bg-amber-700"
             }`}
           >
-            {isBelowMinDelivery ? "Min ₹35 Delivery Required" : ctaButtonText}
+            {ctaButtonText}
           </button>
         </div>
       </div>

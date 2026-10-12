@@ -105,7 +105,7 @@ describe("OrderSummary Component", () => {
     };
   });
 
-  it("renders order items and statutory pricing breakdown (5% GST, ₹15 batch delivery, ₹3 tech fee for carts >= ₹50, COD rounding)", () => {
+  it("renders order items and statutory pricing breakdown (5% GST, ₹15 campus delivery, ₹3 fee, COD rounding)", () => {
     render(<OrderSummary />);
 
     expect(screen.getByText("Veg Thali × 1")).toBeInTheDocument();
@@ -114,14 +114,14 @@ describe("OrderSummary Component", () => {
     expect(screen.getByText("Food GST (5%)")).toBeInTheDocument();
     expect(screen.getByText("₹6.10")).toBeInTheDocument();
     expect(screen.getByText("Delivery Fee")).toBeInTheDocument();
-    expect(screen.getByText("Hostel Batch (₹15)")).toBeInTheDocument();
-    expect(screen.getByText("Platform Tech Fee")).toBeInTheDocument();
+    expect(screen.getByText("Campus Delivery (₹15)")).toBeInTheDocument();
+    expect(screen.getByText("Platform Fee")).toBeInTheDocument();
     expect(screen.getByText("₹3.00")).toBeInTheDocument();
     // Total = 122 + 6.10 + 15 + 3 = 146.10 -> 146 (COD rounded)
     expect(screen.getAllByText("₹146").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("renders ₹3 platform tech fee when takeaway is selected and calculates Veg Thali takeaway total", () => {
+  it("renders ₹2 platform fee when takeaway is selected and calculates Veg Thali takeaway total", () => {
     // Veg Thali with counter price ₹80 -> calibrated app price ₹98
     currentCart = [
       { id: "veg_thali", name: "Veg Thali", price: 80, quantity: 1, restaurant_email: "rest@campus.in" },
@@ -141,13 +141,13 @@ describe("OrderSummary Component", () => {
     expect(screen.getByText("Delivery Fee")).toBeInTheDocument();
     expect(screen.getByText("Self Pickup (₹0)")).toBeInTheDocument();
     expect(screen.getByText("₹0.00")).toBeInTheDocument();
-    expect(screen.getByText("Platform Tech Fee")).toBeInTheDocument();
-    expect(screen.getByText("₹3.00")).toBeInTheDocument();
-    // Online total = 98 + 4.90 + 0 + 3 = 105.90
-    expect(screen.getAllByText("₹105.90").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getByText("Platform Fee")).toBeInTheDocument();
+    expect(screen.getByText("₹2.00")).toBeInTheDocument();
+    // Online total = 98 + 4.90 + 0 + 2 = 104.90
+    expect(screen.getAllByText("₹104.90").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("calculates Veg Thali delivery total with ₹3 Platform Tech Fee (₹120.90 online)", () => {
+  it("calculates Veg Thali delivery total with ₹3 Platform Fee (₹120.90 online)", () => {
     // Veg Thali counter price ₹80 -> calibrated app price ₹98
     currentCart = [
       { id: "veg_thali", name: "Veg Thali", price: 80, quantity: 1, restaurant_email: "rest@campus.in" },
@@ -165,15 +165,15 @@ describe("OrderSummary Component", () => {
     expect(screen.getByText("Food GST (5%)")).toBeInTheDocument();
     expect(screen.getByText("₹4.90")).toBeInTheDocument();
     expect(screen.getByText("Delivery Fee")).toBeInTheDocument();
-    expect(screen.getByText("Hostel Batch (₹15)")).toBeInTheDocument();
+    expect(screen.getByText("Campus Delivery (₹15)")).toBeInTheDocument();
     expect(screen.getByText("₹15.00")).toBeInTheDocument();
-    expect(screen.getByText("Platform Tech Fee")).toBeInTheDocument();
+    expect(screen.getByText("Platform Fee")).toBeInTheDocument();
     expect(screen.getByText("₹3.00")).toBeInTheDocument();
     // Online total = 98 + 4.90 + 15 + 3 = 120.90
     expect(screen.getAllByText("₹120.90").length).toBeGreaterThanOrEqual(1);
   });
 
-  it("displays amber banner and disables checkout button when delivery subtotal is below ₹35", async () => {
+  it("renders 2 modern fulfillment toggle options and toggles to Takeaway without blockers", async () => {
     const user = userEvent.setup();
     // Counter price 20 -> Calibrated app price 25 (< 35)
     currentCart = [
@@ -182,27 +182,21 @@ describe("OrderSummary Component", () => {
 
     render(<OrderSummary />);
 
-    // Amber banner with message
-    expect(
-      screen.getByText(/Hostel delivery requires a minimum food order of ₹35\.00/i)
-    ).toBeInTheDocument();
+    // Renders the 2 modern options
+    expect(screen.getByRole("button", { name: /Campus Delivery/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Takeaway/i })).toBeInTheDocument();
 
-    // Quick toggle button to switch to Takeaway
-    const switchBtn = screen.getByRole("button", {
-      name: /Switch to Counter Takeaway/i,
-    });
-    expect(switchBtn).toBeInTheDocument();
+    // CTA button is enabled (no min delivery blocker)
+    const ctaBtn = screen.getByRole("button", { name: /Place COD Order/i });
+    expect(ctaBtn).not.toBeDisabled();
 
-    // CTA button is disabled
-    const ctaBtn = screen.getByRole("button", { name: /Min ₹35 Delivery Required/i });
-    expect(ctaBtn).toBeDisabled();
-
-    // Clicking switch to takeaway updates checkout
-    await user.click(switchBtn);
+    // Clicking takeaway toggle button updates checkout
+    const takeawayBtn = screen.getByRole("button", { name: /Takeaway/i });
+    await user.click(takeawayBtn);
     expect(mockSetCheckout).toHaveBeenCalled();
   });
 
-  it("renders dynamic ₹5.00 Platform Tech Fee when delivery subtotal is ₹35 to ₹49.99 without separate surcharge row", () => {
+  it("renders flat ₹3.00 Platform Fee for delivery regardless of subtotal", () => {
     // Counter price 30 -> Calibrated app price 37 (between 35 and 49.99)
     currentCart = [
       { id: "samosa", name: "Samosa", price: 30, quantity: 1, restaurant_email: "rest@campus.in" },
@@ -210,9 +204,9 @@ describe("OrderSummary Component", () => {
 
     render(<OrderSummary />);
 
-    // Platform Tech Fee displays ₹5.00 for small cart
-    expect(screen.getByText("Platform Tech Fee")).toBeInTheDocument();
-    expect(screen.getByText("₹5.00")).toBeInTheDocument();
+    // Platform Fee displays ₹3.00 flat
+    expect(screen.getByText("Platform Fee")).toBeInTheDocument();
+    expect(screen.getByText("₹3.00")).toBeInTheDocument();
 
     // No separate surcharge line item
     expect(screen.queryByText("Small Order Surcharge")).not.toBeInTheDocument();
@@ -251,6 +245,7 @@ describe("OrderSummary Component", () => {
       expect(placeOrderSpy).toHaveBeenCalledWith(
         expect.objectContaining({
           restaurant_email: "rest@campus.in",
+          fulfillment_mode: "delivery",
           delivery_type: "HOSTEL_BATCH",
           hostel_block: "Hostel Block A",
           total: 146,

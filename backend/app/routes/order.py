@@ -418,10 +418,21 @@ async def add_order(
     except Exception:
         pass
 
+    # Normalize fulfillment mode ("delivery" | "takeaway") and delivery_type
+    raw_fulfillment = data.get("fulfillment_mode") or data.get("delivery_type") or "delivery"
+    if str(raw_fulfillment).strip().lower() in ("takeaway", "counter_takeaway", "pickup"):
+        fulfillment_mode = "takeaway"
+        delivery_type = "COUNTER_TAKEAWAY"
+    else:
+        fulfillment_mode = "delivery"
+        delivery_type = "HOSTEL_BATCH"
+
+    data["fulfillment_mode"] = fulfillment_mode
+    data["delivery_type"] = delivery_type
+
     raw_method = data.get("payment_method")
     is_online = _is_online_method(raw_method)
     method_for_calc = "ONLINE" if is_online else "COD"
-    delivery_type = data.get("delivery_type") or "HOSTEL_BATCH"
     tip_amount = float(data.get("tip_amount") or 0.0)
 
     # Authoritative statutory pricing from items & parameters — never trust client amount alone
@@ -432,11 +443,8 @@ async def add_order(
         payment_method=method_for_calc,
     )
 
-    norm_delivery_type = (delivery_type or "HOSTEL_BATCH").strip().upper()
-    if norm_delivery_type == "STANDARD":
-        norm_delivery_type = "EXPRESS_DOOR"
-
-    is_takeaway = norm_delivery_type in ("COUNTER_TAKEAWAY", "TAKEAWAY", "PICKUP")
+    norm_delivery_type = delivery_type
+    is_takeaway = fulfillment_mode == "takeaway"
     order_type = str(data.get("order_type") or "").strip().upper()
     is_delivery_order = order_type == "DELIVERY" or not is_takeaway
 
@@ -465,6 +473,7 @@ async def add_order(
     data["total"] = server_total
     data["amount_paise"] = to_paise(server_total)
     data["delivery_type"] = delivery_type
+    data["fulfillment_mode"] = fulfillment_mode
     data["tip_amount"] = tip_amount
 
     # Group HOSTEL_BATCH orders into batches and calibrate rider payouts

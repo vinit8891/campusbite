@@ -42,46 +42,45 @@ describe("orderPricing and pricingEngine thresholds & calculations", () => {
     expect(ENGINE_MIN_DELIVERY).toBe(35.0);
     expect(ENGINE_SMALL_CART_THRESHOLD).toBe(50.0);
     expect(ENGINE_PLATFORM_FEE_STANDARD).toBe(3.0);
-    expect(ENGINE_PLATFORM_FEE_SMALL_CART).toBe(5.0);
+    expect(ENGINE_PLATFORM_FEE_SMALL_CART).toBe(3.0);
   });
 
   describe("calculateOrderPricing", () => {
-    it("blocks delivery checkout when cart subtotal is below ₹35", () => {
+    it("permits delivery without cart minimum blockers with flat ₹15 delivery fee and ₹3 tech fee", () => {
       // Single item with price ₹20
       const items = [{ price: 20, quantity: 1 }];
-      const breakdown = calculateOrderPricing(items, "HOSTEL_BATCH");
+      const breakdown = calculateOrderPricing(items, "delivery");
 
       expect(breakdown.food_subtotal).toBe(20.0);
-      expect(breakdown.is_below_min_delivery).toBe(true);
-      expect(breakdown.isBelowMinDelivery).toBe(true);
-      expect(breakdown.min_delivery_error).toBe(
-        "Minimum cart for hostel delivery is ₹35.00. Add items or switch to Counter Takeaway."
-      );
-      expect(breakdown.minDeliveryError).toBe(
-        "Minimum cart for hostel delivery is ₹35.00. Add items or switch to Counter Takeaway."
-      );
+      expect(breakdown.is_below_min_delivery).toBe(false);
+      expect(breakdown.isBelowMinDelivery).toBe(false);
+      expect(breakdown.min_delivery_error).toBeUndefined();
+      expect(breakdown.minDeliveryError).toBeUndefined();
       expect(breakdown.small_order_fee).toBe(0.0);
-      expect(breakdown.platform_fee).toBe(5.0); // subtotal 20 < 50
-      expect(breakdown.fee_name).toBe("Platform Tech Fee");
+      expect(breakdown.delivery_fee).toBe(15.0);
+      expect(breakdown.platform_fee).toBe(3.0);
+      expect(breakdown.fee_name).toBe("Platform Fee");
+      // Food GST (5% of 20 = 1.00) + Subtotal (20) + Del (15) + Tech (3) = 39.00
+      expect(breakdown.total_payable).toBe(39.0);
     });
 
-    it("permits takeaway when cart is below ₹35 with dynamic ₹5 tech fee (< ₹50) and zero delivery fee", () => {
+    it("permits takeaway with zero delivery fee and ₹2 platform tech fee", () => {
       const items = [{ price: 20, quantity: 1 }];
-      const breakdown = calculateOrderPricing(items, "COUNTER_TAKEAWAY");
+      const breakdown = calculateOrderPricing(items, "takeaway");
 
       expect(breakdown.food_subtotal).toBe(20.0);
       expect(breakdown.is_below_min_delivery).toBe(false);
       expect(breakdown.isBelowMinDelivery).toBe(false);
       expect(breakdown.min_delivery_error).toBeUndefined();
       expect(breakdown.delivery_fee).toBe(0.0);
-      expect(breakdown.platform_fee).toBe(5.0); // subtotal 20 < 50
-      expect(breakdown.fee_name).toBe("Platform Tech Fee");
+      expect(breakdown.platform_fee).toBe(2.0);
+      expect(breakdown.fee_name).toBe("Platform Fee");
       expect(breakdown.small_order_fee).toBe(0.0);
-      // Food GST (5% of 20 = 1.00) + Subtotal (20) + Tech fee (5) = 26.00
-      expect(breakdown.total_payable).toBe(26.0);
+      // Food GST (5% of 20 = 1.00) + Subtotal (20) + Tech fee (2) = 23.00
+      expect(breakdown.total_payable).toBe(23.0);
     });
 
-    it("charges ₹5.00 Platform Tech Fee and zero separate small order surcharge when delivery cart is ₹35 to ₹49.99", () => {
+    it("charges ₹3.00 Platform Tech Fee and ₹15 Delivery Fee on delivery orders", () => {
       const items = [{ price: 35, quantity: 1 }];
       const breakdown = calculateOrderPricing(items, "HOSTEL_BATCH", 0, "COD");
 
@@ -90,9 +89,9 @@ describe("orderPricing and pricingEngine thresholds & calculations", () => {
       expect(breakdown.small_order_fee).toBe(0.0);
       expect(breakdown.restaurant_gst).toBe(1.75); // 5% of 35
       expect(breakdown.delivery_fee).toBe(15.0);
-      expect(breakdown.platform_fee).toBe(5.0); // ₹5 for small cart < 50
-      // Total = 35 + 1.75 + 15 + 5 = 56.75
-      expect(breakdown.total_payable).toBe(56.75);
+      expect(breakdown.platform_fee).toBe(3.0);
+      // Total = 35 + 1.75 + 15 + 3 = 54.75
+      expect(breakdown.total_payable).toBe(54.75);
     });
 
     it("charges ₹3.00 Platform Tech Fee when delivery cart reaches ₹50.00", () => {
@@ -104,7 +103,7 @@ describe("orderPricing and pricingEngine thresholds & calculations", () => {
       expect(breakdown.small_order_fee).toBe(0.0);
       expect(breakdown.restaurant_gst).toBe(2.5); // 5% of 50
       expect(breakdown.delivery_fee).toBe(15.0);
-      expect(breakdown.platform_fee).toBe(3.0); // ₹3 for cart >= 50
+      expect(breakdown.platform_fee).toBe(3.0);
       // Total = 50 + 2.5 + 15 + 3 = 70.50
       expect(breakdown.total_payable).toBe(70.5);
     });
@@ -121,27 +120,27 @@ describe("orderPricing and pricingEngine thresholds & calculations", () => {
       expect(deliveryOrder.small_order_fee).toBe(0.0);
       expect(deliveryOrder.total_payable).toBe(120.90);
 
-      // 2. Takeaway: ₹98 food + ₹4.90 GST + ₹0 delivery + ₹3 tech = ₹105.90
+      // 2. Takeaway: ₹98 food + ₹4.90 GST + ₹0 delivery + ₹2 tech = ₹104.90
       const takeawayOrder = calculateOrderPricing(vegThali, "COUNTER_TAKEAWAY", 0, "ONLINE");
       expect(takeawayOrder.food_subtotal).toBe(98.0);
       expect(takeawayOrder.restaurant_gst).toBe(4.90);
       expect(takeawayOrder.delivery_fee).toBe(0.0);
-      expect(takeawayOrder.platform_fee).toBe(3.0);
+      expect(takeawayOrder.platform_fee).toBe(2.0);
       expect(takeawayOrder.small_order_fee).toBe(0.0);
-      expect(takeawayOrder.total_payable).toBe(105.90);
+      expect(takeawayOrder.total_payable).toBe(104.90);
     });
 
-    it("verifies a ₹40 delivery order charges ₹5.00 Platform Tech Fee (total: ₹62.00)", () => {
+    it("verifies a ₹40 delivery order charges ₹3.00 Platform Tech Fee (total: ₹60.00)", () => {
       const items = [{ price: 40, quantity: 1 }];
       const breakdown = calculateOrderPricing(items, "HOSTEL_BATCH", 0, "ONLINE");
 
       expect(breakdown.food_subtotal).toBe(40.0);
       expect(breakdown.restaurant_gst).toBe(2.0); // 5% of 40
       expect(breakdown.delivery_fee).toBe(15.0);
-      expect(breakdown.platform_fee).toBe(5.0); // 40 < 50
+      expect(breakdown.platform_fee).toBe(3.0);
       expect(breakdown.small_order_fee).toBe(0.0);
-      // Total = 40 + 2 + 15 + 5 = 62.00
-      expect(breakdown.total_payable).toBe(62.0);
+      // Total = 40 + 2 + 15 + 3 = 60.00
+      expect(breakdown.total_payable).toBe(60.0);
       // Commission 18% of 40 = 7.20
       expect(breakdown.commission_amount).toBe(7.2);
     });
@@ -153,26 +152,27 @@ describe("orderPricing and pricingEngine thresholds & calculations", () => {
 
       expect(breakdown.small_order_fee).toBe(0.0);
       expect(breakdown.tip_amount).toBe(10.0);
-      expect(breakdown.platform_fee).toBe(5.0);
-      // Total = 40 + 2.0 (gst) + 15 (del) + 5 (tech) + 10 (tip) = 72.00
-      expect(breakdown.total_payable).toBe(72.0);
+      expect(breakdown.platform_fee).toBe(3.0);
+      // Total = 40 + 2.0 (gst) + 15 (del) + 3 (tech) + 10 (tip) = 70.00
+      expect(breakdown.total_payable).toBe(70.0);
       expect(breakdown.commission_amount).toBe(7.2);
     });
   });
 
   describe("calculateCheckoutPricing (pricingEngine)", () => {
-    it("flags isBelowMinDelivery for delivery mode when calibrated subtotal is < ₹35", () => {
+    it("allows delivery mode without cart minimum blockers", () => {
       // Counter item ₹20 -> Calibrated App Price = ceil(20 / 0.82) = 25
       const items = [{ id: "tea", name: "Tea", counterPrice: 20, quantity: 1 }];
       const breakdown = calculateCheckoutPricing(items, "HOSTEL_BATCH");
 
       expect(breakdown.appSubtotal).toBe(25.0);
-      expect(breakdown.isBelowMinDelivery).toBe(true);
-      expect(breakdown.minDeliveryError).toBe(
-        "Minimum cart for hostel delivery is ₹35.00. Add items or switch to Counter Takeaway."
-      );
+      expect(breakdown.isBelowMinDelivery).toBe(false);
+      expect(breakdown.minDeliveryError).toBeUndefined();
+      expect(breakdown.deliveryFee).toBe(15.0);
       expect(breakdown.smallOrderFee).toBe(0.0);
-      expect(breakdown.platformTechFee).toBe(5.0); // 25 < 50
+      expect(breakdown.platformTechFee).toBe(3.0);
+      // gst = 5% of 25 = 1.25, total = 25 + 1.25 + 15 + 3 = 44.25
+      expect(breakdown.totalStudentPayable).toBe(44.25);
     });
 
     it("allows Counter Takeaway when subtotal is < ₹35 without restrictions", () => {
@@ -183,12 +183,12 @@ describe("orderPricing and pricingEngine thresholds & calculations", () => {
       expect(breakdown.isBelowMinDelivery).toBe(false);
       expect(breakdown.minDeliveryError).toBeUndefined();
       expect(breakdown.deliveryFee).toBe(0.0);
-      expect(breakdown.platformTechFee).toBe(5.0); // 25 < 50
+      expect(breakdown.platformTechFee).toBe(2.0);
       expect(breakdown.smallOrderFee).toBe(0.0);
-      expect(breakdown.totalStudentPayable).toBe(31.25); // 25 + 1.25 (gst) + 5 (tech)
+      expect(breakdown.totalStudentPayable).toBe(28.25); // 25 + 1.25 (gst) + 2 (tech)
     });
 
-    it("charges ₹5 dynamic platform fee when subtotal is between ₹35 and ₹49.99", () => {
+    it("charges ₹3 delivery platform tech fee when subtotal is between ₹35 and ₹49.99", () => {
       // Counter item ₹30 -> Calibrated App Price = ceil(30 / 0.82) = 37
       const items = [{ id: "samosa", name: "Samosa", counterPrice: 30, quantity: 1 }];
       const breakdown = calculateCheckoutPricing(items, "HOSTEL_BATCH");
@@ -196,13 +196,13 @@ describe("orderPricing and pricingEngine thresholds & calculations", () => {
       expect(breakdown.appSubtotal).toBe(37.0);
       expect(breakdown.isBelowMinDelivery).toBe(false);
       expect(breakdown.smallOrderFee).toBe(0.0);
-      expect(breakdown.platformTechFee).toBe(5.0);
-      // gst = 5% of 37 = 1.85, delivery = 15, tech = 5
-      // total = 37 + 1.85 + 5 + 15 = 58.85
-      expect(breakdown.totalStudentPayable).toBe(58.85);
+      expect(breakdown.platformTechFee).toBe(3.0);
+      // gst = 5% of 37 = 1.85, delivery = 15, tech = 3
+      // total = 37 + 1.85 + 3 + 15 = 56.85
+      expect(breakdown.totalStudentPayable).toBe(56.85);
     });
 
-    it("charges ₹3 dynamic platform fee when subtotal reaches ₹50.00", () => {
+    it("charges ₹3 delivery platform fee when subtotal reaches ₹50.00", () => {
       // Counter item ₹41 -> Calibrated App Price = ceil(41 / 0.82) = 50
       const items = [{ id: "meal", name: "Meal", counterPrice: 41, quantity: 1 }];
       const breakdown = calculateCheckoutPricing(items, "HOSTEL_BATCH");
@@ -220,7 +220,7 @@ describe("orderPricing and pricingEngine thresholds & calculations", () => {
   describe("Courier Compensation and Incentive Engine", () => {
     it("verifies canonical customer fees and platform tech fees remain unchanged", () => {
       expect(DELIVERY_FEE).toBe(15.00);
-      expect(TECH_FEE_TIER_LOW).toBe(5.00);
+      expect(TECH_FEE_TIER_LOW).toBe(2.00);
       expect(TECH_FEE_TIER_HIGH).toBe(3.00);
     });
 

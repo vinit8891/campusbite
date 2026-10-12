@@ -207,7 +207,10 @@ async def find_or_create_batch_for_order(order_data: dict[str, Any]) -> dict[str
     - If no open batch exists, creates a new batch_id with is_batch_addon = False (primary drop).
     """
     delivery_type = str(order_data.get("delivery_type") or "").strip().upper()
-    if delivery_type not in ("HOSTEL_BATCH", "BATCH"):
+    fulfillment_mode = str(order_data.get("fulfillment_mode") or "").strip().lower()
+    is_takeaway = fulfillment_mode == "takeaway" or delivery_type in ("COUNTER_TAKEAWAY", "TAKEAWAY", "PICKUP")
+
+    if is_takeaway or (delivery_type not in ("HOSTEL_BATCH", "BATCH", "DELIVERY", "CAMPUS_DELIVERY") and fulfillment_mode != "delivery"):
         return {
             "is_batch_addon": False,
             "batch_id": None,
@@ -216,7 +219,7 @@ async def find_or_create_batch_for_order(order_data: dict[str, Any]) -> dict[str
             "calculated_payout": calculate_rider_payout(
                 is_batch_addon=False,
                 tip_amount=float(order_data.get("tip_amount") or 0.0),
-                is_takeaway=delivery_type in ("COUNTER_TAKEAWAY", "TAKEAWAY", "PICKUP"),
+                is_takeaway=is_takeaway,
             ),
         }
 
@@ -247,7 +250,10 @@ async def find_or_create_batch_for_order(order_data: dict[str, Any]) -> dict[str
     today_ist_str = get_current_ist_time().strftime("%Y-%m-%d")
 
     query: dict[str, Any] = {
-        "delivery_type": {"$in": ["HOSTEL_BATCH", "BATCH", "hostel_batch"]},
+        "$or": [
+            {"delivery_type": {"$in": ["HOSTEL_BATCH", "BATCH", "hostel_batch", "DELIVERY", "delivery", "CAMPUS_DELIVERY"]}},
+            {"fulfillment_mode": "delivery"},
+        ],
         "hostel_block": hostel_block,
         "batch_window_id": batch_window_id,
         "status": {

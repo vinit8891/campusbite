@@ -3,23 +3,17 @@
 import { useMemo } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
-import { ArrowLeft, Minus, Plus, Trash2, Zap, Building2, Store } from "lucide-react";
+import { ArrowLeft, Minus, Plus, Trash2 } from "lucide-react";
 
 import { useCart } from "@/context/CartContext";
 import { useCheckout } from "@/context/CheckoutContext";
 import { Button } from "@/components/ui/button";
-import { BatchWindowCountdown } from "@/components/checkout/BatchWindowCountdown";
 import { ROUTES } from "@/lib/routes";
 import {
   calculateCheckoutPricing,
   getCalibratedAppPrice,
   type DeliveryMode,
   type CartItemInput,
-  MICRO_CART_THRESHOLD,
-  MIN_DELIVERY_SUBTOTAL,
-  PLATFORM_FEE_STANDARD,
-  PLATFORM_FEE_SMALL_CART,
-  SMALL_CART_THRESHOLD,
 } from "@/lib/pricingEngine";
 
 export default function CartPage() {
@@ -52,11 +46,13 @@ export default function CartPage() {
     [cart]
   );
 
-  const activeDeliveryMode: DeliveryMode =
-    deliveryType === "STANDARD" ? "EXPRESS_DOOR" : (deliveryType as DeliveryMode);
+  const fulfillmentMode: "delivery" | "takeaway" =
+    deliveryType === "COUNTER_TAKEAWAY" ? "takeaway" : "delivery";
 
-  // Determine micro-cart status and threshold amount
-  const basePricing = useMemo(() => {
+  const effectiveMode: DeliveryMode =
+    fulfillmentMode === "takeaway" ? "COUNTER_TAKEAWAY" : "HOSTEL_BATCH";
+
+  const pricing = useMemo(() => {
     if (cartInput.length === 0) {
       return {
         appSubtotal: 0,
@@ -70,40 +66,22 @@ export default function CartPage() {
         is_below_min_delivery: false,
         min_delivery_error: undefined,
         totalStudentPayable: 0,
-        isMicroCart: true,
-        amountToUnlockExpress: MICRO_CART_THRESHOLD,
+        isMicroCart: false,
+        amountToUnlockExpress: 0,
         canteenPayout: { baseFood: 0, gstPassThrough: 0, totalDisbursal: 0 },
         allowedDeliveryModes: ["HOSTEL_BATCH", "COUNTER_TAKEAWAY"] as DeliveryMode[],
       };
     }
-    return calculateCheckoutPricing(cartInput, "HOSTEL_BATCH");
-  }, [cartInput]);
-
-  const isMicroCart = basePricing.isMicroCart;
-  const amountToUnlockExpress = basePricing.amountToUnlockExpress;
-
-  // Auto-fallback if currently on EXPRESS_DOOR but cart is micro-cart
-  const effectiveMode: DeliveryMode =
-    isMicroCart &&
-    (activeDeliveryMode === "EXPRESS_DOOR" || (activeDeliveryMode as string) === "STANDARD")
-      ? "HOSTEL_BATCH"
-      : activeDeliveryMode;
-
-  const pricing = useMemo(() => {
-    if (cartInput.length === 0) return basePricing;
     return calculateCheckoutPricing(cartInput, effectiveMode);
-  }, [cartInput, effectiveMode, basePricing]);
+  }, [cartInput, effectiveMode]);
 
-  const isDelivery = effectiveMode !== "COUNTER_TAKEAWAY";
-  const isBelowMinDelivery = isDelivery && pricing.appSubtotal > 0 && pricing.appSubtotal < MIN_DELIVERY_SUBTOTAL;
-  const missingToMinDelivery = Math.max(0, Number((MIN_DELIVERY_SUBTOTAL - pricing.appSubtotal).toFixed(2)));
-
-  function handleDeliveryModeChange(mode: DeliveryMode) {
-    if (isMicroCart && mode === "EXPRESS_DOOR") return;
-    setDeliveryType(mode);
+  function handleFulfillmentModeChange(mode: "delivery" | "takeaway") {
+    const targetMode: DeliveryMode =
+      mode === "takeaway" ? "COUNTER_TAKEAWAY" : "HOSTEL_BATCH";
+    setDeliveryType(targetMode);
     setCheckout((prev) => ({
       ...prev,
-      delivery_type: mode,
+      delivery_type: targetMode,
     }));
   }
 
@@ -267,153 +245,36 @@ export default function CartPage() {
                 Order Summary
               </h2>
 
-              {/* Minimum Delivery Subtotal Warning Banner */}
-              {isBelowMinDelivery && (
-                <div className="rounded-2xl bg-amber-50 p-3.5 text-xs text-amber-900 border border-amber-300 space-y-2">
-                  <div className="flex items-start gap-2">
-                    <span className="text-base">⚠️</span>
-                    <div className="flex-1 space-y-1.5">
-                      <p className="font-semibold leading-snug">
-                        Hostel delivery requires a minimum food order of ₹35.00. Add ₹{missingToMinDelivery.toFixed(2)} more or switch to Takeaway.
-                      </p>
-                      <button
-                        type="button"
-                        onClick={() => handleDeliveryModeChange("COUNTER_TAKEAWAY")}
-                        className="inline-flex items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-bold text-white shadow-2xs hover:bg-amber-700 transition cursor-pointer"
-                      >
-                        Switch to Counter Takeaway (Self Pickup)
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Dynamic Micro-Cart Nudge Banner */}
-              {isMicroCart && (
-                <div className="rounded-2xl bg-amber-50 p-3 text-xs text-amber-800 border border-amber-200 space-y-1">
-                  <div className="flex items-center justify-between font-bold text-amber-900">
-                    <span className="flex items-center gap-1">
-                      <Zap className="h-3.5 w-3.5 text-amber-600" />
-                      Unlock Express Delivery
-                    </span>
-                    <span className="rounded-full bg-amber-200/80 px-2 py-0.5 text-[10px]">
-                      Min ₹{MICRO_CART_THRESHOLD}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-amber-700">
-                    Add <span className="font-extrabold text-amber-950">₹{amountToUnlockExpress.toFixed(2)}</span> more to unlock 🚀 Direct Room Delivery.
-                  </p>
-                </div>
-              )}
-
-              {/* 3 Fulfillment Modes Selection */}
+              {/* Fulfillment Mode Selection */}
               <div>
-                <label className="mb-2.5 block text-xs font-bold uppercase tracking-wider text-gray-500">
+                <label className="mb-2 block text-xs font-bold uppercase tracking-wider text-gray-500">
                   Select Fulfillment Mode
                 </label>
-                <div
-                  className="grid grid-cols-3 gap-2"
-                  role="radiogroup"
-                  aria-label="Select Fulfillment Mode"
-                >
-                  {/* 1. Hostel Batch Drop */}
+                <div className="grid grid-cols-2 gap-3 p-1 bg-zinc-100 rounded-2xl" role="group" aria-label="Fulfillment mode">
                   <button
                     type="button"
-                    role="radio"
-                    aria-checked={effectiveMode === "HOSTEL_BATCH"}
-                    onClick={() => handleDeliveryModeChange("HOSTEL_BATCH")}
-                    className={`relative flex flex-col justify-between rounded-2xl border-2 p-3 text-left transition cursor-pointer ${
-                      effectiveMode === "HOSTEL_BATCH"
-                        ? "border-orange-500 bg-orange-50/70 shadow-sm"
-                        : "border-gray-200 bg-white hover:border-orange-200"
+                    onClick={() => handleFulfillmentModeChange("delivery")}
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all cursor-pointer ${
+                      fulfillmentMode === "delivery"
+                        ? "bg-white shadow-sm border border-orange-500/20 text-orange-600 font-bold"
+                        : "text-zinc-600 hover:text-zinc-900 font-medium"
                     }`}
                   >
-                    <div>
-                      <span className="inline-block rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
-                        Popular
-                      </span>
-                      <div className="mt-1.5 flex items-center gap-1 text-xs font-bold text-gray-900">
-                        <Building2 className="h-3.5 w-3.5 text-orange-600 shrink-0" />
-                        <span className="truncate">Hostel Batch</span>
-                      </div>
-                      <p className="text-[10px] text-gray-500 leading-tight mt-0.5">
-                        Lobby Drop
-                      </p>
-                    </div>
-                    <p className="mt-2 text-sm font-extrabold text-orange-600">
-                      ₹15
-                    </p>
+                    <span className="text-sm font-bold flex items-center gap-1.5">🛵 Campus Delivery</span>
+                    <span className="text-xs text-zinc-500 mt-0.5">₹15 • 20-30 mins</span>
                   </button>
 
-                  {/* 2. Counter Takeaway (Self Pickup) */}
                   <button
                     type="button"
-                    role="radio"
-                    aria-checked={effectiveMode === "COUNTER_TAKEAWAY"}
-                    onClick={() => handleDeliveryModeChange("COUNTER_TAKEAWAY")}
-                    className={`relative flex flex-col justify-between rounded-2xl border-2 p-3 text-left transition cursor-pointer ${
-                      effectiveMode === "COUNTER_TAKEAWAY"
-                        ? "border-blue-600 bg-blue-50/70 shadow-sm"
-                        : "border-gray-200 bg-white hover:border-blue-200"
+                    onClick={() => handleFulfillmentModeChange("takeaway")}
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all cursor-pointer ${
+                      fulfillmentMode === "takeaway"
+                        ? "bg-white shadow-sm border border-orange-500/20 text-orange-600 font-bold"
+                        : "text-zinc-600 hover:text-zinc-900 font-medium"
                     }`}
                   >
-                    <div>
-                      <span className="inline-block rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">
-                        Skip Queue
-                      </span>
-                      <div className="mt-1.5 flex items-center gap-1 text-xs font-bold text-gray-900">
-                        <Store className="h-3.5 w-3.5 text-blue-600 shrink-0" />
-                        <span className="truncate">Takeaway</span>
-                      </div>
-                      <p className="text-[10px] text-gray-500 leading-tight mt-0.5">
-                        Counter Pass
-                      </p>
-                    </div>
-                    <p className="mt-2 text-sm font-extrabold text-blue-600">
-                      ₹0
-                    </p>
-                  </button>
-
-                  {/* 3. Direct Room Delivery (Express Door) */}
-                  <button
-                    type="button"
-                    role="radio"
-                    disabled={isMicroCart}
-                    aria-checked={effectiveMode === "EXPRESS_DOOR"}
-                    onClick={() => handleDeliveryModeChange("EXPRESS_DOOR")}
-                    className={`relative flex flex-col justify-between rounded-2xl border-2 p-3 text-left transition ${
-                      isMicroCart
-                        ? "opacity-50 cursor-not-allowed bg-gray-50 border-gray-200"
-                        : effectiveMode === "EXPRESS_DOOR"
-                        ? "border-purple-600 bg-purple-50/70 shadow-sm cursor-pointer"
-                        : "border-gray-200 bg-white hover:border-purple-200 cursor-pointer"
-                    }`}
-                  >
-                    <div>
-                      <span
-                        className={`inline-block rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-                          isMicroCart
-                            ? "bg-stone-200 text-stone-600"
-                            : "bg-purple-100 text-purple-700"
-                        }`}
-                      >
-                        {isMicroCart ? `+₹${amountToUnlockExpress.toFixed(0)}` : "Direct"}
-                      </span>
-                      <div className="mt-1.5 flex items-center gap-1 text-xs font-bold text-gray-900">
-                        <Zap className="h-3.5 w-3.5 text-purple-600 shrink-0" />
-                        <span className="truncate">Direct Room</span>
-                      </div>
-                      <p className="text-[10px] text-gray-500 leading-tight mt-0.5">
-                        {isMicroCart ? "Locked" : "Door Drop"}
-                      </p>
-                    </div>
-                    <p
-                      className={`mt-2 text-sm font-extrabold ${
-                        isMicroCart ? "text-gray-400" : "text-purple-600"
-                      }`}
-                    >
-                      ₹40
-                    </p>
+                    <span className="text-sm font-bold flex items-center gap-1.5">🛍️ Takeaway</span>
+                    <span className="text-xs text-emerald-600 font-semibold mt-0.5">FREE • 10-15 mins</span>
                   </button>
                 </div>
               </div>
@@ -437,19 +298,13 @@ export default function CartPage() {
                 <div className="flex items-center justify-between text-gray-600">
                   <div className="flex items-center gap-1.5">
                     <span>Delivery Fee</span>
-                    {effectiveMode === "HOSTEL_BATCH" && (
+                    {fulfillmentMode === "delivery" ? (
                       <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-700">
-                        Hostel Batch
+                        Campus Delivery
                       </span>
-                    )}
-                    {effectiveMode === "COUNTER_TAKEAWAY" && (
+                    ) : (
                       <span className="rounded-full bg-blue-100 px-1.5 py-0.5 text-[10px] font-bold text-blue-700">
                         Self Pickup
-                      </span>
-                    )}
-                    {effectiveMode === "EXPRESS_DOOR" && (
-                      <span className="rounded-full bg-purple-100 px-1.5 py-0.5 text-[10px] font-bold text-purple-700">
-                        Direct Room
                       </span>
                     )}
                   </div>
@@ -478,20 +333,12 @@ export default function CartPage() {
                 </div>
               </div>
 
-              {/* Live Batch Window Countdown Banner */}
-              {effectiveMode === "HOSTEL_BATCH" && (
-                <BatchWindowCountdown
-                  hostelBlock={null}
-                  deliveryMode={effectiveMode}
-                />
-              )}
-
               <Button
-                disabled={cart.length === 0 || isBelowMinDelivery}
+                disabled={cart.length === 0}
                 className="w-full rounded-2xl bg-orange-500 py-6 text-base font-bold shadow-md transition-all duration-200 hover:scale-[1.02] hover:bg-orange-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-60 cursor-pointer"
                 onClick={() => router.push(ROUTES.CHECKOUT)}
               >
-                {isBelowMinDelivery ? "Min Delivery ₹35 Required" : "Proceed to Checkout →"}
+                Proceed to Checkout →
               </Button>
 
               <p className="text-center text-xs text-gray-400">
