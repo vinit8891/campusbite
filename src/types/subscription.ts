@@ -23,9 +23,12 @@ export type Weekday =
 
 export type Subscription = {
   subscription_id: string;
+  id?: string;
   plan_id?: string | null;
   plan_name?: string | null;
+  customer_name?: string | null;
   customer_email: string;
+  restaurant_name?: string | null;
   restaurant_email: string;
   subscription_type: SubscriptionType;
   plan_type?: PlanType;
@@ -243,11 +246,28 @@ export type RestaurantSubscriptionRevenueSummary = {
   pending_subscription_payments: number;
 };
 
+export type AdminSubscriptionStats = {
+  total_revenue: number;
+  paid_count: number;
+  pending_count: number;
+  active_count: number;
+  total_count: number;
+};
+
+export type AdminSubscriptionsResponse = {
+  subscriptions: Subscription[];
+  stats: AdminSubscriptionStats;
+  items?: Subscription[];
+};
+
 export type AdminSubscriptionsQuery = {
   q?: string;
-  status?: SubscriptionStatus | "";
+  search?: string;
+  status?: SubscriptionStatus | "" | string;
+  payment_status?: string;
   restaurant_email?: string;
   customer_email?: string;
   page?: number;
   limit?: number;
 };
+

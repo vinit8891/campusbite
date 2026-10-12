@@ -8,6 +8,8 @@ import {
   type SubscriptionPayment,
   type SubscriptionStatus,
   type AdminSubscriptionPaymentSummary,
+  type AdminSubscriptionStats,
+  fetchAdminSubscriptions,
   getAdminGenerationStatus,
   getAdminSubscriptionPaymentSummary,
   getAdminSubscriptionPayments,
@@ -30,6 +32,13 @@ export const ADMIN_SUBSCRIPTION_PAYMENT_STATUSES = [
 
 export function useAdminSubscriptions() {
   const [items, setItems] = useState<Subscription[]>([]);
+  const [stats, setStats] = useState<AdminSubscriptionStats>({
+    total_revenue: 0,
+    paid_count: 0,
+    pending_count: 0,
+    active_count: 0,
+    total_count: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [generationStatus, setGenerationStatus] =
@@ -40,7 +49,7 @@ export function useAdminSubscriptions() {
   const [paymentsLoading, setPaymentsLoading] = useState(true);
 
   const [q, setQ] = useState("");
-  const [status, setStatus] = useState<SubscriptionStatus | "">("");
+  const [status, setStatus] = useState<SubscriptionStatus | "" | string>("");
   const [paymentStatus, setPaymentStatus] = useState("");
   const [restaurantEmail, setRestaurantEmail] = useState("");
   const [customerEmail, setCustomerEmail] = useState("");
@@ -66,8 +75,10 @@ export function useAdminSubscriptions() {
   }
 
   async function fetchItems(filters?: {
+    search?: string;
     q?: string;
-    status?: SubscriptionStatus | "";
+    status?: SubscriptionStatus | "" | string;
+    payment_status?: string;
     restaurant_email?: string;
     customer_email?: string;
   }) {
@@ -75,15 +86,25 @@ export function useAdminSubscriptions() {
     setError("");
 
     try {
-      const data = await getAdminSubscriptions({
-        q: (filters?.q ?? q).trim() || undefined,
-        status: (filters?.status ?? status) || undefined,
+      const activeSearch = (filters?.search ?? filters?.q ?? q).trim();
+      const activeStatus = filters?.status !== undefined ? filters.status : status;
+      const activePaymentStatus =
+        filters?.payment_status !== undefined ? filters.payment_status : paymentStatus;
+
+      const res = await fetchAdminSubscriptions({
+        search: activeSearch || undefined,
+        q: activeSearch || undefined,
+        status: activeStatus || undefined,
+        payment_status: activePaymentStatus || undefined,
         restaurant_email:
           (filters?.restaurant_email ?? restaurantEmail).trim() || undefined,
         customer_email:
           (filters?.customer_email ?? customerEmail).trim() || undefined,
       });
-      setItems(data);
+      setItems(res.subscriptions);
+      if (res.stats) {
+        setStats(res.stats);
+      }
     } catch (err) {
       if (err instanceof AuthHttpError && err.status === 401) return;
       setError(
@@ -108,19 +129,24 @@ export function useAdminSubscriptions() {
     })();
   }, []);
 
-  function handleSearch(event: React.FormEvent) {
-    event.preventDefault();
+  function handleSearch(event?: React.FormEvent) {
+    if (event?.preventDefault) {
+      event.preventDefault();
+    }
     void fetchItems();
   }
 
   function handleReset() {
     setQ("");
     setStatus("");
+    setPaymentStatus("");
     setRestaurantEmail("");
     setCustomerEmail("");
     void fetchItems({
+      search: "",
       q: "",
       status: "",
+      payment_status: "",
       restaurant_email: "",
       customer_email: "",
     });
@@ -129,6 +155,8 @@ export function useAdminSubscriptions() {
   return {
     items,
     setItems,
+    stats,
+    setStats,
     loading,
     error,
     generationStatus,

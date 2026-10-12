@@ -17,6 +17,8 @@ import type {
   AdminSubscriptionPaymentSummary,
   RestaurantSubscriptionRevenueSummary,
   AdminSubscriptionsQuery,
+  AdminSubscriptionStats,
+  AdminSubscriptionsResponse,
 } from "@/types";
 
 export type {
@@ -37,6 +39,8 @@ export type {
   AdminSubscriptionPaymentSummary,
   RestaurantSubscriptionRevenueSummary,
   AdminSubscriptionsQuery,
+  AdminSubscriptionStats,
+  AdminSubscriptionsResponse,
 };
 
 export async function createSubscription(
@@ -132,12 +136,19 @@ export async function getRestaurantSubscriptions(
   return data.items ?? [];
 }
 
-export async function getAdminSubscriptions(
+export async function fetchAdminSubscriptions(
   query: AdminSubscriptionsQuery = {}
-): Promise<Subscription[]> {
+): Promise<AdminSubscriptionsResponse> {
   const params = new URLSearchParams();
-  if (query.q?.trim()) params.set("q", query.q.trim());
-  if (query.status) params.set("status", query.status);
+  const search = query.search || query.q;
+  if (search?.trim()) {
+    params.set("search", search.trim());
+    params.set("q", search.trim());
+  }
+  if (query.status && query.status !== "all") params.set("status", query.status);
+  if (query.payment_status && query.payment_status !== "all") {
+    params.set("payment_status", query.payment_status);
+  }
   if (query.restaurant_email?.trim()) {
     params.set("restaurant_email", query.restaurant_email.trim());
   }
@@ -146,13 +157,100 @@ export async function getAdminSubscriptions(
   }
 
   const suffix = params.toString();
-  const path = suffix ? `/subscriptions/?${suffix}` : "/subscriptions/";
+  const path = suffix ? `/admin/subscriptions?${suffix}` : "/admin/subscriptions";
 
-  const data = await authJson<{ items: Subscription[] }>(path, {
-    role: "admin",
-    cache: "no-store",
-  });
-  return data.items ?? [];
+  try {
+    const data = await authJson<AdminSubscriptionsResponse>(path, {
+      role: "admin",
+      cache: "no-store",
+    });
+    if (data && (Array.isArray(data.subscriptions) || Array.isArray(data.items))) {
+      const subs = data.subscriptions || data.items || [];
+      return {
+        subscriptions: subs,
+        items: subs,
+        stats: data.stats || {
+          total_revenue: subs
+            .filter((s) => s.payment_status?.toLowerCase() === "paid")
+            .reduce((acc, s) => acc + (Number(s.price) || 0), 0),
+          paid_count: subs.filter((s) => s.payment_status?.toLowerCase() === "paid").length,
+          pending_count: subs.filter((s) => s.payment_status?.toLowerCase() === "pending").length,
+          active_count: subs.filter((s) => s.status?.toLowerCase() === "active").length,
+          total_count: subs.length,
+        },
+      };
+    }
+  } catch (_) {}
+
+  // Fallback to old path if needed
+  try {
+    const oldPath = suffix ? `/subscriptions/?${suffix}` : "/subscriptions/";
+    const oldData = await authJson<{ items: Subscription[] }>(oldPath, {
+      role: "admin",
+      cache: "no-store",
+    });
+    const subs = oldData.items ?? [];
+    return {
+      subscriptions: subs,
+      items: subs,
+      stats: {
+        total_revenue: subs
+          .filter((s) => s.payment_status?.toLowerCase() === "paid")
+          .reduce((acc, s) => acc + (Number(s.price) || 0), 0),
+        paid_count: subs.filter((s) => s.payment_status?.toLowerCase() === "paid").length,
+        pending_count: subs.filter((s) => s.payment_status?.toLowerCase() === "pending").length,
+        active_count: subs.filter((s) => s.status?.toLowerCase() === "active").length,
+        total_count: subs.length,
+      },
+    };
+  } catch (_) {}
+
+  return {
+    subscriptions: [],
+    items: [],
+    stats: {
+      total_revenue: 0,
+      paid_count: 0,
+      pending_count: 0,
+      active_count: 0,
+      total_count: 0,
+    },
+  };
+}
+
+export async function getAdminSubscriptions(
+  query: AdminSubscriptionsQuery = {}
+): Promise<Subscription[]> {
+  const res = await fetchAdminSubscriptions(query);
+  return res.subscriptions;
+}
+
+export async function updateAdminSubscriptionPaymentStatus(
+  subscriptionId: string,
+  paymentStatus?: "paid" | "pending" | string
+): Promise<{ success: boolean; message: string; subscription?: Subscription }> {
+  return authJson<{ success: boolean; message: string; subscription?: Subscription }>(
+    `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/payment-status`,
+    {
+      role: "admin",
+      method: "PATCH",
+      body: JSON.stringify(paymentStatus ? { payment_status: paymentStatus } : {}),
+    }
+  );
+}
+
+export async function updateAdminSubscriptionStatus(
+  subscriptionId: string,
+  status: "active" | "cancelled" | "paused" | string
+): Promise<{ success: boolean; message: string; subscription?: Subscription }> {
+  return authJson<{ success: boolean; message: string; subscription?: Subscription }>(
+    `/admin/subscriptions/${encodeURIComponent(subscriptionId)}/status`,
+    {
+      role: "admin",
+      method: "PATCH",
+      body: JSON.stringify({ status }),
+    }
+  );
 }
 
 export async function getSubscriptionSummary(): Promise<SubscriptionSummary> {
