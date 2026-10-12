@@ -6,6 +6,7 @@ import {
   MIN_DELIVERY_SUBTOTAL,
   PLATFORM_FEE_STANDARD,
   PLATFORM_FEE_SMALL_CART,
+  PLATFORM_FEE_TAKEAWAY,
   DELIVERY_FEE_HOSTEL_BATCH,
   RIDER_BASE_PAYOUT,
   RIDER_BATCH_ADDON_PAYOUT,
@@ -27,22 +28,19 @@ describe("End-to-End Financial & Operational Smoke Test Suite (Frontend)", () =>
   });
 
   describe("Scenario 1: Cart Minimum & Takeaway Exemption", () => {
-    it("asserts subtotal < ₹35 on delivery sets isBelowMinDelivery: true and blocks delivery checkout", () => {
-      // Single tea / snack at ₹30.00 (< ₹35.00)
+    it("asserts subtotal on delivery charges flat delivery fee without blocking checkout", () => {
+      // Single tea / snack at ₹30.00
       const cartItems = [{ price: 30.0, quantity: 1 }];
       const breakdown = calculateOrderPricing(cartItems, "HOSTEL_BATCH", 0, "COD");
 
       expect(breakdown.food_subtotal).toBe(30.0);
       expect(breakdown.food_subtotal).toBeLessThan(MIN_DELIVERY_SUBTOTAL);
-      expect(breakdown.is_below_min_delivery).toBe(true);
-      expect(breakdown.isBelowMinDelivery).toBe(true);
-      expect(breakdown.min_delivery_error).toBeDefined();
-      expect(breakdown.min_delivery_error).toContain("Minimum cart for hostel delivery is ₹35.00");
-      expect(breakdown.minDeliveryError).toContain("Minimum cart for hostel delivery is ₹35.00");
+      expect(breakdown.is_below_min_delivery).toBe(false);
+      expect(breakdown.isBelowMinDelivery).toBe(false);
       expect(breakdown.delivery_fee).toBe(DELIVERY_FEE_HOSTEL_BATCH);
     });
 
-    it("asserts switching the same cart to COUNTER_TAKEAWAY removes the barrier and allows checkout", () => {
+    it("asserts switching the same cart to COUNTER_TAKEAWAY applies zero delivery fee and ₹2 platform fee", () => {
       // Same ₹30.00 cart switched to Counter Takeaway
       const cartItems = [{ price: 30.0, quantity: 1 }];
       const breakdown = calculateOrderPricing(cartItems, "COUNTER_TAKEAWAY", 0, "COD");
@@ -54,22 +52,22 @@ describe("End-to-End Financial & Operational Smoke Test Suite (Frontend)", () =>
       expect(breakdown.minDeliveryError).toBeUndefined();
       expect(breakdown.delivery_fee).toBe(0.0);
       expect(breakdown.restaurant_gst).toBe(1.5); // 5% of 30
-      expect(breakdown.platform_fee).toBe(PLATFORM_FEE_SMALL_CART); // ₹5.00
-      expect(breakdown.total_payable).toBe(36.5); // 30 + 1.5 + 5
+      expect(breakdown.platform_fee).toBe(PLATFORM_FEE_TAKEAWAY); // ₹2.00
+      expect(breakdown.total_payable).toBe(33.5); // 30 + 1.5 + 2
     });
   });
 
-  describe("Scenario 2: Dynamic Platform Tech Fee Tiering", () => {
-    it("asserts cart with subtotal ₹42 on delivery charges dynamic Platform Tech Fee = ₹5.00 (Total: ₹64.10)", () => {
-      // Subtotal ₹42 (< ₹50 threshold)
+  describe("Scenario 2: Streamlined Platform Tech Fee Tiering", () => {
+    it("asserts cart with subtotal ₹42 on delivery charges streamlined Platform Tech Fee = ₹3.00 (Total: ₹62.10)", () => {
+      // Subtotal ₹42
       const cartItems = [{ price: 42.0, quantity: 1 }];
       const breakdown = calculateOrderPricing(cartItems, "HOSTEL_BATCH", 0, "ONLINE");
 
       expect(breakdown.food_subtotal).toBe(42.0);
-      expect(breakdown.platform_fee).toBe(PLATFORM_FEE_SMALL_CART); // ₹5.00
+      expect(breakdown.platform_fee).toBe(PLATFORM_FEE_STANDARD); // ₹3.00
       expect(breakdown.restaurant_gst).toBe(2.1); // 5% of 42
       expect(breakdown.delivery_fee).toBe(15.0);
-      expect(breakdown.total_payable).toBe(64.1); // 42 + 2.10 + 15 + 5 = 64.10
+      expect(breakdown.total_payable).toBe(62.1); // 42 + 2.10 + 15 + 3 = 62.10
     });
 
     it("asserts cart with subtotal ₹98 on delivery charges dynamic Platform Tech Fee = ₹3.00 (Total: ₹120.90)", () => {
