@@ -34,42 +34,40 @@ export function TrackOrderHeader({
         </span>
       </div>
 
-      <section className="rounded-3xl bg-gradient-to-br from-orange-500 via-orange-500 to-orange-600 p-5 text-white shadow-xl sm:p-6">
-        <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-2xl shadow-inner">
-              📍
-            </div>
+      <div className="w-full rounded-3xl bg-zinc-900 text-white p-5 sm:p-6 shadow-lg border border-zinc-800 relative overflow-hidden">
+        {/* Subtle background glow */}
+        <div className="absolute -top-12 -right-12 h-36 w-36 rounded-full bg-orange-500/15 blur-2xl pointer-events-none" />
 
-            <div>
-              <p className="text-sm font-medium text-orange-100">
-                Live delivery tracking
-              </p>
-
-              <h1 className="mt-1 text-3xl font-extrabold tracking-tight sm:text-4xl">
-                Track Your Order
-              </h1>
-
-              <p className="mt-1 text-sm text-orange-100">
-                Follow your order from the restaurant to your door.
-              </p>
-            </div>
-          </div>
-
-          <div
-            className="flex items-center gap-2 self-start rounded-full bg-white/15 px-4 py-2 backdrop-blur-sm sm:self-auto"
-            aria-live="polite"
-          >
-            <span
-              className={`h-2.5 w-2.5 rounded-full ${statusConfig.dotClassName}`}
-            />
-
-            <span className="text-sm font-bold">
-              {statusConfig.label}
+        <div className="relative z-10">
+          {/* Top Meta: Live status pulse */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-800/80 px-2.5 py-1 text-[11px] font-medium text-zinc-300 border border-zinc-700/60 backdrop-blur-xs">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Live Tracking
             </span>
           </div>
+
+          {/* Title & Description */}
+          <div className="mt-3">
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-white">
+              Track Your Order
+            </h1>
+            <p className="text-xs sm:text-sm text-zinc-400 mt-0.5">
+              Follow your order in real-time from the restaurant to your door.
+            </p>
+          </div>
+
+          {/* Elegant Unified Status Pill */}
+          <div className="mt-4 pt-3 border-t border-zinc-800/80 flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2.5 py-1 text-xs font-semibold">
+                <span className={`h-2 w-2 rounded-full ${statusConfig.dotClassName}`} />
+                <span>{statusConfig.label}</span>
+              </span>
+            </div>
+          </div>
         </div>
-      </section>
+      </div>
     </>
   );
 }

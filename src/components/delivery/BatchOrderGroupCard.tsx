@@ -152,17 +152,19 @@ export function BatchOrderGroupCard({
                     🏪 {canteenName}
                   </span>
                   <span
-                    className={`text-[10px] font-black px-2 py-0.5 rounded-full ${
+                    className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold border ${
                       isAddon
-                        ? "bg-amber-100 text-amber-900 border border-amber-300"
-                        : "bg-emerald-100 text-emerald-900 border border-emerald-300"
+                        ? "bg-amber-50 text-amber-700 border-amber-200"
+                        : "bg-emerald-50 text-emerald-700 border-emerald-200"
                     }`}
                   >
-                    {isAddon ? "Batch Add-on (₹14.00 wage)" : "Base Drop (₹20.00 wage)"}
+                    <span>🛵</span>
+                    <span>{isAddon ? "₹14.00 Payout" : "₹20.00 Payout"}</span>
                   </span>
                   {isHeavy && (
-                    <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-900 border border-indigo-300">
-                      📦 Heavy Order (+₹5)
+                    <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-700 border border-indigo-200">
+                      <span>📦</span>
+                      <span>Heavy (+₹5)</span>
                     </span>
                   )}
                 </div>

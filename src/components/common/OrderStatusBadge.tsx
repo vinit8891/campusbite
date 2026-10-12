@@ -30,42 +30,42 @@ const STATUS_MAP: Record<
 > = {
   Pending: {
     label: "Pending",
-    pillClass: "bg-orange-100 text-orange-700",
-    dotClass: "bg-orange-500",
+    pillClass: "bg-amber-50 text-amber-700 border border-amber-200",
+    dotClass: "bg-amber-500",
   },
   Accepted: {
     label: "Accepted",
-    pillClass: "bg-blue-100 text-blue-700",
+    pillClass: "bg-blue-100 text-blue-700 border border-blue-200",
     dotClass: "bg-blue-500",
   },
   Preparing: {
     label: "Preparing",
-    pillClass: "bg-yellow-100 text-yellow-700",
-    dotClass: "bg-yellow-500",
+    pillClass: "bg-orange-50 text-orange-700 border border-orange-200",
+    dotClass: "bg-orange-500",
   },
   "Ready for Pickup": {
     label: "Ready for Pickup",
-    pillClass: "bg-purple-100 text-purple-700",
-    dotClass: "bg-purple-500",
+    pillClass: "bg-orange-50 text-orange-700 border border-orange-200",
+    dotClass: "bg-orange-500",
   },
   Assigned: {
     label: "Assigned",
-    pillClass: "bg-indigo-100 text-indigo-700",
-    dotClass: "bg-indigo-500",
+    pillClass: "bg-blue-50 text-blue-700 border border-blue-200",
+    dotClass: "bg-blue-500",
   },
   "Picked Up": {
     label: "Picked Up",
-    pillClass: "bg-blue-100 text-blue-700",
+    pillClass: "bg-blue-50 text-blue-700 border border-blue-200",
     dotClass: "bg-blue-500",
   },
   "Out for Delivery": {
     label: "Out for Delivery",
-    pillClass: "bg-cyan-100 text-cyan-700",
-    dotClass: "bg-cyan-500",
+    pillClass: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+    dotClass: "bg-emerald-500",
   },
   Delivered: {
     label: "Delivered",
-    pillClass: "bg-green-100 text-green-700",
+    pillClass: "bg-emerald-50 text-emerald-700 border border-emerald-200",
     dotClass: "bg-green-500",
   },
   Cancelled: {

@@ -26,13 +26,13 @@ export default function LiveDeliveryNotification({
     case "Out for Delivery":
       message =
         "🚀 Your order is on the way!";
-      color = "bg-purple-100 text-purple-700";
+      color = "bg-emerald-50 text-emerald-700 border border-emerald-200";
       break;
 
     case "Delivered":
       message =
         "🎉 Order Delivered Successfully!";
-      color = "bg-green-100 text-green-700";
+      color = "bg-emerald-50 text-emerald-700 border border-emerald-200";
       break;
 
     default:

@@ -112,6 +112,7 @@ export type Order = {
   restaurant_longitude?: number | null;
   delivery_partner?: DeliveryPartner;
   delivery_otp?: number;
+  handover_otp?: string | number;
   otp_verified?: boolean;
   review_submitted?: boolean;
 };

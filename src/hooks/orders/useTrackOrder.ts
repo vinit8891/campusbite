@@ -21,43 +21,43 @@ const STATUS_CONFIG: Record<
 > = {
   Pending: {
     label: "Pending",
-    className: "bg-orange-100 text-orange-700",
-    dotClassName: "bg-orange-500",
+    className: "bg-amber-50 text-amber-700 border border-amber-200",
+    dotClassName: "bg-amber-500",
   },
   Accepted: {
     label: "Accepted",
-    className: "bg-blue-100 text-blue-700",
-    dotClassName: "bg-blue-500",
+    className: "bg-amber-50 text-amber-700 border border-amber-200",
+    dotClassName: "bg-amber-500",
   },
   Preparing: {
     label: "Preparing",
-    className: "bg-yellow-100 text-yellow-700",
-    dotClassName: "bg-yellow-500",
+    className: "bg-orange-50 text-orange-700 border border-orange-200",
+    dotClassName: "bg-orange-500",
   },
   "Ready for Pickup": {
     label: "Ready for Pickup",
-    className: "bg-purple-100 text-purple-700",
-    dotClassName: "bg-purple-500",
+    className: "bg-orange-50 text-orange-700 border border-orange-200",
+    dotClassName: "bg-orange-500",
   },
   Assigned: {
     label: "Assigned",
-    className: "bg-blue-100 text-blue-700",
+    className: "bg-blue-50 text-blue-700 border border-blue-200",
     dotClassName: "bg-blue-500",
   },
   "Picked Up": {
     label: "Picked Up",
-    className: "bg-blue-100 text-blue-700",
+    className: "bg-blue-50 text-blue-700 border border-blue-200",
     dotClassName: "bg-blue-500",
   },
   "Out for Delivery": {
     label: "Out for Delivery",
-    className: "bg-blue-100 text-blue-700",
-    dotClassName: "bg-blue-500",
+    className: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+    dotClassName: "bg-emerald-500",
   },
   Delivered: {
     label: "Delivered",
-    className: "bg-green-100 text-green-700",
-    dotClassName: "bg-green-500",
+    className: "bg-emerald-50 text-emerald-700 border border-emerald-200",
+    dotClassName: "bg-emerald-500",
   },
   Rejected: {
     label: "Rejected",

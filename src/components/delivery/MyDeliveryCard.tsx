@@ -45,51 +45,53 @@ export function MyDeliveryCard({
   const isAddon = Boolean(order.is_batch_addon || order.isBatchAddon);
   const orderSubtotal = Number(order.food_subtotal ?? (order as { subtotal?: number }).subtotal ?? order.total ?? 0);
   const isHeavyOrder = orderSubtotal >= 150.00;
-  const wageBadge = isAddon
-    ? "Batch Add-on (₹14.00 wage)"
-    : isHeavyOrder
-    ? "Base Drop (₹25.00 wage • Heavy)"
-    : "Base Drop (₹20.00 wage)";
+  const payoutText = isAddon ? "₹14.00 Payout" : isHeavyOrder ? "₹25.00 Payout" : "₹20.00 Payout";
 
   return (
-    <div className="rounded-2xl border bg-white p-6 shadow space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h2 className="text-xl font-bold">
-            🍽 {order.restaurant_email}
-          </h2>
-          <p>{order.customer_name}</p>
-          <p>{order.phone}</p>
-          <p className="text-gray-500">{order.address}</p>
+    <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 sm:p-6 shadow-sm space-y-3.5">
+      {/* Order Meta Header Row */}
+      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 pb-2.5">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-xs font-bold text-zinc-900">
+            #{orderId.slice(-6).toUpperCase()}
+          </span>
+          <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 border border-blue-200/60">
+            {order.status || 'Assigned'}
+          </span>
+          {/* Streamlined Horizontal Payout Pill */}
+          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
+            <span>🛵</span>
+            <span>{payoutText}</span>
+          </span>
+          {isHeavyOrder && (
+            <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-700 border border-indigo-200">
+              <span>📦</span>
+              <span>Heavy (+₹5)</span>
+            </span>
+          )}
         </div>
 
-        <div className="text-right space-y-1.5">
-          <p className="text-xl font-bold text-orange-600">
-            ₹{order.total}
-          </p>
-          <div className="flex flex-col items-end gap-1">
-            <span className="rounded bg-blue-100 px-3 py-1 text-xs font-semibold text-blue-900">
-              {order.status}
-            </span>
-            <span
-              className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border ${
-                isAddon
-                  ? "bg-amber-100 text-amber-900 border-amber-300"
-                  : "bg-emerald-100 text-emerald-900 border-emerald-300"
-              }`}
-            >
-              {wageBadge}
-            </span>
-            {isHeavyOrder && (
-              <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full border bg-indigo-100 text-indigo-900 border-indigo-300">
-                📦 Heavy Order (+₹5)
-              </span>
-            )}
-          </div>
+        {/* Total & Payment Mode */}
+        <div className="text-right">
+          <span className="text-xs text-zinc-400 block font-medium">COLLECT</span>
+          <span className="text-sm font-extrabold text-zinc-900">₹{orderTotal}</span>
         </div>
       </div>
 
-      <hr className="my-2" />
+      {/* Secondary subtitle line for payment method */}
+      <div className="flex items-center gap-2 text-xs text-zinc-500">
+        <span className="font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded text-[10px]">
+          {isCod ? 'CASH ON DELIVERY' : 'PAID ONLINE'}
+        </span>
+        <span>•</span>
+        <span className="text-[11px] text-zinc-500">{order.restaurant_name || order.restaurant_email || 'Campus Kitchen'}</span>
+      </div>
+
+      {/* Customer & Address Details */}
+      <div className="text-xs sm:text-sm text-stone-700 pt-0.5">
+        <p className="font-bold text-zinc-900">{order.customer_name} {order.phone ? `• ${order.phone}` : ''}</p>
+        <p className="text-xs text-zinc-500 mt-0.5">{order.address}</p>
+      </div>
 
       {/* Doorstep UPI QR Code & Cash Card on Active COD Orders */}
       {isCod && !isDelivered && (

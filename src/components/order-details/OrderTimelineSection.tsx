@@ -7,6 +7,25 @@ export type OrderTimelineSectionProps = {
   isCancelled: boolean;
 };
 
+function getStatusBadgeStyle(status: string) {
+  const s = status.toLowerCase();
+  if (s.includes("pending") || s.includes("accepted")) {
+    return "bg-amber-50 text-amber-700 border-amber-200";
+  }
+  if (s.includes("prep") || s.includes("ready")) {
+    return "bg-orange-50 text-orange-700 border-orange-200";
+  }
+  if (
+    s.includes("delivery") ||
+    s.includes("delivered") ||
+    s.includes("picked") ||
+    s.includes("assigned")
+  ) {
+    return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  }
+  return "bg-zinc-50 text-zinc-700 border-zinc-200";
+}
+
 export function OrderTimelineSection({
   currentIndex,
   currentStatusRef,
@@ -41,9 +60,9 @@ export function OrderTimelineSection({
                 <div
                   className={`flex h-10 w-10 items-center justify-center rounded-full text-sm font-bold ${
                     completed
-                      ? "bg-orange-500 text-white"
+                      ? "bg-emerald-500 text-white"
                       : current
-                      ? "bg-orange-500 text-white ring-4 ring-orange-100"
+                      ? "bg-orange-500 text-white ring-4 ring-orange-100 animate-pulse"
                       : "bg-gray-100 text-gray-400"
                   }`}
                 >
@@ -54,7 +73,7 @@ export function OrderTimelineSection({
                   <div
                     className={`h-10 w-0.5 ${
                       currentIndex > index
-                        ? "bg-orange-500"
+                        ? "bg-emerald-500"
                         : "bg-gray-200"
                     }`}
                   />
@@ -63,17 +82,28 @@ export function OrderTimelineSection({
 
               {/* Status text */}
               <div className="pb-8 pt-1">
-                <p
-                  className={`font-semibold ${
-                    current
-                      ? "text-orange-600"
-                      : completed
-                      ? "text-gray-900"
-                      : "text-gray-400"
-                  }`}
-                >
-                  {status}
-                </p>
+                <div className="flex items-center gap-2">
+                  <p
+                    className={`font-semibold ${
+                      current
+                        ? "text-zinc-900"
+                        : completed
+                        ? "text-zinc-800"
+                        : "text-zinc-400"
+                    }`}
+                  >
+                    {status}
+                  </p>
+                  {current && (
+                    <span
+                      className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-bold border ${getStatusBadgeStyle(
+                        status
+                      )}`}
+                    >
+                      In Progress
+                    </span>
+                  )}
+                </div>
 
                 {current && (
                   <p className="mt-1 text-sm text-gray-500">
@@ -82,8 +112,8 @@ export function OrderTimelineSection({
                 )}
 
                 {completed && !current && (
-                  <p className="mt-1 text-xs text-green-600">
-                    Completed
+                  <p className="mt-1 text-xs text-emerald-600 font-medium">
+                    ✓ Completed
                   </p>
                 )}
               </div>

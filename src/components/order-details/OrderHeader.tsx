@@ -3,6 +3,37 @@ import Image from "next/image";
 import type { Order } from "@/types/orders";
 import { OrderStatusBadge } from "@/components/common";
 
+const statusTitleMap: Record<string, string> = {
+  Pending: "Order Received",
+  Accepted: "Order Accepted",
+  Preparing: "Preparing Your Food",
+  "Ready for Pickup": "Ready for Pickup",
+  Assigned: "Delivery Partner Assigned",
+  "Picked Up": "Order Picked Up",
+  "Out for Delivery": "Out for Delivery",
+  Delivered: "Order Delivered",
+  Cancelled: "Order Cancelled",
+  Rejected: "Order Rejected",
+};
+
+const statusSubtitleMap: Record<string, string> = {
+  Pending: "Waiting for the restaurant to confirm your order.",
+  Accepted: "The kitchen has accepted your order and will start cooking soon.",
+  Preparing: "Your food is being freshly prepared on campus.",
+  "Ready for Pickup": "Your order is packed and ready for pickup.",
+  Assigned: "A rider has been assigned to bring your food.",
+  "Picked Up": "Your rider has collected your meal from the counter.",
+  "Out for Delivery": "Your courier is on the way with your food.",
+  Delivered: "Your order has been delivered. Enjoy your meal!",
+  Cancelled: "This order has been cancelled.",
+  Rejected: "The restaurant was unable to accept this order.",
+};
+
+function formatStatusLabel(status?: string): string {
+  if (!status) return "In Progress";
+  return status;
+}
+
 export type OrderHeaderProps = {
   order: Order;
   isCancelled: boolean;
@@ -44,52 +75,64 @@ export function OrderHeader({
     !isNaN(Number(restaurantLat)) &&
     !isNaN(Number(restaurantLng));
 
+  const rawOrderId = order.id || order._id || "";
+  const orderIdShort = rawOrderId ? rawOrderId.slice(-6).toUpperCase() : "ORDER";
+  const handoverOtp = order.handover_otp ?? order.delivery_otp;
+
   return (
     <>
       {/* ========================================================= */}
-      {/* PREMIUM ORDER HERO */}
+      {/* REFINED MODERN ORDER HERO */}
       {/* ========================================================= */}
-      <section className="mt-6 overflow-hidden rounded-3xl bg-gradient-to-br from-orange-500 via-orange-500 to-orange-600 p-6 text-white shadow-xl sm:p-8">
-        <div className="flex flex-col gap-6 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-4">
-            <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl bg-white/20 text-4xl shadow-inner">
-              🍽️
-            </div>
+      <div className="mt-6 w-full rounded-3xl bg-zinc-900 text-white p-5 shadow-lg border border-zinc-800 relative overflow-hidden">
+        {/* Subtle background glow */}
+        <div className="absolute -top-12 -right-12 h-36 w-36 rounded-full bg-orange-500/15 blur-2xl pointer-events-none" />
 
-            <div>
-              <p className="text-sm font-medium text-orange-100">
-                {isCancelled
-                  ? "Order Cancelled"
-                  : isDelivered
-                  ? "Order Delivered"
-                  : "Order Confirmed"}
-              </p>
+        <div className="relative z-10">
+          {/* Top Meta: Live status pulse & Back link */}
+          <div className="flex items-center justify-between gap-2">
+            <span className="inline-flex items-center gap-1.5 rounded-full bg-zinc-800/80 px-2.5 py-1 text-[11px] font-medium text-zinc-300 border border-zinc-700/60 backdrop-blur-xs">
+              <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+              Live Tracking
+            </span>
+            <span className="text-[11px] text-zinc-400 font-mono">
+              #{orderIdShort}
+            </span>
+          </div>
 
-              <h1 className="mt-1 text-3xl font-extrabold tracking-tight sm:text-4xl">
-                #{order._id.slice(-8)}
-              </h1>
+          {/* Title & Estimated Time */}
+          <div className="mt-3">
+            <h1 className="text-xl font-bold tracking-tight text-white">
+              {statusTitleMap[order.status] || (isCancelled ? "Order Cancelled" : isDelivered ? "Order Delivered" : "Order in Progress")}
+            </h1>
+            <p className="text-xs text-zinc-400 mt-0.5">
+              {statusSubtitleMap[order.status] || "Your food is being freshly prepared on campus."}
+            </p>
+          </div>
 
-              {order.created_at && (
-                <p suppressHydrationWarning className="mt-2 text-sm text-orange-100">
-                  {new Date(order.created_at).toLocaleString()}
-                </p>
+          {/* Elegant Unified Status Pill */}
+          <div className="mt-4 pt-3 border-t border-zinc-800/80 flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="inline-flex items-center gap-1.5 rounded-lg bg-orange-500/20 text-orange-400 border border-orange-500/30 px-2.5 py-1 text-xs font-semibold">
+                <span>⏱️</span>
+                <span>{formatStatusLabel(order.status)}</span>
+              </span>
+              {estimatedDelivery && (
+                <span className="text-xs text-zinc-400 font-medium">
+                  ETA: <span className="text-zinc-200 font-semibold">{estimatedDelivery}</span>
+                </span>
               )}
             </div>
-          </div>
 
-          <div className="rounded-2xl bg-white/10 p-4 backdrop-blur-sm sm:min-w-[210px]">
-            <p className="text-sm text-orange-100">Estimated Delivery</p>
-
-            <p className="mt-1 text-2xl font-extrabold">
-              {estimatedDelivery}
-            </p>
-
-            <div className="mt-3">
-              <OrderStatusBadge status={order.status} />
-            </div>
+            {handoverOtp && (
+              <div className="flex items-center gap-1.5 bg-emerald-950/60 border border-emerald-600/40 rounded-lg px-2.5 py-1 text-xs">
+                <span className="text-zinc-400 text-[10px] font-semibold uppercase">OTP</span>
+                <span className="font-mono font-bold tracking-widest text-emerald-400">{handoverOtp}</span>
+              </div>
+            )}
           </div>
         </div>
-      </section>
+      </div>
 
       {/* ========================================================= */}
       {/* IMMEDIATE PICKUP SPOT CARD */}
