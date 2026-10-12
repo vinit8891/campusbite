@@ -4,10 +4,13 @@ import type { OrderItem } from "@/types/orders";
 import { getCalibratedAppPrice } from "@/lib/pricingEngine";
 
 export type OrderItemsProps = {
-  items: OrderItem[];
+  items?: OrderItem[];
 };
 
-export function OrderItems({ items }: OrderItemsProps) {
+export function OrderItems({ items: rawItems }: OrderItemsProps) {
+  const items = Array.isArray(rawItems) ? rawItems : [];
+  const totalItemsCount = items.length;
+
   return (
     <section className="mt-8 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm sm:p-8">
       <div className="flex items-center justify-between">
@@ -17,7 +20,7 @@ export function OrderItems({ items }: OrderItemsProps) {
           </h2>
 
           <p className="mt-1 text-sm text-gray-500">
-            {items.length} {items.length === 1 ? "item" : "items"}
+            {totalItemsCount} {totalItemsCount === 1 ? "item" : "items"}
           </p>
         </div>
       </div>

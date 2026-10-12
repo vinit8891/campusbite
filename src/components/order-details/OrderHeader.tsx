@@ -76,8 +76,12 @@ export function OrderHeader({
     !isNaN(Number(restaurantLng));
 
   const rawOrderId = order.id || order._id || "";
-  const orderIdShort = rawOrderId ? rawOrderId.slice(-6).toUpperCase() : "ORDER";
-  const handoverOtp = order.handover_otp ?? order.delivery_otp;
+  const orderIdShort = rawOrderId ? rawOrderId.slice(-6).toUpperCase() : "";
+  const rawOtp = order.handover_otp ?? order.delivery_otp;
+  const handoverOtp =
+    rawOtp != null && String(rawOtp).trim() !== ""
+      ? String(rawOtp).padStart(4, "0")
+      : null;
 
   return (
     <>

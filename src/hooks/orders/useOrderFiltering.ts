@@ -80,7 +80,8 @@ export function useOrderFiltering(orders: Order[]) {
 
       const restaurantName = order.restaurant_name ?? "Campus Restaurant";
       const restaurantCuisine = order.restaurant_cuisine ?? "Campus Dining";
-      const itemNames = order.items.map((item) => item.name).join(" ");
+      const items = Array.isArray(order?.items) ? order.items : [];
+      const itemNames = items.map((item) => item?.name || "").join(" ");
 
       const searchableText = [
         restaurantName,

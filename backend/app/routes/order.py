@@ -179,7 +179,7 @@ def _apply_payment_defaults(order: dict) -> dict:
 def _public_order(order: dict) -> dict:
     """Order payload for clients: payment defaults, never expose OTP/secrets."""
     response = _apply_payment_defaults(order)
-    normalize_order_financials(response)
+    response = normalize_order_financials(response)
     response.pop("delivery_otp", None)
     # Signature is verification material — do not expose on generic APIs
     response.pop("razorpay_signature", None)

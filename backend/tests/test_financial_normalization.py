@@ -23,6 +23,35 @@ def test_order_financial_normalization_defaults():
     assert normalized["net_payout"] == 0.0
     assert normalized["total_amount"] == 0.0
 
+    # Ensure array defaults exist and prevent .length crashes
+    assert isinstance(normalized["items"], list)
+    assert isinstance(normalized["timeline"], list)
+    assert isinstance(normalized["status_history"], list)
+
+
+def test_order_normalization_preserves_all_fields_and_guarantees_arrays():
+    order = {
+        "_id": "order_789",
+        "customer": {"name": "Test Student", "email": "student@zeal.edu"},
+        "restaurant": {"name": "Zeal Canteen", "address": "Campus Ground"},
+        "delivery_address": "Hostel B Room 301",
+        "items": [{"id": "item1", "name": "Vada Pav", "price": 20.0, "quantity": 2}],
+        "timeline": [{"status": "Placed", "time": "12:00 PM"}],
+        "status_history": ["Placed"],
+        "customer_name": "Test Student",
+    }
+    normalized = normalize_order_financials(order)
+
+    # Verify all non-financial fields are preserved
+    assert normalized["_id"] == "order_789"
+    assert normalized["customer"]["name"] == "Test Student"
+    assert normalized["restaurant"]["name"] == "Zeal Canteen"
+    assert normalized["delivery_address"] == "Hostel B Room 301"
+    assert normalized["customer_name"] == "Test Student"
+    assert len(normalized["items"]) == 1
+    assert len(normalized["timeline"]) == 1
+    assert len(normalized["status_history"]) == 1
+
 
 def test_order_financial_normalization_from_items():
     order = {

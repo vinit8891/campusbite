@@ -20,24 +20,37 @@ def get_object_id(order_id: str):
 
 
 def normalize_order_financials(order: dict) -> dict:
-    """Ensures non-null float defaults for all standard financial breakdown attributes."""
-    if not isinstance(order, dict):
-        return order
+    """Ensures non-null float defaults for all standard financial breakdown attributes,
+    preserving ALL existing fields of the order and guaranteeing list defaults."""
+    if not order or not isinstance(order, dict):
+        return {} if not order else order
 
-    pricing = order.get("pricing_breakdown") or {}
-    items = order.get("items") or []
+    # Work on a copy/in-place so existing fields are NEVER dropped
+    normalized = dict(order)
+
+    # Ensure essential array fields are guaranteed lists (prevent .length crash)
+    items = normalized.get("items") if isinstance(normalized.get("items"), list) else []
+    normalized["items"] = items
+    normalized["timeline"] = (
+        normalized.get("timeline") if isinstance(normalized.get("timeline"), list) else []
+    )
+    normalized["status_history"] = (
+        normalized.get("status_history") if isinstance(normalized.get("status_history"), list) else []
+    )
+
+    pricing = normalized.get("pricing_breakdown") or {}
 
     # 1. items_subtotal
-    subtotal = order.get("items_subtotal")
+    subtotal = normalized.get("items_subtotal")
     if subtotal is None:
-        subtotal = order.get("food_subtotal")
+        subtotal = normalized.get("food_subtotal")
     if subtotal is None:
         subtotal = (
             pricing.get("food_subtotal")
             or pricing.get("subtotal")
             or pricing.get("items_subtotal")
         )
-    if subtotal is None and items:
+    if (subtotal is None or subtotal == 0.0) and items:
         try:
             subtotal = sum(
                 float(it.get("price", 0)) * int(it.get("quantity", 1))
@@ -48,68 +61,71 @@ def normalize_order_financials(order: dict) -> dict:
     subtotal = float(subtotal or 0.0)
 
     # 2. gst
-    gst = order.get("gst")
+    gst = normalized.get("gst")
     if gst is None:
         gst = (
-            order.get("restaurant_gst")
+            normalized.get("restaurant_gst")
             or pricing.get("restaurant_gst")
             or pricing.get("gst")
         )
-    if gst is None:
+    if gst is None and subtotal > 0:
         gst = round(subtotal * 0.05, 2)
     gst = float(gst or 0.0)
 
     # 3. delivery_fee
-    delivery_fee = order.get("delivery_fee")
+    delivery_fee = normalized.get("delivery_fee")
     if delivery_fee is None:
         delivery_fee = pricing.get("delivery_fee") or pricing.get("deliveryFee")
     delivery_fee = float(delivery_fee or 0.0)
 
     # 4. platform_fee
-    platform_fee = order.get("platform_fee")
+    platform_fee = normalized.get("platform_fee")
     if platform_fee is None:
         platform_fee = pricing.get("platform_fee") or pricing.get("platformTechFee")
     platform_fee = float(platform_fee or 0.0)
 
     # 5. commission_amount
-    comm = order.get("commission_amount")
+    comm = normalized.get("commission_amount")
     if comm is None:
         comm = (
-            order.get("commission")
+            normalized.get("commission")
             or pricing.get("commission")
             or pricing.get("commission_amount")
         )
-    if comm is None:
+    if comm is None and subtotal > 0:
         comm = round(subtotal * 0.18, 2)
     comm = float(comm or 0.0)
 
     # 6. total_amount
-    total_val = order.get("total_amount")
+    total_val = normalized.get("total_amount")
     if total_val is None:
-        total_val = order.get("total") or pricing.get("total")
-    if total_val is None:
+        total_val = normalized.get("total") or pricing.get("total")
+    if total_val is None and (subtotal > 0 or delivery_fee > 0 or platform_fee > 0):
         total_val = round(subtotal + gst + delivery_fee + platform_fee, 2)
     total_val = float(total_val or 0.0)
 
     # 7. net_payout
-    net_payout = order.get("net_payout")
+    net_payout = normalized.get("net_payout")
     if net_payout is None:
-        net_payout = order.get("canteen_net_payout") or pricing.get("canteen_net_payout")
-    if net_payout is None:
+        net_payout = normalized.get("canteen_net_payout") or pricing.get("canteen_net_payout")
+    if net_payout is None and subtotal > 0:
         net_payout = round(subtotal - comm, 2)
     net_payout = float(net_payout or 0.0)
 
-    order["items_subtotal"] = float(subtotal)
-    order["gst"] = float(gst)
-    order["delivery_fee"] = float(delivery_fee)
-    order["platform_fee"] = float(platform_fee)
-    order["commission_amount"] = float(comm)
-    order["net_payout"] = float(net_payout)
-    order["total_amount"] = float(total_val)
-    if "total" not in order or order["total"] is None:
-        order["total"] = float(total_val)
+    normalized["items_subtotal"] = float(subtotal)
+    normalized["gst"] = float(gst)
+    normalized["delivery_fee"] = float(delivery_fee)
+    normalized["platform_fee"] = float(platform_fee)
+    normalized["commission_amount"] = float(comm)
+    normalized["net_payout"] = float(net_payout)
+    normalized["total_amount"] = float(total_val)
+    if "total" not in normalized or normalized["total"] is None:
+        normalized["total"] = float(total_val)
 
-    return order
+    # In-place synchronization
+    order.update(normalized)
+
+    return normalized
 
 
 def get_order_query(order_id: str) -> dict:

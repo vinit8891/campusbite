@@ -176,15 +176,18 @@ export function LiveOrderTrackerBar() {
 
   const displayOtp = useMemo(() => {
     if (!activeOrder) return null;
-    return (
+    const rawOtp =
       (activeOrder as unknown as { handover_otp?: string | number })?.handover_otp != null
-        ? String((activeOrder as unknown as { handover_otp?: string | number }).handover_otp)
+        ? (activeOrder as unknown as { handover_otp?: string | number }).handover_otp
         : activeOrder.delivery_otp != null
-        ? String(activeOrder.delivery_otp)
+        ? activeOrder.delivery_otp
         : (activeOrder as unknown as { otp?: string | number })?.otp != null
-        ? String((activeOrder as unknown as { otp?: string | number }).otp)
-        : null
-    );
+        ? (activeOrder as unknown as { otp?: string | number }).otp
+        : null;
+
+    return rawOtp != null && String(rawOtp).trim() !== ""
+      ? String(rawOtp).padStart(4, "0")
+      : null;
   }, [activeOrder]);
 
   const statusText = useMemo(() => {

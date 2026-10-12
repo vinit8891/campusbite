@@ -96,9 +96,11 @@ export function ActiveDeliveryManifest({
     ...(rich || {}),
     ...order,
     items:
-      order.items && order.items.length > 0
+      Array.isArray(order.items) && order.items.length > 0
         ? order.items
-        : rich?.items || [],
+        : Array.isArray(rich?.items)
+        ? rich.items
+        : [],
     total: order.total || rich?.total || 0,
     address: order.address || rich?.address || "",
     customer_name: order.customer_name || rich?.customer_name || "",

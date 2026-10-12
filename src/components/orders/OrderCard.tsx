@@ -46,8 +46,9 @@ export function OrderCard({
   }
   const orderId = rawId || "last";
 
-  const itemCount = order.items.reduce(
-    (sum, item) => sum + item.quantity,
+  const items = Array.isArray(order?.items) ? order.items : [];
+  const itemCount = items.reduce(
+    (sum, item) => sum + (item?.quantity || 1),
     0
   );
 
@@ -113,7 +114,7 @@ export function OrderCard({
           <h3 className="mb-3 font-bold text-gray-900">Ordered Items</h3>
 
           <div className="space-y-2">
-            {order.items.map((item, idx) => {
+            {items.map((item, idx) => {
               const calibratedUnit = getCalibratedAppPrice(item.price);
               const itemTotal = calibratedUnit * item.quantity;
               return (

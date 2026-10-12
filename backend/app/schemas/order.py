@@ -97,6 +97,9 @@ class OrderResponse(BaseModel):
     restaurant_name: Optional[str] = None
     restaurant: Optional[RestaurantSnapshot] = None
     restaurant_info: Optional[RestaurantSnapshot] = None
+    items: list[Any] = Field(default_factory=list)
+    timeline: list[Any] = Field(default_factory=list)
+    status_history: list[Any] = Field(default_factory=list)
     items_subtotal: float = 0.0
     gst: float = 0.0
     delivery_fee: float = 0.0

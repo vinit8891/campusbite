@@ -23,7 +23,12 @@ export function CustomerOtpCard({
     );
   }
 
-  if (!otp) {
+  const formattedOtp =
+    otp != null && String(otp).trim() !== ""
+      ? String(otp).padStart(4, "0")
+      : null;
+
+  if (!formattedOtp) {
     return null;
   }
 
@@ -52,9 +57,9 @@ export function CustomerOtpCard({
               <div className="flex items-center gap-4">
                 <div
                   className="rounded-2xl bg-white px-8 py-5 text-4xl font-black tracking-[10px] text-orange-600 shadow-sm"
-                  aria-label={`Delivery OTP code: ${otp}`}
+                  aria-label={`Delivery OTP code: ${formattedOtp}`}
                 >
-                  {otp}
+                  {formattedOtp}
                 </div>
               </div>
 
@@ -79,9 +84,9 @@ export function CustomerOtpCard({
 
       <p
         className="mt-1 text-4xl font-extrabold tracking-[8px] text-orange-700"
-        aria-label={`Delivery OTP code: ${otp}`}
+        aria-label={`Delivery OTP code: ${formattedOtp}`}
       >
-        {otp}
+        {formattedOtp}
       </p>
 
       <p className="mt-1 text-xs text-gray-600">

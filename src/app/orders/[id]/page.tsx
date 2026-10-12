@@ -278,7 +278,7 @@ export default function OrderDetailsPage() {
               </div>
               <div className="flex flex-col items-start sm:items-end rounded-2xl bg-white/10 p-3.5 backdrop-blur-sm">
                 <span className="text-xs font-semibold text-emerald-100 uppercase tracking-wider">Delivered Time</span>
-                <span className="text-base font-bold text-white">
+                <span suppressHydrationWarning className="text-base font-bold text-white">
                   {order.delivered_at
                     ? new Date(order.delivered_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
                     : "Completed"}
@@ -314,7 +314,7 @@ export default function OrderDetailsPage() {
         )}
 
         {/* Ordered Items with Calibrated Prices */}
-        <OrderItems items={order.items} />
+        <OrderItems items={Array.isArray(order?.items) ? order.items : []} />
 
         {/* Delivery Destination & Full Itemized Payment Breakdown */}
         <OrderSummary order={order} />

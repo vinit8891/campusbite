@@ -30,13 +30,14 @@ export function DeliverySection({
     order.address?.split(",")[0]?.trim() ||
     "Hostel Dropoff";
 
+  const deliveryOtp = order?.delivery_otp ? String(order.delivery_otp).padStart(4, '0') : null;
   const displayOtp =
     (order as unknown as { handover_otp?: string | number })?.handover_otp != null
-      ? String((order as unknown as { handover_otp?: string | number }).handover_otp)
-      : order.delivery_otp != null
-      ? String(order.delivery_otp)
+      ? String((order as unknown as { handover_otp?: string | number }).handover_otp).padStart(4, '0')
+      : deliveryOtp != null
+      ? deliveryOtp
       : (order as unknown as { otp?: string | number })?.otp != null
-      ? String((order as unknown as { otp?: string | number }).otp)
+      ? String((order as unknown as { otp?: string | number }).otp).padStart(4, '0')
       : null;
 
   const vibrationTriggered = useRef(false);
@@ -189,7 +190,7 @@ export function DeliverySection({
       {/* ========================================================= */}
       {order.status === "Out for Delivery" && (
         <CustomerOtpCard
-          otp={order.delivery_otp}
+          otp={deliveryOtp || order.delivery_otp}
           verified={order.otp_verified}
           variant="detailed"
           className="mt-8"
