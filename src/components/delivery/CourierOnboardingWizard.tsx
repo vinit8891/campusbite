@@ -32,6 +32,7 @@ import {
   uploadKycDocument,
 } from "@/services/partnerOnboardingService";
 import { ROUTES } from "@/lib/routes";
+import { PasswordField } from "@/components/ui/PasswordField";
 
 const ROLE_OPTIONS: {
   type: CourierType;
@@ -564,11 +565,8 @@ export default function CourierOnboardingWizard() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
-                  Password *
-                </label>
-                <input
-                  type="password"
+                <PasswordField
+                  label="Password *"
                   placeholder="Min 6 characters"
                   value={formData.password}
                   onChange={(e) =>
@@ -577,13 +575,9 @@ export default function CourierOnboardingWizard() {
                       password: e.target.value,
                     }))
                   }
-                  className="w-full px-4 py-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-emerald-500 text-stone-900 text-sm"
+                  error={errors.password}
+                  className="px-4 py-3"
                 />
-                {errors.password && (
-                  <p className="text-xs text-rose-600 mt-1">
-                    {errors.password}
-                  </p>
-                )}
               </div>
 
               <div className="sm:col-span-2">

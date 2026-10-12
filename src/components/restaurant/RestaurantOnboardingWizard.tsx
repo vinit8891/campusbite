@@ -33,6 +33,7 @@ import {
   uploadKycDocument,
 } from "@/services/partnerOnboardingService";
 import { ROUTES } from "@/lib/routes";
+import { PasswordField } from "@/components/ui/PasswordField";
 
 const VENDOR_CARDS: {
   type: VendorType;
@@ -555,11 +556,8 @@ export default function RestaurantOnboardingWizard() {
               </div>
 
               <div>
-                <label className="block text-xs font-bold uppercase tracking-wider text-stone-700 mb-1">
-                  Account Password *
-                </label>
-                <input
-                  type="password"
+                <PasswordField
+                  label="Account Password *"
                   placeholder="Minimum 6 characters"
                   value={formData.password}
                   onChange={(e) =>
@@ -568,13 +566,9 @@ export default function RestaurantOnboardingWizard() {
                       password: e.target.value,
                     }))
                   }
-                  className="w-full px-4 py-3 rounded-xl border border-stone-300 focus:outline-none focus:ring-2 focus:ring-orange-500 text-stone-900 text-sm"
+                  error={errors.password}
+                  className="px-4 py-3"
                 />
-                {errors.password && (
-                  <p className="text-xs text-rose-600 mt-1">
-                    {errors.password}
-                  </p>
-                )}
               </div>
 
               {/* Campus Location Toggle */}

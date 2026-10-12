@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordField } from "@/components/ui/PasswordField";
 import { ROUTES } from "@/lib/routes";
 import { AUTH_STORAGE_KEYS } from "@/lib/authTokens";
 import { loginAdmin } from "@/services/authService";
@@ -74,15 +75,13 @@ export default function AdminLoginPage() {
             />
           </div>
 
-          <div>
-            <label className="mb-2 block font-medium">Password</label>
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-            />
-          </div>
+          <PasswordField
+            label="Password"
+            placeholder="********"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            required
+          />
 
           {error && (
             <p className="text-sm text-red-600">{error}</p>

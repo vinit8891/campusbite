@@ -149,12 +149,12 @@ export default function RestaurantsClient() {
         const ratingB = Number(b.rating) || 0;
         return ratingB - ratingA;
       }
-      if (currentSort === "delivery_time") {
+      if (currentSort === "delivery_time" || currentSort === "fastest") {
         const timeA = parseInt(String(a.delivery_time || "30"), 10) || 30;
         const timeB = parseInt(String(b.delivery_time || "30"), 10) || 30;
         return timeA - timeB;
       }
-      if (currentSort === "price") {
+      if (currentSort === "price" || currentSort === "price_asc") {
         const priceA = Number(a.min_order_amount ?? 0);
         const priceB = Number(b.min_order_amount ?? 0);
         return priceA - priceB;
@@ -220,6 +220,8 @@ export default function RestaurantsClient() {
         <SortFilterBar
           currentSort={currentSort}
           onSortChange={setCurrentSort}
+          userLocationName={campusLabel}
+          onLocationClick={requestLocation}
           userCampusLabel={campusLabel}
           isLocating={isLocating}
           onDetectLocation={requestLocation}

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 
+import { PasswordField } from "@/components/ui/PasswordField";
 import { AUTH_STORAGE_KEYS } from "@/lib/authTokens";
 import { ROUTES } from "@/lib/routes";
 import { loginDeliveryPartner } from "@/services/authService";
@@ -94,20 +95,14 @@ export default function DeliveryLoginForm() {
       </div>
 
       <div className="mb-6">
-        <label htmlFor="delivery-login-password" className="mb-2 block text-sm font-medium text-gray-700">
-          Password
-        </label>
-        <input
+        <PasswordField
           id="delivery-login-password"
-          type="password"
+          label="Password"
           autoComplete="current-password"
           required
-          className="w-full rounded-lg border p-3"
           placeholder="Password"
           value={password}
-          onChange={(e) =>
-            setPassword(e.target.value)
-          }
+          onChange={(e) => setPassword(e.target.value)}
         />
       </div>
 

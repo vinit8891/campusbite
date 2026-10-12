@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordField } from "@/components/ui/PasswordField";
 import { ROUTES } from "@/lib/routes";
 import { loginCustomer } from "@/services/authService";
 
@@ -81,18 +82,15 @@ export default function LoginForm() {
           />
         </div>
 
-        <div>
-          <label htmlFor="login-password" className="mb-2 block font-medium">Password</label>
-          <Input
-            id="login-password"
-            type="password"
-            autoComplete="current-password"
-            placeholder="********"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
+        <PasswordField
+          id="login-password"
+          label="Password"
+          autoComplete="current-password"
+          placeholder="********"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
 
         {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
 

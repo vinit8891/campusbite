@@ -7,6 +7,7 @@ import { useState } from "react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordField } from "@/components/ui/PasswordField";
 import { ROUTES } from "@/lib/routes";
 import { loginCustomer, registerCustomer } from "@/services/authService";
 
@@ -155,35 +156,27 @@ export default function RegisterForm() {
           />
         </div>
 
-        <div>
-          <label htmlFor="reg-password" className="mb-2 block font-medium">Password</label>
-          <Input
-            id="reg-password"
-            type="password"
-            autoComplete="new-password"
-            placeholder="********"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={6}
-          />
-        </div>
+        <PasswordField
+          id="reg-password"
+          label="Password"
+          autoComplete="new-password"
+          placeholder="********"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          minLength={6}
+        />
 
-        <div>
-          <label htmlFor="reg-confirm-password" className="mb-2 block font-medium">
-            Confirm Password
-          </label>
-          <Input
-            id="reg-confirm-password"
-            type="password"
-            autoComplete="new-password"
-            placeholder="********"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            minLength={6}
-          />
-        </div>
+        <PasswordField
+          id="reg-confirm-password"
+          label="Confirm Password"
+          autoComplete="new-password"
+          placeholder="********"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
+          minLength={6}
+        />
 
         <div>
           <label htmlFor="reg-referral" className="mb-2 block font-medium flex items-center justify-between">

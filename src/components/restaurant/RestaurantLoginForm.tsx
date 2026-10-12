@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordField } from "@/components/ui/PasswordField";
 import { AUTH_STORAGE_KEYS } from "@/lib/authTokens";
 import { ROUTES } from "@/lib/routes";
 import { loginRestaurantOwner } from "@/services/authService";
@@ -97,18 +98,15 @@ export default function RestaurantLoginForm() {
           />
         </div>
 
-        <div>
-          <label htmlFor="restaurant-login-password" className="mb-2 block font-medium">Password</label>
-          <Input
-            id="restaurant-login-password"
-            type="password"
-            autoComplete="current-password"
-            placeholder="********"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-          />
-        </div>
+        <PasswordField
+          id="restaurant-login-password"
+          label="Password"
+          autoComplete="current-password"
+          placeholder="********"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+        />
 
         {error && <p className="text-sm text-red-600" role="alert">{error}</p>}
 

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordField } from "@/components/ui/PasswordField";
 import { ROUTES } from "@/lib/routes";
 import { registerRestaurantOwner } from "@/services/restaurantService";
 
@@ -201,33 +202,23 @@ export default function RestaurantRegisterForm() {
           </div>
 
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Password *
-              </label>
-              <Input
-                type="password"
-                placeholder="********"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                required
-                minLength={6}
-              />
-            </div>
+            <PasswordField
+              label="Password *"
+              placeholder="********"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              required
+              minLength={6}
+            />
 
-            <div>
-              <label className="mb-1 block text-sm font-medium text-gray-700">
-                Confirm Password *
-              </label>
-              <Input
-                type="password"
-                placeholder="********"
-                value={confirmPassword}
-                onChange={(e) => setConfirmPassword(e.target.value)}
-                required
-                minLength={6}
-              />
-            </div>
+            <PasswordField
+              label="Confirm Password *"
+              placeholder="********"
+              value={confirmPassword}
+              onChange={(e) => setConfirmPassword(e.target.value)}
+              required
+              minLength={6}
+            />
           </div>
         </section>
 

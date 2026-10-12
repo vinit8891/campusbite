@@ -1,99 +1,81 @@
-"use client";
+'use client';
 
-import React from "react";
-import { Navigation, Sparkles, Star, Zap, DollarSign } from "lucide-react";
+import React from 'react';
+import { Star, Zap, IndianRupee, Navigation } from 'lucide-react';
 
-export type SortOption = "distance" | "rating" | "delivery_time" | "price";
+export type SortOption = 'distance' | 'rating' | 'fastest' | 'price_asc' | 'delivery_time' | 'price' | string;
 
 export interface SortFilterBarProps {
-  currentSort: SortOption;
-  onSortChange: (sort: SortOption) => void;
+  currentSort: string;
+  onSortChange: (sortKey: string) => void;
+  userLocationName?: string;
+  onLocationClick?: () => void;
   userCampusLabel?: string;
   isLocating?: boolean;
   onDetectLocation?: () => void;
 }
 
-const SORT_PILLS: {
-  id: SortOption;
-  label: string;
-  icon: React.ReactNode;
-}[] = [
-  {
-    id: "distance",
-    label: "Distance (Nearest First)",
-    icon: <Navigation className="h-3.5 w-3.5" />,
-  },
-  {
-    id: "rating",
-    label: "Rating (High to Low)",
-    icon: <Star className="h-3.5 w-3.5 fill-current" />,
-  },
-  {
-    id: "delivery_time",
-    label: "Fastest Delivery",
-    icon: <Zap className="h-3.5 w-3.5" />,
-  },
-  {
-    id: "price",
-    label: "Price: Low to High",
-    icon: <DollarSign className="h-3.5 w-3.5" />,
-  },
-];
-
 export function SortFilterBar({
   currentSort,
   onSortChange,
+  userLocationName,
+  onLocationClick,
   userCampusLabel,
   isLocating,
   onDetectLocation,
 }: SortFilterBarProps) {
+  const sortOptions = [
+    { id: 'distance', label: 'Nearest First', icon: Navigation },
+    { id: 'rating', label: 'Rating 4.0+', icon: Star },
+    { id: 'fastest', label: 'Fastest Delivery', icon: Zap },
+    { id: 'price_asc', label: 'Cost: Low to High', icon: IndianRupee },
+  ];
+
+  const locationName = userLocationName || userCampusLabel;
+  const handleLocationClick = onLocationClick || onDetectLocation;
+
   return (
-    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between rounded-2xl border border-orange-100/80 bg-white/95 p-3.5 shadow-sm backdrop-blur-sm">
-      {/* Sort Pills */}
-      <div className="flex flex-wrap items-center gap-2">
-        <span className="hidden lg:inline-flex items-center gap-1 text-xs font-semibold uppercase tracking-wider text-stone-500 mr-1">
-          <Sparkles className="h-3.5 w-3.5 text-orange-500" />
-          Sort by:
-        </span>
-        {SORT_PILLS.map((pill) => {
-          const isActive = currentSort === pill.id;
+    <div className="w-full my-3">
+      {/* Sleek Horizontal Scrollable Filter Row */}
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-0.5 no-scrollbar scrollbar-none scroll-smooth">
+        {/* Dynamic Location Quick-Badge */}
+        {locationName && (
+          <button
+            type="button"
+            onClick={handleLocationClick}
+            disabled={isLocating}
+            className="flex shrink-0 items-center gap-1.5 rounded-full border border-orange-200/80 bg-orange-50/70 px-3 py-1.5 text-xs font-semibold text-orange-700 hover:bg-orange-100 transition-colors shadow-2xs cursor-pointer active:scale-95 disabled:opacity-50"
+          >
+            <span className={`h-1.5 w-1.5 rounded-full bg-orange-500 ${isLocating ? 'animate-ping' : 'animate-pulse'}`} />
+            <span className="max-w-[130px] truncate">{isLocating ? 'Locating...' : locationName}</span>
+          </button>
+        )}
+
+        {/* Sort Chips */}
+        {sortOptions.map((opt) => {
+          const Icon = opt.icon;
+          const isActive =
+            currentSort === opt.id ||
+            (opt.id === 'fastest' && currentSort === 'delivery_time') ||
+            (opt.id === 'price_asc' && currentSort === 'price');
+
           return (
             <button
-              key={pill.id}
+              key={opt.id}
               type="button"
-              onClick={() => onSortChange(pill.id)}
-              className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-xs font-semibold transition-all active:scale-95 ${
+              onClick={() => onSortChange(isActive ? '' : opt.id)}
+              className={`flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-xs font-medium transition-all duration-150 shadow-2xs cursor-pointer active:scale-95 ${
                 isActive
-                  ? "bg-orange-600 text-white shadow-sm shadow-orange-500/20 hover:bg-orange-700"
-                  : "bg-stone-50 text-stone-700 border border-stone-200/80 hover:bg-orange-50 hover:border-orange-200 hover:text-orange-700"
+                  ? 'border-orange-500 bg-orange-500 text-white shadow-orange-500/20 font-semibold'
+                  : 'border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 hover:bg-zinc-50'
               }`}
             >
-              {pill.icon}
-              {pill.label}
+              <Icon className={`h-3.5 w-3.5 ${isActive ? 'text-white' : 'text-zinc-500'}`} />
+              <span>{opt.label}</span>
             </button>
           );
         })}
       </div>
-
-      {/* Geolocation Live Status & Re-locate Button */}
-      {onDetectLocation && (
-        <div className="flex items-center gap-2 self-start sm:self-center">
-          <button
-            type="button"
-            onClick={onDetectLocation}
-            disabled={isLocating}
-            className="inline-flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50/80 px-3 py-1.5 text-xs font-semibold text-orange-700 hover:bg-orange-100 transition-colors disabled:opacity-50"
-            title="Update to precise GPS location"
-          >
-            <Navigation
-              className={`h-3 w-3 text-orange-600 ${
-                isLocating ? "animate-spin" : ""
-              }`}
-            />
-            <span>{isLocating ? "Locating..." : userCampusLabel || "Share GPS"}</span>
-          </button>
-        </div>
-      )}
     </div>
   );
 }

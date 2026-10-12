@@ -7,6 +7,7 @@ import { z } from "zod";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { PasswordField } from "@/components/ui/PasswordField";
 import { ROUTES } from "@/lib/routes";
 import { resetPassword } from "@/services/authService";
 
@@ -142,39 +143,29 @@ export default function ResetPasswordForm() {
       </p>
 
       <form onSubmit={handleSubmit} noValidate className="space-y-5">
-        <div>
-          <label htmlFor="reset-password" className="mb-2 block font-medium">
-            New Password
-          </label>
-          <Input
-            id="reset-password"
-            type="password"
-            autoComplete="new-password"
-            aria-label="New Password"
-            placeholder="••••••••"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            minLength={8}
-          />
-        </div>
+        <PasswordField
+          id="reset-password"
+          label="New Password"
+          autoComplete="new-password"
+          aria-label="New Password"
+          placeholder="••••••••"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          required
+          minLength={8}
+        />
 
-        <div>
-          <label htmlFor="reset-confirm-password" className="mb-2 block font-medium">
-            Confirm New Password
-          </label>
-          <Input
-            id="reset-confirm-password"
-            type="password"
-            autoComplete="new-password"
-            aria-label="Confirm Password"
-            placeholder="••••••••"
-            value={confirmPassword}
-            onChange={(e) => setConfirmPassword(e.target.value)}
-            required
-            minLength={8}
-          />
-        </div>
+        <PasswordField
+          id="reset-confirm-password"
+          label="Confirm New Password"
+          autoComplete="new-password"
+          aria-label="Confirm Password"
+          placeholder="••••••••"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
+          required
+          minLength={8}
+        />
 
         {error && (
           <p className="text-sm text-red-600" role="alert">
