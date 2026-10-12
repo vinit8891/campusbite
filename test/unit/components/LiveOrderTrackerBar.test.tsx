@@ -3,6 +3,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import {
   LiveOrderTrackerBar,
+  FloatingOrderBanner,
+  ActiveOrderFloat,
   isRestrictedPath,
   isNonCustomerRole,
 } from "@/components/orders/LiveOrderTrackerBar";
@@ -232,6 +234,30 @@ describe("LiveOrderTrackerBar Component & Guards", () => {
     ).toBeInTheDocument();
     expect(screen.getByText("OTP: 4821")).toBeInTheDocument();
     expect(vibrateMock).toHaveBeenCalledWith([200, 100, 200]);
+  });
+
+  it("exports FloatingOrderBanner and ActiveOrderFloat aliases and renders ultra-compact live activity dock", async () => {
+    expect(FloatingOrderBanner).toBe(LiveOrderTrackerBar);
+    expect(ActiveOrderFloat).toBe(LiveOrderTrackerBar);
+
+    mockIsLoggedIn = true;
+    mockPathname = "/";
+    vi.spyOn(orderService, "getMyOrders").mockResolvedValue([mockActiveOrder]);
+
+    render(<FloatingOrderBanner />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId("live-order-tracker-bar")).toBeInTheDocument();
+    });
+
+    const dock = screen.getByTestId("live-order-tracker-bar");
+    expect(dock).toHaveClass("fixed", "bottom-4", "max-w-md");
+
+    // Track button
+    const trackLink = screen.getByRole("link", { name: /track live courier on map/i });
+    expect(trackLink).toBeInTheDocument();
+    expect(trackLink).toHaveTextContent("Track");
+    expect(trackLink).toHaveAttribute("href", "/orders/order-101/track");
   });
 });
 

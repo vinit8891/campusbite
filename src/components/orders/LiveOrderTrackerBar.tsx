@@ -218,7 +218,7 @@ export function LiveOrderTrackerBar() {
   }, [activeOrder]);
 
   const orderId = activeOrder?._id || activeOrder?.id || "";
-  const trackingUrl = orderId ? trackOrderPath(orderId) : ROUTES.MY_ORDERS;
+  const trackingUrl = orderId ? `/orders/${orderId}/track` : ROUTES.MY_ORDERS;
 
   // Immediate guard: Skip rendering and polling on non-customer, restricted, or dedicated order pages
   if (isRestricted || !isLoggedIn || !activeOrder || isAlreadyOnTrackingPage) {
@@ -226,7 +226,7 @@ export function LiveOrderTrackerBar() {
   }
 
   // -------------------------------------------------------------
-  // HIGH-CONTRAST 200M PROXIMITY ALERT BANNER
+  // ULTRA-COMPACT LIVE ACTIVITY DOCK (1-Row / 2-Line Pill)
   // -------------------------------------------------------------
   if (isWithin200m) {
     return (
@@ -235,55 +235,53 @@ export function LiveOrderTrackerBar() {
         aria-live="assertive"
         data-testid="live-order-tracker-bar"
         data-proximity-alert="true"
-        className="fixed bottom-5 inset-x-3 max-w-xl mx-auto z-50 rounded-3xl bg-gradient-to-r from-orange-600 via-amber-600 to-red-600 p-1 shadow-2xl shadow-orange-950/30 animate-in fade-in slide-in-from-bottom-5 duration-300"
+        className="fixed bottom-4 inset-x-0 mx-auto w-[calc(100%-1.5rem)] max-w-md z-40 animate-in fade-in slide-in-from-bottom-5 duration-300"
       >
-        <div className="rounded-[22px] bg-stone-950/95 backdrop-blur-xl p-3.5 sm:p-4 text-white flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border border-amber-400/40">
+        <div className="flex items-center justify-between gap-3 rounded-2xl bg-zinc-950/95 px-3.5 py-2.5 text-white shadow-2xl border border-amber-500/40 backdrop-blur-md ring-1 ring-amber-500/20">
+          {/* Left: Compact Animated Icon */}
+          <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/15 border border-orange-500/30 text-lg">
+            🛵
+            <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-amber-400 opacity-75" />
+              <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-amber-500" />
+            </span>
+          </div>
+
+          {/* Center: Concise Live Status */}
           <Link
             href={trackingUrl}
-            className="flex items-start gap-3 min-w-0 flex-1 hover:opacity-95 transition-opacity"
+            className="flex-1 min-w-0 pr-1 hover:opacity-95 transition-opacity"
             aria-label={`Courier Arriving! Rider is within 200m of ${hostelBlock}.`}
           >
-            <div className="relative flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-400 to-orange-500 text-stone-950 shadow-lg shadow-orange-500/30 animate-bounce">
-              <Bike className="h-6 w-6" />
-              <span className="absolute -top-1 -right-1 flex h-4 w-4">
-                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-90" />
-                <span className="relative inline-flex rounded-full h-4 w-4 bg-red-500 ring-2 ring-stone-900 items-center justify-center text-[9px] font-black text-white">
-                  !
-                </span>
+            <div className="flex items-center gap-1.5">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20 animate-pulse">
+                Nearby • {distanceMeters ? `${distanceMeters}m` : "200m"}
+              </span>
+              <span className="text-xs font-bold text-zinc-100 truncate">
+                Courier Arriving! Rider is within 200m
               </span>
             </div>
-
-            <div className="min-w-0 flex-1">
-              <div className="flex items-center gap-2">
-                <span className="inline-flex items-center gap-1 rounded-full bg-amber-400/20 border border-amber-400/50 px-2 py-0.5 text-[10px] font-black uppercase tracking-wider text-amber-300 animate-pulse">
-                  <Sparkles className="h-3 w-3 text-amber-300" />
-                  Within 200m Dropoff
-                </span>
-              </div>
-              <h4 className="font-extrabold text-white text-sm sm:text-base leading-snug mt-1">
-                🛵 Courier Arriving! Rider is within 200m of {hostelBlock}.
-              </h4>
-              <p className="text-xs text-amber-200/90 font-medium mt-0.5">
-                Head downstairs to the lobby now with your 4-digit OTP {displayOtp ? `(${displayOtp})` : ""}.
-              </p>
-            </div>
+            <p className="text-[11px] text-amber-200/90 truncate mt-0.5">
+              Head downstairs to the lobby now with your 4-digit OTP
+            </p>
           </Link>
 
-          <div className="flex items-center justify-between sm:justify-end gap-2 shrink-0 pt-1 sm:pt-0 border-t sm:border-t-0 border-white/10">
+          {/* Right: Inline Action Buttons */}
+          <div className="flex items-center gap-1.5 shrink-0">
             {displayOtp ? (
-              <div className="flex items-center gap-1.5 rounded-xl bg-amber-400 text-stone-950 px-3 py-1.5 font-mono text-xs font-black shadow-md">
-                <KeyRound className="h-3.5 w-3.5 text-stone-950" />
+              <div className="flex items-center gap-1 rounded-xl bg-amber-400 text-stone-950 px-2.5 py-1.5 font-mono text-xs font-black shadow-xs">
+                <KeyRound className="h-3 w-3 text-stone-950" />
                 <span>OTP: {displayOtp}</span>
               </div>
             ) : null}
 
             <Link
               href={trackingUrl}
-              className="flex h-9 items-center gap-1 px-3 rounded-xl bg-white/15 hover:bg-white/25 text-white text-xs font-bold transition-colors"
+              className="shrink-0 flex items-center gap-1 rounded-xl bg-orange-500 hover:bg-orange-600 px-3.5 py-2 text-xs font-bold text-white shadow-md shadow-orange-500/20 active:scale-95 transition-all"
               aria-label="Track live courier on map"
             >
               <span>Track</span>
-              <ChevronRight className="h-4 w-4" />
+              <span className="text-[10px]">→</span>
             </Link>
           </div>
         </div>
@@ -292,74 +290,84 @@ export function LiveOrderTrackerBar() {
   }
 
   // -------------------------------------------------------------
-  // STANDARD ACTIVE ORDER PROGRESSION BAR
+  // STANDARD ACTIVE ORDER PROGRESSION DOCK (1-Row / 2-Line Pill)
   // -------------------------------------------------------------
   return (
     <div
       role="status"
       aria-live="polite"
       data-testid="live-order-tracker-bar"
-      className="fixed bottom-6 inset-x-4 max-w-lg mx-auto z-40 bg-white/95 backdrop-blur-md text-gray-900 rounded-2xl p-3.5 shadow-xl shadow-orange-950/10 border border-orange-200/80 flex items-center justify-between gap-3 animate-in fade-in slide-in-from-bottom-5 duration-300"
+      className="fixed bottom-4 inset-x-0 mx-auto w-[calc(100%-1.5rem)] max-w-md z-40 animate-in fade-in slide-in-from-bottom-5 duration-300"
     >
-      {/* Left side: Vehicle Icon Box + Pulse Indicator + Status + ETA */}
-      <Link
-        href={trackingUrl}
-        className="flex items-center gap-3 min-w-0 flex-1 hover:opacity-90 transition-opacity"
-        aria-label={`Track order status: ${statusText}`}
-      >
-        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-sm shadow-orange-500/20">
-          <Bike className="h-5 w-5" />
-          <span className="absolute -top-1 -right-1 flex h-3 w-3">
-            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
-            <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 ring-2 ring-white" />
+      <div className="flex items-center justify-between gap-3 rounded-2xl bg-zinc-950/95 px-3.5 py-2.5 text-white shadow-2xl border border-zinc-800/90 backdrop-blur-md">
+        {/* Left: Compact Animated Icon */}
+        <div className="relative flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-orange-500/15 border border-orange-500/30 text-lg">
+          🛵
+          <span className="absolute -top-0.5 -right-0.5 flex h-2.5 w-2.5">
+            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-emerald-400 opacity-75" />
+            <span className="relative inline-flex h-2.5 w-2.5 rounded-full bg-emerald-500" />
           </span>
         </div>
 
-        <div className="min-w-0 flex-1">
-          <div className="flex items-center gap-2">
-            <h4 className="font-semibold text-gray-900 text-sm truncate">
-              {statusText}
-            </h4>
-          </div>
-          <div className="text-xs text-gray-500 flex items-center gap-1.5 mt-0.5">
-            <span className="inline-flex items-center gap-1 font-medium text-orange-600">
-              <Clock className="h-3 w-3" />
-              {estimatedTime}
-            </span>
-            <span>•</span>
-            <span className="truncate">{activeOrder.restaurant_name || "CampusBite"}</span>
-          </div>
-        </div>
-      </Link>
-
-      {/* Right side: Interactive "Show OTP" Chip & Tracking Navigation Chevron */}
-      <div className="flex items-center gap-2 shrink-0">
-        {displayOtp ? (
-          <button
-            type="button"
-            onClick={() => setShowOtp((prev) => !prev)}
-            className={`inline-flex items-center gap-1.5 rounded-xl border px-3 py-1.5 text-xs font-semibold transition-all duration-200 cursor-pointer ${
-              showOtp
-                ? "bg-orange-100 border-orange-300 text-orange-800 ring-2 ring-orange-400/20 shadow-xs"
-                : "bg-orange-50 border-orange-200/80 text-orange-700 hover:bg-orange-100"
-            }`}
-            aria-label={showOtp ? `Handover OTP is ${displayOtp}` : "Show Handover OTP"}
-          >
-            <KeyRound className="h-3.5 w-3.5 text-orange-600" />
-            <span>{showOtp ? `OTP: ${displayOtp}` : "Show OTP"}</span>
-          </button>
-        ) : null}
-
+        {/* Center: Concise Live Status */}
         <Link
           href={trackingUrl}
-          className="flex h-8 w-8 items-center justify-center rounded-xl bg-gray-50 text-gray-500 hover:bg-orange-50 hover:text-orange-600 transition-colors"
-          aria-label="View live tracking details"
+          className="flex-1 min-w-0 pr-1 hover:opacity-95 transition-opacity"
+          aria-label={`Track order status: ${statusText}`}
         >
-          <ChevronRight className="h-4 w-4" />
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] font-bold uppercase tracking-wider text-amber-400 bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20">
+              {estimatedTime}
+            </span>
+            <span className="text-xs font-bold text-zinc-100 truncate">
+              {statusText}
+            </span>
+          </div>
+          <p className="text-[11px] text-zinc-400 truncate mt-0.5">
+            <span>{hostelBlock}</span>
+            <span className="mx-1">•</span>
+            <span className="truncate">{activeOrder.restaurant_name || "CampusBite"}</span>
+            {displayOtp ? (
+              <>
+                <span className="mx-1">•</span>
+                <span>Keep OTP ready</span>
+              </>
+            ) : null}
+          </p>
         </Link>
+
+        {/* Right: Inline Action Buttons */}
+        <div className="flex items-center gap-1.5 shrink-0">
+          {displayOtp ? (
+            <button
+              type="button"
+              onClick={() => setShowOtp((prev) => !prev)}
+              className={`shrink-0 flex items-center gap-1 rounded-xl px-2.5 py-1.5 text-xs font-semibold transition-all cursor-pointer ${
+                showOtp
+                  ? "bg-amber-400/20 border border-amber-400/50 text-amber-300 shadow-xs"
+                  : "bg-zinc-800/80 hover:bg-zinc-800 border border-zinc-700/60 text-zinc-300"
+              }`}
+              aria-label={showOtp ? `Handover OTP is ${displayOtp}` : "Show Handover OTP"}
+            >
+              <KeyRound className="h-3 w-3 text-amber-400" />
+              <span className="font-mono">{showOtp ? `OTP: ${displayOtp}` : "Show OTP"}</span>
+            </button>
+          ) : null}
+
+          <Link
+            href={trackingUrl}
+            className="shrink-0 flex items-center gap-1 rounded-xl bg-orange-500 hover:bg-orange-600 px-3.5 py-2 text-xs font-bold text-white shadow-md shadow-orange-500/20 active:scale-95 transition-all"
+            aria-label="Track live courier on map"
+          >
+            <span>Track</span>
+            <span className="text-[10px]">→</span>
+          </Link>
+        </div>
       </div>
     </div>
   );
 }
 
+export const FloatingOrderBanner = LiveOrderTrackerBar;
+export const ActiveOrderFloat = LiveOrderTrackerBar;
 export default LiveOrderTrackerBar;
