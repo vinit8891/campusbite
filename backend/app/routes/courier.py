@@ -191,3 +191,96 @@ async def get_courier_reconciliation(
         "is_locked": bool(partner.get("is_locked", False)),
     }
     return normalize_courier_financials(data)
+
+
+@router.get("/milestones/today")
+@router.get("/milestones")
+async def get_courier_today_milestones(
+    current_user: Annotated[
+        dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))
+    ],
+    courier_id: Annotated[str | None, Query()] = None,
+    phone: Annotated[str | None, Query()] = None,
+) -> dict[str, Any]:
+    """
+    Computes drops completed ONLY within today's IST calendar day.
+    Resets at 11:59:59 PM IST daily.
+    """
+    from datetime import datetime, timezone, timedelta
+    try:
+        from zoneinfo import ZoneInfo
+        tz_ist = ZoneInfo("Asia/Kolkata")
+        tz_utc = ZoneInfo("UTC")
+    except Exception:
+        tz_ist = timezone(timedelta(hours=5, minutes=30))
+        tz_utc = timezone.utc
+
+    now_ist = datetime.now(tz_ist)
+    start_of_day_ist = now_ist.replace(hour=0, minute=0, second=0, microsecond=0)
+    start_of_day_utc = start_of_day_ist.astimezone(tz_utc)
+
+    from app.db.database import database
+
+    c_id = courier_id or str(current_user.get("_id") or current_user.get("id") or "")
+    c_phone = phone or current_user.get("phone") or ""
+
+    order_query = {
+        "status": {"$in": ["delivered", "completed", "Delivered", "Completed"]},
+        "$or": [
+            {"delivered_at": {"$gte": start_of_day_utc}},
+            {"delivered_at": {"$gte": start_of_day_ist.strftime("%Y-%m-%d")}},
+            {"completed_at": {"$gte": start_of_day_utc}},
+            {"created_at": {"$gte": start_of_day_utc}},
+        ]
+    }
+
+    courier_filters = []
+    if c_id:
+        courier_filters.extend([
+            {"courier_id": c_id},
+            {"delivery_partner_id": c_id},
+            {"delivery_partner._id": c_id},
+            {"delivery_partner.id": c_id},
+        ])
+    if c_phone:
+        courier_filters.extend([
+            {"courier_phone": c_phone},
+            {"delivery_partner_phone": c_phone},
+            {"delivery_partner.phone": c_phone},
+        ])
+
+    if courier_filters:
+        order_query["$and"] = [{"$or": courier_filters}]
+
+    completed_today = 0
+    if database is not None and "orders" in database:
+        completed_today = await database["orders"].count_documents(order_query)
+
+    bonus_earned = 0.0
+    unlocked_tier = None
+    if completed_today >= 15:
+        bonus_earned = 100.0
+        unlocked_tier = "Tier 3"
+    elif completed_today >= 10:
+        bonus_earned = 60.0
+        unlocked_tier = "Tier 2"
+    elif completed_today >= 5:
+        bonus_earned = 30.0
+        unlocked_tier = "Tier 1"
+
+    end_of_day_ist = now_ist.replace(hour=23, minute=59, second=59, microsecond=999999)
+    diff_seconds = max(0, int((end_of_day_ist - now_ist).total_seconds()))
+    hours_left = diff_seconds // 3600
+    mins_left = (diff_seconds % 3600) // 60
+
+    return {
+        "success": True,
+        "completed_today": completed_today,
+        "drops_completed": completed_today,
+        "bonus_earned": bonus_earned,
+        "unlocked_tier": unlocked_tier,
+        "time_left": f"{hours_left}h {mins_left}m left",
+        "seconds_remaining": diff_seconds,
+        "start_of_day_utc": start_of_day_utc.isoformat(),
+        "now_ist": now_ist.isoformat(),
+    }

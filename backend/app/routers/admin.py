@@ -966,7 +966,7 @@ async def get_courier_settlements_breakdown(
                 else max(0.0, cod_collected - wages_earned)
             )
 
-        is_locked = net_cash_due >= 500.0 or bool(partner.get("is_locked", False))
+        is_locked = bool(partner.get("is_locked")) if partner.get("is_locked") is not None else (net_cash_due >= 500.0)
         if is_locked:
             status = "LOCKED"
             locked_count += 1
@@ -1098,6 +1098,63 @@ async def acknowledge_courier_settlement_remittance(
         "net_cash_due": round(new_due, 2),
         "is_locked": is_locked,
     }
+
+
+@router.patch("/couriers/{courier_id}/toggle-lockout")
+@router.patch("/admin/couriers/{courier_id}/toggle-lockout")
+@router.post("/couriers/{courier_id}/toggle-lockout")
+async def toggle_courier_lockout(
+    courier_id: str,
+    current_user: Annotated[dict, Depends(require_roles(ADMIN))] = None,
+):
+    """
+    Admin toggle to manually block or unblock courier runner lockout state.
+    """
+    from fastapi import HTTPException
+
+    query = _id_filter(courier_id)
+    col_name = "couriers"
+    courier = None
+
+    if database is not None and "couriers" in database:
+        courier = await database["couriers"].find_one(query)
+
+    if not courier and database is not None:
+        courier = await database["delivery_partners"].find_one(query)
+        col_name = "delivery_partners"
+
+    if not courier and database is not None:
+        courier = await database["delivery_partners"].find_one({
+            "$or": [{"phone": courier_id}, {"id": courier_id}, {"email": courier_id}]
+        })
+        col_name = "delivery_partners"
+
+    if not courier:
+        raise HTTPException(status_code=404, detail="Courier not found")
+
+    new_status = not bool(courier.get("is_locked", False))
+    target_id = courier["_id"]
+    update_data = {
+        "is_locked": new_status,
+        "lockout_reason": "Admin manual override" if new_status else None,
+        "status": "LOCKED" if new_status else "ACTIVE",
+    }
+
+    await database[col_name].update_one(
+        {"_id": target_id},
+        {"$set": update_data},
+    )
+
+    admin_email = (current_user.get("email") or "admin@campusbite.in") if current_user else "admin@campusbite.in"
+    await log_admin_action(
+        admin_email=admin_email,
+        action="courier.toggle_lockout",
+        resource=col_name,
+        resource_id=str(target_id),
+        metadata={"is_locked": new_status},
+    )
+
+    return {"success": True, "is_locked": new_status}
 
 
 @router.get("/settlements/daily-summary")

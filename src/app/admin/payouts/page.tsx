@@ -29,6 +29,7 @@ import {
   fetchCourierSettlements,
   markCanteenSettlementPaidAdmin,
   acknowledgeCourierRemittanceAdmin,
+  toggleCourierLockAdmin,
   type CanteenSettlementItem,
   type CourierSettlementItem,
   type SettlementsCanteensResponse,
@@ -40,6 +41,7 @@ export default function AdminPayoutsPage() {
     return new Date().toISOString().split("T")[0];
   });
   const [activeTab, setActiveTab] = useState<"canteens" | "couriers">("canteens");
+  const [canteenSubTab, setCanteenSubTab] = useState<"pending" | "paid">("pending");
   const [loading, setLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
@@ -199,7 +201,24 @@ export default function AdminPayoutsPage() {
         restaurant_name: selectedCanteenForPay.restaurant_name,
         restaurant_email: selectedCanteenForPay.restaurant_email,
       });
-      toast.success(`Marked ₹${formatINR(selectedCanteenForPay?.net_payout)} as Paid for ${selectedCanteenForPay.restaurant_name}`);
+      toast.success("Moved to Paid History");
+      setCanteenData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          canteens: prev.canteens.map((c) =>
+            c.id === selectedCanteenForPay.id || c.restaurant_email === selectedCanteenForPay.restaurant_email
+              ? {
+                  ...c,
+                  status: "Paid",
+                  transaction_ref: canteenTxnRef,
+                  is_settled: true,
+                  settled_at: new Date().toISOString(),
+                }
+              : c
+          ),
+        };
+      });
       setSelectedCanteenForPay(null);
       await loadData(selectedDate);
     } catch (err) {
@@ -207,6 +226,68 @@ export default function AdminPayoutsPage() {
       toast.error("Failed to mark settlement as paid");
     } finally {
       setIsSubmittingPay(false);
+    }
+  };
+
+  // Canteen Action: Export Payout Receipt
+  const handleExportPayoutReceipt = (item?: CanteenSettlementItem) => {
+    const targetItems = item ? [item] : paidCanteensList;
+    if (targetItems.length === 0) {
+      toast.error("No paid settlements to export");
+      return;
+    }
+    const headers = [
+      "Canteen Name",
+      "Email",
+      "Settled Date",
+      "Completed Orders",
+      "Gross Sales (INR)",
+      "Platform Commission 18% (INR)",
+      "Net Disbursed (INR)",
+      "Settlement UTR Reference",
+      "Settlement Timestamp",
+    ];
+    const rows = targetItems.map((c) => [
+      `"${c.restaurant_name}"`,
+      `"${c.restaurant_email}"`,
+      `"${selectedDate}"`,
+      c.orders_count,
+      (c.gross_food_sales ?? 0).toFixed(2),
+      (c.platform_commission ?? 0).toFixed(2),
+      (c.net_payout ?? 0).toFixed(2),
+      `"${c.transaction_ref || c.upi_id || 'UPI/CAMPUS/PAID'}"`,
+      `"${(c as any).settled_at || new Date().toISOString()}"`,
+    ]);
+    const csvContent = [headers.join(","), ...rows.map((r) => r.join(","))].join("\n");
+    const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `payout_receipt_${item?.restaurant_name?.replace(/\s+/g, '_') || 'batch'}_${selectedDate}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    toast.success("Payout receipt exported successfully");
+  };
+
+  // Courier Action: Toggle runner lockout (Block / Unblock)
+  const handleToggleBlock = async (riderId: string) => {
+    try {
+      const res = await toggleCourierLockAdmin(riderId);
+      toast.success(res.is_locked ? "Runner blocked successfully" : "Runner unblocked successfully");
+      setCourierData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          couriers: prev.couriers.map((r) =>
+            r.id === riderId ? { ...r, is_locked: res.is_locked, status: res.is_locked ? "LOCKED" : "ACTIVE" } : r
+          ),
+        };
+      });
+      await loadData(selectedDate);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to toggle runner block state");
     }
   };
 
@@ -277,6 +358,14 @@ export default function AdminPayoutsPage() {
       c.upi_id.toLowerCase().includes(q)
     );
   });
+
+  const pendingCanteensList = filteredCanteens.filter(
+    (c) => c.status?.toLowerCase() === "pending" && (c.net_payout ?? 0) > 0
+  );
+
+  const paidCanteensList = filteredCanteens.filter(
+    (c) => c.status?.toLowerCase() === "paid" || c.status?.toLowerCase() === "settled" || Boolean((c as any).is_settled)
+  );
 
   const filteredCouriers = (courierData?.couriers || []).filter((r) => {
     const q = courierSearch.toLowerCase().trim();
@@ -484,71 +573,114 @@ export default function AdminPayoutsPage() {
             </div>
           </div>
 
-          {/* Table */}
-          <div className="overflow-x-auto rounded-xl border border-zinc-200">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-zinc-50/80 text-[11px] font-bold uppercase tracking-wider text-zinc-500 border-b border-zinc-200">
-                <tr>
-                  <th className="px-4 py-3">Canteen Details</th>
-                  <th className="px-4 py-3">Bank / UPI ID</th>
-                  <th className="px-4 py-3 text-center">Completed Orders</th>
-                  <th className="px-4 py-3 text-right">Gross Sales</th>
-                  <th className="px-4 py-3 text-right">18% Cut</th>
-                  <th className="px-4 py-3 text-right">Net Payable</th>
-                  <th className="px-4 py-3 text-center">Status</th>
-                  <th className="px-4 py-3 text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-zinc-200">
-                {filteredCanteens.length === 0 ? (
+          {/* Sub-view Segmented Toggle */}
+          <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-200 pb-3">
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setCanteenSubTab("pending")}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                  canteenSubTab === "pending"
+                    ? "bg-amber-500 text-white shadow-xs"
+                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                }`}
+              >
+                <span>⚡ Pending Payouts (Action Required)</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  canteenSubTab === "pending" ? "bg-amber-600 text-white" : "bg-zinc-200 text-zinc-700"
+                }`}>
+                  {pendingCanteensList.length}
+                </span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setCanteenSubTab("paid")}
+                className={`inline-flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-bold rounded-xl transition-all cursor-pointer ${
+                  canteenSubTab === "paid"
+                    ? "bg-zinc-900 text-white shadow-xs"
+                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
+                }`}
+              >
+                <span>📜 Paid History & UTR Ledger</span>
+                <span className={`px-1.5 py-0.2 rounded-full text-[10px] ${
+                  canteenSubTab === "paid" ? "bg-zinc-700 text-white" : "bg-zinc-200 text-zinc-700"
+                }`}>
+                  {paidCanteensList.length}
+                </span>
+              </button>
+            </div>
+
+            {canteenSubTab === "paid" && (
+              <button
+                type="button"
+                onClick={() => handleExportPayoutReceipt()}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 bg-white px-3 py-1.5 text-xs font-bold text-zinc-700 shadow-xs hover:bg-zinc-50 hover:border-zinc-300 transition-colors cursor-pointer"
+              >
+                <Download className="h-3.5 w-3.5 text-zinc-500" />
+                <span>Export Payout Receipt</span>
+              </button>
+            )}
+          </div>
+
+          {/* Sub-view Table */}
+          {canteenSubTab === "pending" ? (
+            /* Subview A: Pending Payouts */
+            <div className="overflow-x-auto rounded-xl border border-zinc-200">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-zinc-50/80 text-[11px] font-bold uppercase tracking-wider text-zinc-500 border-b border-zinc-200">
                   <tr>
-                    <td colSpan={8} className="px-4 py-8 text-center text-xs text-zinc-500">
-                      No canteen settlements found for {selectedDate}.
-                    </td>
+                    <th className="px-4 py-3">Canteen Details</th>
+                    <th className="px-4 py-3">Bank / UPI ID</th>
+                    <th className="px-4 py-3 text-center">Completed Orders</th>
+                    <th className="px-4 py-3 text-right">Gross Sales</th>
+                    <th className="px-4 py-3 text-right">18% Cut</th>
+                    <th className="px-4 py-3 text-right">Net Payable</th>
+                    <th className="px-4 py-3 text-center">Status</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
                   </tr>
-                ) : (
-                  filteredCanteens.map((c) => (
-                    <tr key={c.id || c.restaurant_email} className="hover:bg-zinc-50/60 transition-colors">
-                      <td className="px-4 py-3">
-                        <div className="font-bold text-zinc-900">{c.restaurant_name}</div>
-                        <div className="text-[11px] text-zinc-500">{c.restaurant_email}</div>
+                </thead>
+                <tbody className="divide-y divide-zinc-200">
+                  {pendingCanteensList.length === 0 ? (
+                    <tr>
+                      <td colSpan={8} className="px-4 py-8 text-center text-xs text-zinc-500">
+                        No pending payouts required for {selectedDate}. All settled! 🎉
                       </td>
-                      <td className="px-4 py-3 font-mono text-[11px] text-zinc-700">
-                        <span className="rounded-md bg-zinc-100 px-2 py-0.5 border border-zinc-200/80">
-                          {c.upi_id || "N/A"}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-0.5 font-bold text-blue-700 border border-blue-200">
-                          {c.orders_count}
-                        </span>
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono font-semibold text-zinc-900">
-                        ₹{formatINR(c?.gross_food_sales)}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono font-semibold text-red-600">
-                        -₹{formatINR(c?.platform_commission)}
-                      </td>
-                      <td className="px-4 py-3 text-right font-mono font-bold text-emerald-700 text-sm">
-                        ₹{formatINR(c?.net_payout)}
-                      </td>
-                      <td className="px-4 py-3 text-center">
-                        {c.status === "Paid" || c.status === "Settled" ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
-                            <CheckCircle2 className="h-3 w-3" />
-                            Paid
+                    </tr>
+                  ) : (
+                    pendingCanteensList.map((c) => (
+                      <tr key={c.id || c.restaurant_email} className="hover:bg-zinc-50/60 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="font-bold text-zinc-900">{c.restaurant_name}</div>
+                          <div className="text-[11px] text-zinc-500">{c.restaurant_email}</div>
+                        </td>
+                        <td className="px-4 py-3 font-mono text-[11px] text-zinc-700">
+                          <span className="rounded-md bg-zinc-100 px-2 py-0.5 border border-zinc-200/80">
+                            {c.upi_id || "N/A"}
                           </span>
-                        ) : (
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-0.5 font-bold text-blue-700 border border-blue-200">
+                            {c.orders_count}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono font-semibold text-zinc-900">
+                          ₹{formatINR(c?.gross_food_sales)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono font-semibold text-red-600">
+                          -₹{formatINR(c?.platform_commission)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono font-bold text-emerald-700 text-sm">
+                          ₹{formatINR(c?.net_payout)}
+                        </td>
+                        <td className="px-4 py-3 text-center">
                           <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2.5 py-0.5 text-[11px] font-bold text-amber-700 border border-amber-200">
                             <Clock className="h-3 w-3" />
                             Pending
                           </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-right">
-                        <div className="flex items-center justify-end gap-1.5">
-                          {/* Mark as Paid Action */}
-                          {c.status === "Pending" ? (
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            {/* Mark as Paid Action */}
                             <button
                               type="button"
                               onClick={() => handleOpenPayModal(c)}
@@ -557,29 +689,108 @@ export default function AdminPayoutsPage() {
                               <CheckCircle2 className="h-3 w-3" />
                               <span>Mark Paid</span>
                             </button>
-                          ) : (
-                            <span className="text-[11px] font-mono text-zinc-400 truncate max-w-[90px]" title={c.transaction_ref || ""}>
-                              {c.transaction_ref ? c.transaction_ref.slice(-8) : "Settled"}
-                            </span>
-                          )}
 
-                          {/* WhatsApp Notification Button */}
-                          <button
-                            type="button"
-                            onClick={() => handleSendWhatsApp(c)}
-                            title="Send WhatsApp payout slip"
-                            className="inline-flex items-center justify-center rounded-lg border border-zinc-200 bg-white p-1 text-zinc-600 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors cursor-pointer"
-                          >
-                            <MessageCircle className="h-3.5 w-3.5" />
-                          </button>
-                        </div>
+                            {/* WhatsApp Notification Button */}
+                            <button
+                              type="button"
+                              onClick={() => handleSendWhatsApp(c)}
+                              title="Send WhatsApp payout slip"
+                              className="inline-flex items-center justify-center rounded-lg border border-zinc-200 bg-white p-1 text-zinc-600 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors cursor-pointer"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            /* Subview B: Paid History & UTR Ledger */
+            <div className="overflow-x-auto rounded-xl border border-zinc-200">
+              <table className="w-full text-left text-xs">
+                <thead className="bg-zinc-50/80 text-[11px] font-bold uppercase tracking-wider text-zinc-500 border-b border-zinc-200">
+                  <tr>
+                    <th className="px-4 py-3">Canteen Name</th>
+                    <th className="px-4 py-3">Settled Date</th>
+                    <th className="px-4 py-3 text-center">Completed Orders</th>
+                    <th className="px-4 py-3 text-right">Gross Sales</th>
+                    <th className="px-4 py-3 text-right">18% Platform Commission</th>
+                    <th className="px-4 py-3 text-right">Net Disbursed</th>
+                    <th className="px-4 py-3">Settlement UTR Reference</th>
+                    <th className="px-4 py-3">Settlement Timestamp</th>
+                    <th className="px-4 py-3 text-right">Actions</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-zinc-200">
+                  {paidCanteensList.length === 0 ? (
+                    <tr>
+                      <td colSpan={9} className="px-4 py-8 text-center text-xs text-zinc-500">
+                        No disbursed settlements in paid history for {selectedDate}.
                       </td>
                     </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
+                  ) : (
+                    paidCanteensList.map((c) => (
+                      <tr key={c.id || c.restaurant_email} className="hover:bg-zinc-50/60 transition-colors">
+                        <td className="px-4 py-3">
+                          <div className="font-bold text-zinc-900">{c.restaurant_name}</div>
+                          <div className="text-[11px] text-zinc-500">{c.restaurant_email}</div>
+                        </td>
+                        <td className="px-4 py-3 font-medium text-zinc-700">
+                          {selectedDate}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-0.5 font-bold text-blue-700 border border-blue-200">
+                            {c.orders_count}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono font-semibold text-zinc-900">
+                          ₹{formatINR(c?.gross_food_sales)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono font-semibold text-red-600">
+                          -₹{formatINR(c?.platform_commission)}
+                        </td>
+                        <td className="px-4 py-3 text-right font-mono font-bold text-emerald-700 text-sm">
+                          ₹{formatINR(c?.net_payout)}
+                        </td>
+                        <td className="px-4 py-3 font-mono text-[11px] text-zinc-800">
+                          <span className="rounded-md bg-emerald-50 px-2 py-0.5 text-emerald-800 border border-emerald-200 font-semibold">
+                            {c.transaction_ref || c.upi_id || "UPI/CAMPUS/PAID"}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3 text-[11px] text-zinc-500">
+                          {(c as any).settled_at ? new Date((c as any).settled_at).toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit" }) : "Today 9:00 PM"}
+                        </td>
+                        <td className="px-4 py-3 text-right">
+                          <div className="flex items-center justify-end gap-1.5">
+                            <button
+                              type="button"
+                              onClick={() => handleExportPayoutReceipt(c)}
+                              title="Export Payout Receipt"
+                              className="inline-flex items-center gap-1 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-[11px] font-bold text-zinc-700 hover:bg-zinc-50 hover:border-zinc-300 transition-colors cursor-pointer"
+                            >
+                              <Download className="h-3 w-3 text-zinc-500" />
+                              <span>Receipt</span>
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => handleSendWhatsApp(c)}
+                              title="Send WhatsApp payout slip"
+                              className="inline-flex items-center justify-center rounded-lg border border-zinc-200 bg-white p-1 text-zinc-600 hover:bg-emerald-50 hover:text-emerald-700 hover:border-emerald-200 transition-colors cursor-pointer"
+                            >
+                              <MessageCircle className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       ) : (
         /* TAB 2: COURIER CASH-IN-HAND (CIH) */
@@ -694,14 +905,27 @@ export default function AdminPayoutsPage() {
                         )}
                       </td>
                       <td className="px-4 py-3 text-right">
-                        <button
-                          type="button"
-                          onClick={() => handleOpenRemitModal(r)}
-                          className="inline-flex items-center gap-1 rounded-lg bg-zinc-900 px-3 py-1 text-[11px] font-bold text-white shadow-xs hover:bg-zinc-800 active:scale-95 transition-all cursor-pointer"
-                        >
-                          <Wallet className="h-3 w-3 text-amber-400" />
-                          <span>Acknowledge Remittance</span>
-                        </button>
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleToggleBlock(r.id)}
+                            className={`px-3 py-1 text-xs font-bold rounded-lg border transition-colors cursor-pointer ${
+                              r.is_locked
+                                ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+                            }`}
+                          >
+                            {r.is_locked ? "Unblock Runner" : "Block Runner"}
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => handleOpenRemitModal(r)}
+                            className="inline-flex items-center gap-1 rounded-lg bg-zinc-900 px-3 py-1 text-[11px] font-bold text-white shadow-xs hover:bg-zinc-800 active:scale-95 transition-all cursor-pointer"
+                          >
+                            <Wallet className="h-3 w-3 text-amber-400" />
+                            <span>Acknowledge Remittance</span>
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))

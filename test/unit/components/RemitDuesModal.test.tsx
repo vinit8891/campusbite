@@ -92,4 +92,40 @@ describe("RemitDuesModal Component", () => {
     expect(input.value).toBe("550.50");
     expect(screen.getByText("Pending: ₹550.50")).toBeInTheDocument();
   });
+
+  it("renders daily remittance cutoff reminder and financial breakdown with milestone bonus", () => {
+    render(
+      <RemitDuesModal
+        isOpen={true}
+        onClose={vi.fn()}
+        courier={{
+          cash_collected: 400.0,
+          wages_earned: 60.0,
+          bonus_earned: 20.0,
+          unlocked_tier: "Tier 1",
+          net_due_amount: 320.0,
+        }}
+        netCashDue={320.0}
+      />
+    );
+
+    // Reminder card
+    expect(
+      screen.getByText(/Daily COD Cash Remittance Cutoff: 11:00 PM IST tonight/i)
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText(/settle before cutoff to avoid account lock/i)
+    ).toBeInTheDocument();
+
+    // Financial breakdown box
+    expect(screen.getByText(/Total Physical COD Collected:/i)).toBeInTheDocument();
+    expect(screen.getByText("₹400.00")).toBeInTheDocument();
+    expect(screen.getByText(/Base Delivery Wages Earned:/i)).toBeInTheDocument();
+    expect(screen.getByText("-₹60.00")).toBeInTheDocument();
+    expect(screen.getByText(/Daily Milestone Bonus \(Tier 1\):/i)).toBeInTheDocument();
+    expect(screen.getByText("-₹20.00")).toBeInTheDocument();
+    expect(screen.getByText(/Net Cash Due to Remit:/i)).toBeInTheDocument();
+    expect(screen.getByText("₹320.00")).toBeInTheDocument();
+  });
 });
+

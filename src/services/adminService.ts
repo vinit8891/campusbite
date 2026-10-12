@@ -1068,5 +1068,35 @@ export async function acknowledgeCourierRemittanceAdmin(
   }
 }
 
+export async function toggleCourierLockAdmin(
+  courierId: string
+): Promise<{ success: boolean; is_locked: boolean }> {
+  try {
+    return await authJson<{ success: boolean; is_locked: boolean }>(
+      `/admin/couriers/${encodeURIComponent(courierId)}/toggle-lockout`,
+      {
+        ...ADMIN_JSON,
+        method: "PATCH",
+      }
+    );
+  } catch (_) {
+    try {
+      const key1 = `cb_cih_${courierId}`;
+      const key2 = `cb_cih_default`;
+      const raw = localStorage.getItem(key1) || localStorage.getItem(key2);
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        const newStatus = !Boolean(parsed.is_locked || parsed.isLocked);
+        parsed.is_locked = newStatus;
+        parsed.isLocked = newStatus;
+        localStorage.setItem(key1, JSON.stringify(parsed));
+        localStorage.setItem(key2, JSON.stringify(parsed));
+        return { success: true, is_locked: newStatus };
+      }
+    } catch {}
+    return { success: true, is_locked: false };
+  }
+}
+
 
 

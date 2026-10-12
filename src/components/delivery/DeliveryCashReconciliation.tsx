@@ -17,7 +17,9 @@ import {
   X,
   IndianRupee,
   Package,
+  Clock,
 } from "lucide-react";
+import { formatINR } from "@/lib/formatters";
 import { getDeliveryPartnerSession } from "@/lib/authTokens";
 import {
   getRiderCashReconciliation,
@@ -64,6 +66,31 @@ export function DeliveryCashReconciliation({
   const [remitAmount, setRemitAmount] = useState<string>("");
   const [copiedUpi, setCopiedUpi] = useState(false);
   const [isSubmittingRemit, setIsSubmittingRemit] = useState(false);
+  const [countdownText, setCountdownText] = useState("");
+
+  useEffect(() => {
+    const updateCountdown = () => {
+      const now = new Date();
+      const utcTime = now.getTime() + now.getTimezoneOffset() * 60000;
+      const istNow = new Date(utcTime + 5.5 * 3600000);
+
+      const istCutoff = new Date(istNow);
+      istCutoff.setHours(23, 0, 0, 0);
+
+      const diffMs = istCutoff.getTime() - istNow.getTime();
+      if (diffMs <= 0) {
+        setCountdownText("Due in 0 hours 0 mins — settle before cutoff to avoid account lock");
+      } else {
+        const hours = Math.floor(diffMs / (1000 * 60 * 60));
+        const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        setCountdownText(`Due in ${hours} hours ${mins} mins — settle before cutoff to avoid account lock`);
+      }
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   useEffect(() => {
     setIsMounted(true);
@@ -190,6 +217,13 @@ export function DeliveryCashReconciliation({
   }
 
   const isDuesPending = cih.net_cash_due > 0;
+  const courier = {
+    cash_collected: cih.cash_in_hand,
+    wages_earned: cih.total_payout_earned,
+    bonus_earned: (cih as any).bonus_earned ?? 0,
+    unlocked_tier: (cih as any).unlocked_tier ?? "Milestone Tier",
+    net_due_amount: cih.net_cash_due,
+  };
   const currentRemitNum = parseFloat(remitAmount || "0");
   const upiQrAmount = isNaN(currentRemitNum) ? "0.00" : currentRemitNum.toFixed(2);
   const upiQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
@@ -363,6 +397,46 @@ export function DeliveryCashReconciliation({
         </div>
       </div>
 
+      {/* ⏰ Due Settlement Reminder & Financial Breakdown Box */}
+      {isDuesPending && (
+        <div className="border-t border-stone-200/80 bg-stone-50/50 p-4 sm:p-6">
+          <div className="rounded-2xl bg-amber-50/90 border border-amber-200 p-3.5 text-amber-900 shadow-xs">
+            <div className="flex items-start gap-2.5">
+              <Clock className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <h4 className="text-xs font-bold text-amber-900">
+                  Daily COD Cash Remittance Cutoff: 11:00 PM IST tonight
+                </h4>
+                <p className="text-[11px] font-medium text-amber-700 mt-0.5">
+                  {countdownText}
+                </p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-zinc-50 rounded-xl p-3 border border-zinc-200 text-xs space-y-1.5 my-3">
+            <div className="flex justify-between text-zinc-600">
+              <span>Total Physical COD Collected:</span>
+              <span className="font-semibold text-zinc-800">₹{formatINR(courier.cash_collected)}</span>
+            </div>
+            <div className="flex justify-between text-emerald-600">
+              <span>Base Delivery Wages Earned:</span>
+              <span className="font-semibold">-₹{formatINR(courier.wages_earned)}</span>
+            </div>
+            {courier.bonus_earned > 0 && (
+              <div className="flex justify-between text-emerald-600 font-medium">
+                <span>Daily Milestone Bonus ({courier.unlocked_tier}):</span>
+                <span className="font-semibold">-₹{formatINR(courier.bonus_earned)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-sm font-bold pt-1.5 border-t border-zinc-200 text-zinc-900">
+              <span>Net Cash Due to Remit:</span>
+              <span className="text-orange-600">₹{formatINR(courier.net_due_amount)}</span>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* 💳 INTERACTIVE REMIT DUES VIA UPI MODAL */}
       {showRemitModal && (
         <div
@@ -443,6 +517,47 @@ export function DeliveryCashReconciliation({
                 )}
               </button>
             </div>
+
+            {/* Due Settlement Reminder Card & Countdown */}
+            {isDuesPending && (
+              <div className="mt-3.5 rounded-2xl bg-amber-50/90 border border-amber-200 p-3 text-amber-900 shadow-xs">
+                <div className="flex items-start gap-2.5">
+                  <Clock className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                  <div className="min-w-0 flex-1">
+                    <h4 className="text-xs font-bold text-amber-900">
+                      Daily COD Cash Remittance Cutoff: 11:00 PM IST tonight
+                    </h4>
+                    <p className="text-[11px] font-medium text-amber-700 mt-0.5">
+                      {countdownText}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Financial Breakdown Box with Bonus Deduction */}
+            {isDuesPending && (
+              <div className="bg-zinc-50 rounded-xl p-3 border border-zinc-200 text-xs space-y-1.5 my-3">
+                <div className="flex justify-between text-zinc-600">
+                  <span>Total Physical COD Collected:</span>
+                  <span className="font-semibold text-zinc-800">₹{formatINR(courier.cash_collected)}</span>
+                </div>
+                <div className="flex justify-between text-emerald-600">
+                  <span>Base Delivery Wages Earned:</span>
+                  <span className="font-semibold">-₹{formatINR(courier.wages_earned)}</span>
+                </div>
+                {courier.bonus_earned > 0 && (
+                  <div className="flex justify-between text-emerald-600 font-medium">
+                    <span>Daily Milestone Bonus ({courier.unlocked_tier}):</span>
+                    <span className="font-semibold">-₹{formatINR(courier.bonus_earned)}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm font-bold pt-1.5 border-t border-zinc-200 text-zinc-900">
+                  <span>Net Cash Due to Remit:</span>
+                  <span className="text-orange-600">₹{formatINR(courier.net_due_amount)}</span>
+                </div>
+              </div>
+            )}
 
             {/* Remittance Amount Input */}
             <div className="mt-4 space-y-1.5">

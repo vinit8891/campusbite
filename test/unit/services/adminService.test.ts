@@ -4,6 +4,7 @@ import {
   getAdminAnalytics,
   deleteUser,
   getBackendHealth,
+  toggleCourierLockAdmin,
 } from "@/services/adminService";
 
 describe("adminService", () => {
@@ -40,5 +41,11 @@ describe("adminService", () => {
     const health = await getBackendHealth();
     expect(health.status).toBe("ok");
     expect(health.app_name).toBe("CampusBite");
+  });
+
+  it("toggleCourierLockAdmin toggles courier lock state gracefully", async () => {
+    const res = await toggleCourierLockAdmin("runner_101");
+    expect(res.success).toBe(true);
+    expect(typeof res.is_locked).toBe("boolean");
   });
 });

@@ -11,35 +11,74 @@ import {
 
 export interface RiderStreakMilestoneCardProps {
   completedCount?: number;
+  onReset?: () => void;
 }
 
 export function RiderStreakMilestoneCard({
-  completedCount = 0,
+  completedCount: initialCount = 0,
+  onReset,
 }: RiderStreakMilestoneCardProps) {
   const [isMounted, setIsMounted] = React.useState(false);
   const [timeLeft, setTimeLeft] = React.useState("");
+  const [effectiveCount, setEffectiveCount] = React.useState(initialCount);
 
   React.useEffect(() => {
     setIsMounted(true);
   }, []);
 
   React.useEffect(() => {
+    setEffectiveCount(initialCount);
+  }, [initialCount]);
+
+  React.useEffect(() => {
     const calculateTimeRemaining = () => {
+      // Precise Asia/Kolkata (IST) day calculation
       const now = new Date();
-      const endOfDay = new Date();
-      endOfDay.setHours(23, 59, 59, 999);
-      const diffMs = endOfDay.getTime() - now.getTime();
-      if (diffMs <= 0) return "Resetting...";
+      const utcTime = now.getTime() + now.getTimezoneOffset() * 60000;
+      const istNow = new Date(utcTime + 5.5 * 3600000);
+
+      const istEndOfDay = new Date(istNow);
+      istEndOfDay.setHours(23, 59, 59, 999);
+
+      const diffMs = istEndOfDay.getTime() - istNow.getTime();
+      if (diffMs <= 1000) {
+        setEffectiveCount(0);
+        if (onReset) onReset();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("milestone_daily_reset"));
+        }
+        return "0h 0m left";
+      }
 
       const hours = Math.floor(diffMs / (1000 * 60 * 60));
       const minutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+      if (hours === 0 && minutes === 0) {
+        setEffectiveCount(0);
+        if (onReset) onReset();
+        if (typeof window !== "undefined") {
+          window.dispatchEvent(new Event("milestone_daily_reset"));
+        }
+        return "0h 0m left";
+      }
+
       return `${hours}h ${minutes}m left`;
     };
 
-    setTimeLeft(calculateTimeRemaining());
-    const timer = setInterval(() => setTimeLeft(calculateTimeRemaining()), 60000);
+    const res = calculateTimeRemaining();
+    setTimeLeft(res);
+    const timer = setInterval(() => {
+      const remaining = calculateTimeRemaining();
+      setTimeLeft(remaining);
+      if (remaining === "0h 0m left") {
+        setEffectiveCount(0);
+        if (onReset) onReset();
+      }
+    }, 10000);
     return () => clearInterval(timer);
-  }, []);
+  }, [onReset]);
+
+  // Use effectiveCount (resets to 0 at 0h 0m left)
+  const completedCount = effectiveCount;
 
   // Calculate current bonus unlocked
   let currentBonusEarned = 0;

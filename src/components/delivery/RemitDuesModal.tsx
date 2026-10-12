@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { QrCode, Copy, Check, ShieldCheck, X } from "lucide-react";
+import { QrCode, Copy, Check, ShieldCheck, X, Clock } from "lucide-react";
+import { formatINR } from "@/lib/formatters";
 import {
   remitRiderDues,
   getRiderCashReconciliation,
@@ -34,7 +35,7 @@ export interface RemitDuesModalProps {
 export function RemitDuesModal({
   isOpen,
   onClose,
-  courier,
+  courier: rawCourier,
   duesAmount,
   netCashDue,
   phone,
@@ -42,29 +43,81 @@ export function RemitDuesModal({
 }: RemitDuesModalProps) {
   // Exhaustively resolve the pending cash balance across all possible schema fields:
   const calculatedCodDiff =
-    courier && (courier.collected_cod !== undefined || courier.wages_earned !== undefined)
-      ? Number(courier?.collected_cod || 0) - Number(courier?.wages_earned || 0)
+    rawCourier &&
+    (rawCourier.collected_cod !== undefined ||
+      rawCourier.cash_collected !== undefined ||
+      rawCourier.total_cod_collected !== undefined)
+      ? Number(rawCourier?.cash_collected ?? rawCourier?.collected_cod ?? rawCourier?.total_cod_collected ?? 0) -
+        Number(rawCourier?.wages_earned ?? rawCourier?.total_payout_earned ?? 0) -
+        Number(rawCourier?.bonus_earned ?? rawCourier?.milestone_bonus ?? 0)
       : undefined;
 
   const fallbackDue =
-    netCashDue !== undefined
-      ? netCashDue
-      : phone
-      ? getRiderCashReconciliation(phone).net_cash_due
-      : undefined;
+    phone ? getRiderCashReconciliation(phone).net_cash_due : undefined;
 
   const resolvedDues = Math.max(
     0,
     Number(
       duesAmount ??
-      courier?.cash_in_hand ??
-      courier?.cih_balance ??
-      courier?.net_cash_due ??
+      netCashDue ??
+      rawCourier?.net_due_amount ??
+      rawCourier?.net_cash_due ??
+      rawCourier?.cash_in_hand ??
+      rawCourier?.cih_balance ??
       calculatedCodDiff ??
       fallbackDue ??
       0
     )
   );
+
+  const fallbackRecon = phone ? getRiderCashReconciliation(phone) : null;
+  const wagesEarned = Number(rawCourier?.wages_earned ?? rawCourier?.total_payout_earned ?? fallbackRecon?.total_payout_earned ?? 0);
+  const bonusEarned = Number(rawCourier?.bonus_earned ?? rawCourier?.milestone_bonus ?? 0);
+  const unlockedTier = rawCourier?.unlocked_tier ?? rawCourier?.milestone_tier ?? "Milestone Tier";
+  const cashCollected = Number(
+    rawCourier?.cash_collected ??
+    rawCourier?.collected_cod ??
+    rawCourier?.total_cod_collected ??
+    rawCourier?.cash_in_hand ??
+    fallbackRecon?.cash_in_hand ??
+    (resolvedDues > 0 ? resolvedDues + wagesEarned + bonusEarned : 0)
+  );
+  const netDueAmount = Number(rawCourier?.net_due_amount ?? rawCourier?.net_cash_due ?? resolvedDues);
+
+  const courier = {
+    cash_collected: cashCollected,
+    wages_earned: wagesEarned,
+    bonus_earned: bonusEarned,
+    unlocked_tier: unlockedTier,
+    net_due_amount: netDueAmount,
+    ...rawCourier,
+  };
+
+  const [countdownText, setCountdownText] = useState<string>("");
+
+  useEffect(() => {
+    const updateCountdown = () => {
+      const now = new Date();
+      const utcTime = now.getTime() + now.getTimezoneOffset() * 60000;
+      const istNow = new Date(utcTime + 5.5 * 3600000);
+
+      const istCutoff = new Date(istNow);
+      istCutoff.setHours(23, 0, 0, 0);
+
+      const diffMs = istCutoff.getTime() - istNow.getTime();
+      if (diffMs <= 0) {
+        setCountdownText("Due in 0 hours 0 mins — settle before cutoff to avoid account lock");
+      } else {
+        const hours = Math.floor(diffMs / (1000 * 60 * 60));
+        const mins = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+        setCountdownText(`Due in ${hours} hours ${mins} mins — settle before cutoff to avoid account lock`);
+      }
+    };
+
+    updateCountdown();
+    const interval = setInterval(updateCountdown, 30000);
+    return () => clearInterval(interval);
+  }, []);
 
   const [remitAmount, setRemitAmount] = useState<string>('');
 
@@ -203,6 +256,47 @@ export function RemitDuesModal({
             )}
           </button>
         </div>
+
+        {/* Due Settlement Reminder Card & Countdown */}
+        {resolvedDues > 0 && (
+          <div className="mt-3.5 rounded-2xl bg-amber-50/90 border border-amber-200 p-3 text-amber-900 shadow-xs">
+            <div className="flex items-start gap-2.5">
+              <Clock className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+              <div className="min-w-0 flex-1">
+                <h4 className="text-xs font-bold text-amber-900">
+                  Daily COD Cash Remittance Cutoff: 11:00 PM IST tonight
+                </h4>
+                <p className="text-[11px] font-medium text-amber-700 mt-0.5">
+                  {countdownText}
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Financial Breakdown Box with Bonus Deduction */}
+        {resolvedDues > 0 && (
+          <div className="bg-zinc-50 rounded-xl p-3 border border-zinc-200 text-xs space-y-1.5 my-3">
+            <div className="flex justify-between text-zinc-600">
+              <span>Total Physical COD Collected:</span>
+              <span className="font-semibold text-zinc-800">₹{formatINR(courier.cash_collected)}</span>
+            </div>
+            <div className="flex justify-between text-emerald-600">
+              <span>Base Delivery Wages Earned:</span>
+              <span className="font-semibold">-₹{formatINR(courier.wages_earned)}</span>
+            </div>
+            {courier.bonus_earned > 0 && (
+              <div className="flex justify-between text-emerald-600 font-medium">
+                <span>Daily Milestone Bonus ({courier.unlocked_tier}):</span>
+                <span className="font-semibold">-₹{formatINR(courier.bonus_earned)}</span>
+              </div>
+            )}
+            <div className="flex justify-between text-sm font-bold pt-1.5 border-t border-zinc-200 text-zinc-900">
+              <span>Net Cash Due to Remit:</span>
+              <span className="text-orange-600">₹{formatINR(courier.net_due_amount)}</span>
+            </div>
+          </div>
+        )}
 
         {/* Remittance Amount Input & Quick-Selection Preset Pills */}
         <div className="mt-4 space-y-1.5">

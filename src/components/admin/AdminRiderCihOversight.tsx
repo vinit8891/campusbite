@@ -26,6 +26,7 @@ import {
   getAdminRiderReconciliations,
   approveRiderRemittance,
   remitRiderDuesAdmin,
+  toggleCourierLockAdmin,
   type RiderReconciliationSummary,
   type RiderReconciliationItem,
 } from "@/services/adminService";
@@ -126,6 +127,17 @@ export function AdminRiderCihOversight() {
     toast.info(
       `Remittance alert SMS sent to ${rider.name} (${rider.phone}) for ₹${netDue.toFixed(2)} pending dues.`
     );
+  };
+
+  const handleToggleBlock = async (riderId: string) => {
+    try {
+      const res = await toggleCourierLockAdmin(riderId);
+      toast.success(res.is_locked ? "Runner blocked successfully" : "Runner unblocked successfully");
+      await loadData();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to toggle runner block state");
+    }
   };
 
   if (!isMounted) {
@@ -523,6 +535,19 @@ export function AdminRiderCihOversight() {
                                 <span>Send Alert</span>
                               </button>
                             )}
+
+                            {/* Block / Unblock Runner */}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleBlock(rider.id)}
+                              className={`px-2.5 py-1.5 text-xs font-bold rounded-lg border transition-colors cursor-pointer select-none active:scale-95 ${
+                                isLocked
+                                  ? "bg-emerald-50 text-emerald-700 border-emerald-200 hover:bg-emerald-100"
+                                  : "bg-red-50 text-red-700 border-red-200 hover:bg-red-100"
+                              }`}
+                            >
+                              {isLocked ? "Unblock Runner" : "Block Runner"}
+                            </button>
 
                             {/* Acknowledge UPI Remittance */}
                             <button

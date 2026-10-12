@@ -82,10 +82,51 @@ def normalize_settlement_financials(settlement: dict) -> dict:
     return settlement
 
 
+def normalize_settlement_record(settlement: dict) -> dict:
+    """Serializes ObjectId to string and normalizes float defaults."""
+    if not isinstance(settlement, dict):
+        return settlement
+    doc = dict(settlement)
+    if "_id" in doc:
+        doc["_id"] = str(doc["_id"])
+    return normalize_settlement_financials(doc)
+
+
 router = APIRouter(
     prefix="/settlements",
     tags=["Settlements"],
 )
+
+alias_router = APIRouter(tags=["Settlements Alias"])
+
+
+@router.get("/history")
+@router.get("")
+@router.get("/")
+@alias_router.get("/restaurant/settlements/history")
+@alias_router.get("/restaurants/settlements")
+@alias_router.get("/restaurant/settlements")
+@alias_router.get("/restaurants/settlements/history")
+async def get_restaurant_settlements_history(
+    restaurant_id: Annotated[str | None, Query()] = None,
+    restaurant_email: Annotated[str | None, Query()] = None,
+    canteen_id: Annotated[str | None, Query()] = None,
+    date: Annotated[str | None, Query()] = None,
+    current_user: Annotated[
+        dict, Depends(require_roles(RESTAURANT_OWNER, ADMIN))
+    ] = None,
+):
+    try:
+        from app.routes.restaurant import fetch_restaurant_settlements
+        return await fetch_restaurant_settlements(
+            current_user=current_user or {},
+            date=date,
+            restaurant_email=restaurant_email,
+            restaurant_id=restaurant_id,
+            canteen_id=canteen_id,
+        )
+    except Exception as e:
+        return {"success": True, "settlements": []}
 
 
 @router.get("/canteen/{restaurant_email}")

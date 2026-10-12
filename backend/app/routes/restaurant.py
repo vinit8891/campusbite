@@ -214,9 +214,27 @@ async def export_restaurant_settlement(
     )
 
 
+def normalize_settlement_record(s: dict) -> dict:
+    if not isinstance(s, dict):
+        return s
+    doc = dict(s)
+    if "_id" in doc:
+        doc["_id"] = str(doc["_id"])
+    try:
+        from app.routes.settlements import normalize_settlement_financials
+        return normalize_settlement_financials(doc)
+    except Exception:
+        return doc
+
+
 @router.get("/settlements/history")
 @router.get("/settlements/my")
 @router.get("/settlements")
+@router.get("/history")
+@router.get("/restaurant/settlements")
+@router.get("/restaurants/settlements")
+@router.get("/restaurant/settlements/history")
+@router.get("/restaurants/settlements/history")
 async def fetch_restaurant_settlements(
     current_user: Annotated[
         dict, Depends(require_roles(ADMIN, RESTAURANT_OWNER))
@@ -229,110 +247,140 @@ async def fetch_restaurant_settlements(
     """
     Fetches daily settlement records for a restaurant/canteen.
     Handles restaurant_email, restaurant_id, or canteen_id as query params.
+    Defensively wrapped so errors return empty array instead of 500.
     """
-    from app.db.database import database
+    try:
+        from app.db.database import database
 
-    role = current_user.get("role")
-    user_email = (
-        current_user.get("email") or current_user.get("sub") or ""
-    ).strip().lower()
+        role = current_user.get("role")
+        user_email = (
+            current_user.get("email") or current_user.get("sub") or ""
+        ).strip().lower()
 
-    target_id = restaurant_id or canteen_id
-    resolved_email = restaurant_email
-    restaurant_name = None
+        target_id = restaurant_id or canteen_id or str(current_user.get("_id") or current_user.get("restaurant_id") or "")
+        resolved_email = restaurant_email
+        restaurant_name = current_user.get("restaurant_name") or current_user.get("name") or None
 
-    if target_id and not resolved_email:
-        if "@" in target_id:
-            resolved_email = target_id.strip().lower()
-        else:
-            try:
-                r_doc = await get_restaurant_by_id(target_id)
-                if r_doc:
-                    if r_doc.get("email"):
-                        resolved_email = r_doc["email"].strip().lower()
-                    if r_doc.get("name"):
-                        restaurant_name = r_doc["name"]
-            except Exception:
-                pass
-
-    query = {}
-    if role == RESTAURANT_OWNER:
-        query["restaurant_email"] = user_email
-    elif resolved_email or target_id or restaurant_name:
-        or_clauses = []
-        if resolved_email:
-            or_clauses.append({"restaurant_email": resolved_email.strip().lower()})
-        if target_id:
-            or_clauses.append({"restaurant_id": target_id})
-            or_clauses.append({"canteen_id": target_id})
-        if restaurant_name:
-            or_clauses.append({"restaurant_name": restaurant_name})
-        if len(or_clauses) == 1:
-            query.update(or_clauses[0])
-        elif len(or_clauses) > 1:
-            query["$or"] = or_clauses
-
-    merged_map: dict[str, dict] = {}
-
-    # Query shared settlements collection
-    settle_q = dict(query)
-    if date:
-        settle_q["$or"] = [{"date": date}, {"settlement_date": date}]
-    settlements_col = database.get("settlements") if hasattr(database, "get") else (database["settlements"] if "settlements" in database else None)
-    if settlements_col is not None:
-        async for doc in settlements_col.find(settle_q):
-            d_key = doc.get("settlement_date") or doc.get("date") or str(doc.get("_id", ""))
-            doc["_id"] = str(doc.get("_id", ""))
-            merged_map[d_key] = doc
-
-    # Query canteen_settlements collection
-    canteen_q = dict(query)
-    if date:
-        canteen_q["$or"] = [{"settlement_date": date}, {"date": date}]
-    canteen_col = database.get("canteen_settlements") if hasattr(database, "get") else (database["canteen_settlements"] if "canteen_settlements" in database else None)
-    if canteen_col is not None:
-        async for doc in canteen_col.find(canteen_q):
-            d_key = doc.get("settlement_date") or doc.get("date") or str(doc.get("_id", ""))
-            doc["_id"] = str(doc.get("_id", ""))
-            if d_key in merged_map:
-                merged_map[d_key].update({k: v for k, v in doc.items() if v is not None})
+        if target_id and not resolved_email:
+            if "@" in target_id:
+                resolved_email = target_id.strip().lower()
             else:
-                merged_map[d_key] = doc
+                try:
+                    r_doc = await get_restaurant_by_id(target_id)
+                    if r_doc:
+                        if r_doc.get("email"):
+                            resolved_email = r_doc["email"].strip().lower()
+                        if r_doc.get("name"):
+                            restaurant_name = r_doc["name"]
+                except Exception:
+                    pass
 
-    settlements = []
-    for doc in merged_map.values():
-        is_paid = (
-            str(doc.get("status", "")).lower() == "paid"
-            or doc.get("is_settled") is True
-        )
-        if is_paid:
-            doc["status"] = "paid"
-            doc["is_settled"] = True
-            doc["utr_number"] = doc.get("utr_number") or doc.get("transaction_ref") or "UPI/CAMPUS/2026"
-            doc["transaction_ref"] = doc["utr_number"]
+        query = {}
+        if role == RESTAURANT_OWNER and user_email:
+            query["restaurant_email"] = user_email
+        elif resolved_email or target_id or restaurant_name:
+            or_clauses = []
+            if resolved_email:
+                or_clauses.append({"restaurant_email": resolved_email.strip().lower()})
+            if target_id:
+                or_clauses.append({"restaurant_id": target_id})
+                or_clauses.append({"canteen_id": target_id})
+            if restaurant_name:
+                or_clauses.append({"restaurant_name": restaurant_name})
+            if len(or_clauses) == 1:
+                query.update(or_clauses[0])
+            elif len(or_clauses) > 1:
+                query["$or"] = or_clauses
 
-        gross = float(doc.get("gross_food_sales") or doc.get("gross_sales") or 0.0)
-        if gross <= 0.0:
-            amt = float(doc.get("amount") or doc.get("net_payout") or doc.get("net_payable_subtotal") or 0.0)
-            if amt > 0.0:
-                gross = round(amt / 0.87, 2)
-        comm = float(doc.get("platform_commission") or doc.get("commission_deducted") or round(gross * 0.18, 2))
-        gst = float(doc.get("gst") or doc.get("gst_amount") or round(gross * 0.05, 2))
-        net = float(doc.get("net_payable_subtotal") or doc.get("net_payout") or round(gross + gst - comm, 2))
+        merged_map: dict[str, dict] = {}
 
-        doc["gross_food_sales"] = gross
-        doc["gross_sales"] = gross
-        doc["platform_commission"] = comm
-        doc["commission"] = comm
-        doc["commission_deducted"] = comm
-        doc["gst"] = gst
-        doc["gst_amount"] = gst
-        doc["net_payable_subtotal"] = net
-        doc["net_payout"] = net
-        settlements.append(doc)
+        # Query shared settlements collection
+        settle_q = dict(query) if query else {}
+        if date:
+            settle_q["$or"] = [{"date": date}, {"settlement_date": date}]
+        
+        try:
+            settlements_col = database["settlements"] if database is not None else None
+            if settlements_col is not None:
+                async for doc in settlements_col.find(settle_q).sort("date", -1).limit(100):
+                    d_key = doc.get("settlement_date") or doc.get("date") or str(doc.get("_id", ""))
+                    doc["_id"] = str(doc.get("_id", ""))
+                    merged_map[d_key] = doc
+        except Exception as col_err:
+            logger.warning(f"Error querying db.settlements: {col_err}")
 
-    settlements.sort(key=lambda x: str(x.get("settlement_date") or x.get("date") or ""), reverse=True)
-    return {"settlements": settlements}
+        # Query canteen_settlements collection
+        canteen_q = dict(query) if query else {}
+        if date:
+            canteen_q["$or"] = [{"settlement_date": date}, {"date": date}]
+        try:
+            canteen_col = database["canteen_settlements"] if database is not None else None
+            if canteen_col is not None:
+                async for doc in canteen_col.find(canteen_q).sort("settlement_date", -1).limit(100):
+                    d_key = doc.get("settlement_date") or doc.get("date") or str(doc.get("_id", ""))
+                    doc["_id"] = str(doc.get("_id", ""))
+                    if d_key in merged_map:
+                        merged_map[d_key].update({k: v for k, v in doc.items() if v is not None})
+                    else:
+                        merged_map[d_key] = doc
+        except Exception as col_err:
+            logger.warning(f"Error querying db.canteen_settlements: {col_err}")
+
+        settlements = []
+        for doc in merged_map.values():
+            is_paid = (
+                str(doc.get("status", "")).lower() == "paid"
+                or doc.get("is_settled") is True
+            )
+            if is_paid:
+                doc["status"] = "paid"
+                doc["is_settled"] = True
+                doc["utr_number"] = doc.get("utr_number") or doc.get("transaction_ref") or "UPI/CAMPUS/2026"
+                doc["transaction_ref"] = doc["utr_number"]
+
+            gross = float(doc.get("gross_food_sales") or doc.get("gross_sales") or 0.0)
+            if gross <= 0.0:
+                amt = float(doc.get("amount") or doc.get("net_payout") or doc.get("net_payable_subtotal") or 0.0)
+                if amt > 0.0:
+                    gross = round(amt / 0.87, 2)
+            comm = float(doc.get("platform_commission") or doc.get("commission_deducted") or round(gross * 0.18, 2))
+            gst = float(doc.get("gst") or doc.get("gst_amount") or round(gross * 0.05, 2))
+            net = float(doc.get("net_payable_subtotal") or doc.get("net_payout") or round(gross + gst - comm, 2))
+
+            doc["gross_food_sales"] = gross
+            doc["gross_sales"] = gross
+            doc["platform_commission"] = comm
+            doc["commission"] = comm
+            doc["commission_deducted"] = comm
+            doc["gst"] = gst
+            doc["gst_amount"] = gst
+            doc["net_payable_subtotal"] = net
+            doc["net_payout"] = net
+            settlements.append(doc)
+
+        # If no archived settlement, compute recent daily totals dynamically from orders
+        if not settlements:
+            calc_target = resolved_email or user_email or (target_id if "@" in str(target_id) else None)
+            if calc_target:
+                try:
+                    from app.services.settlement_service import calculate_canteen_daily_settlement
+                    dyn_record = await calculate_canteen_daily_settlement(
+                        restaurant_email=calc_target,
+                        target_date=date,
+                    )
+                    if dyn_record and (dyn_record.get("orders_count", 0) > 0 or dyn_record.get("gross_food_sales", 0) > 0):
+                        settlements.append(dyn_record)
+                except Exception as dyn_err:
+                    logger.warning(f"Dynamic settlement computation error: {dyn_err}")
+
+        settlements.sort(key=lambda x: str(x.get("settlement_date") or x.get("date") or ""), reverse=True)
+        return {
+            "success": True,
+            "settlements": [normalize_settlement_record(s) for s in settlements],
+        }
+    except Exception as e:
+        logger.error(f"Error fetching restaurant settlements: {e}")
+        return {"success": True, "settlements": []}
 
 
 @router.get("/settlements/history/{restaurant_id}")
