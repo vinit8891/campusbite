@@ -56,6 +56,7 @@ describe("Admin Layout & Responsive Navigation Overhaul", () => {
 
       // Navigation links
       expect(screen.getByText("Mission Control")).toBeInTheDocument();
+      expect(screen.getByText("Financial Payouts")).toBeInTheDocument();
       expect(screen.getByText("Global Orders")).toBeInTheDocument();
       expect(screen.getByText("Mess Subscriptions")).toBeInTheDocument();
       expect(screen.getByText("Campus Eateries")).toBeInTheDocument();

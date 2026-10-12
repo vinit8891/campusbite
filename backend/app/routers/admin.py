@@ -547,6 +547,463 @@ async def acknowledge_rider_remittance(
         "phone": phone,
     }
 
+def parse_date_range(date_str: str | None):
+    """
+    Normalizes incoming date parameter (YYYY-MM-DD, DD-MM-YYYY, ISO)
+    into start-of-day, end-of-day datetimes and canonical YYYY-MM-DD prefix.
+    """
+    from datetime import datetime as dt, time as dt_time
+    if not date_str:
+        target_date = dt.now().date()
+    else:
+        date_clean = str(date_str).strip()
+        try:
+            if "-" in date_clean and len(date_clean.split("-")[0]) == 4:
+                target_date = dt.strptime(date_clean, "%Y-%m-%d").date()
+            elif "-" in date_clean:
+                target_date = dt.strptime(date_clean, "%d-%m-%Y").date()
+            else:
+                target_date = dt.fromisoformat(date_clean).date()
+        except Exception:
+            target_date = dt.now().date()
+
+    start_dt = dt.combine(target_date, dt_time.min)
+    end_dt = dt.combine(target_date, dt_time.max)
+    return start_dt, end_dt, target_date.strftime("%Y-%m-%d")
+
+
+@router.get("/settlements/canteens")
+async def get_canteen_settlements_breakdown(
+    _: Annotated[dict, Depends(require_roles(ADMIN))],
+    date: Annotated[str | None, Query()] = None,
+):
+    """
+    Aggregates canteen daily settlements per restaurant for the specified date.
+    Computes:
+      - gross_food_sales = sum(order.items_subtotal)
+      - platform_commission = sum(order.items_subtotal * 0.18)
+      - gst_collected = sum(order.gst)
+      - net_payout = gross_food_sales - platform_commission + gst_collected
+    """
+    start_dt, end_dt, date_prefix = parse_date_range(date)
+    iso_prefix = f"^{date_prefix}"
+
+    # Query delivered/completed orders matching date range
+    orders = await database["orders"].find({
+        "status": {"$in": ["delivered", "completed", "Delivered", "Completed"]},
+        "$or": [
+            {"created_at": {"$gte": start_dt, "$lte": end_dt}},
+            {"created_at": {"$regex": iso_prefix}},
+            {"delivered_at": {"$gte": start_dt, "$lte": end_dt}},
+            {"delivered_at": {"$regex": iso_prefix}},
+            {"order_date": {"$regex": iso_prefix}},
+        ],
+    }).to_list(1000)
+
+    # Fetch all registered restaurants
+    restaurants = await database["restaurants"].find({}).to_list(1000)
+
+    # Fetch recorded settlement history for this date
+    settled_cursor = database["canteen_settlements"].find({"settlement_date": date_prefix})
+    settled_records = await settled_cursor.to_list(1000)
+    settled_map = {}
+    for sr in settled_records:
+        r_id = str(sr.get("restaurant_id") or "")
+        r_email = str(sr.get("restaurant_email") or "").strip().lower()
+        if r_id:
+            settled_map[r_id] = sr
+        if r_email:
+            settled_map[r_email] = sr
+
+    def _get_subtotal(order: dict) -> float:
+        if "items_subtotal" in order and order["items_subtotal"] is not None:
+            return float(order["items_subtotal"])
+        if "food_subtotal" in order and order["food_subtotal"] is not None:
+            return float(order["food_subtotal"])
+        items = order.get("items")
+        if isinstance(items, list) and len(items) > 0:
+            return sum(
+                float(it.get("price", 0)) * int(it.get("quantity", 1))
+                for it in items
+            )
+        return float(order.get("total_amount") or order.get("total") or 0.0)
+
+    def _get_gst(order: dict, subtotal: float) -> float:
+        if "gst" in order and order["gst"] is not None:
+            return float(order["gst"])
+        if "restaurant_gst" in order and order["restaurant_gst"] is not None:
+            return float(order["restaurant_gst"])
+        return round(subtotal * 0.05, 2)
+
+    canteen_results = []
+    total_sales = 0.0
+    total_commission = 0.0
+    total_gst = 0.0
+    total_net = 0.0
+    pending_net = 0.0
+    paid_net = 0.0
+
+    for rest in restaurants:
+        r_id = str(rest.get("_id", ""))
+        r_email = str(rest.get("email") or "").strip().lower()
+        r_name = str(rest.get("name") or "").strip()
+
+        # Match orders to this restaurant
+        matching = []
+        for o in orders:
+            ord_rid = str(o.get("restaurant_id") or "")
+            ord_email = str(o.get("restaurant_email") or "").strip().lower()
+            ord_name = str(o.get("restaurant_name") or "").strip().lower()
+            if (
+                (r_id and ord_rid == r_id)
+                or (r_email and ord_email == r_email)
+                or (r_name and ord_name == r_name.lower())
+            ):
+                matching.append(o)
+
+        gross = round(sum(_get_subtotal(o) for o in matching), 2)
+        comm = round(gross * 0.18, 2)
+        gst = round(sum(_get_gst(o, _get_subtotal(o)) for o in matching), 2)
+        net = round(gross - comm + gst, 2)
+
+        settled = settled_map.get(r_id) or settled_map.get(r_email)
+        status = "Paid" if settled else "Pending"
+
+        total_sales += gross
+        total_commission += comm
+        total_gst += gst
+        total_net += net
+        if status == "Paid":
+            paid_net += net
+        else:
+            pending_net += net
+
+        clean_slug = re.sub(r"[^a-z0-9]", "", r_name.lower()) or "canteen"
+        upi = (
+            rest.get("settlement_upi_id")
+            or rest.get("upi_id")
+            or f"{clean_slug}@okaxis"
+        )
+
+        canteen_results.append({
+            "id": r_id,
+            "restaurant_id": r_id,
+            "restaurant_name": r_name,
+            "restaurant_email": r_email,
+            "phone": rest.get("phone") or "",
+            "upi_id": upi,
+            "bank_details": rest.get("bank_details") or {},
+            "orders_count": len(matching),
+            "gross_food_sales": gross,
+            "platform_commission": comm,
+            "gst_collected": gst,
+            "net_payout": net,
+            "status": status,
+            "settled_at": settled.get("settled_at") if settled else None,
+            "transaction_ref": settled.get("transaction_ref") if settled else None,
+            "settlement_date": date_prefix,
+        })
+
+    return {
+        "canteens": canteen_results,
+        "settlements": canteen_results,
+        "summary": {
+            "total_food_sales": round(total_sales, 2),
+            "total_commission": round(total_commission, 2),
+            "total_gst": round(total_gst, 2),
+            "total_net_payout": round(total_net, 2),
+            "pending_payout": round(pending_net, 2),
+            "paid_payout": round(paid_net, 2),
+        },
+        "date": date_prefix,
+    }
+
+
+@router.post("/settlements/canteens/{canteen_id}/mark-paid")
+async def mark_canteen_settlement_paid(
+    canteen_id: str,
+    current_user: Annotated[dict, Depends(require_roles(ADMIN))],
+    payload: dict | None = None,
+):
+    """
+    Marks a canteen daily settlement as Paid, recording UTR/transaction ref and audit trail.
+    """
+    from datetime import datetime as dt, timezone as dt_tz
+    admin_email = (
+        current_user.get("email") or current_user.get("sub") or "admin@campusbite.in"
+    ).strip().lower()
+
+    payload = payload or {}
+    _, _, date_prefix = parse_date_range(payload.get("date") or payload.get("settlement_date"))
+
+    query = _id_filter(canteen_id)
+    rest_doc = await database["restaurants"].find_one(query)
+    if not rest_doc:
+        rest_doc = await database["restaurants"].find_one({"email": canteen_id})
+
+    restaurant_name = (
+        (rest_doc.get("name") if rest_doc else None)
+        or payload.get("restaurant_name")
+        or "Campus Canteen"
+    )
+    restaurant_email = (
+        (rest_doc.get("email") if rest_doc else None)
+        or payload.get("restaurant_email")
+        or canteen_id
+    )
+    amount = float(payload.get("amount") or payload.get("net_payout") or 0.0)
+    upi_id = payload.get("upi_id") or (rest_doc.get("settlement_upi_id") if rest_doc else "") or ""
+    txn_ref = payload.get("transaction_ref") or payload.get("utr") or f"UPI/{dt.now().strftime('%Y%m%d%H%M%S')}"
+
+    settlement_record = {
+        "restaurant_id": str(rest_doc["_id"]) if rest_doc else canteen_id,
+        "restaurant_email": restaurant_email,
+        "restaurant_name": restaurant_name,
+        "settlement_date": date_prefix,
+        "amount": amount,
+        "net_payout": amount,
+        "net_payable_subtotal": amount,
+        "orders_count": int(payload.get("orders_count") or 0),
+        "transaction_ref": txn_ref,
+        "upi_id": upi_id,
+        "settled_at": dt.now(dt_tz.utc).isoformat(),
+        "settled_by": admin_email,
+        "status": "Paid",
+    }
+
+    await database["canteen_settlements"].update_one(
+        {
+            "restaurant_email": restaurant_email,
+            "settlement_date": date_prefix,
+        },
+        {"$set": settlement_record},
+        upsert=True,
+    )
+
+    await log_admin_action(
+        admin_email=admin_email,
+        action="mark_canteen_settlement_paid",
+        resource="canteen_settlements",
+        resource_id=f"{restaurant_email}_{date_prefix}",
+        metadata=settlement_record,
+    )
+
+    return {
+        "success": True,
+        "message": f"Settlement of ₹{amount:.2f} marked as Paid for {restaurant_name}",
+        "settlement": settlement_record,
+    }
+
+
+@router.get("/settlements/couriers")
+async def get_courier_settlements_breakdown(
+    _: Annotated[dict, Depends(require_roles(ADMIN))],
+    date: Annotated[str | None, Query()] = None,
+):
+    """
+    Aggregates courier Cash-in-Hand (CIH) and wage economics per courier for the specified date.
+    Computes:
+      - cod_collected = sum(order.total_amount if order.payment_method == "cod")
+      - wages_earned = len(completed_orders) * 20.0
+      - net_cash_due_to_admin = max(0.0, cod_collected - wages_earned)
+    """
+    start_dt, end_dt, date_prefix = parse_date_range(date)
+    iso_prefix = f"^{date_prefix}"
+
+    # Query delivered orders matching date range
+    orders = await database["orders"].find({
+        "status": {"$in": ["delivered", "completed", "Delivered", "Completed"]},
+        "$or": [
+            {"created_at": {"$gte": start_dt, "$lte": end_dt}},
+            {"created_at": {"$regex": iso_prefix}},
+            {"delivered_at": {"$gte": start_dt, "$lte": end_dt}},
+            {"delivered_at": {"$regex": iso_prefix}},
+            {"order_date": {"$regex": iso_prefix}},
+        ],
+    }).to_list(1000)
+
+    # Fetch registered delivery partners
+    partners = await database["delivery_partners"].find({}).sort("name", 1).to_list(1000)
+
+    courier_results = []
+    total_cod = 0.0
+    total_wages = 0.0
+    total_due = 0.0
+    locked_count = 0
+
+    for partner in partners:
+        p_id = str(partner.get("_id", ""))
+        p_phone = str(partner.get("phone") or "").strip()
+        p_name = partner.get("name") or partner.get("full_name") or "Courier"
+
+        # Match orders to this courier (ObjectId, string id, or phone)
+        matching = []
+        for o in orders:
+            dp = o.get("delivery_partner")
+            dp_id = ""
+            dp_phone = ""
+            if isinstance(dp, dict):
+                dp_id = str(dp.get("id") or dp.get("_id") or "")
+                dp_phone = str(dp.get("phone") or "").strip()
+            elif isinstance(dp, str):
+                dp_id = dp
+
+            ord_dpid = str(o.get("delivery_partner_id") or "")
+            ord_phone = str(o.get("delivery_partner_phone") or "").strip()
+
+            if (
+                (p_id and (p_id == dp_id or p_id == ord_dpid))
+                or (p_phone and (p_phone == dp_phone or p_phone == ord_phone))
+            ):
+                matching.append(o)
+
+        orders_completed = len(matching)
+        cod_collected = round(
+            sum(
+                float(o.get("total_amount") or o.get("total") or 0.0)
+                for o in matching
+                if str(o.get("payment_method") or "").lower() == "cod"
+            ),
+            2,
+        )
+        wages_earned = round(orders_completed * 20.0, 2)
+        net_cash_due = max(0.0, round(cod_collected - wages_earned, 2))
+
+        # Check partner's recorded live values if matching orders is 0
+        if orders_completed == 0 and float(partner.get("cash_in_hand") or 0.0) > 0:
+            cod_collected = float(partner.get("cash_in_hand") or 0.0)
+            wages_earned = float(partner.get("total_payout_earned") or 0.0)
+            net_cash_due = float(
+                partner.get("net_cash_due")
+                if partner.get("net_cash_due") is not None
+                else max(0.0, cod_collected - wages_earned)
+            )
+
+        is_locked = net_cash_due >= 500.0 or bool(partner.get("is_locked", False))
+        if is_locked:
+            status = "LOCKED"
+            locked_count += 1
+        elif net_cash_due >= 400.0:
+            status = "APPROACHING_LIMIT"
+        else:
+            status = "ACTIVE"
+
+        total_cod += cod_collected
+        total_wages += wages_earned
+        total_due += net_cash_due
+
+        courier_results.append({
+            "id": p_id,
+            "name": p_name,
+            "phone": p_phone,
+            "email": partner.get("email") or "",
+            "vehicle": partner.get("vehicle") or partner.get("vehicle_type") or "Bike",
+            "orders_completed": orders_completed,
+            "cod_collected": cod_collected,
+            "wages_earned": wages_earned,
+            "net_cash_due_to_admin": net_cash_due,
+            "is_locked": is_locked,
+            "status": status,
+            "remittance_status": "DUES_PENDING" if net_cash_due > 0 else "CLEAR",
+            "settlement_date": date_prefix,
+        })
+
+    return {
+        "couriers": courier_results,
+        "riders": courier_results,
+        "summary": {
+            "total_cod_collected": round(total_cod, 2),
+            "total_wages_earned": round(total_wages, 2),
+            "net_cash_due_to_admin": round(total_due, 2),
+            "locked_couriers_count": locked_count,
+        },
+        "date": date_prefix,
+    }
+
+
+@router.post("/settlements/couriers/{courier_id}/remit")
+@router.post("/settlements/couriers/{courier_id}/acknowledge-remittance")
+async def acknowledge_courier_settlement_remittance(
+    courier_id: str,
+    current_user: Annotated[dict, Depends(require_roles(ADMIN))],
+    payload: dict | None = None,
+):
+    """
+    Admin acknowledges courier physical cash remittance, clearing or reducing physical CIH.
+    """
+    from datetime import datetime as dt, timezone as dt_tz
+    admin_email = (
+        current_user.get("email") or current_user.get("sub") or "admin@campusbite.in"
+    ).strip().lower()
+
+    payload = payload or {}
+    query = _id_filter(courier_id)
+    partner_doc = await database["delivery_partners"].find_one(query)
+    if not partner_doc:
+        partner_doc = await database["delivery_partners"].find_one({"phone": courier_id})
+
+    if not partner_doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Courier partner not found",
+        )
+
+    amount = float(payload.get("amount") or 0.0)
+    utr = str(payload.get("utr") or f"CASH/{dt.now().strftime('%Y%m%d%H%M%S')}")
+
+    current_cih = float(partner_doc.get("cash_in_hand") or 0.0)
+    current_earned = float(partner_doc.get("total_payout_earned") or 0.0)
+    current_due = float(
+        partner_doc.get("net_cash_due")
+        if partner_doc.get("net_cash_due") is not None
+        else max(0.0, current_cih - current_earned)
+    )
+
+    remit_amount = amount if amount > 0 else current_due
+    new_cih = max(0.0, current_cih - remit_amount)
+    new_due = max(0.0, new_cih - current_earned)
+    is_locked = new_due >= 500.00
+    total_remitted = float(partner_doc.get("total_remitted") or 0.0) + remit_amount
+
+    await database["delivery_partners"].update_one(
+        {"_id": partner_doc["_id"]},
+        {
+            "$set": {
+                "cash_in_hand": round(new_cih, 2),
+                "net_cash_due": round(new_due, 2),
+                "total_remitted": round(total_remitted, 2),
+                "is_locked": is_locked,
+            }
+        },
+    )
+
+    remittance_record = {
+        "rider_id": str(partner_doc["_id"]),
+        "rider_name": partner_doc.get("name") or "",
+        "rider_phone": partner_doc.get("phone") or "",
+        "amount": remit_amount,
+        "utr": utr,
+        "approved_by": admin_email,
+        "approved_at": dt.now(dt_tz.utc).isoformat(),
+        "status": "APPROVED",
+    }
+    await database["rider_remittances"].insert_one(remittance_record)
+
+    await log_admin_action(
+        admin_email=admin_email,
+        action="acknowledge_courier_remittance",
+        resource="delivery_partners",
+        resource_id=str(partner_doc["_id"]),
+        metadata={"amount": remit_amount, "utr": utr, "new_due": new_due},
+    )
+
+    return {
+        "success": True,
+        "message": f"Remittance of ₹{remit_amount:.2f} acknowledged for {partner_doc.get('name')}",
+        "net_cash_due": round(new_due, 2),
+        "is_locked": is_locked,
+    }
+
 
 @router.get("/settlements/daily-summary")
 @router.get("/canteen-settlements/daily-summary")

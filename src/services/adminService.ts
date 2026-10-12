@@ -815,4 +815,212 @@ export async function validateCouponCode(code: string, subtotal: number): Promis
   });
 }
 
+// ----------------------------------------------------------------------------
+// FINANCIAL PAYOUTS & SETTLEMENTS (Admin Console)
+// ----------------------------------------------------------------------------
+
+export interface CanteenSettlementItem {
+  id: string;
+  restaurant_id: string;
+  restaurant_name: string;
+  restaurant_email: string;
+  phone?: string;
+  upi_id: string;
+  bank_details?: {
+    account_number?: string;
+    ifsc_code?: string;
+    bank_name?: string;
+    account_holder_name?: string;
+  };
+  orders_count: number;
+  gross_food_sales: number;
+  platform_commission: number;
+  gst_collected: number;
+  net_payout: number;
+  status: "Paid" | "Pending" | "Settled";
+  settled_at?: string | null;
+  transaction_ref?: string | null;
+  settlement_date: string;
+}
+
+export interface CourierSettlementItem {
+  id: string;
+  name: string;
+  phone: string;
+  email?: string;
+  vehicle?: string;
+  orders_completed: number;
+  cod_collected: number;
+  wages_earned: number;
+  net_cash_due_to_admin: number;
+  is_locked: boolean;
+  status: "ACTIVE" | "APPROACHING_LIMIT" | "LOCKED";
+  remittance_status: "DUES_PENDING" | "CLEAR";
+  settlement_date?: string;
+}
+
+export interface SettlementsCanteensResponse {
+  canteens: CanteenSettlementItem[];
+  summary: {
+    total_food_sales: number;
+    total_commission: number;
+    total_gst: number;
+    total_net_payout: number;
+    pending_payout: number;
+    paid_payout: number;
+  };
+  date: string;
+}
+
+export interface SettlementsCouriersResponse {
+  couriers: CourierSettlementItem[];
+  summary: {
+    total_cod_collected: number;
+    total_wages_earned: number;
+    net_cash_due_to_admin: number;
+    locked_couriers_count: number;
+  };
+  date: string;
+}
+
+export async function fetchCanteenSettlements(date?: string): Promise<SettlementsCanteensResponse> {
+  try {
+    const res = await authJson<SettlementsCanteensResponse>(
+      withQuery("/admin/settlements/canteens", { date }),
+      ADMIN_JSON
+    );
+    if (res && Array.isArray(res.canteens)) {
+      return res;
+    }
+  } catch (_) {}
+
+  // Fallback to local aggregation
+  const items = await getAdminCanteenDailyBreakdown(date);
+  const totalSales = items.reduce((sum, i) => sum + i.gross_food_sales, 0);
+  const totalComm = items.reduce((sum, i) => sum + i.commission_deducted, 0);
+  const totalGst = items.reduce((sum, i) => sum + Number((0.05 * i.gross_food_sales).toFixed(2)), 0);
+  const totalNet = items.reduce((sum, i) => sum + i.net_payable_subtotal, 0);
+  const pending = items.filter((i) => i.status !== "Settled").reduce((sum, i) => sum + i.net_payable_subtotal, 0);
+  const paid = items.filter((i) => i.status === "Settled").reduce((sum, i) => sum + i.net_payable_subtotal, 0);
+
+  return {
+    canteens: items.map((i) => ({
+      id: i.restaurant_email,
+      restaurant_id: i.restaurant_email,
+      restaurant_name: i.restaurant_name,
+      restaurant_email: i.restaurant_email,
+      upi_id: i.upi_id,
+      orders_count: i.orders_count,
+      gross_food_sales: i.gross_food_sales,
+      platform_commission: i.commission_deducted,
+      gst_collected: Number((0.05 * i.gross_food_sales).toFixed(2)),
+      net_payout: i.net_payable_subtotal,
+      status: (i.status === "Settled" ? "Paid" : "Pending") as "Paid" | "Pending",
+      settled_at: i.settled_at,
+      transaction_ref: i.transaction_ref,
+      settlement_date: i.settlement_date,
+    })),
+    summary: {
+      total_food_sales: Number(totalSales.toFixed(2)),
+      total_commission: Number(totalComm.toFixed(2)),
+      total_gst: Number(totalGst.toFixed(2)),
+      total_net_payout: Number(totalNet.toFixed(2)),
+      pending_payout: Number(pending.toFixed(2)),
+      paid_payout: Number(paid.toFixed(2)),
+    },
+    date: date || new Date().toISOString().split("T")[0],
+  };
+}
+
+export async function markCanteenSettlementPaidAdmin(
+  canteenId: string,
+  payload?: {
+    date?: string;
+    amount?: number;
+    transaction_ref?: string;
+    upi_id?: string;
+    orders_count?: number;
+    restaurant_name?: string;
+    restaurant_email?: string;
+  }
+) {
+  try {
+    return await authJson<{ success: boolean; message: string; settlement?: unknown }>(
+      `/admin/settlements/canteens/${encodeURIComponent(canteenId)}/mark-paid`,
+      {
+        ...ADMIN_JSON,
+        method: "POST",
+        body: JSON.stringify(payload || {}),
+      }
+    );
+  } catch (_) {
+    return await recordCanteenSettlementAdmin({
+      restaurant_email: payload?.restaurant_email || canteenId,
+      restaurant_name: payload?.restaurant_name || canteenId,
+      upi_id: payload?.upi_id || "",
+      amount: payload?.amount || 0,
+      orders_count: payload?.orders_count || 0,
+      settlement_date: payload?.date,
+      transaction_ref: payload?.transaction_ref,
+    });
+  }
+}
+
+export async function fetchCourierSettlements(date?: string): Promise<SettlementsCouriersResponse> {
+  try {
+    const res = await authJson<SettlementsCouriersResponse>(
+      withQuery("/admin/settlements/couriers", { date }),
+      ADMIN_JSON
+    );
+    if (res && Array.isArray(res.couriers)) {
+      return res;
+    }
+  } catch (_) {}
+
+  const summary = await getRiderCihOversight();
+  return {
+    couriers: (summary.riders || []).map((r) => ({
+      id: r.id || r.phone,
+      name: r.name,
+      phone: r.phone,
+      email: r.email,
+      vehicle: r.vehicle,
+      orders_completed: r.orders_delivered,
+      cod_collected: r.cash_collected,
+      wages_earned: r.wages_kept,
+      net_cash_due_to_admin: r.net_cash_due,
+      is_locked: r.is_locked,
+      status: (r.status === "LOCKED" || r.status === "APPROACHING_LIMIT" ? r.status : "ACTIVE") as "ACTIVE" | "APPROACHING_LIMIT" | "LOCKED",
+      remittance_status: (r.remittance_status === "CLEAR" ? "CLEAR" : "DUES_PENDING") as "CLEAR" | "DUES_PENDING",
+      settlement_date: date || new Date().toISOString().split("T")[0],
+    })),
+    summary: {
+      total_cod_collected: summary.total_cash_collected ?? 0,
+      total_wages_earned: summary.total_wages_kept ?? 0,
+      net_cash_due_to_admin: summary.net_unremitted_dues ?? 0,
+      locked_couriers_count: summary.locked_riders_count ?? 0,
+    },
+    date: date || new Date().toISOString().split("T")[0],
+  };
+}
+
+export async function acknowledgeCourierRemittanceAdmin(
+  courierId: string,
+  payload?: { amount?: number; utr?: string }
+) {
+  try {
+    return await authJson<{ success: boolean; message: string; net_cash_due?: number }>(
+      `/admin/settlements/couriers/${encodeURIComponent(courierId)}/remit`,
+      {
+        ...ADMIN_JSON,
+        method: "POST",
+        body: JSON.stringify(payload || {}),
+      }
+    );
+  } catch (_) {
+    return await remitRiderDuesAdmin(courierId, payload?.amount);
+  }
+}
+
+
 

@@ -14,6 +14,7 @@ import {
   ChevronRight,
   Sliders,
   Ticket,
+  Banknote,
 } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 
@@ -53,6 +54,14 @@ export function AdminSidebar({
           href: ROUTES.ADMIN,
           icon: LayoutDashboard,
           isActive: (path) => path === ROUTES.ADMIN,
+        },
+        {
+          name: "Financial Payouts",
+          href: ROUTES.ADMIN_PAYOUTS,
+          icon: Banknote,
+          isActive: (path) =>
+            path === ROUTES.ADMIN_PAYOUTS ||
+            path.startsWith("/admin/payouts"),
         },
         {
           name: "Global Orders",

@@ -6,8 +6,6 @@ import { useEffect, useState } from "react";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminFinancialSummaryCards from "@/components/admin/AdminFinancialSummaryCards";
 import AdminPricingSafeguardsCard from "@/components/admin/AdminPricingSafeguardsCard";
-import AdminRiderCihOversight from "@/components/admin/AdminRiderCihOversight";
-import AdminCanteenDailySettlements from "@/components/admin/AdminCanteenDailySettlements";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminTableSkeleton from "@/components/admin/AdminTableSkeleton";
 import { ROUTES } from "@/lib/routes";
@@ -167,16 +165,6 @@ export default function AdminPage() {
           {/* Active Platform Pricing Safeguards */}
           <section aria-label="Active Platform Pricing Safeguards">
             <AdminPricingSafeguardsCard />
-          </section>
-
-          {/* Courier Cash-in-Hand (COD Dues) & Remittance Oversight */}
-          <section aria-label="Courier Cash-in-Hand Oversight">
-            <AdminRiderCihOversight />
-          </section>
-
-          {/* Canteen End-of-Day Settlements (9:00 PM Consolidated UPI) */}
-          <section aria-label="Canteen Daily Settlements">
-            <AdminCanteenDailySettlements />
           </section>
 
           {/* Platform Directory Document Counts */}
