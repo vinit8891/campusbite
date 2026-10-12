@@ -72,6 +72,10 @@ class Settings:
     # Sentry Observability
     SENTRY_DSN: str = os.getenv("SENTRY_DSN", "").strip()
 
+    # Razorpay Payment Gateway
+    RAZORPAY_KEY_ID: str = os.getenv("RAZORPAY_KEY_ID", "").strip()
+    RAZORPAY_KEY_SECRET: str = os.getenv("RAZORPAY_KEY_SECRET", "").strip()
+
     def __post_init__(self) -> None:
         resolved = resolve_resend_api_key(
             resend_api_key=self.RESEND_API_KEY,

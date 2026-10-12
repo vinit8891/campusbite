@@ -80,6 +80,7 @@ from app.routers.admin import router as admin_router
 from app.routes.partner_onboarding import router as partner_onboarding_router
 from app.routes.coupons import router as coupons_router
 from app.routes.payment import router as payment_router
+from app.routes.payments import router as payments_router
 from app.routes.settlements import router as settlements_router
 from app.routes.courier import router as courier_router
 from app.routes.subscription import router as subscription_router
@@ -179,6 +180,7 @@ app.include_router(
 )
 
 app.include_router(payment_router)
+app.include_router(payments_router)
 
 app.include_router(subscription_router)
 app.include_router(subscription_billing_router)

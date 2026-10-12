@@ -21,6 +21,22 @@ export const paymentHandlers = [
     });
   }),
 
+  http.post(url("/payments/create-order"), () => {
+    return HttpResponse.json({
+      razorpay_order_id: "order_rzp_123",
+      amount: 25000,
+      currency: "INR",
+      key_id: "rzp_test_123",
+    });
+  }),
+
+  http.post(url("/payments/verify"), () => {
+    return HttpResponse.json({
+      success: true,
+      status: "paid_online",
+    });
+  }),
+
   http.post(url("/payments/razorpay/verify"), () => {
     return HttpResponse.json({
       success: true,
