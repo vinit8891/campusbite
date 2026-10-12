@@ -282,80 +282,102 @@ export function ActiveDeliveryManifest({
     0
   );
   const isHeavyOrder = orderSubtotal >= 150.00;
-  const wageLabel = isAddon
-    ? "Batch Add-on (₹14.00 wage)"
-    : isHeavyOrder
-    ? "Base Drop (₹25.00 wage • Heavy)"
-    : "Base Drop (₹20.00 wage)";
+  const orderRawId = effectiveOrder.id || effectiveOrder._id || "";
+  const orderIdSuffix = orderRawId ? orderRawId.slice(-6).toUpperCase() : "ORDER";
+  const displayStatus = effectiveStatus
+    ? effectiveStatus.charAt(0).toUpperCase() + effectiveStatus.slice(1)
+    : "Assigned";
+  const assignedAtTime = effectiveOrder.assigned_at || effectiveOrder.created_at;
+  const payoutWage = isAddon ? "14.00" : isHeavyOrder ? "25.00" : "20.00";
+  const orderTotalAmount = effectiveOrder.total_amount ?? effectiveOrder.total ?? 0;
+  const pickupPointName = canteenName || effectiveOrder.restaurant_name || effectiveOrder.restaurant?.name || "Campus Canteen";
+  const pickupPointAddress = effectiveOrder.restaurant_address || effectiveOrder.restaurant?.address || "Zeal College Campus";
+  const deliveryDropAddress = effectiveOrder.delivery_location?.building || effectiveOrder.delivery_address || "Hostel Campus";
+  const deliveryRoom = effectiveOrder.delivery_location?.room;
 
   return (
-    <div className="w-full max-w-full min-w-0 box-border rounded-3xl border border-stone-200/90 bg-white p-5 sm:p-7 shadow-xs space-y-5 transition-all hover:shadow-md">
-      {/* Manifest Header */}
-      <div className="flex flex-wrap items-start justify-between gap-4 border-b border-stone-100 pb-4">
-        <div className="min-w-0 max-w-full flex-1">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="font-mono text-xs font-bold text-stone-500 bg-stone-100 px-2.5 py-0.5 rounded-md">
-              Order #{shortId(effectiveOrder._id)}
-            </span>
-            <OrderStatusBadge status={effectiveStatus} size="sm" />
-            <span
-              className={`inline-flex items-center gap-1 rounded-md px-2 py-0.5 text-[11px] font-bold border ${
-                isAddon
-                  ? "bg-amber-50 text-amber-700 border-amber-200"
-                  : "bg-emerald-50 text-emerald-700 border-emerald-200"
-              }`}
-            >
-              <span>🛵</span>
-              <span>
-                {isAddon
-                  ? "₹14.00 Payout"
-                  : isHeavyOrder
-                  ? "₹25.00 Payout"
-                  : "₹20.00 Payout"}
-              </span>
-            </span>
-            {isHeavyOrder && (
-              <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-700 border border-indigo-200">
-                <span>📦</span>
-                <span>Heavy (+₹5)</span>
-              </span>
-            )}
-          </div>
+    <div className="w-full max-w-full min-w-0 box-border rounded-2xl border border-zinc-200/90 bg-white p-4 sm:p-5 shadow-sm space-y-3.5 transition-all hover:shadow-md">
+      {/* 1. Header Row: Order ID, Status Badge, Timestamp */}
+      <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-mono font-bold text-zinc-800 border border-zinc-200/60">
+            #{orderIdSuffix}
+          </span>
+          <span className="rounded-full bg-blue-50 border border-blue-200/80 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">
+            {displayStatus}
+          </span>
+        </div>
+        <span className="text-[11px] text-zinc-400 font-medium shrink-0" suppressHydrationWarning>
+          {isMounted && assignedAtTime
+            ? new Date(assignedAtTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : 'Just now'}
+        </span>
+      </div>
 
-          <h2 className="text-xl sm:text-2xl font-black text-stone-900 tracking-tight pt-1.5 flex items-center gap-2 truncate">
-            <Store className="h-5 w-5 text-orange-600 shrink-0" />
-            <span className="truncate">{canteenName}</span>
-          </h2>
-
-          <p
-            suppressHydrationWarning
-            className="flex items-center gap-1.5 text-xs text-stone-500 pt-0.5"
-          >
-            <Clock3 size={13} className="text-stone-400 shrink-0" />
-            <span suppressHydrationWarning>
-              Assigned at {isMounted && effectiveOrder.created_at ? formatDateTime(effectiveOrder.created_at) : "recently"}
-            </span>
-          </p>
+      {/* 2. Financial Metrics Box: Courier Payout & Cash to Collect */}
+      <div className="grid grid-cols-2 gap-3 rounded-xl bg-zinc-50/80 p-3 border border-zinc-100">
+        {/* Left: Rider Earning */}
+        <div className="flex flex-col">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+            Your Earning
+          </span>
+          <span className="mt-0.5 text-base font-extrabold text-emerald-600 flex items-center gap-1">
+            <span>🛵</span> ₹{payoutWage}
+          </span>
+          <span className="text-[10px] text-zinc-400">Direct courier fee</span>
         </div>
 
-        <div className="text-right shrink-0">
-          <span className="text-[11px] font-bold text-stone-500 uppercase tracking-wider">
-            Order Total
+        {/* Right: Cash Collection / Online Status */}
+        <div className="flex flex-col border-l border-zinc-200/70 pl-3">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+            {isCod ? 'Collect From Customer' : 'Payment Status'}
           </span>
-          <div className="flex items-center justify-end text-2xl sm:text-3xl font-black text-stone-900">
-            <IndianRupee size={22} className="text-stone-400" />
-            <span>{effectiveOrder.total ?? 0}</span>
+          <span className="mt-0.5 text-base font-extrabold text-zinc-900">
+            {isCod ? (
+              <span className="text-amber-700">₹{orderTotalAmount}</span>
+            ) : (
+              <span className="text-emerald-700 text-sm font-semibold">Paid Online ✓</span>
+            )}
+          </span>
+          <span className="text-[10px] text-zinc-500 font-medium truncate">
+            {isCod ? 'Cash on Delivery' : 'Prepaid via UPI'}
+          </span>
+        </div>
+      </div>
+
+      {/* 3. Route Details: Pickup & Drop Off */}
+      <div className="space-y-2.5 text-xs pt-1">
+        {/* Pickup Point */}
+        <div className="flex items-start gap-2.5">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-orange-50 text-sm">
+            🏪
+          </span>
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] uppercase font-bold text-zinc-400 block">Pickup Point</span>
+            <p className="font-semibold text-zinc-900 truncate">
+              {pickupPointName}
+            </p>
+            <p className="text-[11px] text-zinc-500 truncate">
+              {pickupPointAddress}
+            </p>
           </div>
-          <div className="flex items-center justify-end gap-1.5 text-xs font-bold text-emerald-800">
-            <span>{formatPaymentMethod(effectiveOrder.payment_method)}</span>
-            <span>•</span>
-            <span>
-              {formatPaymentStatus(
-                effectiveOrder.payment_status,
-                effectiveOrder.payment_method,
-                effectiveStatus
-              )}
-            </span>
+        </div>
+
+        {/* Drop Point */}
+        <div className="flex items-start gap-2.5 pt-2 border-t border-dashed border-zinc-100">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-sm">
+            📍
+          </span>
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] uppercase font-bold text-zinc-400 block">Delivery Drop</span>
+            <p className="font-semibold text-zinc-900">
+              {deliveryDropAddress}
+            </p>
+            {deliveryRoom && (
+              <p className="text-[11px] text-zinc-500">
+                Room / Flat: {deliveryRoom}
+              </p>
+            )}
           </div>
         </div>
       </div>

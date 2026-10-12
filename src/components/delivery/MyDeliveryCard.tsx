@@ -48,49 +48,90 @@ export function MyDeliveryCard({
   const payoutText = isAddon ? "₹14.00 Payout" : isHeavyOrder ? "₹25.00 Payout" : "₹20.00 Payout";
 
   return (
-    <div className="rounded-2xl border border-zinc-200/90 bg-white p-5 sm:p-6 shadow-sm space-y-3.5">
-      {/* Order Meta Header Row */}
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-zinc-100 pb-2.5">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold text-zinc-900">
+    <div className="rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm space-y-3.5">
+      {/* 1. Header Row: Order ID, Status Badge, Timestamp */}
+      <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+        <div className="flex items-center gap-2 flex-wrap">
+          <span className="rounded-lg bg-zinc-100 px-2.5 py-1 text-xs font-mono font-bold text-zinc-800 border border-zinc-200/60">
             #{orderId.slice(-6).toUpperCase()}
           </span>
-          <span className="rounded-md bg-blue-50 px-2 py-0.5 text-[11px] font-semibold text-blue-700 border border-blue-200/60">
-            {order.status || 'Assigned'}
+          <span className="rounded-full bg-blue-50 border border-blue-200/80 px-2.5 py-0.5 text-[11px] font-semibold text-blue-700">
+            {order.status ? (order.status.charAt(0).toUpperCase() + order.status.slice(1)) : 'Assigned'}
           </span>
-          {/* Streamlined Horizontal Payout Pill */}
-          <span className="inline-flex items-center gap-1 rounded-md bg-emerald-50 px-2 py-0.5 text-[11px] font-bold text-emerald-700 border border-emerald-200">
-            <span>🛵</span>
-            <span>{payoutText}</span>
-          </span>
-          {isHeavyOrder && (
-            <span className="inline-flex items-center gap-1 rounded-md bg-indigo-50 px-2 py-0.5 text-[11px] font-bold text-indigo-700 border border-indigo-200">
-              <span>📦</span>
-              <span>Heavy (+₹5)</span>
-            </span>
-          )}
         </div>
-
-        {/* Total & Payment Mode */}
-        <div className="text-right">
-          <span className="text-xs text-zinc-400 block font-medium">COLLECT</span>
-          <span className="text-sm font-extrabold text-zinc-900">₹{orderTotal}</span>
-        </div>
-      </div>
-
-      {/* Secondary subtitle line for payment method */}
-      <div className="flex items-center gap-2 text-xs text-zinc-500">
-        <span className="font-semibold text-amber-700 bg-amber-50 px-1.5 py-0.5 rounded text-[10px]">
-          {isCod ? 'CASH ON DELIVERY' : 'PAID ONLINE'}
+        <span className="text-[11px] text-zinc-400 font-medium shrink-0" suppressHydrationWarning>
+          {order.assigned_at || (order as { created_at?: string }).created_at
+            ? new Date(order.assigned_at || (order as { created_at?: string }).created_at!).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            : 'Just now'}
         </span>
-        <span>•</span>
-        <span className="text-[11px] text-zinc-500">{order.restaurant_name || order.restaurant_email || 'Campus Kitchen'}</span>
       </div>
 
-      {/* Customer & Address Details */}
-      <div className="text-xs sm:text-sm text-stone-700 pt-0.5">
-        <p className="font-bold text-zinc-900">{order.customer_name} {order.phone ? `• ${order.phone}` : ''}</p>
-        <p className="text-xs text-zinc-500 mt-0.5">{order.address}</p>
+      {/* 2. Financial Metrics Box: Courier Payout & Cash to Collect */}
+      <div className="grid grid-cols-2 gap-3 rounded-xl bg-zinc-50/80 p-3 border border-zinc-100">
+        {/* Left: Rider Earning */}
+        <div className="flex flex-col">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+            Your Earning
+          </span>
+          <span className="mt-0.5 text-base font-extrabold text-emerald-600 flex items-center gap-1">
+            <span>🛵</span> ₹20.00
+          </span>
+          <span className="text-[10px] text-zinc-400">Direct courier fee</span>
+        </div>
+
+        {/* Right: Cash Collection / Online Status */}
+        <div className="flex flex-col border-l border-zinc-200/70 pl-3">
+          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+            {order.payment_method?.toLowerCase() === 'cod' ? 'Collect From Customer' : 'Payment Status'}
+          </span>
+          <span className="mt-0.5 text-base font-extrabold text-zinc-900">
+            {order.payment_method?.toLowerCase() === 'cod' ? (
+              <span className="text-amber-700">₹{order.total_amount ?? orderTotal}</span>
+            ) : (
+              <span className="text-emerald-700 text-sm font-semibold">Paid Online ✓</span>
+            )}
+          </span>
+          <span className="text-[10px] text-zinc-500 font-medium truncate">
+            {order.payment_method?.toLowerCase() === 'cod' ? 'Cash on Delivery' : 'Prepaid via UPI'}
+          </span>
+        </div>
+      </div>
+
+      {/* 3. Route Details: Pickup & Drop Off */}
+      <div className="space-y-2.5 text-xs pt-1">
+        {/* Pickup Point */}
+        <div className="flex items-start gap-2.5">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-orange-50 text-sm">
+            🏪
+          </span>
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] uppercase font-bold text-zinc-400 block">Pickup Point</span>
+            <p className="font-semibold text-zinc-900 truncate">
+              {order.restaurant_name || order.restaurant?.name || 'Campus Canteen'}
+            </p>
+            <p className="text-[11px] text-zinc-500 truncate">
+              {order.restaurant_address || order.restaurant?.address || 'Zeal College Campus'}
+            </p>
+          </div>
+        </div>
+
+        {/* Drop Point */}
+        <div className="flex items-start gap-2.5 pt-2 border-t border-dashed border-zinc-100">
+          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-emerald-50 text-sm">
+            📍
+          </span>
+          <div className="flex-1 min-w-0">
+            <span className="text-[10px] uppercase font-bold text-zinc-400 block">Delivery Drop</span>
+            <p className="font-semibold text-zinc-900">
+              {order.delivery_location?.building || order.delivery_address || order.address || 'Hostel Campus'}
+            </p>
+            {(order.delivery_location?.room || (order as { room_no?: string }).room_no) && (
+              <p className="text-[11px] text-zinc-500">
+                Room / Flat: {order.delivery_location?.room || (order as { room_no?: string }).room_no}
+              </p>
+            )}
+          </div>
+        </div>
       </div>
 
       {/* Doorstep UPI QR Code & Cash Card on Active COD Orders */}

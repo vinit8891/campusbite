@@ -139,6 +139,13 @@ export type DeliveryOrder = {
   latitude?: number | null;
   longitude?: number | null;
   created_at?: string;
+  id?: string;
+  assigned_at?: string;
+  total_amount?: number;
+  restaurant_address?: string;
+  delivery_address?: string;
+  delivery_location?: { building?: string; room?: string };
+  restaurant?: { name?: string; address?: string };
   delivery_partner?: {
     accepted_at?: string;
     phone?: string;
