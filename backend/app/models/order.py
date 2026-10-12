@@ -19,6 +19,32 @@ def get_object_id(order_id: str):
         return None
 
 
+def calculate_order_financials(
+    items: list,
+    delivery_fee: float = 15.0,
+    platform_fee: float = 3.0,
+) -> dict:
+    safe_items = items if isinstance(items, list) else []
+
+    # Sum up item price * quantity
+    items_subtotal = sum(
+        float(item.get("price", 0)) * int(item.get("quantity", 1))
+        for item in safe_items
+    )
+
+    gst = round(items_subtotal * 0.05, 2)  # 5% food GST
+    total_amount = round(items_subtotal + gst + float(delivery_fee) + float(platform_fee), 2)
+
+    return {
+        "items_subtotal": round(items_subtotal, 2),
+        "gst": gst,
+        "delivery_fee": float(delivery_fee),
+        "platform_fee": float(platform_fee),
+        "total_amount": total_amount,
+        "commission_amount": round(items_subtotal * 0.18, 2),  # 18% canteen take rate
+    }
+
+
 def normalize_order_financials(order: dict) -> dict:
     """Ensures non-null float defaults for all standard financial breakdown attributes,
     preserving ALL existing fields of the order and guaranteeing list defaults."""
@@ -40,77 +66,128 @@ def normalize_order_financials(order: dict) -> dict:
 
     pricing = normalized.get("pricing_breakdown") or {}
 
-    # 1. items_subtotal
-    subtotal = normalized.get("items_subtotal")
-    if subtotal is None:
-        subtotal = normalized.get("food_subtotal")
-    if subtotal is None:
-        subtotal = (
-            pricing.get("food_subtotal")
-            or pricing.get("subtotal")
-            or pricing.get("items_subtotal")
-        )
-    if (subtotal is None or subtotal == 0.0) and items:
-        try:
-            subtotal = sum(
-                float(it.get("price", 0)) * int(it.get("quantity", 1))
-                for it in items
-            )
-        except Exception:
-            subtotal = 0.0
-    subtotal = float(subtotal or 0.0)
-
-    # 2. gst
-    gst = normalized.get("gst")
-    if gst is None:
-        gst = (
-            normalized.get("restaurant_gst")
-            or pricing.get("restaurant_gst")
-            or pricing.get("gst")
-        )
-    if gst is None and subtotal > 0:
-        gst = round(subtotal * 0.05, 2)
-    gst = float(gst or 0.0)
-
-    # 3. delivery_fee
+    # Delivery & Platform fees
     delivery_fee = normalized.get("delivery_fee")
     if delivery_fee is None:
         delivery_fee = pricing.get("delivery_fee") or pricing.get("deliveryFee")
     delivery_fee = float(delivery_fee or 0.0)
 
-    # 4. platform_fee
     platform_fee = normalized.get("platform_fee")
     if platform_fee is None:
         platform_fee = pricing.get("platform_fee") or pricing.get("platformTechFee")
     platform_fee = float(platform_fee or 0.0)
 
-    # 5. commission_amount
-    comm = normalized.get("commission_amount")
-    if comm is None:
-        comm = (
-            normalized.get("commission")
-            or pricing.get("commission")
-            or pricing.get("commission_amount")
+    # If items are present, dynamically calculate authoritative items_subtotal
+    if items:
+        calculated = calculate_order_financials(
+            items=items,
+            delivery_fee=delivery_fee,
+            platform_fee=platform_fee,
         )
-    if comm is None and subtotal > 0:
-        comm = round(subtotal * 0.18, 2)
-    comm = float(comm or 0.0)
+        if calculated["items_subtotal"] > 0:
+            subtotal = calculated["items_subtotal"]
+        else:
+            subtotal = (
+                normalized.get("items_subtotal")
+                or normalized.get("food_subtotal")
+                or pricing.get("food_subtotal")
+                or pricing.get("subtotal")
+                or pricing.get("items_subtotal")
+                or 0.0
+            )
+        subtotal = float(subtotal or 0.0)
 
-    # 6. total_amount
-    total_val = normalized.get("total_amount")
-    if total_val is None:
-        total_val = normalized.get("total") or pricing.get("total")
-    if total_val is None and (subtotal > 0 or delivery_fee > 0 or platform_fee > 0):
-        total_val = round(subtotal + gst + delivery_fee + platform_fee, 2)
-    total_val = float(total_val or 0.0)
+        # 2. gst
+        gst = normalized.get("gst")
+        if gst is None:
+            gst = (
+                normalized.get("restaurant_gst")
+                or pricing.get("restaurant_gst")
+                or pricing.get("gst")
+            )
+        if gst is None and subtotal > 0:
+            gst = calculated["gst"]
+        gst = float(gst or 0.0)
 
-    # 7. net_payout
-    net_payout = normalized.get("net_payout")
-    if net_payout is None:
-        net_payout = normalized.get("canteen_net_payout") or pricing.get("canteen_net_payout")
-    if net_payout is None and subtotal > 0:
-        net_payout = round(subtotal - comm, 2)
-    net_payout = float(net_payout or 0.0)
+        # 5. commission_amount
+        comm = normalized.get("commission_amount")
+        if comm is None:
+            comm = (
+                normalized.get("commission")
+                or pricing.get("commission")
+                or pricing.get("commission_amount")
+            )
+        if comm is None and subtotal > 0:
+            comm = calculated["commission_amount"]
+        comm = float(comm or 0.0)
+
+        # 6. total_amount
+        total_val = normalized.get("total_amount")
+        if total_val is None:
+            total_val = normalized.get("total") or pricing.get("total")
+        if total_val is None and (subtotal > 0 or delivery_fee > 0 or platform_fee > 0):
+            total_val = calculated["total_amount"]
+        total_val = float(total_val or 0.0)
+
+        # 7. net_payout
+        net_payout = normalized.get("net_payout")
+        if net_payout is None:
+            net_payout = normalized.get("canteen_net_payout") or pricing.get("canteen_net_payout")
+        if net_payout is None and subtotal > 0:
+            net_payout = round(subtotal - comm, 2)
+        net_payout = float(net_payout or 0.0)
+    else:
+        # 1. items_subtotal
+        subtotal = normalized.get("items_subtotal")
+        if subtotal is None:
+            subtotal = normalized.get("food_subtotal")
+        if subtotal is None:
+            subtotal = (
+                pricing.get("food_subtotal")
+                or pricing.get("subtotal")
+                or pricing.get("items_subtotal")
+            )
+        subtotal = float(subtotal or 0.0)
+
+        # 2. gst
+        gst = normalized.get("gst")
+        if gst is None:
+            gst = (
+                normalized.get("restaurant_gst")
+                or pricing.get("restaurant_gst")
+                or pricing.get("gst")
+            )
+        if gst is None and subtotal > 0:
+            gst = round(subtotal * 0.05, 2)
+        gst = float(gst or 0.0)
+
+        # 5. commission_amount
+        comm = normalized.get("commission_amount")
+        if comm is None:
+            comm = (
+                normalized.get("commission")
+                or pricing.get("commission")
+                or pricing.get("commission_amount")
+            )
+        if comm is None and subtotal > 0:
+            comm = round(subtotal * 0.18, 2)
+        comm = float(comm or 0.0)
+
+        # 6. total_amount
+        total_val = normalized.get("total_amount")
+        if total_val is None:
+            total_val = normalized.get("total") or pricing.get("total")
+        if total_val is None and (subtotal > 0 or delivery_fee > 0 or platform_fee > 0):
+            total_val = round(subtotal + gst + delivery_fee + platform_fee, 2)
+        total_val = float(total_val or 0.0)
+
+        # 7. net_payout
+        net_payout = normalized.get("net_payout")
+        if net_payout is None:
+            net_payout = normalized.get("canteen_net_payout") or pricing.get("canteen_net_payout")
+        if net_payout is None and subtotal > 0:
+            net_payout = round(subtotal - comm, 2)
+        net_payout = float(net_payout or 0.0)
 
     normalized["items_subtotal"] = float(subtotal)
     normalized["gst"] = float(gst)

@@ -16,6 +16,7 @@ from app.auth.roles import (
 from app.schemas.order import Order, OrderResponse, RestaurantSnapshot
 
 from app.models.order import (
+    calculate_order_financials,
     create_order,
     get_order_by_id,
     normalize_order_financials,
@@ -439,13 +440,17 @@ async def add_order(
 
     # 1. Base food subtotal calculation
     items_list = data.get("items") or []
-    items_subtotal = round(
-        sum(float(item.get("price", 0)) * int(item.get("quantity", 0)) for item in items_list),
-        2,
+    req_delivery_fee = 15.0 if fulfillment_mode == "delivery" else 0.0
+    req_platform_fee = 3.0 if fulfillment_mode == "delivery" else 2.0
+    financials = calculate_order_financials(
+        items=items_list,
+        delivery_fee=req_delivery_fee,
+        platform_fee=req_platform_fee,
     )
-    gst = round(items_subtotal * 0.05, 2)
-    delivery_fee = 15.0 if fulfillment_mode == "delivery" else 0.0
-    platform_fee = 3.0 if fulfillment_mode == "delivery" else 2.0
+    items_subtotal = financials["items_subtotal"]
+    gst = financials["gst"]
+    delivery_fee = financials["delivery_fee"]
+    platform_fee = financials["platform_fee"]
 
     # 2. Coupon Validation & Deduction
     discount_amount = 0.0

@@ -10,8 +10,11 @@ Re-exports router and provides financial normalization guaranteeing non-null flo
 - total_amount: float (default 0.0)
 """
 
-from app.models.order import normalize_order_financials
+from app.models.order import (
+    calculate_order_financials,
+    normalize_order_financials,
+)
 from app.routes.order import *  # noqa: F401, F403
 from app.routes.order import router
 
-__all__ = ["router", "normalize_order_financials"]
+__all__ = ["router", "calculate_order_financials", "normalize_order_financials"]

@@ -1,8 +1,9 @@
 import React from "react";
 import type { Order } from "@/types/orders";
 import { formatPaymentMethod } from "@/lib/paymentLabels";
+import { formatINR } from "@/lib/formatters";
 import { PaymentStatusBadge } from "@/components/common";
-import { getCalibratedAppPrice, calculateCodRounding } from "@/lib/pricingEngine";
+import { calculateCodRounding } from "@/lib/pricingEngine";
 
 export type OrderSummaryProps = {
   order: Order;
@@ -13,12 +14,14 @@ export function OrderSummary({ order }: OrderSummaryProps) {
     order.payment_method?.toLowerCase().includes("cash") ||
     order.payment_method?.toUpperCase() === "COD";
 
-  // Calculate or extract itemized breakdown
-  const items = order.items || [];
-  const calculatedSubtotal = items.reduce((sum, item) => {
-    const unit = getCalibratedAppPrice(item.price);
-    return sum + unit * (item.quantity || 1);
-  }, 0);
+  // Calculate subtotal dynamically from items if order.items_subtotal is mismatched
+  const computedSubtotal =
+    Array.isArray(order?.items) && order.items.length > 0
+      ? order.items.reduce(
+          (sum, item) => sum + Number(item.price || 0) * Number(item.quantity || 1),
+          0
+        )
+      : Number(order?.items_subtotal || 0);
 
   const breakdown = order.pricing_breakdown as
     | {
@@ -34,41 +37,45 @@ export function OrderSummary({ order }: OrderSummaryProps) {
       }
     | undefined;
 
-  const subtotal =
-    breakdown?.appSubtotal ??
-    breakdown?.food_subtotal ??
-    calculatedSubtotal;
+  const subtotal = computedSubtotal;
 
   const gst =
-    breakdown?.gstAmount ??
-    breakdown?.restaurant_gst ??
-    Number((subtotal * 0.05).toFixed(2));
+    order?.gst != null
+      ? Number(order.gst)
+      : breakdown?.gstAmount ??
+        breakdown?.restaurant_gst ??
+        Number((subtotal * 0.05).toFixed(2));
 
   const isTakeaway = order.delivery_type === "COUNTER_TAKEAWAY";
   const techFee =
-    breakdown?.platformTechFee ??
-    breakdown?.platform_fee ??
-    (isTakeaway ? 3 : 5);
+    order?.platform_fee != null
+      ? Number(order.platform_fee)
+      : breakdown?.platformTechFee ??
+        breakdown?.platform_fee ??
+        (isTakeaway ? 2.0 : 3.0);
 
   const deliveryFee =
-    breakdown?.deliveryFee ??
-    breakdown?.delivery_fee ??
-    (isTakeaway
-      ? 0
-      : order.delivery_type === "EXPRESS_DOOR" ||
-        order.delivery_type === "STANDARD"
-      ? 40
-      : 15);
+    order?.delivery_fee != null
+      ? Number(order.delivery_fee)
+      : breakdown?.deliveryFee ??
+        breakdown?.delivery_fee ??
+        (isTakeaway
+          ? 0.0
+          : order.delivery_type === "EXPRESS_DOOR" ||
+            order.delivery_type === "STANDARD"
+          ? 40.0
+          : 15.0);
 
-  const tip = order.tip_amount ?? breakdown?.tip_amount ?? 0;
+  const tip = Number(order.tip_amount ?? breakdown?.tip_amount ?? 0);
+  const discountAmount = Number(order.discount_amount ?? 0);
 
   const theoreticalTotal = Number(
-    (subtotal + gst + techFee + deliveryFee + tip).toFixed(2)
+    (subtotal + gst + techFee + deliveryFee + tip - discountAmount).toFixed(2)
   );
 
   const codInfo = isCash ? calculateCodRounding(theoreticalTotal) : null;
   const finalTotal =
-    order.total ?? (codInfo ? codInfo.roundedTotal : theoreticalTotal);
+    order.total ?? order.total_amount ?? (codInfo ? codInfo.roundedTotal : theoreticalTotal);
 
   // Delivery type badge label
   const deliveryTypeLabel =
@@ -197,30 +204,37 @@ export function OrderSummary({ order }: OrderSummaryProps) {
             <div className="space-y-2 pt-2 text-sm text-gray-600">
               <div className="flex items-center justify-between">
                 <span>Items Subtotal</span>
-                <span className="font-semibold text-gray-900">₹{subtotal.toFixed(2)}</span>
+                <span className="font-semibold text-gray-900">₹{formatINR(subtotal)}</span>
               </div>
 
               <div className="flex items-center justify-between text-xs text-gray-500">
                 <span>Food GST (5%)</span>
-                <span className="font-medium text-gray-800">₹{gst.toFixed(2)}</span>
+                <span className="font-medium text-gray-800">₹{formatINR(gst)}</span>
               </div>
 
               <div className="flex items-center justify-between text-xs text-gray-500">
                 <span>Platform Tech Fee</span>
-                <span className="font-medium text-gray-800">₹{techFee.toFixed(2)}</span>
+                <span className="font-medium text-gray-800">₹{formatINR(techFee)}</span>
               </div>
 
               <div className="flex items-center justify-between text-xs text-gray-500">
                 <span>Delivery Fee</span>
                 <span className="font-medium text-gray-800">
-                  {deliveryFee === 0 ? "FREE" : `₹${deliveryFee.toFixed(2)}`}
+                  {deliveryFee === 0 ? "FREE" : `₹${formatINR(deliveryFee)}`}
                 </span>
               </div>
 
               {tip > 0 && (
                 <div className="flex items-center justify-between text-xs text-emerald-600 font-medium">
                   <span>Courier Tip</span>
-                  <span>₹{tip.toFixed(2)}</span>
+                  <span>₹{formatINR(tip)}</span>
+                </div>
+              )}
+
+              {discountAmount > 0 && (
+                <div className="flex items-center justify-between text-xs text-emerald-600 font-medium">
+                  <span>Coupon Discount</span>
+                  <span>-₹{formatINR(discountAmount)}</span>
                 </div>
               )}
 
@@ -229,8 +243,8 @@ export function OrderSummary({ order }: OrderSummaryProps) {
                   <span>COD Cash Round Off</span>
                   <span>
                     {codInfo.roundOff > 0
-                      ? `+₹${codInfo.roundOff.toFixed(2)}`
-                      : `-₹${Math.abs(codInfo.roundOff).toFixed(2)}`}
+                      ? `+₹${formatINR(codInfo.roundOff)}`
+                      : `-₹${formatINR(Math.abs(codInfo.roundOff))}`}
                   </span>
                 </div>
               )}
@@ -246,7 +260,7 @@ export function OrderSummary({ order }: OrderSummaryProps) {
             </div>
 
             <span className="text-2xl font-black text-orange-600">
-              ₹{finalTotal}
+              ₹{formatINR(finalTotal)}
             </span>
           </div>
         </div>

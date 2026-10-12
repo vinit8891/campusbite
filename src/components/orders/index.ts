@@ -11,3 +11,8 @@ export {
   FloatingOrderBanner,
   ActiveOrderFloat,
 } from "./LiveOrderTrackerBar";
+export {
+  PaymentBreakdown,
+  OrderReceipt,
+  type PaymentBreakdownProps,
+} from "./PaymentBreakdown";

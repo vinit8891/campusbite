@@ -1,4 +1,7 @@
-from app.routes.orders import normalize_order_financials
+from app.routes.orders import (
+    calculate_order_financials,
+    normalize_order_financials,
+)
 from app.routes.settlements import normalize_settlement_financials
 from app.routes.courier import normalize_courier_financials
 
@@ -51,6 +54,43 @@ def test_order_normalization_preserves_all_fields_and_guarantees_arrays():
     assert len(normalized["items"]) == 1
     assert len(normalized["timeline"]) == 1
     assert len(normalized["status_history"]) == 1
+
+
+def test_calculate_order_financials():
+    items = [
+        {"id": "item1", "name": "Burger", "price": 100.0, "quantity": 2},
+        {"id": "item2", "name": "Fries", "price": 22.0, "quantity": 2},
+    ]
+    fin = calculate_order_financials(items, delivery_fee=15.0, platform_fee=3.0)
+
+    # 100*2 + 22*2 = 244.00
+    assert fin["items_subtotal"] == 244.00
+    assert fin["gst"] == 12.20  # 5% of 244
+    assert fin["delivery_fee"] == 15.0
+    assert fin["platform_fee"] == 3.0
+    assert fin["total_amount"] == 274.20  # 244 + 12.20 + 15 + 3
+    assert fin["commission_amount"] == 43.92  # 18% of 244
+
+
+def test_order_subtotal_pricing_mismatch_correction():
+    """Ensure normalize_order_financials overrides mismatched frontend subtotal with precise items sum."""
+    order = {
+        "_id": "order_mismatch_244",
+        "items": [
+            {"id": "item1", "name": "Burger", "price": 100.0, "quantity": 2},
+            {"id": "item2", "name": "Fries", "price": 22.0, "quantity": 2},
+        ],
+        "items_subtotal": 190.00,  # Mismatched/stale frontend subtotal
+        "delivery_fee": 15.0,
+        "platform_fee": 3.0,
+    }
+    normalized = normalize_order_financials(order)
+
+    # Must be corrected dynamically to the precise sum of items: ₹244.00
+    assert normalized["items_subtotal"] == 244.00
+    assert normalized["gst"] == 12.20
+    assert normalized["delivery_fee"] == 15.0
+    assert normalized["platform_fee"] == 3.0
 
 
 def test_order_financial_normalization_from_items():

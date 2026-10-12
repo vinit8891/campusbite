@@ -107,4 +107,42 @@ describe("Order Tracking Crash Defensive Guards (#418)", () => {
       expect(result.current.filteredOrders[0]._id).toBe("ord-2");
     });
   });
+
+  describe("PaymentBreakdown and OrderReceipt Dynamic Subtotal Calculation", () => {
+    it("computes items_subtotal dynamically from items array when subtotal is mismatched or missing", async () => {
+      const { PaymentBreakdown } = await import("@/components/orders/PaymentBreakdown");
+
+      const orderWithMismatch: Partial<Order> = {
+        _id: "order-244",
+        items_subtotal: 190.0, // Mismatched stored subtotal
+        items: [
+          { id: "i1", name: "Veg Burger", price: 100, quantity: 2 },
+          { id: "i2", name: "Fries", price: 22, quantity: 2 },
+        ],
+        // 100*2 + 22*2 = 244.00
+      };
+
+      render(<PaymentBreakdown order={orderWithMismatch} />);
+
+      // Computed subtotal: ₹244.00
+      expect(screen.getByText("₹244.00")).toBeInTheDocument();
+      // Food GST (5% of 244): ₹12.20
+      expect(screen.getByText("₹12.20")).toBeInTheDocument();
+      // Platform Tech Fee: ₹3.00
+      expect(screen.getByText("₹3.00")).toBeInTheDocument();
+      // Delivery Fee: ₹15.00
+      expect(screen.getByText("₹15.00")).toBeInTheDocument();
+      // Total Paid: 244 + 12.20 + 3 + 15 = ₹274.20
+      expect(screen.getByText("₹274.20")).toBeInTheDocument();
+    });
+
+    it("uses OrderReceipt alias and handles empty or missing items array safely", async () => {
+      const { OrderReceipt } = await import("@/components/orders/PaymentBreakdown");
+
+      render(<OrderReceipt order={null} />);
+      expect(screen.getByText("Items Subtotal")).toBeInTheDocument();
+      expect(screen.getAllByText("₹0.00").length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByText("Total Paid")).toBeInTheDocument();
+    });
+  });
 });
