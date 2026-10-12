@@ -36,7 +36,7 @@ const foods = [
 
 export function StudentSpecials() {
   return (
-    <section className="mx-auto max-w-7xl px-6 py-20">
+    <section className="w-full py-12 md:py-16">
       <div className="mb-10">
         <h2 className="text-3xl font-bold">Student Specials</h2>
 

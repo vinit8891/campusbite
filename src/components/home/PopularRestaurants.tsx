@@ -128,7 +128,7 @@ function PopularRestaurantsComponent() {
   return (
     <section
       id="popular-restaurants"
-      className="mx-auto max-w-7xl px-6 py-16"
+      className="w-full py-12 md:py-16"
     >
       <div className="mb-6 flex flex-col justify-between gap-4 md:flex-row md:items-center">
         <div>

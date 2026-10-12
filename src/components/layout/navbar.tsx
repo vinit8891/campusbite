@@ -39,12 +39,12 @@ export function Navbar() {
   return (
     <>
       <header className="sticky top-0 z-50 border-b border-orange-100/70 bg-white/90 backdrop-blur-md shadow-xs supports-backdrop-filter:bg-white/80">
-        <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-6">
+        <div className="w-full max-w-md md:max-w-7xl mx-auto flex h-16 items-center justify-between px-4">
           {/* Brand Logo & Location Indicator */}
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <Link
               href={ROUTES.HOME}
-              className="flex items-center gap-2.5 group"
+              className="flex items-center gap-2.5 group shrink-0"
               aria-label="CampusBite Home"
             >
               <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 text-white shadow-sm shadow-orange-500/20 group-hover:scale-105 transition-transform">
@@ -61,16 +61,12 @@ export function Navbar() {
             <button
               type="button"
               onClick={openLocationModal}
-              className="flex items-center gap-1.5 rounded-xl border border-orange-200/90 bg-orange-50/80 px-2.5 py-1.5 sm:px-3 text-xs font-semibold text-stone-800 hover:border-orange-300 hover:bg-orange-100 hover:text-orange-700 transition-all cursor-pointer active:scale-98 shadow-xs"
+              className="hidden sm:flex items-center gap-1.5 rounded-full border border-orange-200 bg-orange-50/80 px-2.5 py-1 text-xs text-zinc-700 max-w-[130px] sm:max-w-[200px] hover:border-orange-300 hover:bg-orange-100 hover:text-orange-700 transition-all cursor-pointer active:scale-98 shadow-xs"
               aria-label="Change campus delivery location"
             >
-              <span className="text-sm shrink-0" aria-hidden="true">📍</span>
-              <span className="truncate max-w-[140px] sm:max-w-[210px] text-stone-800 font-medium">
-                {displayLocation}
-              </span>
-              <span className="text-orange-600 font-semibold underline text-[11px] ml-0.5 shrink-0 hover:text-orange-700">
-                (Change)
-              </span>
+              <span className="shrink-0 text-orange-500" aria-hidden="true">📍</span>
+              <span className="truncate font-medium">{displayLocation || "Zeal Campus"}</span>
+              <span className="shrink-0 text-orange-600 font-semibold">(Change)</span>
             </button>
           </div>
 

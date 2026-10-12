@@ -7,7 +7,7 @@ export default function Page() {
     <Suspense
       fallback={
         <main className="min-h-screen bg-gray-50">
-          <div className="mx-auto max-w-7xl px-4 py-10">
+          <div className="w-full max-w-md md:max-w-7xl mx-auto px-4 py-10">
             <div className="rounded-2xl border bg-white p-10 text-center">
               Loading restaurants...
             </div>

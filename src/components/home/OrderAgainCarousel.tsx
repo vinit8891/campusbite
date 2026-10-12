@@ -186,7 +186,7 @@ export function OrderAgainCarousel() {
   return (
     <section
       data-testid="order-again-section"
-      className="mx-auto max-w-7xl px-4 md:px-6 pt-4 pb-2"
+      className="w-full pt-4 pb-2"
       aria-label="Order Again"
     >
       <div className="flex items-center justify-between mb-3">
@@ -206,7 +206,7 @@ export function OrderAgainCarousel() {
       </div>
 
       {/* Compact Snap Scroll Row */}
-      <div className="flex gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-none pb-3 pt-1 -mx-2 px-2">
+      <div className="flex gap-3 sm:gap-4 overflow-x-auto snap-x snap-mandatory scrollbar-none pb-3 pt-1">
         {previousDishes.map((dish) => (
           <div
             key={`${dish.name}-${dish.restaurant_email}`}

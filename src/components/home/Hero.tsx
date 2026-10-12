@@ -12,10 +12,10 @@ export default function Hero() {
   const { fullAddressLabel, openLocationModal } = useLocation();
 
   return (
-    <section className="bg-gradient-to-br from-orange-50/80 via-white to-amber-50/30">
+    <section className="w-full">
       {/* Mobile Location Top Bar (< md) */}
-      <div className="md:hidden px-4 pt-3 pb-1">
-        <div className="flex items-center justify-between gap-2">
+      <div className="w-full md:hidden pt-3 pb-1">
+        <div className="flex items-center justify-between gap-2 w-full">
           <div className="flex items-center gap-2 min-w-0">
             <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-orange-100 text-orange-600 shrink-0">
               <MapPin className="h-4 w-4" />
@@ -44,8 +44,8 @@ export default function Hero() {
       </div>
 
       {/* Mobile Hero Banner Card (< md) */}
-      <div className="md:hidden mx-4 mt-2 mb-2">
-        <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-50/90 via-orange-50/60 to-white border border-orange-200/70 p-5 sm:p-6 shadow-sm flex items-center justify-between gap-3">
+      <div className="w-full md:hidden mt-2 mb-2">
+        <div className="w-full relative overflow-hidden rounded-3xl bg-gradient-to-br from-amber-50/90 via-orange-50/60 to-white border border-orange-200/70 p-5 sm:p-6 shadow-sm flex items-center justify-between gap-3">
           {/* Left Column (Text & CTAs) */}
           <div className="min-w-0 flex-1">
             <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-orange-100/80 border border-orange-200 text-orange-800 text-[10px] sm:text-xs font-semibold">
@@ -85,7 +85,7 @@ export default function Hero() {
       </div>
 
       {/* Desktop Hero (md+) */}
-      <div className="hidden md:flex mx-auto max-w-7xl flex-row items-center justify-between gap-12 px-6 py-16 lg:py-20">
+      <div className="hidden md:flex w-full flex-row items-center justify-between gap-12 py-12 lg:py-16">
         {/* Left */}
         <div className="max-w-xl">
           <span className="inline-flex items-center gap-1.5 rounded-full bg-orange-100 px-4 py-1.5 text-xs font-semibold text-orange-700">
@@ -122,7 +122,7 @@ export default function Hero() {
         </div>
 
         {/* Right */}
-        <div className="flex h-[360px] w-[360px] lg:h-[400px] lg:w-[400px] items-center justify-center rounded-full bg-gradient-to-tr from-orange-100 to-amber-100 shadow-xl border border-orange-200/40">
+        <div className="flex h-80 w-80 lg:h-96 lg:w-96 items-center justify-center rounded-full bg-gradient-to-tr from-orange-100 to-amber-100 shadow-xl border border-orange-200/40">
           <Image
             src="/images/hero/burger.png"
             alt="CampusBite Burger"

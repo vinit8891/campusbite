@@ -13,16 +13,16 @@ export default function Home() {
     <>
       <Navbar />
 
-      <main className="pb-32">
+      <main className="w-full max-w-md md:max-w-7xl mx-auto px-4 pb-32">
         {/* 1. Location Header & Unified Tactile Search */}
         <Hero />
         <SearchBar />
 
         {/* 2. Campus Batch Drop Promo Banner */}
-        <section className="mx-auto max-w-7xl px-4 md:px-6 pt-1 pb-2">
-          <div className="flex items-center justify-between rounded-2xl bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 p-3.5 text-white shadow-md shadow-orange-500/15">
+        <section className="w-full pt-1 pb-2">
+          <div className="flex w-full items-center justify-between rounded-2xl bg-gradient-to-r from-orange-500 via-orange-600 to-amber-500 p-3.5 text-white shadow-md shadow-orange-500/15">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 backdrop-blur-xs text-lg">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-white/20 backdrop-blur-xs text-lg shrink-0">
                 ⚡
               </div>
               <div>

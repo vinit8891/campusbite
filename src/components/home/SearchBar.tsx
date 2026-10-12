@@ -20,7 +20,7 @@ export function SearchBar() {
   }
 
   return (
-    <section className="relative z-20 mx-auto max-w-4xl px-4 md:px-6 pt-2 pb-2">
+    <section className="relative z-20 w-full pt-2 pb-2">
       <form onSubmit={handleSearch} className="w-full">
         <div className="group h-12 w-full rounded-2xl bg-white shadow-md shadow-orange-500/5 border border-stone-200/70 px-4 flex items-center gap-3 transition-all duration-200 focus-within:ring-2 focus-within:ring-orange-400/40 focus-within:border-orange-400">
           <Search className="h-5 w-5 text-orange-500 shrink-0 group-focus-within:scale-110 transition-transform" />
