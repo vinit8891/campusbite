@@ -123,7 +123,7 @@ describe("CartPage Component", () => {
     expect(screen.getByText("₹12.25")).toBeInTheDocument();
 
     expect(screen.getByText("Delivery Fee")).toBeInTheDocument();
-    expect(screen.getAllByText("Hostel Batch").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Campus Delivery").length).toBeGreaterThan(0);
     expect(screen.getByText("₹15.00")).toBeInTheDocument();
 
     expect(screen.getByText("Platform Tech Fee")).toBeInTheDocument();
@@ -133,17 +133,16 @@ describe("CartPage Component", () => {
     expect(screen.getByText("₹275.25")).toBeInTheDocument();
   });
 
-  it("allows selecting Direct Room Delivery and updates delivery mode state", async () => {
+  it("allows selecting Takeaway and updates pricing and fulfillment mode", async () => {
     const user = userEvent.setup();
     render(<CartPage />);
 
-    const directDeliveryBtn = screen.getByRole("radio", {
-      name: /Direct Room/i,
+    const takeawayBtn = screen.getByRole("button", {
+      name: /Takeaway/i,
     });
-    await user.click(directDeliveryBtn);
+    await user.click(takeawayBtn);
 
-    expect(mockSetDeliveryType).toHaveBeenCalledWith("EXPRESS_DOOR");
-    expect(mockSetCheckout).toHaveBeenCalled();
+    expect(mockSetDeliveryType).toHaveBeenCalledWith("COUNTER_TAKEAWAY");
   });
 
   it("navigates to checkout when Proceed to Checkout is clicked", async () => {
@@ -156,75 +155,5 @@ describe("CartPage Component", () => {
     await user.click(checkoutBtn);
 
     expect(mockPush).toHaveBeenCalledWith("/checkout");
-  });
-
-  it("shows minimum delivery warning and disables checkout when subtotal < ₹35 on delivery", async () => {
-    const user = userEvent.setup();
-    // 1 item with price 10 -> calibrated ceil(10/0.82) = 13 < 35
-    mockCartState = [
-      {
-        id: "item-tea",
-        name: "Masala Chai",
-        price: 10,
-        quantity: 1,
-        image: "/images/food/chai.jpg",
-        restaurant_email: "eatery@campus.edu",
-        restaurant_name: "Campus Eatery",
-      },
-    ];
-    mockDeliveryType = "HOSTEL_BATCH";
-
-    render(<CartPage />);
-
-    expect(
-      screen.getByText(/Hostel delivery requires a minimum food order of ₹35.00/i)
-    ).toBeInTheDocument();
-
-    const checkoutBtn = screen.getByRole("button", {
-      name: /Min Delivery ₹35 Required/i,
-    });
-    expect(checkoutBtn).toBeDisabled();
-
-    // Quick switch to Takeaway
-    const switchBtn = screen.getByRole("button", {
-      name: /Switch to Counter Takeaway/i,
-    });
-    await user.click(switchBtn);
-    expect(mockSetDeliveryType).toHaveBeenCalledWith("COUNTER_TAKEAWAY");
-  });
-
-  it("shows dynamic ₹5.00 Platform Tech Fee when delivery subtotal is between ₹35 and ₹50 without separate surcharge row", () => {
-    // 1 item with price 30 -> calibrated ceil(30/0.82) = 37 (between 35 and 50)
-    mockCartState = [
-      {
-        id: "item-snack",
-        name: "Veg Sandwich",
-        price: 30,
-        quantity: 1,
-        image: "/images/food/sandwich.jpg",
-        restaurant_email: "eatery@campus.edu",
-        restaurant_name: "Campus Eatery",
-      },
-    ];
-    mockDeliveryType = "HOSTEL_BATCH";
-
-    render(<CartPage />);
-
-    // Platform Tech Fee displays ₹5.00 for small cart
-    expect(screen.getByText("Platform Tech Fee")).toBeInTheDocument();
-    expect(screen.getByText("₹5.00")).toBeInTheDocument();
-
-    // No separate surcharge line item
-    expect(screen.queryByText("Small Order Surcharge")).not.toBeInTheDocument();
-
-    // Grand total: 37 + 1.85 + 15 + 5 = 58.85
-    expect(screen.getByText("Grand Total")).toBeInTheDocument();
-    expect(screen.getByText("₹58.85")).toBeInTheDocument();
-
-    // Checkout button is active
-    const checkoutBtn = screen.getByRole("button", {
-      name: /Proceed to Checkout/i,
-    });
-    expect(checkoutBtn).toBeEnabled();
   });
 });

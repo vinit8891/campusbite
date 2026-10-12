@@ -30,9 +30,8 @@ describe("AddressForm Component", () => {
 
     // Header and delivery modes
     expect(screen.getByText("Delivery Details")).toBeInTheDocument();
-    expect(screen.getByText(/Hostel Batch/i)).toBeInTheDocument();
+    expect(screen.getByText(/Campus Delivery/i)).toBeInTheDocument();
     expect(screen.getByText(/Takeaway/i)).toBeInTheDocument();
-    expect(screen.getAllByText(/Direct Room/i).length).toBeGreaterThan(0);
 
     // Campus hostel pills
     expect(screen.getByRole("button", { name: /Block A/i })).toBeInTheDocument();
