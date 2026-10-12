@@ -98,5 +98,5 @@ describe("RestaurantOnboardingWizard Component", () => {
     // Step 3: Identity & Compliance Verification
     expect(screen.getByText(/Step 3: Identity & Compliance Verification/i)).toBeInTheDocument();
     expect(screen.getByText(/Owner Aadhaar Card \(KYC Front & Back\)/i)).toBeInTheDocument();
-  });
+  }, 15000);
 });

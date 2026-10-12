@@ -53,6 +53,24 @@ const mockSubscriptions: Subscription[] = [
     price: 2800,
     created_at: "2026-09-01T09:00:00Z",
   },
+  {
+    subscription_id: "sub_9999000011112222",
+    customer_email: "pending_student@campus.edu",
+    restaurant_email: "mess@campus.edu",
+    meal_type: "breakfast",
+    subscription_type: "weekly",
+    delivery_days: ["monday", "tuesday"],
+    auto_renew: false,
+    skipped_dates: [],
+    pause_from: null,
+    pause_to: null,
+    start_date: "2026-09-01",
+    end_date: "2026-09-07",
+    status: "active",
+    payment_status: "pending",
+    price: 350,
+    created_at: "2026-09-01T10:00:00Z",
+  },
 ];
 
 describe("Admin Mess Subscriptions Management & Deletion Control", () => {
@@ -77,7 +95,7 @@ describe("Admin Mess Subscriptions Management & Deletion Control", () => {
       expect(screen.getByText("student@campus.edu")).toBeInTheDocument();
       expect(screen.getByText("lunch · weekly")).toBeInTheDocument();
       expect(screen.getByText("₹700.00")).toBeInTheDocument();
-      expect(screen.getByText("active")).toBeInTheDocument();
+      expect(screen.getAllByText("active").length).toBeGreaterThanOrEqual(1);
 
       expect(screen.getByText("faculty@campus.edu")).toBeInTheDocument();
       expect(screen.getByText("dinner · monthly")).toBeInTheDocument();
@@ -97,11 +115,48 @@ describe("Admin Mess Subscriptions Management & Deletion Control", () => {
       const deleteButtons = screen.getAllByRole("button", {
         name: /delete subscription/i,
       });
-      expect(deleteButtons.length).toBe(2);
+      expect(deleteButtons.length).toBe(3);
 
       fireEvent.click(deleteButtons[0]);
       expect(handleDelete).toHaveBeenCalledTimes(1);
       expect(handleDelete).toHaveBeenCalledWith(mockSubscriptions[0]);
+    });
+
+    it("renders Mark Paid button for pending payment and triggers callback", () => {
+      const handleMarkPaid = vi.fn();
+      render(
+        <AdminSubscriptionsTable
+          items={mockSubscriptions}
+          onMarkPaymentPaid={handleMarkPaid}
+        />
+      );
+
+      const markPaidBtn = screen.getByRole("button", {
+        name: /mark paid/i,
+      });
+      expect(markPaidBtn).toBeInTheDocument();
+      fireEvent.click(markPaidBtn);
+      expect(handleMarkPaid).toHaveBeenCalledWith("sub_9999000011112222");
+    });
+
+    it("renders Cancel button for active subscription and Activate button for paused/cancelled", () => {
+      const handleUpdateStatus = vi.fn();
+      render(
+        <AdminSubscriptionsTable
+          items={mockSubscriptions}
+          onUpdateStatus={handleUpdateStatus}
+        />
+      );
+
+      const cancelButtons = screen.getAllByRole("button", { name: /cancel subscription/i });
+      expect(cancelButtons.length).toBeGreaterThanOrEqual(1);
+      fireEvent.click(cancelButtons[0]);
+      expect(handleUpdateStatus).toHaveBeenCalledWith("sub_1111222233334444", "cancelled");
+
+      const activateButtons = screen.getAllByRole("button", { name: /activate subscription/i });
+      expect(activateButtons.length).toBeGreaterThanOrEqual(1);
+      fireEvent.click(activateButtons[0]);
+      expect(handleUpdateStatus).toHaveBeenCalledWith("sub_5555666677778888", "active");
     });
   });
 
