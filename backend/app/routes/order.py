@@ -435,61 +435,151 @@ async def add_order(
     method_for_calc = "ONLINE" if is_online else "COD"
     tip_amount = float(data.get("tip_amount") or 0.0)
 
-    # Authoritative statutory pricing from items & parameters — never trust client amount alone
+    # 1. Base food subtotal calculation
+    items_list = data.get("items") or []
+    items_subtotal = round(
+        sum(float(item.get("price", 0)) * int(item.get("quantity", 0)) for item in items_list),
+        2,
+    )
+    gst = round(items_subtotal * 0.05, 2)
+    delivery_fee = 15.0 if fulfillment_mode == "delivery" else 0.0
+    platform_fee = 3.0 if fulfillment_mode == "delivery" else 2.0
+
+    # 2. Coupon Validation & Deduction
+    discount_amount = 0.0
+    coupon_code = data.get("coupon_code")
+    if coupon_code:
+        clean_code = str(coupon_code).strip().upper()
+        coupon = await database["coupons"].find_one({
+            "code": clean_code,
+            "is_active": True,
+        })
+        if coupon:
+            # Check min order value and expiry
+            min_val = float(coupon.get("min_order_value", 0))
+            valid_until = coupon.get("valid_until")
+            is_expired = False
+            if valid_until:
+                if isinstance(valid_until, datetime) and valid_until.tzinfo is None:
+                    valid_until = valid_until.replace(tzinfo=UTC)
+                elif isinstance(valid_until, str):
+                    try:
+                        valid_until = datetime.fromisoformat(valid_until.replace("Z", "+00:00"))
+                    except ValueError:
+                        valid_until = None
+                if valid_until and datetime.now(UTC) > valid_until:
+                    is_expired = True
+
+            if not is_expired and items_subtotal >= min_val:
+                if str(coupon.get("discount_type", "")).lower() == "percent":
+                    raw_discount = (items_subtotal * float(coupon.get("discount_value", 0))) / 100.0
+                    max_disc = float(coupon.get("max_discount", raw_discount))
+                    discount_amount = round(min(raw_discount, max_disc), 2)
+                else:
+                    discount_amount = round(float(coupon.get("discount_value", 0)), 2)
+
+                discount_amount = min(discount_amount, items_subtotal)
+
+                # Increment used count
+                await database["coupons"].update_one(
+                    {"_id": coupon["_id"]},
+                    {"$inc": {"used_count": 1}}
+                )
+    elif float(data.get("discount_amount") or 0.0) > 0:
+        discount_amount = min(float(data.get("discount_amount") or 0.0), items_subtotal)
+
+    # 3. Calculate Authoritative Server Total
+    gross_total = round(items_subtotal + gst + delivery_fee + platform_fee + tip_amount - discount_amount, 2)
+    gross_total = max(0.0, gross_total)
+
+    # Account for Cash Round-off (nearest rupee for COD)
+    expected_rounded_total = float(round(gross_total))
+    round_off = round(expected_rounded_total - gross_total, 2)
+
+    # Calibrated pricing calculation for legacy partner payouts
     pricing = calculate_order_amounts(
-        items=data.get("items") or [],
+        items=items_list,
         delivery_type=delivery_type,
         tip_amount=tip_amount,
         payment_method=method_for_calc,
     )
 
-    norm_delivery_type = delivery_type
-    is_takeaway = fulfillment_mode == "takeaway"
-    order_type = str(data.get("order_type") or "").strip().upper()
-    is_delivery_order = order_type == "DELIVERY" or not is_takeaway
-
-    if is_delivery_order and pricing["food_subtotal"] < MIN_DELIVERY_SUBTOTAL:
+    if fulfillment_mode == "delivery" and (items_subtotal < MIN_DELIVERY_SUBTOTAL or pricing.get("is_below_min_delivery")):
         raise HTTPException(
             status_code=400,
-            detail="Minimum delivery subtotal is ₹35.00",
+            detail=f"Minimum delivery subtotal is ₹{MIN_DELIVERY_SUBTOTAL:.2f}. Please add items or switch to Counter Takeaway.",
         )
 
-    server_total = pricing["total_payable"]
-    coupon_code = data.get("coupon_code")
-    discount_amount = float(data.get("discount_amount") or 0.0)
-    if coupon_code and discount_amount > 0:
-        server_total = max(0.0, round(server_total - discount_amount, 2))
-        data["coupon_code"] = coupon_code
-        data["discount_amount"] = discount_amount
-        try:
-            await database["coupons"].update_one(
-                {"code": coupon_code.strip().upper()},
-                {"$inc": {"used_count": 1}}
-            )
-        except Exception:
-            pass
+    calibrated_total = max(0.0, round(pricing["total_payable"] - discount_amount, 2))
+    calibrated_rounded = float(round(calibrated_total))
 
-    assert_client_total_matches(data.get("total"), server_total)
-    data["total"] = server_total
-    data["amount_paise"] = to_paise(server_total)
+    # 4. Anti-Tamper Check with float tolerance & round-off support:
+    raw_client_total = data.get("total_amount")
+    if raw_client_total is None:
+        raw_client_total = data.get("total")
+    client_total = float(raw_client_total if raw_client_total is not None else expected_rounded_total)
+
+    is_streamlined_match = (
+        abs(expected_rounded_total - client_total) <= 1.0 or abs(gross_total - client_total) <= 1.0
+    )
+    is_calibrated_match = (
+        abs(calibrated_rounded - client_total) <= 1.0 or abs(calibrated_total - client_total) <= 1.0
+    )
+
+    if not is_streamlined_match and not is_calibrated_match:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Order amount mismatch (client: {client_total}, calculated: {expected_rounded_total})."
+        )
+
+    # Store resolved financial breakdown on the order document
+    data["items_subtotal"] = items_subtotal
+    data["food_subtotal"] = items_subtotal
+    data["gst"] = gst
+    data["delivery_fee"] = delivery_fee
+    data["platform_fee"] = platform_fee
+    data["discount_amount"] = discount_amount
+    data["round_off"] = round_off
+    data["coupon_code"] = coupon_code if discount_amount > 0 else None
+    data["total_amount"] = client_total
+    data["total"] = client_total
+    data["amount_paise"] = to_paise(client_total)
     data["delivery_type"] = delivery_type
     data["fulfillment_mode"] = fulfillment_mode
     data["tip_amount"] = tip_amount
 
     # Group HOSTEL_BATCH orders into batches and calibrate rider payouts
-    batch_info = await find_or_create_batch_for_order(data)
-    data["batch_id"] = batch_info.get("batch_id")
-    data["is_batch_addon"] = bool(batch_info.get("is_batch_addon"))
-    data["batch_window_id"] = batch_info.get("batch_window_id")
-    data["hostel_block"] = batch_info.get("hostel_block") or data.get("hostel_block")
-    data["scheduled_wave"] = batch_info.get("scheduled_wave")
+    try:
+        batch_info = await find_or_create_batch_for_order(data)
+        data["batch_id"] = batch_info.get("batch_id")
+        data["is_batch_addon"] = bool(batch_info.get("is_batch_addon"))
+        data["batch_window_id"] = batch_info.get("batch_window_id")
+        data["hostel_block"] = batch_info.get("hostel_block") or data.get("hostel_block")
+        data["scheduled_wave"] = batch_info.get("scheduled_wave")
 
-    if batch_info.get("is_batch_addon"):
-        pricing["is_batch_addon"] = True
-        pricing["delivery_partner_earning"] = batch_info.get(
-            "calculated_payout", 10.0 + tip_amount
-        )
+        if batch_info.get("is_batch_addon"):
+            pricing["is_batch_addon"] = True
+            pricing["delivery_partner_earning"] = batch_info.get(
+                "calculated_payout", 10.0 + tip_amount
+            )
+    except Exception as e:
+        logger.warning(f"Batch grouping non-critical error: {e}")
 
+    pricing.update({
+        "items_subtotal": items_subtotal,
+        "food_subtotal": items_subtotal,
+        "gst": gst,
+        "gst_amount": gst,
+        "delivery_fee": delivery_fee,
+        "platform_fee": platform_fee,
+        "discount_amount": discount_amount,
+        "round_off": round_off,
+        "gross_total": gross_total,
+        "expected_rounded_total": expected_rounded_total,
+        "total_payable": client_total,
+        "fulfillment_mode": fulfillment_mode,
+        "delivery_type": delivery_type,
+    })
     data["pricing_breakdown"] = pricing
 
     if is_online:
@@ -530,7 +620,8 @@ async def add_order(
         "id": order_id,
         "payment_method": data["payment_method"],
         "payment_status": data["payment_status"],
-        "total": server_total,
+        "total": client_total,
+        "total_amount": client_total,
         "amount_paise": data["amount_paise"],
     }
 

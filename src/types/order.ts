@@ -42,8 +42,12 @@ export type PlaceOrderPayload = {
   restaurant_longitude?: number | null;
   latitude?: number | null;
   longitude?: number | null;
-  coupon_code?: string;
+  coupon_code?: string | null;
   discount_amount?: number;
+  fulfillment_mode?: "delivery" | "takeaway" | string;
+  delivery_location?: string;
+  total_amount?: number;
+  round_off?: number;
   items: OrderItemPayload[];
 };
 

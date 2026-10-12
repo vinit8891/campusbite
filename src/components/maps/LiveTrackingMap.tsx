@@ -62,9 +62,21 @@ export default function LiveTrackingMap({
 
   useEffect(() => {
     if (typeof window !== "undefined") {
+      const origWarn = console.warn;
+      console.warn = (...args: any[]) => {
+        const msg = typeof args[0] === "string" ? args[0] : "";
+        if (
+          msg.includes("google.maps.Marker is deprecated") ||
+          msg.includes("AdvancedMarkerElement")
+        ) {
+          return;
+        }
+        origWarn.apply(console, args);
+      };
+
       const prevAuthFailure = (window as any).gm_authFailure;
       (window as any).gm_authFailure = () => {
-        console.warn(
+        origWarn(
           "Google Maps authentication error (e.g. RefererNotAllowedMapError). Falling back to static progress timeline."
         );
         setAuthError(true);
@@ -75,6 +87,10 @@ export default function LiveTrackingMap({
             // ignore
           }
         }
+      };
+
+      return () => {
+        console.warn = origWarn;
       };
     }
   }, []);

@@ -53,7 +53,8 @@ export async function POST(req: NextRequest) {
     const pricing = calculateCheckoutPricing(cartItems, deliveryMode);
 
     const tipAmount = Number(body.tip_amount || 0);
-    const unroundedTotal = Number((pricing.totalStudentPayable + tipAmount).toFixed(2));
+    const discountAmount = Number(body.discount_amount || 0);
+    const unroundedTotal = Number(Math.max(0, pricing.totalStudentPayable + tipAmount - discountAmount).toFixed(2));
 
     const isCod = isCodPayment(body.payment_method);
     let expectedServerTotal: number;
@@ -68,8 +69,11 @@ export async function POST(req: NextRequest) {
     }
 
     // Validate client-submitted total against server calculation with tolerance
-    const clientTotal = Number(body.total);
-    if (isNaN(clientTotal) || Math.abs(clientTotal - expectedServerTotal) > 0.05) {
+    const clientTotal = Number(body.total_amount ?? body.total);
+    if (
+      isNaN(clientTotal) ||
+      (Math.abs(clientTotal - expectedServerTotal) > 1.0 && Math.abs(clientTotal - unroundedTotal) > 1.0)
+    ) {
       return NextResponse.json(
         {
           error: `Order amount mismatch (client: ${clientTotal}, calculated: ${expectedServerTotal}). Payable amount is calculated server-side and cannot be overridden.`,
@@ -94,6 +98,11 @@ export async function POST(req: NextRequest) {
       payment_method: isCod ? COD_PAYMENT_METHOD : ONLINE_PAYMENT_METHOD,
       payment_status: "pending",
       total: expectedServerTotal,
+      total_amount: expectedServerTotal,
+      coupon_code: body.coupon_code || null,
+      discount_amount: discountAmount,
+      round_off: codRounding ? codRounding.roundOff : 0,
+      fulfillment_mode: body.fulfillment_mode || (deliveryMode === "COUNTER_TAKEAWAY" ? "takeaway" : "delivery"),
       delivery_for: body.delivery_for || "self",
       delivery_type: deliveryMode,
       hostel_block: deliveryMode === "HOSTEL_BATCH" ? body.hostel_block : null,

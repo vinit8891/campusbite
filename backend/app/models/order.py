@@ -5,6 +5,7 @@ from bson import ObjectId
 from bson.errors import InvalidId
 
 from app.db.database import database
+from app.schemas.order import Order, OrderCreate, OrderCreateRequest
 
 order_collection = database["orders"]
 

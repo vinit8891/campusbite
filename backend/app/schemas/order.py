@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Optional
 from pydantic import BaseModel, Field
 
 
@@ -23,7 +23,8 @@ class Order(BaseModel):
     # COD stays pending; online moves through processing/paid/failed/etc.
     payment_status: str = Field(default="pending")
 
-    total: float
+    total: float = 0.0
+    total_amount: Optional[float] = None
 
     # Delivery recipient type
     delivery_for: str = "self"
@@ -31,21 +32,26 @@ class Order(BaseModel):
     # Delivery Type: "HOSTEL_BATCH" | "STANDARD" | "EXPRESS_DOOR" | "COUNTER_TAKEAWAY"
     delivery_type: str = "HOSTEL_BATCH"
     # Modern fulfillment mode: "delivery" | "takeaway"
-    fulfillment_mode: str | None = None
-    order_type: str | None = None
-    hostel_block: str | None = None
-    batch_window_id: str | None = None
-    scheduled_wave: str | None = None
-    batch_id: str | None = None
+    fulfillment_mode: Optional[str] = None
+    order_type: Optional[str] = None
+    hostel_block: Optional[str] = None
+    batch_window_id: Optional[str] = None
+    scheduled_wave: Optional[str] = None
+    batch_id: Optional[str] = None
     is_batch_addon: bool = False
     tip_amount: float = 0.0
 
     # Pricing breakdown (statutory GST, platform fee, commission, partner earning)
-    pricing_breakdown: dict[str, Any] | None = None
+    pricing_breakdown: Optional[dict[str, Any]] = None
+
+    # Coupon & Cash Round-off support
+    coupon_code: Optional[str] = None
+    discount_amount: Optional[float] = 0.0
+    round_off: Optional[float] = 0.0
 
     # Customer GPS - optional
-    latitude: float | None = None
-    longitude: float | None = None
+    latitude: Optional[float] = None
+    longitude: Optional[float] = None
 
     # Restaurant GPS
     restaurant_latitude: float = 18.520430
@@ -53,10 +59,16 @@ class Order(BaseModel):
 
     status: str = "Pending"
 
-    delivery_otp: int | None = None
+    delivery_otp: Optional[int] = None
 
     otp_verified: bool = False
 
     review_submitted: bool = False
 
     items: list[OrderItem]
+
+
+# Aliases for flexible schema usage
+OrderCreate = Order
+OrderCreateRequest = Order
+
