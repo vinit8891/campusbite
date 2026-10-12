@@ -53,9 +53,9 @@ export default function RestaurantsClient() {
   } = useUserLocation();
 
   useEffect(() => {
-    // Prompt for browser location on mount if supported
+    // Prompt for browser location on mount silently if supported
     if (typeof window !== "undefined" && navigator.geolocation) {
-      requestLocation();
+      requestLocation(false);
     }
   }, [requestLocation]);
 
@@ -221,10 +221,10 @@ export default function RestaurantsClient() {
           currentSort={currentSort}
           onSortChange={setCurrentSort}
           userLocationName={campusLabel}
-          onLocationClick={requestLocation}
+          onLocationClick={() => requestLocation(true)}
           userCampusLabel={campusLabel}
           isLocating={isLocating}
-          onDetectLocation={requestLocation}
+          onDetectLocation={() => requestLocation(true)}
         />
 
         {loading && (

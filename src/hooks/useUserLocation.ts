@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
+import { toast } from "sonner";
 
 export interface UserLocation {
   lat: number | null;
@@ -53,6 +54,56 @@ export function formatDistance(distanceKm: number | null): string {
   return `${distanceKm.toFixed(1)} km away`;
 }
 
+export const requestGeolocation = async (
+  isManualClick: boolean = false
+): Promise<GeolocationCoordinates | null> => {
+  if (typeof window === "undefined" || !navigator.geolocation) {
+    if (isManualClick) toast.error("Geolocation is not supported by your browser.");
+    return null;
+  }
+
+  const getPosition = (options: PositionOptions): Promise<GeolocationPosition> => {
+    return new Promise((resolve, reject) => {
+      navigator.geolocation.getCurrentPosition(resolve, reject, options);
+    });
+  };
+
+  try {
+    // Attempt 1: Fast cached or high-accuracy location
+    const pos = await getPosition({
+      enableHighAccuracy: true,
+      timeout: 7000,
+      maximumAge: 120000, // Accept cached position from last 2 minutes
+    });
+    return pos.coords;
+  } catch (err: any) {
+    // Attempt 2: Fallback to low-accuracy network/cell location (reliable indoors)
+    try {
+      const fallbackPos = await getPosition({
+        enableHighAccuracy: false,
+        timeout: 10000,
+        maximumAge: 300000, // Accept cached position from last 5 minutes
+      });
+      return fallbackPos.coords;
+    } catch (fallbackErr: any) {
+      // Only alert the user if they explicitly clicked the GPS button
+      if (isManualClick) {
+        if (fallbackErr?.code === 1) {
+          // PERMISSION_DENIED
+          toast.error("Location permission denied. Please allow access in browser settings.");
+        } else if (fallbackErr?.code === 2 || fallbackErr?.code === 3) {
+          // UNAVAILABLE or TIMEOUT
+          toast.error("Unable to fetch precise GPS indoors. Please pick your hostel manually.");
+        } else {
+          toast.error("Location unavailable. Selected default campus spot.");
+        }
+      }
+      // Fail silently in background
+      return null;
+    }
+  }
+};
+
 export function useUserLocation() {
   const [location, setLocation] = useState<UserLocation>(() => {
     if (typeof window !== "undefined") {
@@ -102,53 +153,59 @@ export function useUserLocation() {
     }
   }, []);
 
-  const requestLocation = useCallback(() => {
-    if (typeof window === "undefined" || !navigator.geolocation) {
-      setError("Geolocation is not supported by your browser");
-      return;
-    }
-
-    setIsLocating(true);
-    setError(null);
-
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        let campusLabel = "Near Zeal College, Narhe";
-
-        // Reverse geocode via free OpenStreetMap Nominatim or fallback label
-        try {
-          const res = await fetch(
-            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
-            { headers: { "Accept-Language": "en" } }
-          );
-          if (res.ok) {
-            const data = await res.json();
-            const suburb =
-              data.address?.suburb ||
-              data.address?.neighbourhood ||
-              data.address?.road ||
-              data.address?.city ||
-              "Narhe Campus";
-            campusLabel = `Near ${suburb}`;
-          }
-        } catch (e) {
-          // Keep default campus label
+  const requestLocation = useCallback(
+    async (isManualClick: boolean = false) => {
+      if (typeof window === "undefined" || !navigator.geolocation) {
+        if (isManualClick) {
+          setError("Geolocation is not supported by your browser");
+          toast.error("Geolocation is not supported by your browser.");
         }
+        return null;
+      }
 
-        const newLoc = { lat, lng, campusLabel };
-        saveLocation(newLoc);
+      setIsLocating(true);
+      setError(null);
+
+      const coords = await requestGeolocation(isManualClick);
+      if (!coords) {
         setIsLocating(false);
-      },
-      (err) => {
-        console.warn("Geolocation prompt was denied or failed:", err.message);
-        setError(err.message);
-        setIsLocating(false);
-      },
-      { timeout: 10000, enableHighAccuracy: true }
-    );
-  }, [saveLocation]);
+        return null;
+      }
+
+      const lat = coords.latitude;
+      const lng = coords.longitude;
+      let campusLabel = "Near Zeal College, Narhe";
+
+      // Reverse geocode via free OpenStreetMap Nominatim or fallback label
+      try {
+        const res = await fetch(
+          `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`,
+          { headers: { "Accept-Language": "en" } }
+        );
+        if (res.ok) {
+          const data = await res.json();
+          const suburb =
+            data.address?.suburb ||
+            data.address?.neighbourhood ||
+            data.address?.road ||
+            data.address?.city ||
+            "Narhe Campus";
+          campusLabel = `Near ${suburb}`;
+        }
+      } catch (e) {
+        // Keep default campus label
+      }
+
+      const newLoc = { lat, lng, campusLabel };
+      saveLocation(newLoc);
+      setIsLocating(false);
+      if (isManualClick) {
+        toast.success("Location updated!");
+      }
+      return newLoc;
+    },
+    [saveLocation]
+  );
 
   const changeCampus = useCallback(
     (label: string, lat: number = DEFAULT_CAMPUS.lat, lng: number = DEFAULT_CAMPUS.lng) => {

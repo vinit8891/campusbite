@@ -151,11 +151,14 @@ export function LocationPickerModal() {
           <button
             type="button"
             onClick={async () => {
-              const detected = await detectGpsLocation();
+              const detected = await detectGpsLocation(true);
               if (detected) {
                 setBuildingOrSociety(detected.buildingOrSociety);
                 setAreaOrLandmark(detected.areaOrLandmark);
                 setSelectedTag(detected.tag || "other");
+                if (detected.id !== "fallback-hostel-a") {
+                  toast.success("Location updated!");
+                }
               }
             }}
             disabled={isDetectingGps}
@@ -171,9 +174,7 @@ export function LocationPickerModal() {
               </div>
               <div className="text-left min-w-0">
                 <p className="text-xs sm:text-sm font-bold text-stone-900">
-                  {isDetectingGps
-                    ? "Fetching GPS location..."
-                    : "Use Current GPS Location"}
+                  {isDetectingGps ? "Locating..." : "Use Current GPS Location"}
                 </p>
                 <p className="text-[11px] text-stone-500 truncate">
                   Auto-detect address via satellite & OpenStreetMap

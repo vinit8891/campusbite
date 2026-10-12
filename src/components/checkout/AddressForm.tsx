@@ -15,6 +15,7 @@ import {
   type CartItemInput,
 } from "@/lib/pricingEngine";
 import { findClosestZone } from "@/lib/geoZones";
+import { requestGeolocation } from "@/hooks/useUserLocation";
 
 const HOSTEL_PILLS = [
   { label: "Block A", value: "Hostel Block A", icon: "🏢" },
@@ -226,42 +227,33 @@ export default function AddressForm() {
     }
   }
 
-  function handleAutoDetectLocation() {
-    if (typeof window === "undefined" || !navigator.geolocation) {
-      toast.error("Geolocation is not supported by your browser.");
+  async function handleAutoDetectLocation() {
+    setIsDetectingLocation(true);
+    const coords = await requestGeolocation(true);
+    if (!coords) {
+      setIsDetectingLocation(false);
       return;
     }
 
-    setIsDetectingLocation(true);
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        const lat = pos.coords.latitude;
-        const lng = pos.coords.longitude;
-        const { zone } = findClosestZone({ lat, lng });
+    const lat = coords.latitude;
+    const lng = coords.longitude;
+    const { zone } = findClosestZone({ lat, lng });
 
-        setLocationTab(zone.category);
-        setCheckout((prev) => ({
-          ...prev,
-          hostel_block: zone.name,
-          latitude: lat,
-          longitude: lng,
-        }));
+    setLocationTab(zone.category);
+    setCheckout((prev) => ({
+      ...prev,
+      hostel_block: zone.name,
+      latitude: lat,
+      longitude: lng,
+    }));
 
-        setSnappedBadge(`✓ Snapped to ${zone.name}`);
-        toast.success(`Location detected: ${zone.name}`);
-        setIsDetectingLocation(false);
+    setSnappedBadge(`✓ Snapped to ${zone.name}`);
+    toast.success(`Location detected: ${zone.name}`);
+    setIsDetectingLocation(false);
 
-        setTimeout(() => {
-          setSnappedBadge(null);
-        }, 5000);
-      },
-      (err) => {
-        console.warn("GPS auto-detect error:", err);
-        toast.error("Unable to get GPS location. Please select your block manually.");
-        setIsDetectingLocation(false);
-      },
-      { enableHighAccuracy: true, timeout: 8000, maximumAge: 30000 }
-    );
+    setTimeout(() => {
+      setSnappedBadge(null);
+    }, 5000);
   }
 
   return (

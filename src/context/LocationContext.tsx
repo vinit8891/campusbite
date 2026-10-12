@@ -11,6 +11,7 @@ import React, {
 } from "react";
 import { toast } from "sonner";
 import { useCheckout } from "@/context/CheckoutContext";
+import { requestGeolocation } from "@/hooks/useUserLocation";
 
 export type AddressTag = "home" | "hostel" | "college" | "other";
 export type AddressType = AddressTag; // Backwards compatibility alias
@@ -239,7 +240,7 @@ export interface LocationContextType {
     lng?: number | null,
     isGps?: boolean
   ) => void;
-  detectGpsLocation: () => Promise<DeliveryAddress | null>;
+  detectGpsLocation: (isManualClick?: boolean) => Promise<DeliveryAddress | null>;
 }
 
 const DEFAULT_ACTIVE_ADDRESS: DeliveryAddress = {
@@ -277,7 +278,7 @@ const defaultLocationContextValue: LocationContextType = {
   saveAndSelectAddress: () => {},
   removeSavedAddress: () => {},
   setLocation: () => {},
-  detectGpsLocation: async () => null,
+  detectGpsLocation: async (_isManualClick?: boolean) => null,
 };
 
 const LocationContext = createContext<LocationContextType | null>(null);
@@ -479,47 +480,23 @@ export function LocationProvider({ children }: { children: ReactNode }) {
     [setActiveAddress]
   );
 
-  const detectGpsLocation = useCallback(async (): Promise<DeliveryAddress | null> => {
-    if (typeof window === "undefined" || !navigator.geolocation) {
-      toast.error("Geolocation is not supported by your browser");
-      return null;
-    }
+  const detectGpsLocation = useCallback(
+    async (isManualClick: boolean = false): Promise<DeliveryAddress | null> => {
+      if (typeof window === "undefined" || !navigator.geolocation) {
+        if (isManualClick) {
+          toast.error("Geolocation is not supported by your browser");
+        }
+        return null;
+      }
 
-    setIsDetectingGps(true);
-    const toastId = toast.loading("Fetching GPS location...");
+      setIsDetectingGps(true);
+      const toastId = isManualClick ? toast.loading("Fetching GPS location...") : undefined;
 
-    return new Promise<DeliveryAddress | null>((resolve) => {
-      navigator.geolocation.getCurrentPosition(
-        async (position) => {
+      try {
+        const coords = await requestGeolocation(isManualClick);
+        if (!coords) {
           setIsDetectingGps(false);
-          const { latitude, longitude } = position.coords;
-
-          // Attempt OpenStreetMap Nominatim reverse geocode
-          const geo = await reverseGeocodeCoords(latitude, longitude);
-
-          const detectedAddr: DeliveryAddress = {
-            id: `gps-${Date.now()}`,
-            tag: "other",
-            type: "other",
-            label: geo.buildingOrSociety,
-            roomOrFlat: activeAddress.roomOrFlat || "Room / Flat",
-            buildingOrSociety: geo.buildingOrSociety,
-            areaOrLandmark: geo.areaOrLandmark,
-            city: geo.city,
-            lat: latitude,
-            lng: longitude,
-          };
-
-          setActiveAddress(detectedAddr, true);
-          toast.dismiss(toastId);
-          toast.success(`Location detected: ${geo.buildingOrSociety}`);
-          setIsModalOpen(false);
-          resolve(detectedAddr);
-        },
-        (error) => {
-          setIsDetectingGps(false);
-          toast.dismiss(toastId);
-          console.warn("GPS detection error:", error);
+          if (toastId) toast.dismiss(toastId);
 
           const fallbackAddr: DeliveryAddress = {
             id: "fallback-hostel-a",
@@ -535,13 +512,65 @@ export function LocationProvider({ children }: { children: ReactNode }) {
           };
 
           setActiveAddress(fallbackAddr, false);
+          if (isManualClick) {
+            toast.info("GPS unavailable: Set to Hostel Block A");
+          }
+          return fallbackAddr;
+        }
+
+        setIsDetectingGps(false);
+        if (toastId) toast.dismiss(toastId);
+        const { latitude, longitude } = coords;
+
+        // Attempt OpenStreetMap Nominatim reverse geocode
+        const geo = await reverseGeocodeCoords(latitude, longitude);
+
+        const detectedAddr: DeliveryAddress = {
+          id: `gps-${Date.now()}`,
+          tag: "other",
+          type: "other",
+          label: geo.buildingOrSociety,
+          roomOrFlat: activeAddress.roomOrFlat || "Room / Flat",
+          buildingOrSociety: geo.buildingOrSociety,
+          areaOrLandmark: geo.areaOrLandmark,
+          city: geo.city,
+          lat: latitude,
+          lng: longitude,
+        };
+
+        setActiveAddress(detectedAddr, true);
+        if (isManualClick) {
+          toast.success(`Location detected: ${geo.buildingOrSociety}`);
+        }
+        setIsModalOpen(false);
+        return detectedAddr;
+      } catch (error) {
+        setIsDetectingGps(false);
+        if (toastId) toast.dismiss(toastId);
+        console.warn("GPS detection error:", error);
+
+        const fallbackAddr: DeliveryAddress = {
+          id: "fallback-hostel-a",
+          tag: "hostel",
+          type: "hostel",
+          label: "Hostel Block A",
+          roomOrFlat: activeAddress.roomOrFlat || "Rm 304",
+          buildingOrSociety: "Hostel Block A",
+          areaOrLandmark: "Campus Wing A",
+          city: "Pune",
+          lat: 18.4482,
+          lng: 73.826,
+        };
+
+        setActiveAddress(fallbackAddr, false);
+        if (isManualClick) {
           toast.info("GPS unavailable: Set to Hostel Block A");
-          resolve(fallbackAddr);
-        },
-        { enableHighAccuracy: false, timeout: 10000, maximumAge: 30000 }
-      );
-    });
-  }, [activeAddress.roomOrFlat, setActiveAddress]);
+        }
+        return fallbackAddr;
+      }
+    },
+    [activeAddress.roomOrFlat, setActiveAddress]
+  );
 
   const fullAddressLabel = useMemo(() => {
     const building = activeAddress.buildingOrSociety || activeAddress.label;
