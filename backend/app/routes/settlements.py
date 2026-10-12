@@ -21,6 +21,15 @@ from app.services.settlement_service import (
 )
 
 
+def calculate_courier_settlement_wages(completed_orders: list[dict]) -> float:
+    """
+    Calculate wages accurately: ₹20 for primary drops + ₹14 for bundled drops
+    """
+    return sum(
+        float(o.get("courier_earning", 20.0)) for o in (completed_orders or [])
+    )
+
+
 def normalize_settlement_financials(settlement: dict) -> dict:
     """Guarantees non-null float defaults for all 7 standard financial fields."""
     if not isinstance(settlement, dict):

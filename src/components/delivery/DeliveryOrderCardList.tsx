@@ -14,10 +14,11 @@ export function DeliveryOrderCardList({
 }: DeliveryOrderCardListProps) {
   return (
     <div className="space-y-6 w-full max-w-full min-w-0">
-      {orders.map((order) => (
+      {orders.map((order, index) => (
         <ActiveDeliveryManifest
           key={order._id}
           order={order}
+          index={index}
           onUpdateStatus={onUpdateStatus}
           onOpenOtp={onOpenOtp}
         />

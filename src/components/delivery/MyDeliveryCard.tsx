@@ -5,12 +5,14 @@ import type { DeliveryOrder } from "@/types";
 
 type MyDeliveryCardProps = {
   order: DeliveryOrder;
+  index?: number;
   onUpdateStatus: (id: string, status: string) => void;
   onOpenOtp: (orderId: string) => void;
 };
 
 export function MyDeliveryCard({
   order,
+  index = 0,
   onUpdateStatus,
   onOpenOtp,
 }: MyDeliveryCardProps) {
@@ -42,10 +44,13 @@ export function MyDeliveryCard({
     upiUri
   )}`;
 
-  const isAddon = Boolean(order.is_batch_addon || order.isBatchAddon);
-  const orderSubtotal = Number(order.food_subtotal ?? (order as { subtotal?: number }).subtotal ?? order.total ?? 0);
-  const isHeavyOrder = orderSubtotal >= 150.00;
-  const payoutText = isAddon ? "₹14.00 Payout" : isHeavyOrder ? "₹25.00 Payout" : "₹20.00 Payout";
+  // Resolve earning: fallback to ₹20.00 for the primary/first active order
+  const isFirstBatchOrder = index === 0 || order?.is_primary_batch_order !== false;
+  const earningAmount = order?.courier_earning 
+    ? Number(order.courier_earning) 
+    : (isFirstBatchOrder ? 20.00 : 14.00);
+
+  const wageLabel = isFirstBatchOrder ? 'Base guaranteed run fee' : 'Batch add-on drop (+₹14)';
 
   return (
     <div className="rounded-2xl border border-zinc-200/90 bg-white p-4 shadow-sm space-y-3.5">
@@ -67,31 +72,29 @@ export function MyDeliveryCard({
       </div>
 
       {/* 2. Financial Metrics Box: Courier Payout & Cash to Collect */}
-      <div className="grid grid-cols-2 gap-3 rounded-xl bg-zinc-50/80 p-3 border border-zinc-100">
+      <div className="grid grid-cols-2 gap-3">
         {/* Left: Rider Earning */}
-        <div className="flex flex-col">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-            Your Earning
-          </span>
-          <span className="mt-0.5 text-base font-extrabold text-emerald-600 flex items-center gap-1">
-            <span>🛵</span> ₹20.00
-          </span>
-          <span className="text-[10px] text-zinc-400">Direct courier fee</span>
+        <div className="bg-orange-50/60 border border-orange-100 rounded-xl p-3">
+          <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Your Earning</span>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="text-base font-bold text-emerald-700">₹{earningAmount.toFixed(2)}</span>
+          </div>
+          <span className="text-[10px] text-zinc-500 block mt-0.5">{wageLabel}</span>
         </div>
 
         {/* Right: Cash Collection / Online Status */}
-        <div className="flex flex-col border-l border-zinc-200/70 pl-3">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+        <div className="bg-zinc-50/80 border border-zinc-100 rounded-xl p-3 flex flex-col justify-between">
+          <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
             {order.payment_method?.toLowerCase() === 'cod' ? 'Collect From Customer' : 'Payment Status'}
           </span>
-          <span className="mt-0.5 text-base font-extrabold text-zinc-900">
+          <div className="flex items-center gap-1.5 mt-0.5">
             {order.payment_method?.toLowerCase() === 'cod' ? (
-              <span className="text-amber-700">₹{order.total_amount ?? orderTotal}</span>
+              <span className="text-base font-bold text-amber-700">₹{order.total_amount ?? orderTotal}</span>
             ) : (
               <span className="text-emerald-700 text-sm font-semibold">Paid Online ✓</span>
             )}
-          </span>
-          <span className="text-[10px] text-zinc-500 font-medium truncate">
+          </div>
+          <span className="text-[10px] text-zinc-500 block mt-0.5 truncate">
             {order.payment_method?.toLowerCase() === 'cod' ? 'Cash on Delivery' : 'Prepaid via UPI'}
           </span>
         </div>

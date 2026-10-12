@@ -736,6 +736,9 @@ async def assign_delivery_partner(
     partner_name: str,
     partner_phone: str,
     partner_vehicle: str = "",
+    courier_earning: float = 20.0,
+    is_primary_batch_order: bool = True,
+    wage_type: str = "base",
 ):
     if not order_id:
         return False
@@ -766,6 +769,10 @@ async def assign_delivery_partner(
                 "delivery_partner.longitude": None,
                 "delivery_partner.accepted_at": datetime.now(UTC),
                 "delivery_partner.last_location_update": None,
+                "courier_earning": float(courier_earning),
+                "delivery_partner_earning": float(courier_earning),
+                "is_primary_batch_order": bool(is_primary_batch_order),
+                "wage_type": wage_type,
             }
         },
     )

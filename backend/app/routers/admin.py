@@ -947,7 +947,13 @@ async def get_courier_settlements_breakdown(
             ),
             2,
         )
-        wages_earned = round(orders_completed * 20.0, 2)
+        # Calculate wages accurately: ₹20 for primary drops + ₹14 for bundled drops
+        wages_earned = round(
+            sum(
+                float(o.get("courier_earning", 20.0)) for o in matching
+            ),
+            2,
+        )
         net_cash_due = max(0.0, round(cod_collected - wages_earned, 2))
 
         # Check partner's recorded live values if matching orders is 0

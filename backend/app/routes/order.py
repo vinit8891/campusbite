@@ -39,6 +39,7 @@ from app.models.order import (
     DISPLAY_STATUS_MAP,
     STATUS_NORMALIZATION_MAP,
 )
+from app.services.courier_service import apply_courier_batch_wages
 from app.services.notification_service import (
     notify_delivery_assigned,
     notify_order_accepted,
@@ -801,7 +802,7 @@ async def my_delivery_orders(
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ):
     assert_same_identity(current_user, phone=phone)
-    return _public_orders(
+    orders = _public_orders(
         await get_delivery_orders(
             phone,
             status=status,
@@ -809,6 +810,13 @@ async def my_delivery_orders(
             limit=limit,
         )
     )
+    active_orders = [
+        o for o in orders
+        if str(o.get("status", "")).strip().lower() in {"assigned", "picked up", "picked_up", "out for delivery", "out_for_delivery"}
+    ]
+    if active_orders:
+        apply_courier_batch_wages(active_orders)
+    return orders
 
 
 @router.put("/delivery/accept/{order_id}")
@@ -908,11 +916,18 @@ async def accept_delivery(
             detail="Cash-in-hand limit reached. Remit cash to claim new runs.",
         )
 
+    is_primary = (active_count == 0)
+    wage = 20.0 if is_primary else 14.0
+    wage_type = "base" if is_primary else "batch_addon"
+
     success = await assign_delivery_partner(
         order_id=order_id,
         partner_name=partner_name,
         partner_phone=partner_phone,
         partner_vehicle=partner_vehicle,
+        courier_earning=wage,
+        is_primary_batch_order=is_primary,
+        wage_type=wage_type,
     )
 
     if not success:

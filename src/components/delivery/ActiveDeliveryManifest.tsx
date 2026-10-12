@@ -39,6 +39,7 @@ import type { DeliveryOrder } from "@/types";
 
 type ActiveDeliveryManifestProps = {
   order: DeliveryOrder;
+  index?: number;
   onUpdateStatus?: (id: string, status: string) => void | Promise<void>;
   onConfirmPickup?: (id: string) => void | Promise<void>;
   onPickup?: (id: string) => void | Promise<void>;
@@ -47,6 +48,7 @@ type ActiveDeliveryManifestProps = {
 
 export function ActiveDeliveryManifest({
   order,
+  index = 0,
   onUpdateStatus,
   onConfirmPickup,
   onPickup,
@@ -290,7 +292,14 @@ export function ActiveDeliveryManifest({
     ? effectiveStatus.charAt(0).toUpperCase() + effectiveStatus.slice(1)
     : "Assigned";
   const assignedAtTime = effectiveOrder.assigned_at || effectiveOrder.created_at;
-  const payoutWage = isAddon ? "14.00" : isHeavyOrder ? "25.00" : "20.00";
+
+  // Resolve earning: fallback to ₹20.00 for the primary/first active order
+  const isFirstBatchOrder = index === 0 || effectiveOrder?.is_primary_batch_order !== false;
+  const earningAmount = effectiveOrder?.courier_earning 
+    ? Number(effectiveOrder.courier_earning) 
+    : (isFirstBatchOrder ? 20.00 : 14.00);
+
+  const wageLabel = isFirstBatchOrder ? 'Base guaranteed run fee' : 'Batch add-on drop (+₹14)';
   const orderTotalAmount = effectiveOrder.total_amount ?? effectiveOrder.total ?? 0;
   const pickupPointName = canteenName || effectiveOrder.restaurant_name || effectiveOrder.restaurant?.name || "Campus Canteen";
   const pickupPointAddress = effectiveOrder.restaurant_address || effectiveOrder.restaurant?.address || "Zeal College Campus";
@@ -317,31 +326,29 @@ export function ActiveDeliveryManifest({
       </div>
 
       {/* 2. Financial Metrics Box: Courier Payout & Cash to Collect */}
-      <div className="grid grid-cols-2 gap-3 rounded-xl bg-zinc-50/80 p-3 border border-zinc-100">
+      <div className="grid grid-cols-2 gap-3">
         {/* Left: Rider Earning */}
-        <div className="flex flex-col">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
-            Your Earning
-          </span>
-          <span className="mt-0.5 text-base font-extrabold text-emerald-600 flex items-center gap-1">
-            <span>🛵</span> ₹{payoutWage}
-          </span>
-          <span className="text-[10px] text-zinc-400">Direct courier fee</span>
+        <div className="bg-orange-50/60 border border-orange-100 rounded-xl p-3">
+          <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">Your Earning</span>
+          <div className="flex items-center gap-1.5 mt-0.5">
+            <span className="text-base font-bold text-emerald-700">₹{earningAmount.toFixed(2)}</span>
+          </div>
+          <span className="text-[10px] text-zinc-500 block mt-0.5">{wageLabel}</span>
         </div>
 
         {/* Right: Cash Collection / Online Status */}
-        <div className="flex flex-col border-l border-zinc-200/70 pl-3">
-          <span className="text-[10px] font-bold uppercase tracking-wider text-zinc-400">
+        <div className="bg-zinc-50/80 border border-zinc-100 rounded-xl p-3 flex flex-col justify-between">
+          <span className="text-[11px] font-semibold text-zinc-500 uppercase tracking-wider">
             {isCod ? 'Collect From Customer' : 'Payment Status'}
           </span>
-          <span className="mt-0.5 text-base font-extrabold text-zinc-900">
+          <div className="flex items-center gap-1.5 mt-0.5">
             {isCod ? (
-              <span className="text-amber-700">₹{orderTotalAmount}</span>
+              <span className="text-base font-bold text-amber-700">₹{orderTotalAmount}</span>
             ) : (
               <span className="text-emerald-700 text-sm font-semibold">Paid Online ✓</span>
             )}
-          </span>
-          <span className="text-[10px] text-zinc-500 font-medium truncate">
+          </div>
+          <span className="text-[10px] text-zinc-500 block mt-0.5 truncate">
             {isCod ? 'Cash on Delivery' : 'Prepaid via UPI'}
           </span>
         </div>

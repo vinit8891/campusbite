@@ -122,8 +122,11 @@ export type DeliveryOrder = {
   delivery_fee?: number;
   is_batch_addon?: boolean;
   isBatchAddon?: boolean;
+  is_primary_batch_order?: boolean;
   batch_id?: string;
   calculated_payout?: number;
+  courier_earning?: number;
+  wage_type?: string;
   status?: string;
   cash_in_hand?: number;
   total_payout_earned?: number;

@@ -125,3 +125,76 @@ def test_calculate_order_amounts_integration():
     # Rider payout = 20 (base) + 5 (large cart bonus) + 10 (night surge) + 10 (tip) = 45.00
     assert amounts["delivery_partner_earning"] == 45.00
     assert amounts["delivery_partner_payout"] == 45.00
+
+
+def test_calculate_courier_order_wage_authoritative():
+    """Verify authoritative batch tiered wage calculator in courier_service."""
+    from app.services.courier_service import (
+        calculate_courier_order_wage,
+        apply_courier_batch_wages,
+    )
+
+    # 1st order base wage
+    assert calculate_courier_order_wage({}, batch_index=0) == 20.0
+    assert calculate_courier_order_wage({"is_primary_batch_order": True}, batch_index=0) == 20.0
+
+    # Subsequent bundled orders in the same batch: ₹14.00
+    assert calculate_courier_order_wage({}, batch_index=1) == 14.0
+    assert calculate_courier_order_wage({"is_primary_batch_order": False}, batch_index=0) == 14.0
+    assert calculate_courier_order_wage({"is_batch_addon": True}, batch_index=0) == 14.0
+    assert calculate_courier_order_wage({"wage_type": "batch_addon"}, batch_index=0) == 14.0
+
+    # Explicitly assigned batch wage (>= 14.0)
+    assert calculate_courier_order_wage({"courier_earning": 14.0}) == 14.0
+    assert calculate_courier_order_wage({"courier_earning": 20.0}) == 20.0
+    assert calculate_courier_order_wage({"courier_earning": 25.0}) == 25.0
+
+
+def test_apply_courier_batch_wages_sequencing():
+    """Verify batch sequencing enforces ₹20 for 1st order and +₹14 for batch add-ons."""
+    from app.services.courier_service import apply_courier_batch_wages
+
+    raw_orders = [
+        {"_id": "ord-1", "status": "Assigned"},
+        {"_id": "ord-2", "status": "Assigned"},
+        {"_id": "ord-3", "status": "Assigned"},
+    ]
+
+    sequenced = apply_courier_batch_wages(raw_orders)
+    assert len(sequenced) == 3
+
+    # Order 0: primary
+    assert sequenced[0]["courier_earning"] == 20.0
+    assert sequenced[0]["delivery_partner_earning"] == 20.0
+    assert sequenced[0]["wage_type"] == "base"
+    assert sequenced[0]["is_primary_batch_order"] is True
+    assert sequenced[0]["is_batch_addon"] is False
+
+    # Order 1: secondary
+    assert sequenced[1]["courier_earning"] == 14.0
+    assert sequenced[1]["delivery_partner_earning"] == 14.0
+    assert sequenced[1]["wage_type"] == "batch_addon"
+    assert sequenced[1]["is_primary_batch_order"] is False
+    assert sequenced[1]["is_batch_addon"] is True
+
+    # Order 2: tertiary
+    assert sequenced[2]["courier_earning"] == 14.0
+    assert sequenced[2]["delivery_partner_earning"] == 14.0
+    assert sequenced[2]["wage_type"] == "batch_addon"
+    assert sequenced[2]["is_primary_batch_order"] is False
+    assert sequenced[2]["is_batch_addon"] is True
+
+
+def test_calculate_courier_settlement_wages_aggregation():
+    """Verify settlement wages accurately sums ₹20 for primary drops and ₹14 for bundled drops."""
+    from app.routes.settlements import calculate_courier_settlement_wages
+
+    completed_orders = [
+        {"_id": "ord-1", "courier_earning": 20.0},
+        {"_id": "ord-2", "courier_earning": 14.0},
+        {"_id": "ord-3"},  # fallback to 20.0
+    ]
+
+    total_wages = calculate_courier_settlement_wages(completed_orders)
+    assert total_wages == 54.0  # 20 + 14 + 20
+

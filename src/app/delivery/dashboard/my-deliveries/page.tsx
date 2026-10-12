@@ -64,10 +64,11 @@ export default function MyDeliveriesPage() {
           />
         ) : (
           <div className="space-y-6">
-            {orders.map((order) => (
+            {orders.map((order, index) => (
               <MyDeliveryCard
                 key={order._id}
                 order={order}
+                index={index}
                 onUpdateStatus={(id, nextStatus) => void updateStatus(id, nextStatus)}
                 onOpenOtp={(id) => {
                   setOtpOrderId(id);

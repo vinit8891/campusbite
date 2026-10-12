@@ -73,10 +73,65 @@ def normalize_courier_financials(obj: dict) -> dict:
     return obj
 
 
+from app.services.courier_service import (
+    calculate_courier_order_wage,
+    apply_courier_batch_wages,
+)
+
 router = APIRouter(
     prefix="/courier",
     tags=["Courier"],
 )
+
+
+@router.get("/orders/active")
+@router.get("/orders/assigned")
+async def get_courier_active_orders(
+    current_user: Annotated[
+        dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))
+    ],
+    phone: Annotated[str | None, Query()] = None,
+    status: Annotated[str | None, Query()] = None,
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> list[dict[str, Any]]:
+    rider_phone = phone or current_user.get("phone")
+    if not rider_phone:
+        raise HTTPException(
+            status_code=400,
+            detail="Phone number is required to fetch active orders",
+        )
+    assert_same_identity(current_user, phone=rider_phone)
+
+    raw_orders = await get_delivery_orders(
+        phone=rider_phone,
+        status=status,
+        limit=limit,
+    )
+    if isinstance(raw_orders, dict) and "items" in raw_orders:
+        orders = [normalize_order_financials(o) for o in raw_orders["items"]]
+    else:
+        orders = [normalize_order_financials(o) for o in (raw_orders or [])]
+
+    # Filter to active/assigned runs if no specific status requested
+    if not status:
+        active_statuses = {"assigned", "picked up", "picked_up", "out for delivery", "out_for_delivery"}
+        orders = [
+            o for o in orders
+            if str(o.get("status", "")).strip().lower() in active_statuses
+        ]
+
+    # Order the batch by pickup / sequence (accepted_at ascending)
+    orders.sort(
+        key=lambda o: str(
+            (o.get("delivery_partner") or {}).get("accepted_at")
+            or o.get("accepted_at")
+            or o.get("created_at")
+            or ""
+        )
+    )
+
+    # 1st order: ₹20 base, 2nd+ orders: ₹14 batch_addon
+    return apply_courier_batch_wages(orders)
 
 
 @router.get("/orders/{phone}")
@@ -91,8 +146,19 @@ async def get_courier_assigned_orders(
     assert_same_identity(current_user, phone=phone)
     raw_orders = await get_delivery_orders(phone=phone, status=status, limit=limit)
     if isinstance(raw_orders, dict) and "items" in raw_orders:
-        return [normalize_order_financials(o) for o in raw_orders["items"]]
-    return [normalize_order_financials(o) for o in (raw_orders or [])]
+        orders = [normalize_order_financials(o) for o in raw_orders["items"]]
+    else:
+        orders = [normalize_order_financials(o) for o in (raw_orders or [])]
+
+    # Sequence active runs with tiered batch wages
+    active_orders = [
+        o for o in orders
+        if str(o.get("status", "")).strip().lower() in {"assigned", "picked up", "picked_up", "out for delivery", "out_for_delivery"}
+    ]
+    if active_orders:
+        apply_courier_batch_wages(active_orders)
+
+    return orders
 
 
 @router.get("/reconciliation/{phone}")
