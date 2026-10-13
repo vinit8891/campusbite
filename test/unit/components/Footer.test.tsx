@@ -63,6 +63,10 @@ describe("Footer Component", () => {
     );
 
     // Support Links
+    expect(screen.getByRole("link", { name: /contact us/i })).toHaveAttribute(
+      "href",
+      "/contact"
+    );
     expect(screen.getByRole("link", { name: /email help desk/i })).toHaveAttribute(
       "href",
       "mailto:support@campusbite.in"
@@ -74,6 +78,10 @@ describe("Footer Component", () => {
     expect(screen.getByRole("link", { name: /privacy policy/i })).toHaveAttribute(
       "href",
       "/privacy"
+    );
+    expect(screen.getByRole("link", { name: /refund policy/i })).toHaveAttribute(
+      "href",
+      "/refund-policy"
     );
 
     // Operations / Admin

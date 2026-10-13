@@ -53,9 +53,11 @@ export default function Footer() {
           <div>
             <h4 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-300">Support</h4>
             <ul className="mt-2 space-y-1.5 text-xs">
+              <li><Link className="hover:text-orange-400 transition-colors" href="/contact">Contact Us</Link></li>
               <li><a href="mailto:support@campusbite.in" className="hover:text-orange-400 transition-colors">Email Help Desk</a></li>
               <li><Link className="hover:text-orange-400 transition-colors" href="/terms">Terms of Service</Link></li>
               <li><Link className="hover:text-orange-400 transition-colors" href="/privacy">Privacy Policy</Link></li>
+              <li><Link className="hover:text-orange-400 transition-colors" href="/refund-policy">Refund Policy</Link></li>
             </ul>
           </div>
 

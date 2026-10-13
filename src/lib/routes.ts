@@ -16,7 +16,9 @@ export const ROUTES = {
   ABOUT: "/about",
   CONTACT: "/contact",
   TERMS: "/terms",
+  PRIVACY: "/privacy",
   PRIVACY_POLICY: "/privacy-policy",
+  REFUND_POLICY: "/refund-policy",
 
   // Restaurant
   RESTAURANT_LOGIN: "/restaurant/login",
@@ -113,7 +115,9 @@ export const routes = {
   about: ROUTES.ABOUT,
   contact: ROUTES.CONTACT,
   terms: ROUTES.TERMS,
+  privacy: ROUTES.PRIVACY,
   privacyPolicy: ROUTES.PRIVACY_POLICY,
+  refundPolicy: ROUTES.REFUND_POLICY,
 
   // Restaurant
   restaurant: {
