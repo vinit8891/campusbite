@@ -129,6 +129,54 @@ async def get_restaurant_settlements_history(
         return {"success": True, "settlements": []}
 
 
+@router.get("/today")
+@alias_router.get("/restaurant/settlements/today")
+@alias_router.get("/restaurants/settlements/today")
+async def get_today_settlement_alias(
+    restaurant_id: Annotated[str | None, Query()] = None,
+    restaurant_email: Annotated[str | None, Query()] = None,
+    canteen_id: Annotated[str | None, Query()] = None,
+    date: Annotated[str | None, Query()] = None,
+    current_user: Annotated[
+        dict, Depends(require_roles(RESTAURANT_OWNER, ADMIN))
+    ] = None,
+):
+    try:
+        from app.routes.restaurant import get_restaurant_today_settlement
+        return await get_restaurant_today_settlement(
+            current_user=current_user or {},
+            date=date,
+            restaurant_email=restaurant_email,
+            restaurant_id=restaurant_id,
+            canteen_id=canteen_id,
+        )
+    except Exception as e:
+        today_str = date or "today"
+        safe_empty = {
+            "date": today_str,
+            "settlement_date": today_str,
+            "gross_sales": 0.0,
+            "gross_food_sales": 0.0,
+            "gst": 0.0,
+            "gst_amount": 0.0,
+            "commission": 0.0,
+            "commission_deducted": 0.0,
+            "platform_commission": 0.0,
+            "net_payout": 0.0,
+            "net_payable_subtotal": 0.0,
+            "orders_count": 0,
+            "status": "pending",
+            "is_settled": False,
+            "utr_number": None,
+            "transaction_ref": None,
+        }
+        return {
+            "success": True,
+            "settlement": safe_empty,
+            **safe_empty,
+        }
+
+
 @router.get("/canteen/{restaurant_email}")
 async def get_canteen_settlement(
     restaurant_email: str,

@@ -55,3 +55,8 @@ def close_mongo_client() -> None:
         logger.info("MongoDB client closed")
     except Exception:
         logger.exception("Error closing MongoDB client")
+
+
+def get_database():
+    """Dependency helper to return the active Mongo database instance."""
+    return database

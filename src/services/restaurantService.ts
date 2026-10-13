@@ -435,73 +435,11 @@ export async function getRestaurantSettlements(
     });
   }
 
-  // If no history exists, synthesize mock past settlements for demo clarity
-  if (historyMap.size === 0) {
-    const yesterday = new Date(Date.now() - 86400000)
-      .toISOString()
-      .split("T")[0];
-    const twoDaysAgo = new Date(Date.now() - 86400000 * 2)
-      .toISOString()
-      .split("T")[0];
-    const threeDaysAgo = new Date(Date.now() - 86400000 * 3)
-      .toISOString()
-      .split("T")[0];
-
-    historyMap.set(yesterday, {
-      restaurant_email: cleanEmail,
-      restaurant_name: restaurantName,
-      upi_id: upiId,
-      orders_count: 14,
-      gross_food_sales: 1680.0,
-      commission_deducted: 302.4,
-      gst_amount: 84.0,
-      net_payable_subtotal: 1461.6,
-      net_disbursed: 1461.6,
-      status: "Settled",
-      settled_at: `${yesterday}T21:05:12.000Z`,
-      settled_by: "ops@campusbite.in",
-      transaction_ref: `UPI/${yesterday.replace(/-/g, "")}/849201`,
-      settlement_date: yesterday,
-    });
-
-    historyMap.set(twoDaysAgo, {
-      restaurant_email: cleanEmail,
-      restaurant_name: restaurantName,
-      upi_id: upiId,
-      orders_count: 22,
-      gross_food_sales: 2750.0,
-      commission_deducted: 495.0,
-      gst_amount: 137.5,
-      net_payable_subtotal: 2392.5,
-      net_disbursed: 2392.5,
-      status: "Settled",
-      settled_at: `${twoDaysAgo}T21:02:44.000Z`,
-      settled_by: "ops@campusbite.in",
-      transaction_ref: `UPI/${twoDaysAgo.replace(/-/g, "")}/736192`,
-      settlement_date: twoDaysAgo,
-    });
-
-    historyMap.set(threeDaysAgo, {
-      restaurant_email: cleanEmail,
-      restaurant_name: restaurantName,
-      upi_id: upiId,
-      orders_count: 19,
-      gross_food_sales: 2340.0,
-      commission_deducted: 421.2,
-      gst_amount: 117.0,
-      net_payable_subtotal: 2035.8,
-      net_disbursed: 2035.8,
-      status: "Settled",
-      settled_at: `${threeDaysAgo}T21:08:19.000Z`,
-      settled_by: "ops@campusbite.in",
-      transaction_ref: `UPI/${threeDaysAgo.replace(/-/g, "")}/410982`,
-      settlement_date: threeDaysAgo,
-    });
-  }
-
-  // Include today in history list as well
-  if (!historyMap.has(dateStr)) {
-    historyMap.set(dateStr, todaySettlement);
+  // Include today in history list only if today had delivered orders or was recorded in settlements
+  if (settledToday || todayDeliveredOrders.length > 0) {
+    if (!historyMap.has(dateStr)) {
+      historyMap.set(dateStr, todaySettlement);
+    }
   }
 
   const history = Array.from(historyMap.values()).sort(

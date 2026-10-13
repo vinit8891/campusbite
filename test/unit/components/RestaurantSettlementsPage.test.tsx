@@ -137,4 +137,21 @@ describe("RestaurantSettlementsPage", () => {
       expect(screen.getByText("(UPI/2026/TEST889)")).toBeInTheDocument();
     });
   });
+
+  it("renders clean empty state when no historical settlements exist", async () => {
+    localStorage.removeItem("cb_orders");
+    localStorage.removeItem("cb_canteen_settlements");
+
+    render(<RestaurantSettlementsPage />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText("No historical settlements found.")
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText("Completed orders will be aggregated and settled here.")
+      ).toBeInTheDocument();
+    });
+  });
 });
+

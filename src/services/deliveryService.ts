@@ -43,6 +43,8 @@ export function getLocalDeliveries(phone?: string): DeliveryOrder[] {
   if (typeof window === "undefined") return [];
   const list: DeliveryOrder[] = [];
   try {
+    localStorage.removeItem("cb_courier_orders");
+    sessionStorage.removeItem("cb_courier_orders");
     if (phone) {
       const raw = localStorage.getItem(`cb_my_deliveries_${phone}`);
       if (raw) {

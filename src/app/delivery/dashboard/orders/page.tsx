@@ -28,6 +28,12 @@ export default function DeliveryOrdersPage() {
 
   useEffect(() => {
     setIsMounted(true);
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.removeItem("cb_courier_orders");
+        sessionStorage.removeItem("cb_courier_orders");
+      } catch {}
+    }
   }, []);
 
   const {
@@ -52,18 +58,14 @@ export default function DeliveryOrdersPage() {
     handleSearchSubmit,
   } = useDeliveryOrders();
 
-  const activeRuns = orders.filter(
-    (order) =>
-      !["delivered", "completed", "cancelled"].includes(
-        order.status?.toLowerCase() || ""
-      )
-  );
-  const pastRuns = orders.filter(
-    (order) =>
-      ["delivered", "completed", "cancelled"].includes(
-        order.status?.toLowerCase() || ""
-      )
-  );
+  const activeRuns = orders.filter((o) => {
+    const s = (o.status || "").toLowerCase().trim();
+    return s === "assigned" || s === "out_for_delivery" || s === "out for delivery";
+  });
+  const pastRuns = orders.filter((order) => {
+    const s = (order.status || "").toLowerCase().trim();
+    return s === "delivered" || s === "completed" || s === "cancelled";
+  });
 
   if (!isMounted) {
     return (
@@ -111,10 +113,13 @@ export default function DeliveryOrdersPage() {
             }`}
           >
             <span>🛵 Active Runs</span>
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-              selectedTab === 'active' ? 'bg-white text-orange-600' : 'bg-zinc-200 text-zinc-700'
-            }`}>
-              {activeRuns.length}
+            <span
+              aria-label={`Active Runs ${activeRuns.length}`}
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                selectedTab === 'active' ? 'bg-white text-orange-600' : 'bg-zinc-200 text-zinc-700'
+              }`}
+            >
+              {activeRuns.length === 0 ? "Active Runs 0" : activeRuns.length}
             </span>
           </button>
 
@@ -151,8 +156,11 @@ export default function DeliveryOrdersPage() {
                 🛵
               </div>
               <h3 className="text-base font-bold text-zinc-900">No active runs right now!</h3>
-              <p className="text-xs text-zinc-500 mt-1 max-w-xs">
-                You don't have any ongoing deliveries in progress. Check available orders to claim fresh runs.
+              <p className="text-xs text-zinc-500 mt-1 max-w-sm font-medium">
+                No active runs assigned. Head to Available Orders to claim delivery batches.
+              </p>
+              <p className="text-[11px] text-zinc-400 mt-0.5 max-w-xs">
+                You don&apos;t have any ongoing deliveries in progress. Check available orders to claim fresh runs.
               </p>
               <div className="flex items-center gap-2 mt-4">
                 <Link className="px-4 py-2 bg-orange-500 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-orange-600 transition-colors" href="/delivery/available">

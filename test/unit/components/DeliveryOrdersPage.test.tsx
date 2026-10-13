@@ -135,9 +135,10 @@ describe("DeliveryOrdersPage Dual-Tab Segregation", () => {
     expect(screen.getByText("No active runs right now!")).toBeInTheDocument();
     expect(
       screen.getByText(
-        "You don't have any ongoing deliveries in progress. Check available orders to claim fresh runs."
+        "No active runs assigned. Head to Available Orders to claim delivery batches."
       )
     ).toBeInTheDocument();
+    expect(screen.getByText("Active Runs 0")).toBeInTheDocument();
 
     const browseLink = screen.getByRole("link", { name: /Browse Available Orders/i });
     expect(browseLink).toHaveAttribute("href", "/delivery/available");

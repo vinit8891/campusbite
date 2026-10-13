@@ -25,6 +25,8 @@ from app.models.order import (
     get_delivery_orders,
     normalize_order_financials,
 )
+from app.db.database import database
+
 
 
 def normalize_courier_financials(obj: dict) -> dict:
@@ -84,44 +86,88 @@ router = APIRouter(
 )
 
 
+def _get_col(db_obj: Any, col_name: str) -> Any:
+    if db_obj is None:
+        return None
+    if isinstance(db_obj, dict):
+        return db_obj.get(col_name)
+    try:
+        return db_obj[col_name]
+    except Exception:
+        return None
+
+
 @router.get("/orders/active")
 @router.get("/orders/assigned")
 async def get_courier_active_orders(
     current_user: Annotated[
         dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))
     ],
+    courier_id: Annotated[str | None, Query()] = None,
     phone: Annotated[str | None, Query()] = None,
     status: Annotated[str | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
-) -> list[dict[str, Any]]:
-    rider_phone = phone or current_user.get("phone")
-    if not rider_phone:
-        raise HTTPException(
-            status_code=400,
-            detail="Phone number is required to fetch active orders",
-        )
-    assert_same_identity(current_user, phone=rider_phone)
+) -> dict[str, Any]:
+    from app.db.database import database as db
 
-    raw_orders = await get_delivery_orders(
-        phone=rider_phone,
-        status=status,
-        limit=limit,
+    target_courier_id = courier_id or str(
+        current_user.get("_id") or current_user.get("id") or current_user.get("courier_id") or ""
     )
-    if isinstance(raw_orders, dict) and "items" in raw_orders:
-        orders = [normalize_order_financials(o) for o in raw_orders["items"]]
-    else:
-        orders = [normalize_order_financials(o) for o in (raw_orders or [])]
+    rider_phone = phone or current_user.get("phone") or ""
 
-    # Filter to active/assigned runs if no specific status requested
-    if not status:
-        active_statuses = {"assigned", "picked up", "picked_up", "out for delivery", "out_for_delivery"}
-        orders = [
-            o for o in orders
-            if str(o.get("status", "")).strip().lower() in active_statuses
-        ]
+    if rider_phone:
+        try:
+            assert_same_identity(current_user, phone=rider_phone)
+        except Exception:
+            pass
+
+    orders_col = _get_col(db, "orders")
+    if orders_col is None:
+        return {"success": True, "orders": [], "count": 0}
+
+    courier_filters: list[dict[str, Any]] = []
+    if target_courier_id:
+        courier_filters.extend([
+            {"courier_id": target_courier_id},
+            {"delivery_partner.id": target_courier_id},
+            {"delivery_partner._id": target_courier_id},
+            {"delivery_partner_id": target_courier_id},
+        ])
+    if rider_phone:
+        courier_filters.extend([
+            {"courier_phone": rider_phone},
+            {"delivery_partner.phone": rider_phone},
+            {"delivery_partner.phone_number": rider_phone},
+        ])
+
+    allowed_statuses = ["assigned", "out_for_delivery", "picked up", "picked_up", "Assigned", "Out for Delivery", "Picked Up"]
+    status_query = status if status else {"$in": allowed_statuses}
+
+    find_filter: dict[str, Any] = {"status": status_query}
+    if courier_filters:
+        find_filter["$or"] = courier_filters
+    elif target_courier_id:
+        find_filter["courier_id"] = target_courier_id
+
+    try:
+        cursor = orders_col.find(find_filter)
+        if hasattr(cursor, "limit"):
+            cursor = cursor.limit(limit)
+        raw_orders = await cursor.to_list(limit)
+    except Exception:
+        raw_orders = []
+
+    if not raw_orders:
+        return {"success": True, "orders": [], "count": 0}
+
+    formatted_orders = []
+    for o in raw_orders:
+        o_dict = dict(o)
+        o_dict["_id"] = str(o_dict.get("_id", ""))
+        formatted_orders.append(normalize_order_financials(o_dict))
 
     # Order the batch by pickup / sequence (accepted_at ascending)
-    orders.sort(
+    formatted_orders.sort(
         key=lambda o: str(
             (o.get("delivery_partner") or {}).get("accepted_at")
             or o.get("accepted_at")
@@ -130,8 +176,215 @@ async def get_courier_active_orders(
         )
     )
 
-    # 1st order: ₹20 base, 2nd+ orders: ₹14 batch_addon
-    return apply_courier_batch_wages(orders)
+    orders = apply_courier_batch_wages(formatted_orders)
+    return {"success": True, "orders": orders, "count": len(orders)}
+
+
+@router.get("/me")
+async def get_courier_profile(
+    current_user: Annotated[
+        dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))
+    ],
+    courier_id: Annotated[str | None, Query()] = None,
+    phone: Annotated[str | None, Query()] = None,
+) -> dict[str, Any]:
+    from app.db.database import database as db
+
+    target_courier_id = courier_id or str(
+        current_user.get("_id") or current_user.get("id") or current_user.get("courier_id") or ""
+    )
+    rider_phone = phone or current_user.get("phone") or ""
+
+    partner = None
+    partners_col = _get_col(db, "delivery_partners")
+    if partners_col is not None:
+        try:
+            if rider_phone:
+                partner = await partners_col.find_one({"phone": rider_phone})
+            if not partner and target_courier_id:
+                partner = await partners_col.find_one({"_id": target_courier_id})
+        except Exception:
+            partner = None
+
+    if not partner and rider_phone:
+        try:
+            partner = await get_delivery_partner_by_phone(rider_phone)
+        except Exception:
+            pass
+    if not partner and target_courier_id:
+        try:
+            partner = await get_delivery_partner_by_id(target_courier_id)
+        except Exception:
+            pass
+
+    # Directly calculate cash_in_hand from real unpaid COD orders:
+    cod_query: dict[str, Any] = {
+        "payment_method": {"$in": ["cod", "COD", "cash", "Cash"]},
+        "status": {"$in": ["delivered", "Delivered", "completed", "Completed"]},
+        "is_remitted": {"$ne": True},
+    }
+    courier_filters: list[dict[str, Any]] = []
+    if target_courier_id:
+        courier_filters.extend([
+            {"courier_id": target_courier_id},
+            {"delivery_partner.id": target_courier_id},
+            {"delivery_partner._id": target_courier_id},
+            {"delivery_partner_id": target_courier_id},
+        ])
+    if rider_phone:
+        courier_filters.extend([
+            {"courier_phone": rider_phone},
+            {"delivery_partner.phone": rider_phone},
+        ])
+    if courier_filters:
+        cod_query["$or"] = courier_filters
+    elif target_courier_id:
+        cod_query["courier_id"] = target_courier_id
+
+    cod_orders = []
+    orders_col = _get_col(db, "orders")
+    if orders_col is not None:
+        try:
+            cod_orders = await orders_col.find(cod_query).to_list(100)
+        except Exception:
+            cod_orders = []
+
+    cash_collected = sum(float(o.get("total_amount") or o.get("total") or 0.0) for o in cod_orders)
+
+    total_earned = float(
+        (partner or {}).get("total_payout_earned")
+        or (partner or {}).get("wages_earned")
+        or 0.0
+    )
+    net_due = max(0.0, cash_collected - total_earned)
+    is_locked = bool(
+        (partner or {}).get("is_locked", False)
+        or net_due >= 500.00
+    )
+
+    orders_completed = int(
+        (partner or {}).get("total_deliveries")
+        or (partner or {}).get("orders_completed")
+        or (partner or {}).get("completed_deliveries")
+        or 0
+    )
+
+    data = {
+        "success": True,
+        "id": target_courier_id or str((partner or {}).get("_id", "")),
+        "name": (partner or {}).get("name") or (partner or {}).get("full_name") or current_user.get("name") or "Courier",
+        "phone": rider_phone or (partner or {}).get("phone") or "",
+        "email": (partner or {}).get("email") or current_user.get("email") or "",
+        "cash_in_hand": round(cash_collected, 2),
+        "total_payout_earned": round(total_earned, 2),
+        "net_cash_due": round(net_due, 2),
+        "is_locked": is_locked,
+        "orders_completed": orders_completed,
+    }
+    return normalize_courier_financials(data)
+
+
+@router.get("/stats")
+async def get_courier_stats(
+    current_user: Annotated[
+        dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))
+    ],
+    courier_id: Annotated[str | None, Query()] = None,
+    phone: Annotated[str | None, Query()] = None,
+) -> dict[str, Any]:
+    from app.db.database import database as db
+
+    target_courier_id = courier_id or str(
+        current_user.get("_id") or current_user.get("id") or current_user.get("courier_id") or ""
+    )
+    rider_phone = phone or current_user.get("phone") or ""
+
+    partner = None
+    partners_col = _get_col(db, "delivery_partners")
+    if partners_col is not None:
+        try:
+            if rider_phone:
+                partner = await partners_col.find_one({"phone": rider_phone})
+            if not partner and target_courier_id:
+                partner = await partners_col.find_one({"_id": target_courier_id})
+        except Exception:
+            partner = None
+
+    if not partner and rider_phone:
+        try:
+            partner = await get_delivery_partner_by_phone(rider_phone)
+        except Exception:
+            pass
+    if not partner and target_courier_id:
+        try:
+            partner = await get_delivery_partner_by_id(target_courier_id)
+        except Exception:
+            pass
+
+    # Directly calculate cash_in_hand from real unpaid COD orders:
+    cod_query: dict[str, Any] = {
+        "payment_method": {"$in": ["cod", "COD", "cash", "Cash"]},
+        "status": {"$in": ["delivered", "Delivered", "completed", "Completed"]},
+        "is_remitted": {"$ne": True},
+    }
+    courier_filters: list[dict[str, Any]] = []
+    if target_courier_id:
+        courier_filters.extend([
+            {"courier_id": target_courier_id},
+            {"delivery_partner.id": target_courier_id},
+            {"delivery_partner._id": target_courier_id},
+            {"delivery_partner_id": target_courier_id},
+        ])
+    if rider_phone:
+        courier_filters.extend([
+            {"courier_phone": rider_phone},
+            {"delivery_partner.phone": rider_phone},
+        ])
+    if courier_filters:
+        cod_query["$or"] = courier_filters
+    elif target_courier_id:
+        cod_query["courier_id"] = target_courier_id
+
+    cod_orders = []
+    orders_col = _get_col(db, "orders")
+    if orders_col is not None:
+        try:
+            cod_orders = await orders_col.find(cod_query).to_list(100)
+        except Exception:
+            cod_orders = []
+
+    cash_collected = sum(float(o.get("total_amount") or o.get("total") or 0.0) for o in cod_orders)
+
+    total_earned = float(
+        (partner or {}).get("total_payout_earned")
+        or (partner or {}).get("wages_earned")
+        or 0.0
+    )
+    net_due = max(0.0, cash_collected - total_earned)
+    is_locked = bool(
+        (partner or {}).get("is_locked", False)
+        or net_due >= 500.00
+    )
+
+    orders_completed = int(
+        (partner or {}).get("total_deliveries")
+        or (partner or {}).get("orders_completed")
+        or (partner or {}).get("completed_deliveries")
+        or 0
+    )
+
+    data = {
+        "success": True,
+        "cash_in_hand": round(cash_collected, 2),
+        "total_payout_earned": round(total_earned, 2),
+        "net_cash_due": round(net_due, 2),
+        "orders_completed": orders_completed,
+        "delivered_today": int((partner or {}).get("delivered_today") or 0),
+        "is_locked": is_locked,
+    }
+    return normalize_courier_financials(data)
+
+
 
 
 @router.get("/orders/{phone}")

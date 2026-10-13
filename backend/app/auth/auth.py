@@ -92,3 +92,6 @@ def assert_same_identity(
         token_phone = current_user.get("phone")
         if not token_phone or str(token_phone) != str(phone):
             raise _forbidden("You can only access your own resources")
+
+
+get_current_restaurant_user = require_roles("restaurant_owner", "admin")

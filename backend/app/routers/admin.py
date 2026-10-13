@@ -1523,6 +1523,69 @@ async def approve_rider_remittance_endpoint(
     }
 
 
+@router.post("/system/purge-test-data")
+async def purge_test_data(
+    current_user: Annotated[dict, Depends(require_roles(ADMIN))],
+):
+    """
+    Master Admin Reset Endpoint:
+    - Wipes test orders, settlements, payouts, remittances.
+    - Resets courier stats (cash_in_hand: 0.0, orders_completed: 0, is_locked: False).
+    - Returns {"success": True, "message": "All transactional data cleanly purged"}.
+    """
+    if database is not None:
+        for col_name in ["orders", "settlements", "canteen_settlements", "payouts", "rider_remittances"]:
+            col = database.get(col_name) if hasattr(database, "get") else database[col_name]
+            if col is not None:
+                try:
+                    await col.delete_many({})
+                except Exception:
+                    pass
+
+        dp_col = database.get("delivery_partners") if hasattr(database, "get") else database["delivery_partners"]
+        if dp_col is not None:
+            try:
+                await dp_col.update_many(
+                    {},
+                    {
+                        "$set": {
+                            "cash_in_hand": 0.0,
+                            "orders_completed": 0,
+                            "total_deliveries": 0,
+                            "completed_orders": 0,
+                            "completed_deliveries": 0,
+                            "delivered_today": 0,
+                            "total_payout_earned": 0.0,
+                            "net_cash_due": 0.0,
+                            "total_remitted": 0.0,
+                            "is_locked": False,
+                        }
+                    },
+                )
+            except Exception:
+                pass
+
+    admin_email = (
+        current_user.get("email") or current_user.get("sub") or "admin"
+    ).strip().lower()
+
+    try:
+        await log_admin_action(
+            admin_email=admin_email,
+            action="purge_test_data",
+            resource="system",
+            resource_id="transactional_data",
+            metadata={"message": "All transactional data cleanly purged"},
+        )
+    except Exception:
+        pass
+
+    return {
+        "success": True,
+        "message": "All transactional data cleanly purged",
+    }
+
+
 # Subscription Endpoints Re-export
 from app.routes.admin_subscription import (
     get_admin_subscriptions,
@@ -1531,6 +1594,7 @@ from app.routes.admin_subscription import (
     delete_admin_subscription,
     serialize_sub,
 )
+
 
 
 

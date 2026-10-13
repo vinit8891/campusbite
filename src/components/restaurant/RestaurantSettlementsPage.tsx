@@ -127,6 +127,10 @@ export function RestaurantSettlementsPage() {
     });
   }, [overview?.history, statusFilter, searchQuery]);
 
+  const historicalList = useMemo(() => {
+    return Array.isArray(overview?.history) ? overview.history : [];
+  }, [overview?.history]);
+
   if (!isMounted) {
     return (
       <div className="min-h-screen bg-stone-50/70 p-4 sm:p-6 lg:p-8 flex items-center justify-center">
@@ -418,112 +422,119 @@ export function RestaurantSettlementsPage() {
         </div>
 
         {/* Ledger Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="border-b border-stone-100 bg-stone-50/70 text-[11px] font-extrabold uppercase tracking-wider text-stone-500">
-                <th className="py-3 px-4 rounded-l-xl">Settlement Date</th>
-                <th className="py-3 px-4">Fulfilled Orders</th>
-                <th className="py-3 px-4">Gross Sales (₹)</th>
-                <th className="py-3 px-4">Platform Fee (18%)</th>
-                <th className="py-3 px-4">Net Disbursed (₹)</th>
-                <th className="py-3 px-4">Settlement Status</th>
-                <th className="py-3 px-4">Bank / UPI UTR</th>
-                <th className="py-3 px-4 rounded-r-xl text-right">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-stone-100 text-xs font-medium text-stone-700">
-              {filteredHistory.length === 0 ? (
-                <tr>
-                  <td colSpan={8} className="py-8 text-center text-stone-400 font-medium">
-                    No settlement records found matching your filter criteria.
-                  </td>
+        {historicalList.length === 0 ? (
+          <div className="py-12 text-center text-zinc-400">
+            <p className="text-sm">No historical settlements found.</p>
+            <p className="text-xs text-zinc-500 mt-1">Completed orders will be aggregated and settled here.</p>
+          </div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="border-b border-stone-100 bg-stone-50/70 text-[11px] font-extrabold uppercase tracking-wider text-stone-500">
+                  <th className="py-3 px-4 rounded-l-xl">Settlement Date</th>
+                  <th className="py-3 px-4">Fulfilled Orders</th>
+                  <th className="py-3 px-4">Gross Sales (₹)</th>
+                  <th className="py-3 px-4">Platform Fee (18%)</th>
+                  <th className="py-3 px-4">Net Disbursed (₹)</th>
+                  <th className="py-3 px-4">Settlement Status</th>
+                  <th className="py-3 px-4">Bank / UPI UTR</th>
+                  <th className="py-3 px-4 rounded-r-xl text-right">Action</th>
                 </tr>
-              ) : (
-                filteredHistory.map((item) => {
-                  const isSettled = item.status === "Settled";
-                  const gross = item.gross_food_sales;
-                  const comm = item.commission_deducted;
-                  const net = item.net_payable_subtotal;
+              </thead>
+              <tbody className="divide-y divide-stone-100 text-xs font-medium text-stone-700">
+                {filteredHistory.length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="py-8 text-center text-stone-400 font-medium">
+                      No settlement records found matching your filter criteria.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredHistory.map((item) => {
+                    const isSettled = item.status === "Settled";
+                    const gross = item.gross_food_sales;
+                    const comm = item.commission_deducted;
+                    const net = item.net_payable_subtotal;
 
-                  return (
-                    <tr
-                      key={item.settlement_date}
-                      className="hover:bg-amber-50/30 transition-colors"
-                    >
-                      <td className="py-3.5 px-4 font-bold text-stone-900 whitespace-nowrap">
-                        <div className="flex items-center gap-2">
-                          <Calendar className="h-3.5 w-3.5 text-stone-400" />
-                          <span>{formatDate(item.settlement_date)}</span>
-                          {item.settlement_date === new Date().toISOString().split("T")[0] && (
-                            <span className="rounded-md bg-orange-100 px-1.5 py-0.2 text-[10px] font-black text-orange-800">
-                              Today
+                    return (
+                      <tr
+                        key={item.settlement_date}
+                        className="hover:bg-amber-50/30 transition-colors"
+                      >
+                        <td className="py-3.5 px-4 font-bold text-stone-900 whitespace-nowrap">
+                          <div className="flex items-center gap-2">
+                            <Calendar className="h-3.5 w-3.5 text-stone-400" />
+                            <span>{formatDate(item.settlement_date)}</span>
+                            {item.settlement_date === new Date().toISOString().split("T")[0] && (
+                              <span className="rounded-md bg-orange-100 px-1.5 py-0.2 text-[10px] font-black text-orange-800">
+                                Today
+                              </span>
+                            )}
+                          </div>
+                        </td>
+
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span className="font-bold text-stone-800">
+                            {item.orders_count}
+                          </span>{" "}
+                          <span className="text-stone-400">orders</span>
+                        </td>
+
+                        <td className="py-3.5 px-4 whitespace-nowrap font-bold text-stone-900">
+                          ₹{formatINR(gross)}
+                        </td>
+
+                        <td className="py-3.5 px-4 min-w-[100px] whitespace-nowrap text-red-600 font-semibold text-xs">
+                          -₹{formatINR(comm)}
+                        </td>
+
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          <span className="font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200/60">
+                            ₹{formatINR(net)}
+                          </span>
+                        </td>
+
+                        <td className="py-3.5 px-4 whitespace-nowrap">
+                          {isSettled ? (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-extrabold text-emerald-800">
+                              <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                              <span>Settled</span>
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-extrabold text-amber-800">
+                              <Clock className="h-3 w-3 text-amber-600" />
+                              <span>Pending 9:00 PM</span>
                             </span>
                           )}
-                        </div>
-                      </td>
+                        </td>
 
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span className="font-bold text-stone-800">
-                          {item.orders_count}
-                        </span>{" "}
-                        <span className="text-stone-400">orders</span>
-                      </td>
+                        <td className="py-3.5 px-4 whitespace-nowrap font-mono text-[11px] text-stone-600">
+                          {item.transaction_ref ? (
+                            <span className="bg-stone-100 px-2 py-0.5 rounded text-stone-800 font-bold">
+                              {item.transaction_ref}
+                            </span>
+                          ) : (
+                            <span className="text-stone-400 italic">Scheduled 21:00</span>
+                          )}
+                        </td>
 
-                      <td className="py-3.5 px-4 whitespace-nowrap font-bold text-stone-900">
-                        ₹{formatINR(gross)}
-                      </td>
-
-                      <td className="py-3.5 px-4 min-w-[100px] whitespace-nowrap text-red-600 font-semibold text-xs">
-                        -₹{formatINR(comm)}
-                      </td>
-
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        <span className="font-black text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-lg border border-emerald-200/60">
-                          ₹{formatINR(net)}
-                        </span>
-                      </td>
-
-                      <td className="py-3.5 px-4 whitespace-nowrap">
-                        {isSettled ? (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2.5 py-0.5 text-[11px] font-extrabold text-emerald-800">
-                            <CheckCircle2 className="h-3 w-3 text-emerald-600" />
-                            <span>Settled</span>
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center gap-1 rounded-full bg-amber-100 px-2.5 py-0.5 text-[11px] font-extrabold text-amber-800">
-                            <Clock className="h-3 w-3 text-amber-600" />
-                            <span>Pending 9:00 PM</span>
-                          </span>
-                        )}
-                      </td>
-
-                      <td className="py-3.5 px-4 whitespace-nowrap font-mono text-[11px] text-stone-600">
-                        {item.transaction_ref ? (
-                          <span className="bg-stone-100 px-2 py-0.5 rounded text-stone-800 font-bold">
-                            {item.transaction_ref}
-                          </span>
-                        ) : (
-                          <span className="text-stone-400 italic">Scheduled 21:00</span>
-                        )}
-                      </td>
-
-                      <td className="py-3.5 px-4 whitespace-nowrap text-right">
-                        <button
-                          onClick={() => handlePrintSlip(item)}
-                          className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-bold text-stone-700 shadow-2xs hover:border-orange-300 hover:bg-orange-50 hover:text-orange-900 active:scale-95 transition-all cursor-pointer"
-                        >
-                          <Printer className="h-3.5 w-3.5 text-stone-500" />
-                          <span>Print Slip</span>
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
+                        <td className="py-3.5 px-4 whitespace-nowrap text-right">
+                          <button
+                            onClick={() => handlePrintSlip(item)}
+                            className="inline-flex items-center gap-1.5 rounded-xl border border-stone-200 bg-white px-3 py-1.5 text-xs font-bold text-stone-700 shadow-2xs hover:border-orange-300 hover:bg-orange-50 hover:text-orange-900 active:scale-95 transition-all cursor-pointer"
+                          >
+                            <Printer className="h-3.5 w-3.5 text-stone-500" />
+                            <span>Print Slip</span>
+                          </button>
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* Printable Receipt / Voucher Modal */}
