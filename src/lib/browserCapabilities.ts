@@ -12,6 +12,7 @@ export type BrowserCapabilities = {
   serviceWorker: boolean;
   notifications: boolean;
   webShare: boolean;
+  isMobile: boolean;
 };
 
 export function isClientSide(): boolean {
@@ -68,6 +69,19 @@ export function isWebShareSupported(): boolean {
 }
 
 /**
+ * Detects whether the runtime environment is a mobile browser (Android, iOS, iPadOS, etc.).
+ * Allows passing an optional userAgent string for deterministic unit testing.
+ */
+export function isMobileDevice(customUserAgent?: string): boolean {
+  if (customUserAgent !== undefined) {
+    return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop|Mobile/i.test(customUserAgent);
+  }
+  if (!isClientSide()) return false;
+  const ua = typeof navigator !== "undefined" ? navigator.userAgent : "";
+  return /Android|iPhone|iPad|iPod|Opera Mini|IEMobile|WPDesktop|Mobile/i.test(ua);
+}
+
+/**
  * Returns a comprehensive snapshot of active browser capabilities.
  */
 export function checkBrowserCapabilities(): BrowserCapabilities {
@@ -80,5 +94,6 @@ export function checkBrowserCapabilities(): BrowserCapabilities {
     serviceWorker: isServiceWorkerSupported(),
     notifications: isNotificationsSupported(),
     webShare: isWebShareSupported(),
+    isMobile: isMobileDevice(),
   };
 }

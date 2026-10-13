@@ -17,6 +17,7 @@ export interface HandleOnlinePaymentParams {
   router: {
     push: (url: string) => void;
   };
+  onDismiss?: () => void;
 }
 
 /**
@@ -28,6 +29,7 @@ export async function handleOnlinePayment({
   totalAmount,
   user,
   router,
+  onDismiss,
 }: HandleOnlinePaymentParams) {
   const isLoaded = await loadRazorpayScript();
   if (!isLoaded) {
@@ -73,6 +75,11 @@ export async function handleOnlinePayment({
     theme: {
       color: "#f97316", // CampusBite orange
     },
+    modal: {
+      ondismiss: () => {
+        onDismiss?.();
+      },
+    },
   };
 
   if (!window.Razorpay) {
@@ -114,6 +121,7 @@ export default function PaymentSection({
         totalAmount,
         user,
         router,
+        onDismiss: () => setLoading(false),
       });
     } catch (err) {
       toast.error(

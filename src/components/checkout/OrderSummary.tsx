@@ -24,7 +24,12 @@ import {
   COD_PAYMENT_METHOD,
   ONLINE_PAYMENT_METHOD,
 } from "@/lib/paymentLabels";
-import { openRazorpayCheckout } from "@/lib/razorpayCheckout";
+import {
+  openRazorpayCheckout,
+  triggerUpiOrRazorpayCheckout,
+  buildUpiIntentUrl,
+  type RazorpayCheckoutSuccess,
+} from "@/lib/razorpayCheckout";
 import {
   cancelRazorpayPayment,
   createRazorpayPayment,
@@ -35,10 +40,15 @@ import {
 } from "@/services/paymentService";
 import { validateCouponCode } from "@/services/adminService";
 import { getRestaurantByEmail } from "@/services/restaurantService";
-import { useMemo } from "react";
+import { useMemo, useRef } from "react";
 
 const MockCheckoutModal = dynamic(
   () => import("@/components/checkout/MockCheckoutModal"),
+  { ssr: false }
+);
+
+const DesktopUpiQrModal = dynamic(
+  () => import("@/components/checkout/DesktopUpiQrModal"),
   { ssr: false }
 );
 
@@ -70,6 +80,11 @@ export default function OrderSummary() {
   const [mockBusy, setMockBusy] = useState(false);
   const [pendingPayment, setPendingPayment] =
     useState<CreatePaymentResponse | null>(null);
+  const [desktopQrOpen, setDesktopQrOpen] = useState(false);
+  const [currentOrderId, setCurrentOrderId] = useState("");
+  const [currentPayableAmount, setCurrentPayableAmount] = useState(0);
+  const [isVerifyingUpi, setIsVerifyingUpi] = useState(false);
+  const activeOrderIdRef = useRef("");
 
   const [couponCodeInput, setCouponCodeInput] = useState("");
   const [appliedCoupon, setAppliedCoupon] = useState<{
@@ -185,9 +200,70 @@ export default function OrderSummary() {
 
   async function handleVerifiedOnline(orderId: string) {
     setMockOpen(false);
+    setDesktopQrOpen(false);
     setPendingPayment(null);
     finishSuccess(orderId);
   }
+
+  const handleOnlineSuccess = async (rzp: RazorpayCheckoutSuccess) => {
+    const activeId = activeOrderIdRef.current || currentOrderId || pendingPayment?.order_id || "";
+    try {
+      setPaymentState("processing");
+      setStatusMessage("Processing your payment");
+      const verified = await verifyRazorpayPayment({
+        order_id: activeId,
+        razorpay_order_id: rzp.razorpay_order_id,
+        razorpay_payment_id: rzp.razorpay_payment_id,
+        razorpay_signature: rzp.razorpay_signature,
+      });
+
+      if (verified.payment_status !== "paid") {
+        throw new Error("Payment was not confirmed by CampusBite.");
+      }
+
+      await handleVerifiedOnline(activeId);
+    } catch (error) {
+      setPaymentState("failed");
+      setStatusMessage(
+        error instanceof Error ? error.message : "Payment Failed"
+      );
+    } finally {
+      setLoading(false);
+      setDesktopQrOpen(false);
+    }
+  };
+
+  const handleOnlineFailure = async (reason?: string) => {
+    const activeId = activeOrderIdRef.current || currentOrderId || pendingPayment?.order_id || "";
+    try {
+      if (activeId) {
+        await cancelRazorpayPayment(activeId, reason || "payment_failed");
+      }
+    } catch {
+      // Best effort
+    }
+    setPaymentState("failed");
+    setStatusMessage("Payment Failed");
+    setPendingPayment(null);
+    setLoading(false);
+    setDesktopQrOpen(false);
+  };
+
+  const handleOnlineDismiss = async () => {
+    const activeId = activeOrderIdRef.current || currentOrderId || pendingPayment?.order_id || "";
+    try {
+      if (activeId) {
+        await cancelRazorpayPayment(activeId, "checkout_dismissed");
+      }
+    } catch {
+      // Best effort
+    }
+    setPaymentState("idle");
+    setStatusMessage("");
+    setPendingPayment(null);
+    setLoading(false);
+    setDesktopQrOpen(false);
+  };
 
   async function runMockOutcome(outcome: "success" | "failure" | "dismiss") {
     if (!pendingPayment || mockBusy) return;
@@ -322,7 +398,7 @@ export default function OrderSummary() {
     try {
       setLoading(true);
       setPaymentState(isOnline ? "processing" : "idle");
-      setStatusMessage(isOnline ? "Processing Payment" : "");
+      setStatusMessage(isOnline ? "Processing your payment" : "");
 
       let fullAddress = checkout.address.trim();
       if (checkout.hostel_block) {
@@ -385,6 +461,7 @@ export default function OrderSummary() {
 
       const response = await placeOrder(orderData);
       const orderId = response._id || response.id || "";
+      activeOrderIdRef.current = orderId;
 
       if (typeof window !== "undefined") {
         try {
@@ -427,63 +504,36 @@ export default function OrderSummary() {
         return;
       }
 
+      setCurrentOrderId(orderId);
+      setCurrentPayableAmount(finalPayableNum);
+
+      const phonePeIntentUrl = buildUpiIntentUrl({
+        amount: finalPayableNum,
+        orderId,
+        app: "phonepe",
+      });
+
       awaitingCheckoutModal = true;
-      await openRazorpayCheckout({
+      const checkoutResult = await triggerUpiOrRazorpayCheckout({
         keyId: config.key_id,
         payment,
         customerName: orderData.customer_name,
         customerEmail: user?.email,
         customerPhone: deliveryPhone,
         description: `CampusBite order ${orderId}`,
-        onSuccess: async (rzp) => {
-          try {
-            setPaymentState("processing");
-            setStatusMessage("Processing Payment");
-            const verified = await verifyRazorpayPayment({
-              order_id: orderId,
-              razorpay_order_id: rzp.razorpay_order_id,
-              razorpay_payment_id: rzp.razorpay_payment_id,
-              razorpay_signature: rzp.razorpay_signature,
-            });
-
-            if (verified.payment_status !== "paid") {
-              throw new Error("Payment was not confirmed by CampusBite.");
-            }
-
-            await handleVerifiedOnline(orderId);
-          } catch (error) {
-            setPaymentState("failed");
-            setStatusMessage(
-              error instanceof Error ? error.message : "Payment Failed"
-            );
-          } finally {
-            setLoading(false);
-          }
-        },
-        onFailure: async (reason) => {
-          try {
-            await cancelRazorpayPayment(orderId, reason || "payment_failed");
-          } catch {
-            // Best effort
-          }
-          setPaymentState("failed");
-          setStatusMessage("Payment Failed");
-          setPendingPayment(null);
-          setLoading(false);
-        },
-        onDismiss: async () => {
-          try {
-            await cancelRazorpayPayment(orderId, "checkout_dismissed");
-          } catch {
-            // Best effort
-          }
-          setPaymentState("cancelled");
-          setStatusMessage("Payment Cancelled");
-          setPendingPayment(null);
-          setLoading(false);
-        },
+        upiIntentUrl: phonePeIntentUrl,
+        onSuccess: handleOnlineSuccess,
+        onFailure: handleOnlineFailure,
+        onDismiss: handleOnlineDismiss,
       });
+
+      if (checkoutResult.mode === "mobile_intent") {
+        setStatusMessage("Opening UPI App");
+      }
     } catch (error) {
+      setLoading(false);
+      setDesktopQrOpen(false);
+      awaitingCheckoutModal = false;
       if (error instanceof AuthHttpError && error.status === 401) {
         return;
       }
@@ -524,7 +574,7 @@ export default function OrderSummary() {
   const formattedFinalTotal = isCod ? `${roundedTotal}` : unroundedPayable.toFixed(2);
 
   const ctaButtonText = (() => {
-    if (isSubmitting) return "Placing Order...";
+    if (isSubmitting) return isOnline ? "Processing your payment..." : "Placing Order...";
     if (paymentState === "success") return "Payment Successful";
     if (paymentState === "failed") {
       return isOnline ? "Retry Online Payment" : "Retry COD Order";
@@ -786,23 +836,31 @@ export default function OrderSummary() {
           5. STICKY MOBILE BOTTOM CTA BAR
       ========================================================== */}
       <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200 p-4 shadow-xl z-50">
-        <div className="max-w-lg mx-auto flex items-center justify-between gap-4">
-          <div>
-            <p className="text-xs text-stone-500 font-medium">To Pay</p>
-            <p className="text-xl font-black text-stone-900">₹{formattedFinalTotal}</p>
+        <div className="max-w-lg mx-auto space-y-2">
+          {isSubmitting && isOnline && (
+            <div className="flex items-center justify-center gap-2 py-1.5 px-3 rounded-xl bg-amber-50 border border-amber-200/80 text-xs font-semibold text-amber-800 animate-pulse">
+              <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-amber-600 border-t-transparent" />
+              <span>Processing your payment... Please do not refresh.</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between gap-4">
+            <div>
+              <p className="text-xs text-stone-500 font-medium">To Pay</p>
+              <p className="text-xl font-black text-stone-900">₹{formattedFinalTotal}</p>
+            </div>
+            <button
+              type="button"
+              onClick={handlePlaceOrder}
+              disabled={isSubmitting || !canSubmit}
+              className={`flex-1 py-3.5 px-6 rounded-xl font-bold text-white shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer ${
+                !canSubmit
+                  ? "bg-amber-600/50 cursor-not-allowed text-white/80"
+                  : "bg-amber-600 hover:bg-amber-700"
+              }`}
+            >
+              {ctaButtonText}
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={handlePlaceOrder}
-            disabled={isSubmitting || !canSubmit}
-            className={`flex-1 py-3.5 px-6 rounded-xl font-bold text-white shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer ${
-              !canSubmit
-                ? "bg-amber-600/50 cursor-not-allowed text-white/80"
-                : "bg-amber-600 hover:bg-amber-700"
-            }`}
-          >
-            {ctaButtonText}
-          </button>
         </div>
       </div>
 
@@ -814,6 +872,38 @@ export default function OrderSummary() {
           onSuccess={() => runMockOutcome("success")}
           onFailure={() => runMockOutcome("failure")}
           onDismiss={() => runMockOutcome("dismiss")}
+        />
+      ) : null}
+
+      {desktopQrOpen && pendingPayment ? (
+        <DesktopUpiQrModal
+          isOpen={desktopQrOpen}
+          amount={currentPayableAmount}
+          orderId={currentOrderId}
+          onDismiss={handleOnlineDismiss}
+          onOpenRazorpayModal={() => {
+            setDesktopQrOpen(false);
+            openRazorpayCheckout({
+              keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "",
+              payment: pendingPayment,
+              customerName: checkout.customer_name || "",
+              customerEmail: user?.email,
+              customerPhone: checkout.phone,
+              description: `CampusBite order ${currentOrderId}`,
+              onSuccess: handleOnlineSuccess,
+              onFailure: handleOnlineFailure,
+              onDismiss: handleOnlineDismiss,
+            });
+          }}
+          onConfirmPayment={async () => {
+            setIsVerifyingUpi(true);
+            try {
+              await handleVerifiedOnline(currentOrderId);
+            } finally {
+              setIsVerifyingUpi(false);
+            }
+          }}
+          isVerifying={isVerifyingUpi}
         />
       ) : null}
     </>

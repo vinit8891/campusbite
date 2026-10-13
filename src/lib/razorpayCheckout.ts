@@ -1,4 +1,9 @@
 import type { CreatePaymentResponse } from "@/services/paymentService";
+import { isMobileDevice } from "@/lib/browserCapabilities";
+
+export { isMobileDevice };
+
+export const CAMPUSBITE_DEFAULT_UPI_ID = "campusbite.ops@okaxis";
 
 export type RazorpayCheckoutSuccess = {
   razorpay_order_id: string;
@@ -6,7 +11,7 @@ export type RazorpayCheckoutSuccess = {
   razorpay_signature: string;
 };
 
-type OpenCheckoutArgs = {
+export type OpenCheckoutArgs = {
   keyId: string;
   payment: CreatePaymentResponse;
   customerName: string;
@@ -106,4 +111,74 @@ export async function openRazorpayCheckout(args: OpenCheckoutArgs & {
   });
 
   rzp.open();
+}
+
+export type UpiIntentOptions = {
+  amount: number;
+  orderId: string;
+  vpa?: string;
+  payeeName?: string;
+  app?: "generic" | "phonepe" | "gpay" | "paytm";
+};
+
+/**
+ * Builds a valid UPI intent URI (e.g. phonepe://pay?... or upi://pay?...).
+ */
+export function buildUpiIntentUrl({
+  amount,
+  orderId,
+  vpa = CAMPUSBITE_DEFAULT_UPI_ID,
+  payeeName = "CampusBite Operations",
+  app = "generic",
+}: UpiIntentOptions): string {
+  const encPayee = encodeURIComponent(payeeName);
+  const encNote = encodeURIComponent(`CB-Order-${orderId.slice(-6).toUpperCase()}`);
+  const amt = amount.toFixed(2);
+  const upiParams = `pa=${vpa}&pn=${encPayee}&am=${amt}&cu=INR&tn=${encNote}`;
+
+  if (app === "phonepe") {
+    return `phonepe://pay?${upiParams}`;
+  }
+  return `upi://pay?${upiParams}`;
+}
+
+export type TriggerCheckoutArgs = OpenCheckoutArgs & {
+  upiIntentUrl?: string;
+  onFallbackToDesktopModal?: () => void;
+  onFailure?: (reason?: string) => void;
+  customUserAgent?: string;
+};
+
+export type TriggerCheckoutResult = {
+  mode: "mobile_intent" | "razorpay_modal" | "desktop_qr_modal";
+  intentUrl?: string;
+};
+
+/**
+ * Handles mobile UPI intent links vs desktop PC browser fallback:
+ * - On mobile devices (Android/iOS): continues opening the UPI app intent link.
+ * - On desktop/PC browsers: launches standard Razorpay checkout modal (`new Razorpay(options).open()`)
+ *   or renders a scannable UPI QR code modal so desktop users can scan it with their phone
+ *   instead of failing with "scheme does not have a registered handler".
+ */
+export async function triggerUpiOrRazorpayCheckout(
+  args: TriggerCheckoutArgs
+): Promise<TriggerCheckoutResult> {
+  const isMobile = isMobileDevice(args.customUserAgent);
+
+  if (isMobile && args.upiIntentUrl) {
+    if (typeof window !== "undefined") {
+      window.location.href = args.upiIntentUrl;
+    }
+    return { mode: "mobile_intent", intentUrl: args.upiIntentUrl };
+  }
+
+  // Desktop or fallback request
+  if (!isMobile && args.onFallbackToDesktopModal) {
+    args.onFallbackToDesktopModal();
+    return { mode: "desktop_qr_modal" };
+  }
+
+  await openRazorpayCheckout(args);
+  return { mode: "razorpay_modal" };
 }
