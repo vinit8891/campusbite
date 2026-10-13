@@ -34,6 +34,7 @@ import {
   type CreatePaymentResponse,
 } from "@/services/paymentService";
 import { validateCouponCode } from "@/services/adminService";
+import { getRestaurantByEmail } from "@/services/restaurantService";
 import { useMemo } from "react";
 
 const MockCheckoutModal = dynamic(
@@ -288,6 +289,24 @@ export default function OrderSummary() {
       return;
     }
 
+    const hasInactiveItem = cart.some(
+      (item) => (item as any).is_accepting_orders === false
+    );
+    if (hasInactiveItem) {
+      toast.error("This canteen is currently not accepting orders.");
+      return;
+    }
+
+    try {
+      const rest = await getRestaurantByEmail(restaurantEmail);
+      if (rest && rest.is_accepting_orders === false) {
+        toast.error("This canteen is currently not accepting orders.");
+        return;
+      }
+    } catch {
+      // Best effort pre-check; backend order placement will enforce
+    }
+
     if (isCod && !checkout.cod_confirmed) {
       toast.error("Please confirm Cash on Delivery before placing your order.");
       return;
@@ -470,15 +489,18 @@ export default function OrderSummary() {
       }
 
       setPaymentState("failed");
-      setStatusMessage(
-        error instanceof Error ? error.message : "Payment Failed"
-      );
+      const errorMsg = error instanceof Error ? error.message : "Payment Failed";
+      setStatusMessage(errorMsg);
 
-      toast.error(
-        error instanceof Error
-          ? error.message
-          : "Failed to place order. Please check that the backend is running and try again."
-      );
+      if (errorMsg.toLowerCase().includes("not accepting orders")) {
+        toast.error("This canteen is currently not accepting orders.");
+      } else {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Failed to place order. Please check that the backend is running and try again."
+        );
+      }
     } finally {
       if (!awaitingCheckoutModal) {
         setLoading(false);

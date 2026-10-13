@@ -10,9 +10,10 @@ Ensures every returned order and courier settlement / reconciliation object prov
 - total_amount: float (default 0.0)
 """
 
+from datetime import datetime, timezone
 from typing import Annotated, Any
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
 from app.auth.auth import (
     assert_same_identity,
@@ -542,3 +543,69 @@ async def get_courier_today_milestones(
         "start_of_day_utc": start_of_day_utc.isoformat(),
         "now_ist": now_ist.isoformat(),
     }
+
+
+@router.post("/orders/{order_id}/verify-otp")
+@router.post("/courier/orders/{order_id}/verify-otp")
+async def verify_courier_order_otp(
+    order_id: str,
+    body: dict = Body(default_factory=dict),
+    otp: Annotated[str | None, Query()] = None,
+    db: Any = Depends(get_database),
+):
+    active_db = db if db is not None else database
+    orders_col = _get_col(active_db, "orders")
+    if orders_col is None:
+        raise HTTPException(status_code=500, detail="Database orders collection unavailable")
+
+    query = {"_id": ObjectId(order_id)} if ObjectId.is_valid(order_id) else {"_id": order_id}
+    order = await orders_col.find_one(query)
+    if not order and ObjectId.is_valid(order_id):
+        order = await orders_col.find_one({"_id": str(order_id)})
+    if not order:
+        order = await orders_col.find_one({"order_id": order_id})
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    failed_attempts = order.get("failed_otp_attempts", 0)
+    if failed_attempts >= 5:
+        raise HTTPException(
+            status_code=429,
+            detail="Too many incorrect OTP attempts. Order locked for security. Contact campus admin."
+        )
+
+    submitted_otp = None
+    if isinstance(body, dict):
+        submitted_otp = body.get("submitted_otp") or body.get("otp") or body.get("delivery_otp")
+    if submitted_otp is None and otp:
+        submitted_otp = otp
+
+    if submitted_otp is None or str(order.get("delivery_otp", "")).strip() != str(submitted_otp).strip():
+        await orders_col.update_one(
+            {"_id": order["_id"]},
+            {"$inc": {"failed_otp_attempts": 1}}
+        )
+        remaining = 5 - (failed_attempts + 1)
+        raise HTTPException(
+            status_code=400,
+            detail=f"Incorrect OTP. {remaining} attempt(s) remaining."
+        )
+
+    # Successful handover
+    await orders_col.update_one(
+        {"_id": order["_id"]},
+        {"$set": {
+            "status": "delivered",
+            "otp_verified": True,
+            "delivered_at": datetime.now(timezone.utc),
+            "failed_otp_attempts": 0,
+        }}
+    )
+
+    return {
+        "success": True,
+        "message": "OTP Verified",
+        "status": "delivered",
+        "otp_verified": True,
+    }
+

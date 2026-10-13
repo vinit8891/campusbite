@@ -1,17 +1,23 @@
 from typing import Annotated, Any, Callable
 import re
+from datetime import datetime, timezone
+from bson import ObjectId
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, HTTPException, Query
 
 from app.auth.auth import require_roles, get_current_admin_user
 from app.auth.roles import ADMIN, RESTAURANT_OWNER
 from app.core.logging import get_logger
 from app.core.sanitize import sanitize_search_query
 from app.db.database import get_database, database
+from app.models.system import get_system_settings, update_system_settings
 
 
 router = APIRouter(
     prefix="/admin",
+    tags=["Admin"],
+)
+alias_router = APIRouter(
     tags=["Admin"],
 )
 
@@ -1670,6 +1676,316 @@ async def purge_all_test_data(
 
     return {"success": True, "message": "All orders and ledgers completely wiped to zero"}
 
+
+# =========================================================================
+# Platform Global System Configuration & Emergency Kill-Switch
+# =========================================================================
+
+@router.get("/system/config")
+@alias_router.get("/system/config")
+@alias_router.get("/admin/system/config")
+async def get_platform_system_config(
+    db: Any = Depends(get_database),
+):
+    """Fetch global platform settings."""
+    config = await get_system_settings(db)
+    return {
+        "success": True,
+        "config": config,
+        "is_platform_active": config.get("is_platform_active", True),
+        "maintenance_message": config.get("maintenance_message"),
+        "max_cod_limit": config.get("max_cod_limit", 500.0),
+        "surge_fee": config.get("surge_fee", 0.0),
+        "operating_hours": config.get("operating_hours", {"start": "08:00", "end": "02:00"}),
+    }
+
+
+@router.patch("/system/config")
+@alias_router.patch("/system/config")
+@alias_router.patch("/admin/system/config")
+async def update_platform_system_config(
+    payload: dict = Body(...),
+    db: Any = Depends(get_database),
+    admin: dict = Depends(get_current_admin_user),
+):
+    """
+    Update global platform settings:
+    - is_platform_active (bool)
+    - maintenance_message (str)
+    - surge_fee (float)
+    - max_cod_limit (float)
+    - operating_hours (dict)
+    """
+    allowed_keys = {
+        "is_platform_active",
+        "maintenance_message",
+        "surge_fee",
+        "max_cod_limit",
+        "operating_hours",
+    }
+    update_data = {k: v for k, v in payload.items() if k in allowed_keys}
+    updated = await update_system_settings(update_data, db)
+
+    admin_email = (
+        (admin or {}).get("email") or (admin or {}).get("sub") or "admin"
+    ).strip().lower()
+
+    try:
+        await log_admin_action(
+            admin_email=admin_email,
+            action="update_system_config",
+            resource="system",
+            resource_id="global_config",
+            metadata=update_data,
+        )
+    except Exception:
+        pass
+
+    return {
+        "success": True,
+        "config": updated,
+        "message": "Platform system settings updated successfully",
+    }
+
+
+# =========================================================================
+# Canteen Admin Override & Operational Status
+# =========================================================================
+
+@router.patch("/canteens/{canteen_id}/toggle-status")
+@router.patch("/restaurants/{canteen_id}/toggle-status")
+@alias_router.patch("/admin/canteens/{canteen_id}/toggle-status")
+@alias_router.patch("/canteens/{canteen_id}/toggle-status")
+async def toggle_canteen_status(
+    canteen_id: str,
+    payload: dict = Body(default={}),
+    db: Any = Depends(get_database),
+    admin: dict = Depends(get_current_admin_user),
+):
+    """
+    Allows Admin to force is_accepting_orders to True or False.
+    """
+    active_db = db if db is not None else database
+    col = _get_col(active_db, "restaurants")
+    if col is None:
+        raise HTTPException(status_code=500, detail="Database not initialized")
+
+    query = {"_id": ObjectId(canteen_id)} if ObjectId.is_valid(canteen_id) else {"id": canteen_id}
+    canteen = await col.find_one(query)
+    if not canteen:
+        canteen = await col.find_one({"$or": [{"email": canteen_id}, {"restaurant_id": canteen_id}]})
+        if not canteen:
+            raise HTTPException(status_code=404, detail="Canteen not found")
+        query = {"_id": canteen["_id"]}
+
+    current_status = canteen.get("is_accepting_orders", True)
+    new_status = payload.get("is_accepting_orders")
+    if new_status is None:
+        new_status = not current_status
+
+    now_utc = datetime.now(timezone.utc)
+    await col.update_one(
+        query,
+        {
+            "$set": {
+                "is_accepting_orders": bool(new_status),
+                "is_open": bool(new_status),
+                "updated_at": now_utc,
+            }
+        },
+    )
+
+    admin_email = (
+        (admin or {}).get("email") or (admin or {}).get("sub") or "admin"
+    ).strip().lower()
+    try:
+        await log_admin_action(
+            admin_email=admin_email,
+            action="toggle_canteen_status",
+            resource="canteen",
+            resource_id=str(canteen.get("_id", canteen_id)),
+            metadata={"is_accepting_orders": bool(new_status)},
+        )
+    except Exception:
+        pass
+
+    return {
+        "success": True,
+        "canteen_id": canteen_id,
+        "restaurant_id": str(canteen.get("_id", canteen_id)),
+        "is_accepting_orders": bool(new_status),
+        "message": f"Canteen order acceptance set to {new_status}",
+    }
+
+
+# =========================================================================
+# Partner Verification Queue
+# =========================================================================
+
+@router.get("/partners/pending")
+@alias_router.get("/admin/partners/pending")
+@alias_router.get("/partners/pending")
+async def get_pending_partners(
+    db: Any = Depends(get_database),
+    admin: dict = Depends(get_current_admin_user),
+):
+    """
+    Return all couriers and restaurants with verification_status: 'pending'.
+    """
+    active_db = db if db is not None else database
+    partners_col = _get_col(active_db, "delivery_partners")
+    restaurants_col = _get_col(active_db, "restaurants")
+
+    pending_filter = {
+        "$or": [
+            {"verification_status": {"$in": ["pending", "PENDING_VERIFICATION"]}},
+            {"is_verified": False},
+        ]
+    }
+
+    couriers = []
+    if partners_col is not None:
+        cursor = partners_col.find(pending_filter)
+        raw_list = await cursor.to_list(500) if hasattr(cursor, "to_list") else []
+        for c in raw_list:
+            couriers.append({
+                "id": str(c.get("_id", "")),
+                "partner_type": "courier",
+                "name": c.get("name") or c.get("full_name") or "",
+                "phone": c.get("phone", ""),
+                "email": c.get("email", ""),
+                "vehicle": c.get("vehicle") or c.get("transit_mode") or "Bike",
+                "transit_mode": c.get("transit_mode") or c.get("vehicle") or "Bicycle",
+                "student_id": c.get("student_id") or (c.get("student_details", {}).get("roll_no") if isinstance(c.get("student_details"), dict) else ""),
+                "roll_no": c.get("student_details", {}).get("roll_no") if isinstance(c.get("student_details"), dict) else c.get("roll_no", ""),
+                "hostel": c.get("hostel_block") or (c.get("student_details", {}).get("hostel_block") if isinstance(c.get("student_details"), dict) else ""),
+                "verification_status": c.get("verification_status", "pending"),
+                "created_at": _iso_date(c.get("created_at")),
+            })
+
+    restaurants = []
+    if restaurants_col is not None:
+        cursor = restaurants_col.find(pending_filter)
+        raw_list = await cursor.to_list(500) if hasattr(cursor, "to_list") else []
+        for r in raw_list:
+            restaurants.append({
+                "id": str(r.get("_id", "")),
+                "partner_type": "canteen",
+                "name": r.get("name") or r.get("business_name") or "",
+                "phone": r.get("phone", ""),
+                "email": r.get("email", ""),
+                "address": r.get("address") or r.get("stall_location") or "",
+                "owner_name": r.get("owner_name") or "",
+                "vendor_type": r.get("vendor_type") or "CAMPUS_CANTEEN",
+                "verification_status": r.get("verification_status", "pending"),
+                "created_at": _iso_date(r.get("created_at")),
+            })
+
+    items = couriers + restaurants
+    return {
+        "success": True,
+        "count": len(items),
+        "pending_couriers": couriers,
+        "pending_canteens": restaurants,
+        "items": items,
+    }
+
+
+@router.post("/partners/{partner_id}/verify")
+@alias_router.post("/admin/partners/{partner_id}/verify")
+@alias_router.post("/partners/{partner_id}/verify")
+async def verify_partner_decision(
+    partner_id: str,
+    payload: dict = Body(...),
+    db: Any = Depends(get_database),
+    admin: dict = Depends(get_current_admin_user),
+):
+    """
+    Accept {"decision": "approved" | "rejected", "partner_type": "courier" | "canteen"}.
+    Update courier/restaurant status to 'verified'/'approved' or 'rejected'.
+    """
+    decision = str(payload.get("decision", "")).strip().lower()
+    partner_type = str(payload.get("partner_type", "")).strip().lower()
+
+    if decision not in ("approved", "verified", "rejected"):
+        raise HTTPException(status_code=400, detail="Decision must be 'approved' or 'rejected'")
+
+    active_db = db if db is not None else database
+    is_approve = decision in ("approved", "verified")
+    now_utc = datetime.now(timezone.utc)
+
+    query = {"_id": ObjectId(partner_id)} if ObjectId.is_valid(partner_id) else {"_id": partner_id}
+
+    if partner_type in ("courier", "delivery", "delivery_partner"):
+        col = _get_col(active_db, "delivery_partners")
+        if col is None:
+            raise HTTPException(status_code=500, detail="Database not available")
+
+        partner = await col.find_one(query)
+        if not partner:
+            partner = await col.find_one({"id": partner_id})
+            if not partner:
+                raise HTTPException(status_code=404, detail="Courier not found")
+            query = {"_id": partner["_id"]}
+
+        status_val = "verified" if is_approve else "rejected"
+        await col.update_one(
+            query,
+            {
+                "$set": {
+                    "verification_status": status_val,
+                    "is_verified": is_approve,
+                    "is_active": is_approve,
+                    "verified_at": now_utc if is_approve else None,
+                    "rejection_reason": payload.get("rejection_reason") if not is_approve else None,
+                    "updated_at": now_utc,
+                }
+            },
+        )
+
+        return {
+            "success": True,
+            "partner_id": partner_id,
+            "partner_type": "courier",
+            "decision": decision,
+            "status": status_val,
+            "message": f"Courier successfully {status_val}",
+        }
+    else:
+        col = _get_col(active_db, "restaurants")
+        if col is None:
+            raise HTTPException(status_code=500, detail="Database not available")
+
+        restaurant = await col.find_one(query)
+        if not restaurant:
+            restaurant = await col.find_one({"id": partner_id})
+            if not restaurant:
+                raise HTTPException(status_code=404, detail="Canteen not found")
+            query = {"_id": restaurant["_id"]}
+
+        status_val = "approved" if is_approve else "rejected"
+        await col.update_one(
+            query,
+            {
+                "$set": {
+                    "verification_status": status_val,
+                    "is_verified": is_approve,
+                    "is_active": is_approve,
+                    "approved_at": now_utc if is_approve else None,
+                    "rejection_reason": payload.get("rejection_reason") if not is_approve else None,
+                    "updated_at": now_utc,
+                }
+            },
+        )
+
+        return {
+            "success": True,
+            "partner_id": partner_id,
+            "partner_type": "canteen",
+            "decision": decision,
+            "status": status_val,
+            "message": f"Canteen successfully {status_val}",
+        }
 
 
 # Subscription Endpoints Re-export

@@ -62,6 +62,7 @@ export const ROUTES = {
   ADMIN_ADD_RESTAURANT: "/admin/add-restaurant",
   ADMIN_SUBSCRIPTIONS: "/admin/subscriptions",
   ADMIN_VERIFICATIONS: "/admin/verifications",
+  ADMIN_MISSION_CONTROL: "/admin/mission-control",
   ADMIN_SETTINGS: "/admin/settings",
   ADMIN_COUPONS: "/admin/coupons",
   ADMIN_PAYOUTS: "/admin/payouts",

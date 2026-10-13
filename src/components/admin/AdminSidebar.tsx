@@ -53,7 +53,8 @@ export function AdminSidebar({
           name: "Mission Control",
           href: ROUTES.ADMIN,
           icon: LayoutDashboard,
-          isActive: (path) => path === ROUTES.ADMIN,
+          isActive: (path) =>
+            path === ROUTES.ADMIN || path.startsWith("/admin/mission-control"),
         },
         {
           name: "Financial Payouts",

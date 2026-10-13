@@ -14,6 +14,7 @@ from app.auth.roles import (
     RESTAURANT_OWNER,
 )
 from app.schemas.order import Order, OrderResponse, RestaurantSnapshot
+from app.models.system import get_system_settings
 
 from app.models.order import (
     calculate_order_financials,
@@ -361,6 +362,14 @@ async def add_order(
     logger.info("orders.create request received")
     data = order.model_dump()
 
+    # 0. Global Platform Emergency Kill-Switch Guard
+    system_config = await get_system_settings()
+    if not system_config.get("is_platform_active", True):
+        raise HTTPException(
+            status_code=503,
+            detail=system_config.get("maintenance_message", "Platform is temporarily offline"),
+        )
+
     customer_id = current_user.get("sub")
     customer_email = current_user.get("email")
     token_phone = current_user.get("phone")
@@ -397,6 +406,11 @@ async def add_order(
         from app.models.restaurant import get_restaurant_by_email
         rest_doc = await get_restaurant_by_email(rest_email)
         if rest_doc:
+            if rest_doc.get("is_accepting_orders") is False:
+                raise HTTPException(
+                    status_code=400,
+                    detail="This canteen is currently not accepting orders.",
+                )
             v_status = str(rest_doc.get("verification_status", "")).strip().upper()
             is_ver = rest_doc.get("is_verified")
             if v_status in ("PENDING_VERIFICATION", "PENDING", "REJECTED", "SUSPENDED") or is_ver is False:
@@ -1284,10 +1298,11 @@ async def verify_otp(
             detail="OTP can only be verified for active courier deliveries (Assigned, Picked Up, or Out for Delivery).",
         )
 
-    if order.get("failed_otp_attempts", 0) >= 5:
+    failed_attempts = order.get("failed_otp_attempts", 0)
+    if failed_attempts >= 5:
         raise HTTPException(
             status_code=429,
-            detail="Too many failed attempts. Order locked for security.",
+            detail="Too many incorrect OTP attempts. Order locked for security. Contact campus admin.",
         )
 
     otp = body.get("otp")
@@ -1309,14 +1324,16 @@ async def verify_otp(
 
     if not success:
         refreshed = await get_order_by_id(order_id)
-        if (refreshed or {}).get("failed_otp_attempts", 0) >= 5:
+        current_failed = (refreshed or {}).get("failed_otp_attempts", failed_attempts + 1)
+        if current_failed >= 5:
             raise HTTPException(
                 status_code=429,
-                detail="Too many failed attempts. Order locked for security.",
+                detail="Too many incorrect OTP attempts. Order locked for security. Contact campus admin.",
             )
+        remaining = max(0, 5 - current_failed)
         raise HTTPException(
             status_code=400,
-            detail="Invalid OTP",
+            detail=f"Incorrect OTP. {remaining} attempt(s) remaining.",
         )
 
     # When a COD order is delivered with cash collection, increment rider's unremitted COD balance

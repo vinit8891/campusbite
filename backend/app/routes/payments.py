@@ -71,6 +71,15 @@ async def create_order(payload: CreateOrderPayload):
     and persist razorpay_order_id onto MongoDB order document.
     """
     logger.info("payments.create_order received order_id=%s", payload.order_id)
+
+    from app.models.system import get_system_settings
+    sys_config = await get_system_settings(database)
+    if not sys_config.get("is_platform_active", True):
+        raise HTTPException(
+            status_code=503,
+            detail=sys_config.get("maintenance_message", "CampusBite is currently paused for scheduled maintenance."),
+        )
+
     orders_col = _get_orders_collection()
     order = await orders_col.find_one(get_order_query(payload.order_id))
 

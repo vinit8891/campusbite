@@ -1098,5 +1098,134 @@ export async function toggleCourierLockAdmin(
   }
 }
 
+export interface SystemConfig {
+  _id?: string;
+  is_platform_active: boolean;
+  maintenance_message: string;
+  max_cod_limit: number;
+  surge_fee: number;
+  operating_hours: { start: string; end: string };
+}
 
+export async function getSystemConfig(): Promise<SystemConfig> {
+  try {
+    const res = await authJson<{
+      success: boolean;
+      config?: SystemConfig;
+      is_platform_active?: boolean;
+      maintenance_message?: string;
+      max_cod_limit?: number;
+      surge_fee?: number;
+      operating_hours?: { start: string; end: string };
+    }>("/admin/system/config", ADMIN_JSON);
+    return (
+      res.config || {
+        is_platform_active: res.is_platform_active ?? true,
+        maintenance_message: res.maintenance_message || "CampusBite is currently paused for scheduled maintenance.",
+        max_cod_limit: res.max_cod_limit ?? 500,
+        surge_fee: res.surge_fee ?? 0,
+        operating_hours: res.operating_hours || { start: "08:00", end: "02:00" },
+      }
+    );
+  } catch (_) {
+    return {
+      is_platform_active: true,
+      maintenance_message: "CampusBite is currently paused for scheduled maintenance.",
+      max_cod_limit: 500,
+      surge_fee: 0,
+      operating_hours: { start: "08:00", end: "02:00" },
+    };
+  }
+}
 
+export async function updateSystemConfig(
+  patch: Partial<SystemConfig>
+): Promise<SystemConfig> {
+  const res = await authJson<{ success: boolean; config: SystemConfig }>(
+    "/admin/system/config",
+    {
+      ...ADMIN_JSON,
+      method: "PATCH",
+      body: JSON.stringify(patch),
+    }
+  );
+  return res.config;
+}
+
+export async function toggleCanteenStatusAdmin(
+  canteenId: string,
+  isAcceptingOrders?: boolean
+): Promise<{ success: boolean; is_accepting_orders: boolean; canteen_id: string }> {
+  return await authJson<{ success: boolean; is_accepting_orders: boolean; canteen_id: string }>(
+    `/admin/canteens/${encodeURIComponent(canteenId)}/toggle-status`,
+    {
+      ...ADMIN_JSON,
+      method: "PATCH",
+      body: JSON.stringify(
+        typeof isAcceptingOrders === "boolean" ? { is_accepting_orders: isAcceptingOrders } : {}
+      ),
+    }
+  );
+}
+
+export interface PendingPartner {
+  id: string;
+  partner_type: "courier" | "canteen";
+  name: string;
+  phone: string;
+  email: string;
+  vehicle?: string;
+  transit_mode?: string;
+  student_id?: string;
+  roll_no?: string;
+  hostel?: string;
+  address?: string;
+  owner_name?: string;
+  verification_status: string;
+  created_at?: string;
+}
+
+export async function getPendingPartnersAdmin(): Promise<{
+  pending_couriers: PendingPartner[];
+  pending_canteens: PendingPartner[];
+  items: PendingPartner[];
+  count: number;
+}> {
+  try {
+    const res = await authJson<{
+      success: boolean;
+      count: number;
+      pending_couriers: PendingPartner[];
+      pending_canteens: PendingPartner[];
+      items: PendingPartner[];
+    }>("/admin/partners/pending", ADMIN_JSON);
+    return res;
+  } catch (_) {
+    return {
+      pending_couriers: [],
+      pending_canteens: [],
+      items: [],
+      count: 0,
+    };
+  }
+}
+
+export async function verifyPartnerDecisionAdmin(
+  partnerId: string,
+  decision: "approved" | "rejected",
+  partnerType: "courier" | "canteen",
+  rejectionReason?: string
+): Promise<{ success: boolean; status: string; message: string }> {
+  return await authJson<{ success: boolean; status: string; message: string }>(
+    `/admin/partners/${encodeURIComponent(partnerId)}/verify`,
+    {
+      ...ADMIN_JSON,
+      method: "POST",
+      body: JSON.stringify({
+        decision,
+        partner_type: partnerType,
+        rejection_reason: rejectionReason,
+      }),
+    }
+  );
+}

@@ -6,6 +6,7 @@ import { useEffect, useState } from "react";
 import AdminEmptyState from "@/components/admin/AdminEmptyState";
 import AdminFinancialSummaryCards from "@/components/admin/AdminFinancialSummaryCards";
 import AdminPricingSafeguardsCard from "@/components/admin/AdminPricingSafeguardsCard";
+import AdminMissionControl from "@/components/admin/AdminMissionControl";
 import AdminPageHeader from "@/components/admin/AdminPageHeader";
 import AdminTableSkeleton from "@/components/admin/AdminTableSkeleton";
 import { ROUTES } from "@/lib/routes";
@@ -157,6 +158,11 @@ export default function AdminPage() {
         />
       ) : (
         <>
+          {/* Mission Control Master Toggles & Safeguards */}
+          <section aria-label="Admin Mission Control">
+            <AdminMissionControl />
+          </section>
+
           {/* Financial Metrics & Fund Distribution */}
           <section aria-label="Platform Financial Metrics">
             <AdminFinancialSummaryCards analytics={analytics} />
