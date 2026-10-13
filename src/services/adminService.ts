@@ -809,10 +809,20 @@ export async function deleteOrToggleAdminCoupon(id: string, hardDelete: boolean 
 }
 
 export async function validateCouponCode(code: string, subtotal: number): Promise<CouponValidationResult> {
-  return await publicJson<CouponValidationResult>("/api/coupons/validate", {
-    method: "POST",
-    body: JSON.stringify({ code, subtotal }),
-  });
+  try {
+    return await publicJson<CouponValidationResult>("/coupons/validate", {
+      method: "POST",
+      body: JSON.stringify({ code, subtotal }),
+    });
+  } catch (err: unknown) {
+    if (err instanceof AuthHttpError && err.status === 404) {
+      return await publicJson<CouponValidationResult>("/api/coupons/validate", {
+        method: "POST",
+        body: JSON.stringify({ code, subtotal }),
+      });
+    }
+    throw err;
+  }
 }
 
 // ----------------------------------------------------------------------------

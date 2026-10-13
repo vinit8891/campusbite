@@ -66,6 +66,7 @@ async def ensure_database_indexes(db: Any = None) -> None:
     couriers = _get_col(active_db, "couriers")
     delivery_partners = _get_col(active_db, "delivery_partners")
     restaurants = _get_col(active_db, "restaurants")
+    coupons = _get_col(active_db, "coupons")
 
     # 1. Orders collection: critical for active runs, tracking, and daily settlements
     if orders is not None:
@@ -100,5 +101,26 @@ async def ensure_database_indexes(db: Any = None) -> None:
         await _safe_create_index(restaurants, [("slug", 1)], unique=True, sparse=True)
         await _safe_create_index(restaurants, [("is_accepting_orders", 1)])
         await _safe_create_index(restaurants, [("verification_status", 1)])
+
+    # 5. Coupons: fast code lookup and default welcome coupon seed
+    if coupons is not None:
+        await _safe_create_index(coupons, [("code", 1)], unique=True, sparse=True)
+        await _safe_create_index(coupons, [("is_active", 1)])
+        try:
+            existing = await coupons.find_one({"code": "CAMPUS60"})
+            if not existing:
+                await coupons.insert_one({
+                    "code": "CAMPUS60",
+                    "discount_type": "flat",
+                    "discount_value": 60.0,
+                    "min_order_value": 60.0,
+                    "min_order_amount": 60.0,
+                    "max_discount": 60.0,
+                    "is_active": True,
+                    "usage_limit": 10000,
+                    "used_count": 0,
+                })
+        except Exception as seed_exc:
+            logger.debug("CAMPUS60 coupon check/seed note: %s", seed_exc)
 
     logger.info("Database performance indexes successfully ensured")

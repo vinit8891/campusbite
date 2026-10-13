@@ -298,3 +298,126 @@ def test_order_creation_takeaway_fulfillment(client, customer_auth_headers):
         assert created_data["platform_fee"] == 2.0
         assert created_data["fulfillment_mode"] == "takeaway"
         assert created_data["total_amount"] == 54.50
+
+
+def test_order_creation_campus60_coupon_with_subtotal_61(client, customer_auth_headers):
+    """Verifies that CAMPUS60 coupon succeeds when subtotal is ₹61 (calibrated from base ₹50)."""
+    # Item counter price 50.0 -> Calibrated app price 61.0
+    # appSubtotal = 61.0
+    # GST (5% of 61) = 3.05
+    # Platform tech fee = 3.0
+    # Delivery fee = 15.0
+    # Gross = 61 + 3.05 + 3 + 15 = 82.05
+    # Coupon discount = 60.0
+    # Net payable = 82.05 - 60 = 22.05 -> COD rounded = 22.0
+    payload = {
+        "restaurant_email": "canteen@campus.in",
+        "customer_name": "Test Student",
+        "phone": "9876543210",
+        "address": "Hostel 2, Room 204",
+        "fulfillment_mode": "delivery",
+        "delivery_type": "HOSTEL_BATCH",
+        "payment_method": "cod",
+        "coupon_code": "CAMPUS60",
+        "items": [
+            {"id": "item1", "name": "Chole Bhature", "price": 50.0, "quantity": 1}
+        ],
+        "total_amount": 22.0,
+    }
+
+    created_oid = str(ObjectId())
+
+    with patch("app.routes.order.database") as mock_db, \
+         patch("app.routes.order.create_order", AsyncMock(return_value=created_oid)) as mock_create_order, \
+         patch("app.routes.order.schedule_notification", MagicMock()):
+
+        # Return active CAMPUS60 coupon with min_order_value 60.0
+        mock_coupon = {
+            "_id": ObjectId(),
+            "code": "CAMPUS60",
+            "discount_type": "flat",
+            "discount_value": 60.0,
+            "min_order_value": 60.0,
+            "max_discount": 60.0,
+            "is_active": True,
+            "usage_limit": 1000,
+            "used_count": 0,
+        }
+        mock_db["coupons"].find_one = AsyncMock(return_value=mock_coupon)
+        mock_db["coupons"].update_one = AsyncMock()
+
+        resp = client.post("/orders", json=payload, headers=customer_auth_headers)
+        assert resp.status_code == 200, resp.text
+        data = resp.json()
+        assert data["message"] == "Order placed successfully"
+
+        created_data = mock_create_order.call_args[0][0]
+        assert created_data["discount_amount"] == 60.0
+        assert created_data["coupon_code"] == "CAMPUS60"
+        assert created_data["total_amount"] == 22.0
+
+
+def test_order_creation_camous60_typo_and_case_insensitive(client, customer_auth_headers):
+    """Verifies that 'camous60' (lowercase typo) is accepted and maps to CAMPUS60 discount."""
+    payload = {
+        "restaurant_email": "canteen@campus.in",
+        "customer_name": "Test Student",
+        "phone": "9876543210",
+        "address": "Hostel 2, Room 204",
+        "fulfillment_mode": "delivery",
+        "delivery_type": "HOSTEL_BATCH",
+        "payment_method": "cod",
+        "coupon_code": "camous60",
+        "items": [
+            {"id": "item1", "name": "Chole Bhature", "price": 50.0, "quantity": 1}
+        ],
+        "total_amount": 22.0,
+    }
+
+    created_oid = str(ObjectId())
+
+    with patch("app.routes.order.database") as mock_db, \
+         patch("app.routes.order.create_order", AsyncMock(return_value=created_oid)) as mock_create_order, \
+         patch("app.routes.order.schedule_notification", MagicMock()):
+
+        # Simulate fallback or DB coupon
+        mock_db["coupons"].find_one = AsyncMock(return_value=None)
+        mock_db["coupons"].update_one = AsyncMock()
+
+        resp = client.post("/orders", json=payload, headers=customer_auth_headers)
+        assert resp.status_code == 200, resp.text
+
+        created_data = mock_create_order.call_args[0][0]
+        assert created_data["discount_amount"] == 60.0
+        assert created_data["coupon_code"] == "CAMPUS60"
+        assert created_data["total_amount"] == 22.0
+
+
+def test_coupon_validation_api_routes(client):
+    """Verifies both /coupons/validate and /api/coupons/validate return 200 on POST and GET."""
+    with patch("app.routes.coupons.database") as mock_db:
+        mock_db["coupons"].find_one = AsyncMock(return_value=None)
+
+        # 1. POST /coupons/validate with subtotal 61
+        res1 = client.post("/coupons/validate", json={"code": "CAMPUS60", "subtotal": 61.0})
+        assert res1.status_code == 200, res1.text
+        d1 = res1.json()
+        assert d1["valid"] is True
+        assert d1["discount_amount"] == 60.0
+
+        # 2. POST /api/coupons/validate with typo 'camous60'
+        res2 = client.post("/api/coupons/validate", json={"code": "camous60", "subtotal": 61.0})
+        assert res2.status_code == 200, res2.text
+        d2 = res2.json()
+        assert d2["valid"] is True
+        assert d2["discount_amount"] == 60.0
+
+        # 3. GET /coupons/validate
+        res3 = client.get("/coupons/validate?code=CAMPUS60&subtotal=61.0")
+        assert res3.status_code == 200, res3.text
+        assert res3.json()["valid"] is True
+
+        # 4. Subtotal below minimum order returns 400
+        res4 = client.post("/coupons/validate", json={"code": "CAMPUS60", "subtotal": 30.0})
+        assert res4.status_code == 400
+        assert "Minimum order amount" in res4.json()["detail"]
