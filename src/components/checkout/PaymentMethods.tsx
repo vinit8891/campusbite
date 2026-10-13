@@ -65,11 +65,10 @@ export default function PaymentMethods() {
       <div className="space-y-2">
         {/* COD Option */}
         <label
-          className={`flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-all ${
-            isCod
+          className={`flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-all ${isCod
               ? "border-amber-500 bg-amber-50/60 shadow-2xs ring-1 ring-amber-500/20"
               : "border-stone-200 bg-white hover:border-amber-300"
-          }`}
+            }`}
         >
           <div className="flex items-center gap-3">
             <input
@@ -101,13 +100,12 @@ export default function PaymentMethods() {
 
         {/* Online Payment Option */}
         <label
-          className={`flex items-center justify-between rounded-xl border p-3 transition-all ${
-            !onlineEnabled
+          className={`flex items-center justify-between rounded-xl border p-3 transition-all ${!onlineEnabled
               ? "cursor-not-allowed border-dashed border-stone-200 bg-stone-50 opacity-60"
               : isOnline
-              ? "cursor-pointer border-amber-500 bg-amber-50/60 shadow-2xs ring-1 ring-amber-500/20"
-              : "cursor-pointer border-stone-200 bg-white hover:border-amber-300"
-          }`}
+                ? "cursor-pointer border-amber-500 bg-amber-50/60 shadow-2xs ring-1 ring-amber-500/20"
+                : "cursor-pointer border-stone-200 bg-white hover:border-amber-300"
+            }`}
         >
           <div className="flex items-center gap-3">
             <input
@@ -128,9 +126,8 @@ export default function PaymentMethods() {
               <div className="flex items-center gap-2">
                 <span className="text-base">💳</span>
                 <h3
-                  className={`text-xs font-bold ${
-                    onlineEnabled ? "text-stone-900" : "text-stone-500"
-                  }`}
+                  className={`text-xs font-bold ${onlineEnabled ? "text-stone-900" : "text-stone-500"
+                    }`}
                 >
                   Online Payment (UPI / Cards / Net Banking)
                 </h3>
