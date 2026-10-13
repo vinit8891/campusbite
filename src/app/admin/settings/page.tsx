@@ -81,11 +81,19 @@ export default function AdminSettingsPage() {
               <Database className="h-4 w-4 text-emerald-600" />
             </div>
             <p className="mt-3 text-lg font-bold text-stone-900">
-              {health?.database || "MongoDB Atlas"}
+              {typeof health?.database === "string"
+                ? health.database
+                : health?.database?.status === "connected"
+                ? "MongoDB Atlas"
+                : "Disconnected"}
             </p>
             <p className="mt-1 text-xs text-emerald-600 font-semibold flex items-center gap-1">
               <span className="h-2 w-2 rounded-full bg-emerald-500" />
-              <span>Connected & Indexed</span>
+              <span>
+                {typeof health?.database === "object" && typeof health.database.latency_ms === "number"
+                  ? `Connected & Indexed (${Math.round(health.database.latency_ms)}ms)`
+                  : "Connected & Indexed"}
+              </span>
             </p>
           </div>
 

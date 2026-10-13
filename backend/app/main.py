@@ -104,6 +104,7 @@ from app.db.database import database
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     from app.db.indexes import ensure_app_indexes
+    from app.db.init_indexes import ensure_database_indexes
     from app.services.subscription_scheduler import (
         start_subscription_scheduler,
         stop_subscription_scheduler,
@@ -111,6 +112,7 @@ async def lifespan(app: FastAPI):
 
     logger.info("application started app=%s version=%s", app_name(), app_version())
     await ensure_app_indexes()
+    await ensure_database_indexes(database)
     logger.info("indexes ensured")
     await start_subscription_scheduler()
     yield

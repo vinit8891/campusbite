@@ -197,4 +197,8 @@ async def ensure_app_indexes() -> None:
     )
     await _safe_create_index(roster, "status")
 
+    from app.db.init_indexes import ensure_database_indexes
+    await ensure_database_indexes(database)
+
     logger.info("MongoDB indexes ensured")
+

@@ -21,7 +21,9 @@ import {
   updateSystemConfig,
   toggleCanteenStatusAdmin,
   getPendingPartnersAdmin,
+  getBackendHealth,
   type SystemConfig,
+  type BackendHealth,
 } from "@/services/adminService";
 import { getRestaurants, type BackendRestaurant } from "@/services/restaurantService";
 
@@ -29,6 +31,7 @@ export default function AdminMissionControl() {
   const [systemConfig, setSystemConfig] = useState<SystemConfig | null>(null);
   const [canteens, setCanteens] = useState<BackendRestaurant[]>([]);
   const [pendingCount, setPendingCount] = useState<number>(0);
+  const [health, setHealth] = useState<BackendHealth | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [refreshing, setRefreshing] = useState<boolean>(false);
 
@@ -43,10 +46,11 @@ export default function AdminMissionControl() {
 
   const loadMissionControlData = async () => {
     try {
-      const [configData, restaurantsData, partnersData] = await Promise.all([
+      const [configData, restaurantsData, partnersData, healthData] = await Promise.all([
         getSystemConfig().catch(() => null),
         getRestaurants().catch(() => []),
         getPendingPartnersAdmin().catch(() => ({ count: 0, items: [] })),
+        getBackendHealth().catch(() => null),
       ]);
 
       if (configData) {
@@ -58,6 +62,7 @@ export default function AdminMissionControl() {
 
       setCanteens(restaurantsData || []);
       setPendingCount(partnersData?.count ?? partnersData?.items?.length ?? 0);
+      setHealth(healthData);
     } catch (err: unknown) {
       toast.error("Failed to load Mission Control data.");
     } finally {
@@ -148,6 +153,41 @@ export default function AdminMissionControl() {
     (c) => c.is_accepting_orders !== false
   ).length;
 
+  // Diagnostics calculations
+  const dbStatus =
+    typeof health?.database === "object"
+      ? health.database.status
+      : typeof health?.database === "string"
+      ? health.database
+      : "connected";
+  const dbLatency =
+    typeof health?.database === "object" && typeof health.database.latency_ms === "number"
+      ? health.database.latency_ms
+      : null;
+  const isDbConnected = dbStatus === "connected";
+  const isPaymentsReady = health?.payment_gateway?.configured !== false;
+
+  const isCritical = !isDbConnected || !isPaymentsReady || (dbLatency !== null && dbLatency > 500);
+  const isWarning = !isCritical && (dbLatency !== null && dbLatency >= 50);
+  const isOptimal = !isCritical && !isWarning;
+
+  let healthBadgeText = "API Online • DB Latency < 50ms • Payments Ready";
+  if (isCritical) {
+    if (!isDbConnected) {
+      healthBadgeText = "Database Disconnected • Check MongoDB";
+    } else if (dbLatency !== null && dbLatency > 500) {
+      healthBadgeText = `Critical DB Latency • ${Math.round(dbLatency)}ms (> 500ms)`;
+    } else if (!isPaymentsReady) {
+      healthBadgeText = "Payment Gateway Offline • Razorpay Keys Missing";
+    } else {
+      healthBadgeText = "System Degraded • Diagnostics Alert";
+    }
+  } else if (isWarning) {
+    healthBadgeText = `API Online • DB Latency ${Math.round(dbLatency ?? 50)}ms • Payments Ready`;
+  } else {
+    healthBadgeText = "API Online • DB Latency < 50ms • Payments Ready";
+  }
+
   if (loading) {
     return (
       <div className="rounded-2xl border border-stone-200 bg-white p-6 shadow-sm">
@@ -191,16 +231,58 @@ export default function AdminMissionControl() {
           </p>
         </div>
 
-        <button
-          onClick={handleRefresh}
-          disabled={refreshing}
-          className="inline-flex items-center gap-1.5 self-start rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-sm hover:bg-stone-50 transition-colors disabled:opacity-50"
-        >
-          <RefreshCw
-            className={`h-3.5 w-3.5 ${refreshing ? "animate-spin text-orange-500" : ""}`}
-          />
-          {refreshing ? "Syncing..." : "Sync Status"}
-        </button>
+        <div className="flex flex-wrap items-center gap-2.5">
+          {/* System Health Diagnostics Badge */}
+          <div
+            className={`inline-flex items-center gap-2 rounded-full px-3 py-1 text-xs font-medium border shadow-xs transition-colors ${
+              isOptimal
+                ? "bg-emerald-50/90 text-emerald-800 border-emerald-200"
+                : isWarning
+                ? "bg-amber-50/90 text-amber-800 border-amber-200"
+                : "bg-rose-50/90 text-rose-800 border-rose-200"
+            }`}
+            title={
+              health
+                ? `DB: ${dbStatus} (${dbLatency !== null ? `${dbLatency}ms` : "< 50ms"}) | Gateway: ${health.payment_gateway?.provider || "razorpay"} (${health.payment_gateway?.mode || "test"}) | Configured: ${isPaymentsReady}`
+                : "Checking backend health diagnostics..."
+            }
+          >
+            <span className="flex h-2 w-2 relative">
+              <span
+                className={`absolute inline-flex h-full w-full rounded-full opacity-75 ${
+                  isOptimal
+                    ? "bg-emerald-400 animate-ping"
+                    : isWarning
+                    ? "bg-amber-400 animate-ping"
+                    : "bg-rose-500 animate-ping"
+                }`}
+              />
+              <span
+                className={`relative inline-flex h-2 w-2 rounded-full ${
+                  isOptimal
+                    ? "bg-emerald-500"
+                    : isWarning
+                    ? "bg-amber-500"
+                    : "bg-rose-600"
+                }`}
+              />
+            </span>
+            <span className="font-mono text-[11px] font-semibold tracking-tight">
+              {healthBadgeText}
+            </span>
+          </div>
+
+          <button
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="inline-flex items-center gap-1.5 self-start sm:self-auto rounded-lg border border-stone-200 bg-white px-3 py-1.5 text-xs font-semibold text-stone-700 shadow-sm hover:bg-stone-50 transition-colors disabled:opacity-50"
+          >
+            <RefreshCw
+              className={`h-3.5 w-3.5 ${refreshing ? "animate-spin text-orange-500" : ""}`}
+            />
+            {refreshing ? "Syncing..." : "Sync Status"}
+          </button>
+        </div>
       </div>
 
       {/* Master Control Toggle Cards */}

@@ -124,7 +124,21 @@ export type BackendHealth = {
   status: string;
   app_name?: string;
   environment?: string;
-  database?: string;
+  database?:
+    | string
+    | {
+        status: string;
+        latency_ms: number;
+      };
+  payment_gateway?: {
+    provider: string;
+    mode: string;
+    configured: boolean;
+  };
+  platform?: {
+    is_platform_active: boolean;
+  };
+  timestamp?: string;
   version?: string;
   uptime?: number;
 };
