@@ -14,6 +14,7 @@ from app.core.brute_force import login_guard
 from app.db.database import database
 from app.core.logging import get_logger
 from app.core.rate_limit import client_ip
+from app.core.rate_limiter import limiter
 from app.core.sanitize import sanitize_email
 from app.models.user import (
     create_user,
@@ -93,7 +94,12 @@ async def register(user: UserRegister):
     "/login",
     response_model=Token,
 )
-async def login(user: UserLogin, request: Request):
+@router.post(
+    "/token",
+    response_model=Token,
+)
+@limiter.limit("5/minute")
+async def login(request: Request, user: UserLogin):
     logger.info("auth.login request received")
 
     email = sanitize_email(str(user.email)) or ""
@@ -139,7 +145,8 @@ async def login(user: UserLogin, request: Request):
 
 
 @router.post("/admin/login", response_model=Token)
-async def admin_login(user: UserLogin, request: Request):
+@limiter.limit("5/minute")
+async def admin_login(request: Request, user: UserLogin):
     """Issue an admin JWT using credentials from environment variables."""
     logger.info("auth.admin_login request received")
     admin_email = os.getenv("ADMIN_EMAIL")

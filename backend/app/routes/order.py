@@ -4,9 +4,10 @@ from datetime import datetime, UTC
 from typing import Annotated
 
 from bson import ObjectId
-from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query
+from fastapi import APIRouter, BackgroundTasks, Body, Depends, HTTPException, Query, Request
 
 from app.auth.auth import assert_same_identity, require_roles
+from app.core.rate_limiter import limiter
 from app.auth.roles import (
     ADMIN,
     CUSTOMER,
@@ -353,8 +354,11 @@ async def award_referral_reward_if_eligible(order: dict):
         logger.warning(f"Error in award_referral_reward_if_eligible: {e}")
 
 
+@router.post("")
 @router.post("/")
+@limiter.limit("15/minute")
 async def add_order(
+    request: Request,
     order: Order,
     background_tasks: BackgroundTasks,
     current_user: Annotated[dict, Depends(require_roles(CUSTOMER))],

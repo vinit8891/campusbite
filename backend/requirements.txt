@@ -31,3 +31,4 @@ rsa==4.9.1
 six==1.17.0
 typing-inspection==0.4.2
 razorpay==2.0.1
+slowapi>=0.1.9

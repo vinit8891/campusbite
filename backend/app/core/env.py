@@ -42,18 +42,26 @@ def get_allowed_origins() -> list[str]:
     Parse ALLOWED_ORIGINS from environment.
 
     Supports comma-separated or newline-separated values.
-    Defaults to local Next.js dev server when unset.
+    Strictly excludes wildcard '*' to protect credentialed requests.
+    Defaults to canonical production Vercel and local dev origins when unset.
     """
-    raw = (os.getenv("ALLOWED_ORIGINS") or "").strip()
+    from app.core.config import settings
+
+    raw = (getattr(settings, "ALLOWED_ORIGINS", "") or os.getenv("ALLOWED_ORIGINS") or "").strip()
+    default_origins = [
+        "https://campusbite-beta.vercel.app",
+        "https://campusbite.vercel.app",
+        "http://localhost:3000",
+    ]
     if not raw:
-        return ["http://localhost:3000"]
+        return default_origins
 
     parts: list[str] = []
     for chunk in raw.replace("\n", ",").split(","):
         origin = chunk.strip()
-        if origin:
+        if origin and origin != "*":
             parts.append(origin)
-    return parts or ["http://localhost:3000"]
+    return parts or default_origins
 
 
 def is_environment_ready() -> tuple[bool, list[str]]:

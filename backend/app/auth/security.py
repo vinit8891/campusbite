@@ -58,17 +58,43 @@ def create_access_token(data: dict):
     )
 
 
-def decode_access_token(token: str):
+ALLOWED_ALGORITHMS = ["HS256"]
+
+
+def decode_access_token(token: str) -> dict | None:
+    """Validate and decode JWT access token with strict integrity checks.
+
+    - Verifies algorithm is strictly HS256 (rejects 'none' and other algorithms).
+    - Enforces expiration time claim (exp).
+    """
+    if not token or not isinstance(token, str):
+        return None
+
     try:
+        # Pre-check header to prevent algorithm spoofing (e.g. 'none' / None)
+        header = jwt.get_unverified_header(token)
+        alg = str(header.get("alg") or "").strip()
+        if not alg or alg.lower() == "none" or alg not in ALLOWED_ALGORITHMS:
+            return None
+
         payload = jwt.decode(
             token,
             SECRET_KEY,
-            algorithms=[ALGORITHM],
+            algorithms=ALLOWED_ALGORITHMS,
+            options={
+                "verify_signature": True,
+                "verify_exp": True,
+            },
         )
+
+        if "exp" not in payload:
+            return None
 
         return payload
 
     except JWTError:
+        return None
+    except Exception:
         return None
 
 
@@ -82,9 +108,7 @@ def get_password_hash(password: str) -> str:
 
 
 def create_password_reset_token(email: str, role: str) -> str:
-    """
-    Generate a short-lived signed JWT specifically for password recovery.
-    """
+    """Generate a short-lived signed JWT specifically for password recovery."""
     expire = datetime.now(UTC) + timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES)
     to_encode = {
         "sub": email,
@@ -96,14 +120,30 @@ def create_password_reset_token(email: str, role: str) -> str:
 
 
 def decode_password_reset_token(token: str) -> dict | None:
-    """
-    Validate and decode a password reset token. Returns payload dict or None if invalid/expired/wrong type.
-    """
+    """Validate and decode password reset token with strict HS256 and expiration check."""
+    if not token or not isinstance(token, str):
+        return None
+
     try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        if payload.get("type") != "password_reset":
+        header = jwt.get_unverified_header(token)
+        alg = str(header.get("alg") or "").strip()
+        if not alg or alg.lower() == "none" or alg not in ALLOWED_ALGORITHMS:
+            return None
+
+        payload = jwt.decode(
+            token,
+            SECRET_KEY,
+            algorithms=ALLOWED_ALGORITHMS,
+            options={
+                "verify_signature": True,
+                "verify_exp": True,
+            },
+        )
+        if payload.get("type") != "password_reset" or "exp" not in payload:
             return None
         return payload
     except JWTError:
+        return None
+    except Exception:
         return None
 

@@ -3,12 +3,13 @@ from __future__ import annotations
 from datetime import UTC, datetime
 from typing import Annotated, Literal
 from bson import ObjectId
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from pydantic import BaseModel, Field
 
 from app.auth.auth import require_roles
 from app.auth.roles import ADMIN, CUSTOMER
 from app.core.logging import get_logger
+from app.core.rate_limiter import limiter
 from app.db.database import database
 
 logger = get_logger(__name__)
@@ -155,9 +156,12 @@ async def delete_or_toggle_coupon(
 # Public Student / Checkout Validation
 # -----------------------------------------------------------------------------
 
+@router.post("/coupons/apply")
+@router.post("/api/coupons/apply")
 @router.post("/api/coupons/validate")
 @router.post("/coupons/validate")
-async def validate_coupon(payload: ValidateCouponRequest):
+@limiter.limit("20/minute")
+async def validate_coupon(request: Request, payload: ValidateCouponRequest):
     """Validate coupon code and return discount and final order total."""
     code = (payload.code or "").strip().upper()
     if not code:

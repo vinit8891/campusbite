@@ -6,12 +6,13 @@ import random
 from typing import Optional
 
 from bson import ObjectId
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
 from pydantic import BaseModel
 import razorpay
 
 from app.core.config import settings
 from app.core.logging import get_logger
+from app.core.rate_limiter import limiter
 from app.db.database import database
 from app.models.order import get_order_query
 from app.payments.config import is_razorpay_mock_mode
@@ -64,7 +65,8 @@ class VerifyPaymentPayload(BaseModel):
 
 
 @router.post("/create-order")
-async def create_order(payload: CreateOrderPayload):
+@limiter.limit("10/minute")
+async def create_order(request: Request, payload: CreateOrderPayload):
     """
     POST /payments/create-order
     Fetch order, calculate amount in paise, create Razorpay order,
