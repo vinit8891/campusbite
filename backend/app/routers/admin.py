@@ -1,13 +1,14 @@
-from typing import Annotated, Callable
+from typing import Annotated, Any, Callable
 import re
 
 from fastapi import APIRouter, Depends, Query
 
-from app.auth.auth import require_roles
+from app.auth.auth import require_roles, get_current_admin_user
 from app.auth.roles import ADMIN, RESTAURANT_OWNER
 from app.core.logging import get_logger
 from app.core.sanitize import sanitize_search_query
-from app.db.database import database
+from app.db.database import get_database, database
+
 
 router = APIRouter(
     prefix="/admin",
@@ -27,6 +28,20 @@ def _iso_date(value):
     if hasattr(value, "isoformat"):
         return value.isoformat()
     return str(value)
+
+
+def _get_col(db_obj: Any, col_name: str) -> Any:
+    if db_obj is None:
+        return None
+    if isinstance(db_obj, dict):
+        return db_obj.get(col_name)
+    if hasattr(db_obj, col_name):
+        return getattr(db_obj, col_name)
+    try:
+        return db_obj[col_name]
+    except Exception:
+        return None
+
 
 
 def _safe_customer(doc: dict) -> dict:
@@ -1535,14 +1550,14 @@ async def purge_test_data(
     """
     if database is not None:
         for col_name in ["orders", "settlements", "canteen_settlements", "payouts", "rider_remittances"]:
-            col = database.get(col_name) if hasattr(database, "get") else database[col_name]
+            col = _get_col(database, col_name)
             if col is not None:
                 try:
                     await col.delete_many({})
                 except Exception:
                     pass
 
-        dp_col = database.get("delivery_partners") if hasattr(database, "get") else database["delivery_partners"]
+        dp_col = _get_col(database, "delivery_partners")
         if dp_col is not None:
             try:
                 await dp_col.update_many(
@@ -1584,6 +1599,77 @@ async def purge_test_data(
         "success": True,
         "message": "All transactional data cleanly purged",
     }
+
+
+@router.post("/system/purge-all-data")
+@router.post("/admin/system/purge-all-data")
+async def purge_all_test_data(
+    db: Any = Depends(get_database),
+    admin: dict = Depends(get_current_admin_user),
+):
+    """
+    Complete database wipe endpoint for Admin:
+    - Wipes all orders, settlements, canteen_settlements, payouts.
+    - Resets couriers/delivery_partners to zero balance and zero active runs.
+    - Returns {"success": True, "message": "All orders and ledgers completely wiped to zero"}.
+    """
+    active_db = db if db is not None else database
+
+    if active_db is not None:
+        for col_name in ["orders", "settlements", "canteen_settlements", "payouts", "rider_remittances"]:
+            col = _get_col(active_db, col_name)
+            if col is not None:
+                try:
+                    await col.delete_many({})
+                except Exception:
+                    pass
+
+        # Reset couriers and delivery_partners to zero balance and zero active runs
+        for col_name in ["couriers", "delivery_partners"]:
+            col = _get_col(active_db, col_name)
+            if col is not None:
+                try:
+                    await col.update_many(
+                        {},
+                        {
+                            "$set": {
+                                "cash_in_hand": 0.0,
+                                "cih_balance": 0.0,
+                                "net_cash_due": 0.0,
+                                "collected_cod": 0.0,
+                                "wages_earned": 0.0,
+                                "orders_completed": 0,
+                                "total_deliveries": 0,
+                                "completed_orders": 0,
+                                "completed_deliveries": 0,
+                                "delivered_today": 0,
+                                "total_payout_earned": 0.0,
+                                "total_remitted": 0.0,
+                                "is_locked": False,
+                                "active_runs": [],
+                            }
+                        },
+                    )
+                except Exception:
+                    pass
+
+    admin_email = (
+        (admin or {}).get("email") or (admin or {}).get("sub") or "admin"
+    ).strip().lower()
+
+    try:
+        await log_admin_action(
+            admin_email=admin_email,
+            action="purge_all_data",
+            resource="system",
+            resource_id="all_transaction_data",
+            metadata={"message": "All orders and ledgers completely wiped to zero"},
+        )
+    except Exception:
+        pass
+
+    return {"success": True, "message": "All orders and ledgers completely wiped to zero"}
+
 
 
 # Subscription Endpoints Re-export

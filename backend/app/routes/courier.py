@@ -11,9 +11,14 @@ Ensures every returned order and courier settlement / reconciliation object prov
 """
 
 from typing import Annotated, Any
+from bson import ObjectId
 from fastapi import APIRouter, Depends, HTTPException, Query
 
-from app.auth.auth import assert_same_identity, require_roles
+from app.auth.auth import (
+    assert_same_identity,
+    require_roles,
+    get_current_courier_user,
+)
 from app.auth.roles import ADMIN, DELIVERY_PARTNER
 from app.models.delivery_partner import (
     get_delivery_partner_by_phone,
@@ -25,7 +30,7 @@ from app.models.order import (
     get_delivery_orders,
     normalize_order_financials,
 )
-from app.db.database import database
+from app.db.database import get_database, database
 
 
 
@@ -99,16 +104,18 @@ def _get_col(db_obj: Any, col_name: str) -> Any:
 
 @router.get("/orders/active")
 @router.get("/orders/assigned")
+@router.get("/courier/orders/active")
+@router.get("/courier/orders/assigned")
 async def get_courier_active_orders(
-    current_user: Annotated[
-        dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))
-    ],
     courier_id: Annotated[str | None, Query()] = None,
     phone: Annotated[str | None, Query()] = None,
     status: Annotated[str | None, Query()] = None,
-    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+    limit: Annotated[int, Query(ge=1, le=200)] = 100,
+    db: Any = Depends(get_database),
+    current_user: Annotated[dict, Depends(get_current_courier_user)] = None,
 ) -> dict[str, Any]:
-    from app.db.database import database as db
+    active_db = db if db is not None else database
+    current_user = current_user or {}
 
     target_courier_id = courier_id or str(
         current_user.get("_id") or current_user.get("id") or current_user.get("courier_id") or ""
@@ -121,42 +128,49 @@ async def get_courier_active_orders(
         except Exception:
             pass
 
-    orders_col = _get_col(db, "orders")
+    orders_col = _get_col(active_db, "orders")
     if orders_col is None:
         return {"success": True, "orders": [], "count": 0}
 
-    courier_filters: list[dict[str, Any]] = []
+    or_clauses: list[dict[str, Any]] = [
+        {"courier_id": target_courier_id},
+    ]
+    if target_courier_id and ObjectId.is_valid(target_courier_id):
+        or_clauses.append({"courier_id": ObjectId(target_courier_id)})
+        or_clauses.append({"delivery_partner._id": ObjectId(target_courier_id)})
+
     if target_courier_id:
-        courier_filters.extend([
-            {"courier_id": target_courier_id},
+        or_clauses.extend([
             {"delivery_partner.id": target_courier_id},
             {"delivery_partner._id": target_courier_id},
             {"delivery_partner_id": target_courier_id},
         ])
     if rider_phone:
-        courier_filters.extend([
+        or_clauses.extend([
             {"courier_phone": rider_phone},
             {"delivery_partner.phone": rider_phone},
             {"delivery_partner.phone_number": rider_phone},
         ])
 
-    allowed_statuses = ["assigned", "out_for_delivery", "picked up", "picked_up", "Assigned", "Out for Delivery", "Picked Up"]
+    allowed_statuses = ["assigned", "out_for_delivery", "picked_up", "picked up", "Assigned", "Out for Delivery", "Picked Up"]
     status_query = status if status else {"$in": allowed_statuses}
 
-    find_filter: dict[str, Any] = {"status": status_query}
-    if courier_filters:
-        find_filter["$or"] = courier_filters
-    elif target_courier_id:
-        find_filter["courier_id"] = target_courier_id
+    find_filter: dict[str, Any] = {
+        "$or": or_clauses,
+        "status": status_query,
+    }
 
     try:
         cursor = orders_col.find(find_filter)
+        if hasattr(cursor, "sort"):
+            cursor = cursor.sort("created_at", -1)
         if hasattr(cursor, "limit"):
             cursor = cursor.limit(limit)
         raw_orders = await cursor.to_list(limit)
     except Exception:
         raw_orders = []
 
+    # NEVER fall back to mock data when database is empty
     if not raw_orders:
         return {"success": True, "orders": [], "count": 0}
 
@@ -166,18 +180,9 @@ async def get_courier_active_orders(
         o_dict["_id"] = str(o_dict.get("_id", ""))
         formatted_orders.append(normalize_order_financials(o_dict))
 
-    # Order the batch by pickup / sequence (accepted_at ascending)
-    formatted_orders.sort(
-        key=lambda o: str(
-            (o.get("delivery_partner") or {}).get("accepted_at")
-            or o.get("accepted_at")
-            or o.get("created_at")
-            or ""
-        )
-    )
-
     orders = apply_courier_batch_wages(formatted_orders)
     return {"success": True, "orders": orders, "count": len(orders)}
+
 
 
 @router.get("/me")

@@ -154,3 +154,41 @@ def test_admin_purge_test_data(client, admin_headers):
         mock_settlements.delete_many.assert_called_once_with({})
         mock_payouts.delete_many.assert_called_once_with({})
         mock_partners.update_many.assert_called_once()
+
+
+def test_admin_purge_all_data(client, admin_headers):
+    """POST /admin/system/purge-all-data wipes all transactions and resets courier accounts."""
+    mock_orders = AsyncMock(delete_many=AsyncMock(return_value=None))
+    mock_settlements = AsyncMock(delete_many=AsyncMock(return_value=None))
+    mock_canteen_settlements = AsyncMock(delete_many=AsyncMock(return_value=None))
+    mock_payouts = AsyncMock(delete_many=AsyncMock(return_value=None))
+    mock_couriers = AsyncMock(update_many=AsyncMock(return_value=None))
+    mock_partners = AsyncMock(update_many=AsyncMock(return_value=None))
+
+    mock_db = {
+        "orders": mock_orders,
+        "settlements": mock_settlements,
+        "canteen_settlements": mock_canteen_settlements,
+        "payouts": mock_payouts,
+        "couriers": mock_couriers,
+        "delivery_partners": mock_partners,
+    }
+
+    app.dependency_overrides[get_database] = lambda: mock_db
+    try:
+        with patch("app.routers.admin.database", mock_db), patch("app.routers.admin.log_admin_action", AsyncMock()):
+            resp = client.post("/admin/system/purge-all-data", headers=admin_headers)
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data.get("success") is True
+            assert data.get("message") == "All orders and ledgers completely wiped to zero"
+
+            mock_orders.delete_many.assert_called_once_with({})
+            mock_settlements.delete_many.assert_called_once_with({})
+            mock_canteen_settlements.delete_many.assert_called_once_with({})
+            mock_payouts.delete_many.assert_called_once_with({})
+            mock_couriers.update_many.assert_called_once()
+            mock_partners.update_many.assert_called_once()
+    finally:
+        app.dependency_overrides.pop(get_database, None)
+

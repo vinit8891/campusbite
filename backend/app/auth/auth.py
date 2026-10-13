@@ -3,7 +3,7 @@ from typing import Annotated
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
-from app.auth.roles import ALL_ROLES
+from app.auth.roles import ADMIN, ALL_ROLES, DELIVERY_PARTNER, RESTAURANT_OWNER
 from app.auth.security import decode_access_token
 
 bearer_scheme = HTTPBearer(auto_error=False)
@@ -95,3 +95,5 @@ def assert_same_identity(
 
 
 get_current_restaurant_user = require_roles("restaurant_owner", "admin")
+get_current_courier_user = require_roles(DELIVERY_PARTNER, ADMIN)
+get_current_admin_user = require_roles(ADMIN)
