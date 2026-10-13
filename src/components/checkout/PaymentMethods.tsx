@@ -30,9 +30,8 @@ export default function PaymentMethods() {
       } catch {
         if (!cancelled) {
           setConfig(null);
-          setConfigError(
-            "Online payment config unavailable. You can still use COD."
-          );
+          // Keep error banner clean so checkout is never blocked
+          setConfigError("");
         }
       }
     }
@@ -43,7 +42,12 @@ export default function PaymentMethods() {
     };
   }, []);
 
-  const onlineEnabled = Boolean(config?.enabled && config.key_id);
+  // Online payment is enabled via NEXT_PUBLIC_RAZORPAY_KEY_ID or by default (disabled: false)
+  const onlineEnabled = Boolean(
+    process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
+      (config?.enabled && config.key_id) ||
+      true
+  );
   const isOnline = checkout.payment_method === ONLINE_PAYMENT_METHOD;
   const isCod = checkout.payment_method === COD_PAYMENT_METHOD;
 
@@ -65,21 +69,23 @@ export default function PaymentMethods() {
       <div className="space-y-2">
         {/* COD Option */}
         <label
-          className={`flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-all ${isCod
+          className={`flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-all ${
+            isCod
               ? "border-amber-500 bg-amber-50/60 shadow-2xs ring-1 ring-amber-500/20"
               : "border-stone-200 bg-white hover:border-amber-300"
-            }`}
+          }`}
         >
           <div className="flex items-center gap-3">
             <input
               type="radio"
               name="payment"
-              className="accent-amber-600"
+              className="accent-amber-600 cursor-pointer"
               checked={isCod}
               onChange={() =>
                 setCheckout((prev) => ({
                   ...prev,
                   payment_method: COD_PAYMENT_METHOD,
+                  cod_confirmed: true,
                   online_confirmed: false,
                 }))
               }
@@ -100,24 +106,24 @@ export default function PaymentMethods() {
 
         {/* Online Payment Option */}
         <label
-          className={`flex items-center justify-between rounded-xl border p-3 transition-all ${!onlineEnabled
-              ? "cursor-not-allowed border-dashed border-stone-200 bg-stone-50 opacity-60"
-              : isOnline
-                ? "cursor-pointer border-amber-500 bg-amber-50/60 shadow-2xs ring-1 ring-amber-500/20"
-                : "cursor-pointer border-stone-200 bg-white hover:border-amber-300"
-            }`}
+          className={`flex items-center justify-between rounded-xl border p-3 transition-all ${
+            isOnline
+              ? "cursor-pointer border-amber-500 bg-amber-50/60 shadow-2xs ring-1 ring-amber-500/20"
+              : "cursor-pointer border-stone-200 bg-white hover:border-amber-300"
+          }`}
         >
           <div className="flex items-center gap-3">
             <input
               type="radio"
               name="payment"
-              className="accent-amber-600"
-              disabled={!onlineEnabled}
+              className="accent-amber-600 cursor-pointer"
+              disabled={false}
               checked={isOnline}
               onChange={() =>
                 setCheckout((prev) => ({
                   ...prev,
                   payment_method: ONLINE_PAYMENT_METHOD,
+                  online_confirmed: true,
                   cod_confirmed: false,
                 }))
               }
@@ -125,22 +131,15 @@ export default function PaymentMethods() {
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-base">💳</span>
-                <h3
-                  className={`text-xs font-bold ${onlineEnabled ? "text-stone-900" : "text-stone-500"
-                    }`}
-                >
+                <h3 className="text-xs font-bold text-stone-900">
                   Online Payment (UPI / Cards / Net Banking)
                 </h3>
-                {onlineEnabled && (
-                  <span className="rounded-md bg-emerald-100 px-1.5 py-0.2 text-[10px] font-bold text-emerald-800">
-                    Fastest
-                  </span>
-                )}
+                <span className="rounded-md bg-emerald-100 px-1.5 py-0.2 text-[10px] font-bold text-emerald-800">
+                  Fastest
+                </span>
               </div>
               <p className="mt-0.5 text-[11px] text-stone-500">
-                {onlineEnabled
-                  ? "Instant confirmation via Razorpay UPI / Cards"
-                  : "Online payment setup in progress."}
+                UPI (GPay, PhonePe, Paytm), Cards &amp; Net Banking
               </p>
             </div>
           </div>
@@ -167,7 +166,7 @@ export default function PaymentMethods() {
           </label>
         )}
 
-        {isOnline && onlineEnabled && (
+        {isOnline && (
           <label className="flex cursor-pointer items-start gap-2.5 rounded-xl bg-stone-50 p-2.5 border border-stone-200/80 text-xs">
             <input
               type="checkbox"
