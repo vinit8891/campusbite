@@ -3,6 +3,8 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import OrderSummary from "@/components/checkout/OrderSummary";
 import * as orderService from "@/services/orderService";
+import * as paymentService from "@/services/paymentService";
+import * as razorpayCheckoutModule from "@/lib/razorpayCheckout";
 
 const mockPush = vi.fn();
 
@@ -254,6 +256,79 @@ describe("OrderSummary Component", () => {
         })
       );
       expect(mockPush).toHaveBeenCalledWith("/order-success?orderId=order_123");
+    });
+  });
+
+  it("resets 'Processing your payment' loader and re-enables button when online payment modal is closed", async () => {
+    const user = userEvent.setup();
+    mockCheckoutState = {
+      ...mockCheckoutState,
+      payment_method: "online",
+      online_confirmed: true,
+      cod_confirmed: false,
+    };
+
+    vi.spyOn(orderService, "placeOrder").mockResolvedValueOnce({
+      _id: "order_online_999",
+      restaurant_email: "rest@campus.in",
+      customer_name: "John Doe",
+      phone: "9876543210",
+      payment_method: "online",
+      total: 146.1,
+      status: "Pending",
+      items: currentCart,
+    });
+
+    vi.spyOn(paymentService, "getRazorpayConfig").mockResolvedValueOnce({
+      provider: "razorpay",
+      enabled: true,
+      key_id: "rzp_test_sample123",
+      mode: "test",
+    });
+
+    vi.spyOn(paymentService, "createRazorpayPayment").mockResolvedValueOnce({
+      order_id: "order_online_999",
+      payment_id: "pay_sample123",
+      razorpay_order_id: "order_rzp_999",
+      amount: 146.1,
+      amount_paise: 14610,
+      currency: "INR",
+      key_id: "rzp_test_sample123",
+      payment_status: "pending",
+    });
+
+    const cancelSpy = vi.spyOn(paymentService, "cancelRazorpayPayment").mockResolvedValueOnce({
+      message: "cancelled",
+    });
+
+    let dismissHandler: (() => void) | undefined;
+    vi.spyOn(razorpayCheckoutModule, "triggerUpiOrRazorpayCheckout").mockImplementation(
+      async (args: any) => {
+        dismissHandler = args.onDismiss;
+        return { mode: "razorpay_modal" };
+      }
+    );
+
+    render(<OrderSummary />);
+
+    const submitBtn = screen.getByRole("button", { name: /Place ONLINE Order/i });
+    await user.click(submitBtn);
+
+    // After clicking, button text reflects processing state or loader
+    await waitFor(() => {
+      expect(dismissHandler).toBeDefined();
+    });
+
+    // Invoke modal dismiss callback
+    dismissHandler!();
+
+    // Verify loader resets and button returns to enabled Place ONLINE Order state
+    await waitFor(() => {
+      expect(cancelSpy).toHaveBeenCalledWith("order_online_999", "checkout_dismissed");
+      const placeBtn = screen.getByRole("button", { name: /Place ONLINE Order/i });
+      expect(placeBtn).toBeInTheDocument();
+      expect(placeBtn).not.toBeDisabled();
+      expect(screen.queryByText(/Processing your payment/i)).not.toBeInTheDocument();
     });
   });
 });
