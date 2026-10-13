@@ -11,8 +11,8 @@ const securityHeaders = [
     key: "Content-Security-Policy",
     value: [
       "default-src 'self'",
-      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://checkout.razorpay.com https://api.razorpay.com",
-      "connect-src 'self' https://api.razorpay.com https://*.onrender.com https://campusbite-backend123.onrender.com",
+      "script-src 'self' 'unsafe-eval' 'unsafe-inline' https://checkout.razorpay.com https://api.razorpay.com https://cdn.razorpay.com",
+      "connect-src 'self' https://api.razorpay.com https://lumberjack.razorpay.com https://*.onrender.com https://campusbite-backend123.onrender.com",
       "frame-src 'self' https://api.razorpay.com https://checkout.razorpay.com",
       "img-src 'self' data: blob: https: http:",
       "style-src 'self' 'unsafe-inline'",

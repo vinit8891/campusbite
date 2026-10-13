@@ -51,7 +51,7 @@ export function loadRazorpayScript(): Promise<boolean> {
 }
 
 /**
- * Opens Razorpay Checkout (test mode). Does not mark payment paid —
+ * Opens Razorpay Checkout (live or test mode). Does not mark payment paid —
  * caller must send response to backend /payments/razorpay/verify.
  */
 export async function openRazorpayCheckout(args: OpenCheckoutArgs & {
@@ -64,12 +64,8 @@ export async function openRazorpayCheckout(args: OpenCheckoutArgs & {
     );
   }
 
-  if (args.keyId.startsWith("rzp_live_")) {
-    throw new Error("Live Razorpay keys are not allowed.");
-  }
-
-  if (!args.keyId.startsWith("rzp_test_")) {
-    throw new Error("Only Razorpay test keys (rzp_test_*) are allowed.");
+  if (!args.keyId.startsWith("rzp_test_") && !args.keyId.startsWith("rzp_live_")) {
+    throw new Error("Invalid Razorpay key format. Key must start with rzp_live_ or rzp_test_.");
   }
 
   const rzp = new window.Razorpay({
