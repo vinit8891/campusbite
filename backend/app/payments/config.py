@@ -22,15 +22,17 @@ def is_razorpay_mock_mode() -> bool:
     """
     Mock mode for local verification without real Razorpay credentials.
 
-    RAZORPAY_MOCK=0|false|off explicitly disables mock (required for real test mode).
+    RAZORPAY_MOCK=0|false|off explicitly disables mock (required for real test or live mode).
     RAZORPAY_MOCK=1|true|on enables mock.
     If unset, mock is used only when KEY_ID starts with rzp_test_mock.
     """
-    flag = _env_flag("RAZORPAY_MOCK")
-    if flag in {"0", "false", "no", "off"}:
-        return False
-    if flag in {"1", "true", "yes", "on"}:
-        return True
+    raw = os.getenv("RAZORPAY_MOCK")
+    if raw is not None:
+        flag = str(raw).strip().lower()
+        if flag in {"0", "false", "no", "off"}:
+            return False
+        if flag in {"1", "true", "yes", "on"}:
+            return True
     key_id = (os.getenv("RAZORPAY_KEY_ID") or "").strip()
     return key_id.startswith("rzp_test_mock")
 
@@ -73,17 +75,11 @@ def require_razorpay_credentials() -> tuple[str, str]:
     key_secret = (os.getenv("RAZORPAY_KEY_SECRET") or "").strip()
     if not key_id or not key_secret:
         raise PaymentConfigError(
-            "Razorpay test mode is not configured. Set RAZORPAY_KEY_ID and "
-            "RAZORPAY_KEY_SECRET (rzp_test_* only), and RAZORPAY_MOCK=0."
+            "Razorpay credentials are not configured. Set RAZORPAY_KEY_ID and "
+            "RAZORPAY_KEY_SECRET, and RAZORPAY_MOCK=0."
         )
-    if key_id.startswith("rzp_live_"):
-        raise PaymentConfigError(
-            "Production Razorpay keys are not allowed. Use test mode keys (rzp_test_*)."
-        )
-    if not key_id.startswith("rzp_test_"):
-        raise PaymentConfigError(
-            "Only Razorpay test keys (rzp_test_*) are allowed in this phase."
-        )
+    if not (key_id.startswith("rzp_test_") or key_id.startswith("rzp_live_")):
+        raise PaymentConfigError("Invalid Razorpay key format. Key must start with rzp_live_ or rzp_test_.")
     return key_id, key_secret
 
 
@@ -91,7 +87,7 @@ def require_webhook_secret() -> str:
     secret = get_razorpay_webhook_secret()
     if not secret:
         raise PaymentConfigError(
-            "RAZORPAY_WEBHOOK_SECRET is not configured for Razorpay test mode."
+            "RAZORPAY_WEBHOOK_SECRET is not configured for Razorpay."
         )
     return secret
 
@@ -108,11 +104,21 @@ def public_razorpay_config() -> dict:
 
     webhook_ready = bool(get_razorpay_webhook_secret()) if configured else False
 
+    if configured:
+        if mock:
+            mode = "mock"
+        elif key_id and key_id.startswith("rzp_live_"):
+            mode = "live"
+        else:
+            mode = "test"
+    else:
+        mode = "disabled"
+
     return {
         "provider": "razorpay",
         "enabled": configured,
         "key_id": key_id if configured else None,
-        "mode": "mock" if mock and configured else ("test" if configured else "disabled"),
+        "mode": mode,
         "mock_checkout_available": bool(mock and configured),
         "webhook_configured": webhook_ready,
         # Never include key_secret / webhook_secret

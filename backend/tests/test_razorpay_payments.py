@@ -147,3 +147,61 @@ def test_verify_payment_success(client):
         assert set_fields["razorpay_payment_id"] == "pay_123"
         assert set_fields["razorpay_signature"] == valid_sig
         assert 1000 <= set_fields["delivery_otp"] <= 9999
+
+
+def test_require_razorpay_credentials_live_and_test_keys():
+    """Validates that both rzp_live_ and rzp_test_ keys are permitted."""
+    import os
+    from app.payments.config import (
+        PaymentConfigError,
+        is_razorpay_mock_mode,
+        public_razorpay_config,
+        require_razorpay_credentials,
+    )
+
+    # Test Live Key
+    with patch.dict(os.environ, {"RAZORPAY_KEY_ID": "rzp_live_abc12345", "RAZORPAY_KEY_SECRET": "secret_live", "RAZORPAY_MOCK": "0"}):
+        assert is_razorpay_mock_mode() is False
+        key_id, secret = require_razorpay_credentials()
+        assert key_id == "rzp_live_abc12345"
+        assert secret == "secret_live"
+        cfg = public_razorpay_config()
+        assert cfg["mode"] == "live"
+        assert cfg["enabled"] is True
+
+    # Test Test Key
+    with patch.dict(os.environ, {"RAZORPAY_KEY_ID": "rzp_test_xyz98765", "RAZORPAY_KEY_SECRET": "secret_test", "RAZORPAY_MOCK": "0"}):
+        assert is_razorpay_mock_mode() is False
+        key_id, secret = require_razorpay_credentials()
+        assert key_id == "rzp_test_xyz98765"
+        assert secret == "secret_test"
+        cfg = public_razorpay_config()
+        assert cfg["mode"] == "test"
+        assert cfg["enabled"] is True
+
+    # Test Invalid Key Format
+    with patch.dict(os.environ, {"RAZORPAY_KEY_ID": "rzp_invalid_123", "RAZORPAY_KEY_SECRET": "secret_123", "RAZORPAY_MOCK": "0"}):
+        with pytest.raises(PaymentConfigError) as exc_info:
+            require_razorpay_credentials()
+        assert "Invalid Razorpay key format. Key must start with rzp_live_ or rzp_test_." in str(exc_info.value)
+
+
+@pytest.mark.parametrize("falsy_val", ["0", "false", "False", "no", "off"])
+def test_is_razorpay_mock_mode_falsy(falsy_val):
+    """Ensures mock mode is properly disabled for all falsy string representations."""
+    import os
+    from app.payments.config import is_razorpay_mock_mode
+
+    with patch.dict(os.environ, {"RAZORPAY_MOCK": falsy_val, "RAZORPAY_KEY_ID": "rzp_test_mock_123"}):
+        assert is_razorpay_mock_mode() is False
+
+
+@pytest.mark.parametrize("truthy_val", ["1", "true", "True", "yes", "on"])
+def test_is_razorpay_mock_mode_truthy(truthy_val):
+    """Ensures mock mode is properly enabled for all truthy string representations."""
+    import os
+    from app.payments.config import is_razorpay_mock_mode
+
+    with patch.dict(os.environ, {"RAZORPAY_MOCK": truthy_val, "RAZORPAY_KEY_ID": "rzp_test_real_123"}):
+        assert is_razorpay_mock_mode() is True
+
