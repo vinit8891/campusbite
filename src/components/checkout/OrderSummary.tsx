@@ -26,8 +26,6 @@ import {
 } from "@/lib/paymentLabels";
 import {
   openRazorpayCheckout,
-  triggerUpiOrRazorpayCheckout,
-  buildUpiIntentUrl,
   type RazorpayCheckoutSuccess,
 } from "@/lib/razorpayCheckout";
 import {
@@ -44,11 +42,6 @@ import { useMemo, useRef } from "react";
 
 const MockCheckoutModal = dynamic(
   () => import("@/components/checkout/MockCheckoutModal"),
-  { ssr: false }
-);
-
-const DesktopUpiQrModal = dynamic(
-  () => import("@/components/checkout/DesktopUpiQrModal"),
   { ssr: false }
 );
 
@@ -74,16 +67,15 @@ export default function OrderSummary() {
   const { isLoggedIn, user } = useAuth();
 
   const [loading, setLoading] = useState(false);
+  const [isSubmittingState, setIsSubmitting] = useState(false);
   const [paymentState, setPaymentState] = useState<PaymentUiState>("idle");
   const [statusMessage, setStatusMessage] = useState("");
   const [mockOpen, setMockOpen] = useState(false);
   const [mockBusy, setMockBusy] = useState(false);
   const [pendingPayment, setPendingPayment] =
     useState<CreatePaymentResponse | null>(null);
-  const [desktopQrOpen, setDesktopQrOpen] = useState(false);
   const [currentOrderId, setCurrentOrderId] = useState("");
   const [currentPayableAmount, setCurrentPayableAmount] = useState(0);
-  const [isVerifyingUpi, setIsVerifyingUpi] = useState(false);
   const activeOrderIdRef = useRef("");
 
   const [couponCodeInput, setCouponCodeInput] = useState("");
@@ -177,12 +169,11 @@ export default function OrderSummary() {
   const isOnline = checkout.payment_method === ONLINE_PAYMENT_METHOD;
   const paymentMethod = isCod ? "cod" : "online";
 
-  const isSubmitting = loading || paymentState === "processing";
+  const isSubmitting = isSubmittingState || loading || paymentState === "processing";
 
   const canSubmit =
     cart.length > 0 &&
-    !loading &&
-    paymentState !== "processing" &&
+    !isSubmitting &&
     paymentState !== "success" &&
     (isCod ? checkout.cod_confirmed : checkout.online_confirmed);
 
@@ -200,7 +191,6 @@ export default function OrderSummary() {
 
   async function handleVerifiedOnline(orderId: string) {
     setMockOpen(false);
-    setDesktopQrOpen(false);
     setPendingPayment(null);
     finishSuccess(orderId);
   }
@@ -228,8 +218,8 @@ export default function OrderSummary() {
         error instanceof Error ? error.message : "Payment Failed"
       );
     } finally {
+      setIsSubmitting(false);
       setLoading(false);
-      setDesktopQrOpen(false);
     }
   };
 
@@ -245,11 +235,17 @@ export default function OrderSummary() {
     setPaymentState("failed");
     setStatusMessage("Payment Failed");
     setPendingPayment(null);
+    setIsSubmitting(false);
     setLoading(false);
-    setDesktopQrOpen(false);
   };
 
   const handleOnlineDismiss = async () => {
+    setIsSubmitting(false);
+    setLoading(false);
+    setPaymentState("idle");
+    setStatusMessage("");
+    setPendingPayment(null);
+
     const activeId = activeOrderIdRef.current || currentOrderId || pendingPayment?.order_id || "";
     try {
       if (activeId) {
@@ -258,11 +254,6 @@ export default function OrderSummary() {
     } catch {
       // Best effort
     }
-    setPaymentState("idle");
-    setStatusMessage("");
-    setPendingPayment(null);
-    setLoading(false);
-    setDesktopQrOpen(false);
   };
 
   async function runMockOutcome(outcome: "success" | "failure" | "dismiss") {
@@ -306,7 +297,7 @@ export default function OrderSummary() {
   }
 
   async function handlePlaceOrder() {
-    if (loading || paymentState === "processing") {
+    if (isSubmitting) {
       return;
     }
 
@@ -396,6 +387,7 @@ export default function OrderSummary() {
     let awaitingCheckoutModal = false;
 
     try {
+      setIsSubmitting(true);
       setLoading(true);
       setPaymentState(isOnline ? "processing" : "idle");
       setStatusMessage(isOnline ? "Processing your payment" : "");
@@ -507,32 +499,26 @@ export default function OrderSummary() {
       setCurrentOrderId(orderId);
       setCurrentPayableAmount(finalPayableNum);
 
-      const phonePeIntentUrl = buildUpiIntentUrl({
-        amount: finalPayableNum,
-        orderId,
-        app: "phonepe",
-      });
-
       awaitingCheckoutModal = true;
-      const checkoutResult = await triggerUpiOrRazorpayCheckout({
+      setStatusMessage("Opening Payment Gateway...");
+
+      await openRazorpayCheckout({
         keyId: config.key_id,
-        payment,
+        payment: {
+          ...payment,
+          razorpayOrder: { id: payment.razorpay_order_id },
+        },
         customerName: orderData.customer_name,
         customerEmail: user?.email,
         customerPhone: deliveryPhone,
         description: `CampusBite order ${orderId}`,
-        upiIntentUrl: phonePeIntentUrl,
         onSuccess: handleOnlineSuccess,
         onFailure: handleOnlineFailure,
         onDismiss: handleOnlineDismiss,
       });
-
-      if (checkoutResult.mode === "mobile_intent") {
-        setStatusMessage("Opening UPI App");
-      }
     } catch (error) {
+      setIsSubmitting(false);
       setLoading(false);
-      setDesktopQrOpen(false);
       awaitingCheckoutModal = false;
       if (error instanceof AuthHttpError && error.status === 401) {
         return;
@@ -553,6 +539,7 @@ export default function OrderSummary() {
       }
     } finally {
       if (!awaitingCheckoutModal) {
+        setIsSubmitting(false);
         setLoading(false);
       }
     }
@@ -872,38 +859,6 @@ export default function OrderSummary() {
           onSuccess={() => runMockOutcome("success")}
           onFailure={() => runMockOutcome("failure")}
           onDismiss={() => runMockOutcome("dismiss")}
-        />
-      ) : null}
-
-      {desktopQrOpen && pendingPayment ? (
-        <DesktopUpiQrModal
-          isOpen={desktopQrOpen}
-          amount={currentPayableAmount}
-          orderId={currentOrderId}
-          onDismiss={handleOnlineDismiss}
-          onOpenRazorpayModal={() => {
-            setDesktopQrOpen(false);
-            openRazorpayCheckout({
-              keyId: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID || "",
-              payment: pendingPayment,
-              customerName: checkout.customer_name || "",
-              customerEmail: user?.email,
-              customerPhone: checkout.phone,
-              description: `CampusBite order ${currentOrderId}`,
-              onSuccess: handleOnlineSuccess,
-              onFailure: handleOnlineFailure,
-              onDismiss: handleOnlineDismiss,
-            });
-          }}
-          onConfirmPayment={async () => {
-            setIsVerifyingUpi(true);
-            try {
-              await handleVerifiedOnline(currentOrderId);
-            } finally {
-              setIsVerifyingUpi(false);
-            }
-          }}
-          isVerifying={isVerifyingUpi}
         />
       ) : null}
     </>

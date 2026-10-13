@@ -13,13 +13,23 @@ export type RazorpayCheckoutSuccess = {
 
 export type OpenCheckoutArgs = {
   keyId: string;
-  payment: CreatePaymentResponse;
+  payment: CreatePaymentResponse | {
+    id?: string;
+    razorpay_order_id?: string;
+    razorpayOrder?: { id: string };
+    amount_paise?: number;
+    amount?: number;
+    currency?: string;
+    key_id?: string | null;
+    [key: string]: unknown;
+  };
   customerName: string;
   customerEmail?: string;
   customerPhone?: string;
   description?: string;
   onSuccess: (result: RazorpayCheckoutSuccess) => void;
   onDismiss: () => void;
+  onFailure?: (reason?: string) => void;
 };
 
 declare global {
@@ -69,17 +79,34 @@ export async function openRazorpayCheckout(args: OpenCheckoutArgs & {
     );
   }
 
-  if (!args.keyId.startsWith("rzp_test_") && !args.keyId.startsWith("rzp_live_")) {
+  const keyId =
+    args.keyId ||
+    (args.payment as any)?.key_id ||
+    process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
+    "";
+
+  if (!keyId.startsWith("rzp_test_") && !keyId.startsWith("rzp_live_")) {
     throw new Error("Invalid Razorpay key format. Key must start with rzp_live_ or rzp_test_.");
   }
 
-  const rzp = new window.Razorpay({
-    key: args.keyId,
-    amount: args.payment.amount_paise,
-    currency: args.payment.currency || "INR",
+  const razorpayOrderId =
+    (args.payment as any)?.razorpayOrder?.id ||
+    args.payment?.razorpay_order_id ||
+    (args.payment as any)?.id ||
+    "";
+
+  const amountPaise =
+    args.payment?.amount_paise ??
+    Math.round(((args.payment as any)?.amount || 0) * 100);
+
+  const options: Record<string, unknown> = {
+    key: keyId,
+    key_id: keyId,
+    amount: amountPaise,
+    currency: args.payment?.currency || "INR",
     name: "CampusBite",
     description: args.description || "CampusBite order payment",
-    order_id: args.payment.razorpay_order_id,
+    order_id: razorpayOrderId,
     prefill: {
       name: args.customerName,
       email: args.customerEmail || "",
@@ -96,7 +123,9 @@ export async function openRazorpayCheckout(args: OpenCheckoutArgs & {
         args.onDismiss();
       },
     },
-  });
+  };
+
+  const rzp = new window.Razorpay(options);
 
   rzp.on("payment.failed", (response: unknown) => {
     const reason =

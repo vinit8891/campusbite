@@ -302,10 +302,9 @@ describe("OrderSummary Component", () => {
     });
 
     let dismissHandler: (() => void) | undefined;
-    vi.spyOn(razorpayCheckoutModule, "triggerUpiOrRazorpayCheckout").mockImplementation(
+    const checkoutSpy = vi.spyOn(razorpayCheckoutModule, "openRazorpayCheckout").mockImplementation(
       async (args: any) => {
         dismissHandler = args.onDismiss;
-        return { mode: "razorpay_modal" };
       }
     );
 
@@ -316,6 +315,17 @@ describe("OrderSummary Component", () => {
 
     // After clicking, button text reflects processing state or loader
     await waitFor(() => {
+      expect(checkoutSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          keyId: "rzp_test_sample123",
+          payment: expect.objectContaining({
+            order_id: "order_online_999",
+            razorpay_order_id: "order_rzp_999",
+            amount_paise: 14610,
+            razorpayOrder: { id: "order_rzp_999" },
+          }),
+        })
+      );
       expect(dismissHandler).toBeDefined();
     });
 

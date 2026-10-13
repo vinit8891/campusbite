@@ -128,6 +128,47 @@ describe("openRazorpayCheckout", () => {
       })
     ).rejects.toThrow("Invalid Razorpay key format. Key must start with rzp_live_ or rzp_test_.");
   });
+
+  it("passes razorpayOrder.id, amount in paise, and key_id to Razorpay options and triggers onDismiss", async () => {
+    let capturedOptions: any = null;
+    const mockOpen = vi.fn();
+    const mockOn = vi.fn();
+
+    class MockRazorpay {
+      open = mockOpen;
+      on = mockOn;
+      constructor(options: any) {
+        capturedOptions = options;
+      }
+    }
+
+    (window as unknown as { Razorpay?: unknown }).Razorpay = MockRazorpay;
+
+    const onDismiss = vi.fn();
+    await openRazorpayCheckout({
+      keyId: "rzp_test_sampleKey99",
+      payment: {
+        order_id: "cb_order_99",
+        razorpayOrder: { id: "order_rzp_order_99" },
+        amount_paise: 9900,
+        currency: "INR",
+        key_id: "rzp_test_sampleKey99",
+      },
+      customerName: "Vinit Patil",
+      onSuccess: vi.fn(),
+      onDismiss,
+    });
+
+    expect(capturedOptions.order_id).toBe("order_rzp_order_99");
+    expect(capturedOptions.amount).toBe(9900);
+    expect(capturedOptions.key).toBe("rzp_test_sampleKey99");
+    expect(capturedOptions.key_id).toBe("rzp_test_sampleKey99");
+    expect(mockOpen).toHaveBeenCalled();
+
+    // Trigger ondismiss
+    capturedOptions.modal.ondismiss();
+    expect(onDismiss).toHaveBeenCalled();
+  });
 });
 
 describe("buildUpiIntentUrl", () => {
