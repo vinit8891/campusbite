@@ -1,8 +1,8 @@
 import { useMemo, useState } from "react";
 import type { FilterType, Order, SortType } from "@/types/orders";
-import { isActiveStatus } from "@/lib/orderDomain";
+import { isActiveStatus, isCustomerActiveOrder } from "@/lib/orderDomain";
 
-export { isActiveStatus };
+export { isActiveStatus, isCustomerActiveOrder };
 
 export const FILTER_BUTTONS: FilterType[] = [
   "All",
@@ -18,12 +18,12 @@ export function useOrderFiltering(orders: Order[]) {
   const [sort, setSort] = useState<SortType>("Newest");
 
   const hasActiveOrders = useMemo(
-    () => orders.some((order) => isActiveStatus(order.status)),
+    () => orders.some((order) => isCustomerActiveOrder(order)),
     [orders]
   );
 
   const activeOrdersCount = useMemo(
-    () => orders.filter((order) => isActiveStatus(order.status)).length,
+    () => orders.filter((order) => isCustomerActiveOrder(order)).length,
     [orders]
   );
 
@@ -59,7 +59,7 @@ export function useOrderFiltering(orders: Order[]) {
     const query = search.trim().toLowerCase();
 
     const result = orders.filter((order) => {
-      if (filter === "Active" && !isActiveStatus(order.status)) {
+      if (filter === "Active" && !isCustomerActiveOrder(order)) {
         return false;
       }
 

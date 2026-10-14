@@ -789,6 +789,7 @@ async def restaurant_orders(
     status: Annotated[str | None, Query()] = None,
     payment_status: Annotated[str | None, Query()] = None,
     payment_method: Annotated[str | None, Query()] = None,
+    exclude_cancelled: Annotated[bool, Query()] = False,
     q: Annotated[str | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=200)] = 50,
 ):
@@ -799,6 +800,7 @@ async def restaurant_orders(
             status=status,
             payment_status=payment_status,
             payment_method=payment_method,
+            exclude_cancelled=exclude_cancelled,
             q=sanitize_search_query(q),
             limit=limit,
         )

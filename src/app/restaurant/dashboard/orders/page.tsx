@@ -17,6 +17,9 @@ import {
   isCookingOrder,
   isReadyOrder,
   isOrderStale,
+  isRestaurantActiveOrder,
+  isCancelledOrRejected,
+  isOrderPaymentConfirmed,
 } from "@/lib/orderDomain";
 
 type ViewMode = "kds" | "cards" | "table";
@@ -58,23 +61,25 @@ export default function OrdersPage() {
     useKitchenAudio(orders);
 
   const cookingCount = orders.filter(
-    (o) => isCookingOrder(o.status) && !isOrderStale(o.created_at)
+    (o) =>
+      isCookingOrder(o.status) &&
+      !isOrderStale(o.created_at) &&
+      !isCancelledOrRejected(o.status) &&
+      isOrderPaymentConfirmed(o.payment_method, o.payment_status)
   ).length;
   const readyCount = orders.filter(
-    (o) => isReadyOrder(o.status) && !isOrderStale(o.created_at)
+    (o) =>
+      isReadyOrder(o.status) &&
+      !isOrderStale(o.created_at) &&
+      !isCancelledOrRejected(o.status) &&
+      isOrderPaymentConfirmed(o.payment_method, o.payment_status)
   ).length;
 
   const activeOrdersCount = pendingCount + cookingCount + readyCount;
   const totalOrdersCount = orders.length;
 
-  // Active non-stale orders for non-KDS views
-  const activeOrders = orders.filter(
-    (o) =>
-      (isNewOrder(o.status) ||
-        isCookingOrder(o.status) ||
-        isReadyOrder(o.status)) &&
-      !isOrderStale(o.created_at)
-  );
+  // Active non-stale orders for non-KDS views (partner dashboard list)
+  const activeOrders = orders.filter((o) => isRestaurantActiveOrder(o));
 
   // Client-filtered orders in history mode matching search query
   const filteredHistoryOrders = orders.filter((order) => {

@@ -403,20 +403,100 @@ async def get_restaurant_orders(
     status: str | None = None,
     payment_status: str | None = None,
     payment_method: str | None = None,
+    exclude_cancelled: bool = False,
     q: str | None = None,
     limit: int = 50,
 ):
-    """Restaurant-scoped orders, newest first, with optional filters."""
-    query: dict = {"restaurant_email": email}
+    """Restaurant-scoped orders, newest first, with optional filters.
+
+    Ensures orders with payment_method === 'online' are ONLY shown if payment_status
+    is 'PAID' or 'COMPLETED' (or 'paid_online'). Unpaid, processing, or pending online
+    orders are filtered out.
+    """
+    online_payment_regex = (
+        "^(online|online_payment|upi|card|net_banking|razorpay|stripe)$"
+    )
+    paid_status_regex = "^(paid|completed|paid_online)$"
+
+    ands: list[dict] = [{"restaurant_email": email}]
 
     if status:
-        query["status"] = status
+        ands.append({"status": status})
+    elif exclude_cancelled:
+        ands.append(
+            {
+                "status": {
+                    "$nin": [
+                        "Cancelled",
+                        "cancelled",
+                        "CANCELLED",
+                        "Rejected",
+                        "rejected",
+                        "REJECTED",
+                    ]
+                }
+            }
+        )
 
     if payment_status:
-        query["payment_status"] = payment_status
+        ands.append({"payment_status": payment_status})
 
     if payment_method:
-        query["payment_method"] = payment_method
+        norm_method = str(payment_method).strip().lower()
+        is_online = (
+            norm_method in [
+                "online",
+                "online_payment",
+                "upi",
+                "card",
+                "net_banking",
+                "razorpay",
+                "stripe",
+            ]
+            or "online" in norm_method
+            or "upi" in norm_method
+            or "card" in norm_method
+        )
+        if is_online:
+            ands.append({
+                "payment_method": {
+                    "$regex": online_payment_regex,
+                    "$options": "i",
+                }
+            })
+            ands.append({
+                "payment_status": {
+                    "$regex": paid_status_regex,
+                    "$options": "i",
+                }
+            })
+        else:
+            ands.append({"payment_method": payment_method})
+    else:
+        # If payment_method is not specified, ensure online orders are only included
+        # if payment_status is paid or completed (COD orders permitted)
+        ands.append({
+            "$or": [
+                {
+                    "payment_method": {
+                        "$not": {
+                            "$regex": online_payment_regex,
+                            "$options": "i",
+                        }
+                    }
+                },
+                {
+                    "payment_method": {
+                        "$regex": online_payment_regex,
+                        "$options": "i",
+                    },
+                    "payment_status": {
+                        "$regex": paid_status_regex,
+                        "$options": "i",
+                    },
+                },
+            ]
+        })
 
     if q and q.strip():
         term = q.strip()
@@ -430,7 +510,9 @@ async def get_restaurant_orders(
         if oid:
             or_clauses.append({"_id": oid})
 
-        query["$or"] = or_clauses
+        ands.append({"$or": or_clauses})
+
+    query = {"$and": ands} if len(ands) > 1 else ands[0]
 
     safe_limit = max(1, min(int(limit or 50), 200))
 
@@ -440,6 +522,31 @@ async def get_restaurant_orders(
     )
 
     async for order in cursor:
+        method = str(order.get("payment_method") or "").strip().lower()
+        p_status = str(order.get("payment_status") or "").strip().lower()
+        is_online = (
+            method in [
+                "online",
+                "online_payment",
+                "upi",
+                "card",
+                "net_banking",
+                "razorpay",
+                "stripe",
+            ]
+            or "online" in method
+            or "upi" in method
+            or "card" in method
+            or "razorpay" in method
+        )
+        if is_online and p_status not in ["paid", "completed", "paid_online"]:
+            continue
+        if exclude_cancelled and str(order.get("status") or "").strip().lower() in [
+            "cancelled",
+            "rejected",
+        ]:
+            continue
+
         order["_id"] = str(order["_id"])
         orders.append(normalize_order_financials(order))
 

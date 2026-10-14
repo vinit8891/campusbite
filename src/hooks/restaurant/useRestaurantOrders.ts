@@ -13,6 +13,7 @@ export type OrdersQuery = {
   status?: string;
   payment_status?: string;
   payment_method?: string;
+  exclude_cancelled?: boolean;
   q?: string;
   limit?: number;
 };
@@ -77,6 +78,9 @@ export function useRestaurantOrders() {
     }
     if (filters.payment_method) {
       params.set("payment_method", filters.payment_method);
+    }
+    if (filters.exclude_cancelled) {
+      params.set("exclude_cancelled", "true");
     }
     if (filters.q?.trim()) params.set("q", filters.q.trim());
     params.set("limit", String(filters.limit ?? 50));

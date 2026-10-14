@@ -1,6 +1,4 @@
-/**
- * Shared order domain utilities, status sequences, and coordinate helpers.
- */
+import { isOnlinePayment } from "./paymentLabels";
 
 export const ORDER_STATUS_FLOW = [
   "Pending",
@@ -248,3 +246,76 @@ export function hasValidCoordinates(
     Number.isFinite(longitude)
   );
 }
+
+/** Checks if an order status is Cancelled or Rejected (case-insensitive). */
+export function isCancelledOrRejected(status?: string | null): boolean {
+  if (!status) return false;
+  const s = normalizeOrderStatus(status);
+  return s === "cancelled" || s === "rejected";
+}
+
+/** Checks if an online payment has completed successfully ('paid', 'completed', or 'paid_online'). */
+export function isOnlinePaymentPaid(paymentStatus?: string | null): boolean {
+  if (!paymentStatus) return false;
+  const s = paymentStatus.trim().toLowerCase();
+  return s === "paid" || s === "completed" || s === "paid_online";
+}
+
+/**
+ * Validates that an order's payment is confirmed:
+ * - If online: MUST be 'paid' or 'completed' (not pending, processing, failed, or waiting confirmation).
+ * - If COD (cash on delivery): payment happens at delivery, so considered confirmed for prep.
+ */
+export function isOrderPaymentConfirmed(
+  paymentMethod?: string | null,
+  paymentStatus?: string | null
+): boolean {
+  if (isOnlinePayment(paymentMethod)) {
+    return isOnlinePaymentPaid(paymentStatus);
+  }
+  return true;
+}
+
+/**
+ * Checks if an order is active for the customer portal:
+ * - Order is not terminal (Delivered, Completed, Cancelled, Rejected)
+ * - If online payment: payment must be PAID or COMPLETED (unpaid processing orders are filtered out)
+ */
+export function isCustomerActiveOrder(order?: {
+  status?: string | null;
+  payment_method?: string | null;
+  payment_status?: string | null;
+} | null): boolean {
+  if (!order || !order.status) return false;
+  if (!isActiveStatus(order.status) || isCancelledOrRejected(order.status)) {
+    return false;
+  }
+  return isOrderPaymentConfirmed(order.payment_method, order.payment_status);
+}
+
+/**
+ * Checks if an order belongs in the restaurant's active KDS prep queue and partner dashboard list:
+ * - Must NOT be Cancelled or Rejected
+ * - Must NOT be Delivered or Completed
+ * - If online payment: MUST be PAID or COMPLETED (no Processing or Waiting confirmation orders)
+ * - Must not be stale (> 24 hours old)
+ * - Status must be in active prep lifecycle: New (Pending), Cooking (Preparing), or Ready for Pickup
+ */
+export function isRestaurantActiveOrder(order?: {
+  status?: string | null;
+  payment_method?: string | null;
+  payment_status?: string | null;
+  created_at?: string | number | Date | null;
+} | null): boolean {
+  if (!order || !order.status) return false;
+  if (isCancelledOrRejected(order.status) || isCompletedOrInactiveOrder(order.status)) {
+    return false;
+  }
+  if (!isOrderPaymentConfirmed(order.payment_method, order.payment_status)) {
+    return false;
+  }
+  const s = normalizeOrderStatus(order.status);
+  const isValidPrepStatus = isNewOrder(s) || isCookingOrder(s) || isReadyOrder(s);
+  return isValidPrepStatus && !isOrderStale(order.created_at);
+}
+

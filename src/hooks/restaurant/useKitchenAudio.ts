@@ -1,7 +1,12 @@
 "use client";
 
 import { useEffect, useState, useCallback, useRef } from "react";
-import { isNewOrder, isOrderStale } from "@/lib/orderDomain";
+import {
+  isNewOrder,
+  isOrderStale,
+  isCancelledOrRejected,
+  isOrderPaymentConfirmed,
+} from "@/lib/orderDomain";
 import type { Order } from "@/types";
 
 export function playKitchenChime() {
@@ -60,7 +65,11 @@ export function useKitchenAudio(orders: Order[]) {
   });
 
   const pendingCount = orders.filter(
-    (o) => isNewOrder(o.status) && !isOrderStale(o.created_at)
+    (o) =>
+      isNewOrder(o.status) &&
+      !isOrderStale(o.created_at) &&
+      !isCancelledOrRejected(o.status) &&
+      isOrderPaymentConfirmed(o.payment_method, o.payment_status)
   ).length;
   const lastPendingCountRef = useRef(pendingCount);
 

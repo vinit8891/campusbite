@@ -6,7 +6,7 @@ import { usePathname } from "next/navigation";
 import { ChevronRight, KeyRound, Bike, Clock, BellRing, Sparkles } from "lucide-react";
 import { useAuth } from "@/context/AuthContext";
 import { getMyOrders, getCourierLiveLocation } from "@/services/orderService";
-import { isActiveOrderStatus } from "@/lib/orderDomain";
+import { isCustomerActiveOrder } from "@/lib/orderDomain";
 import { trackOrderPath, ROUTES } from "@/lib/routes";
 import type { Order } from "@/types";
 
@@ -82,9 +82,9 @@ export function LiveOrderTrackerBar() {
     try {
       setLoading(true);
       const orders = await getMyOrders();
-      // Find the most recent active progressing order
+      // Find the most recent active progressing order (excluding unpaid processing online orders & cancelled orders)
       const active = (orders || []).find((order) =>
-        isActiveOrderStatus(order.status)
+        isCustomerActiveOrder(order)
       );
 
       if (active) {

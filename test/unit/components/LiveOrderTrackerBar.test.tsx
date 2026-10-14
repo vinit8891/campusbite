@@ -38,11 +38,12 @@ const mockActiveOrder: Order = {
   status: "Out for Delivery",
   total: 250,
   payment_method: "online",
+  payment_status: "PAID",
   items: [{ id: "1", name: "Paneer Thali", price: 250, quantity: 1 }],
   delivery_partner: {
     id: "dp-1",
     name: "Rahul Sharma",
-    phone: "+919876500000",
+    phone: "+919876540000",
   },
   delivery_otp: 4821,
   estimated_time: "15-20 min",
@@ -132,6 +133,38 @@ describe("LiveOrderTrackerBar Component & Guards", () => {
     render(<LiveOrderTrackerBar />);
     expect(screen.queryByTestId("live-order-tracker-bar")).not.toBeInTheDocument();
     expect(getMyOrdersSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not render for unpaid processing online orders", async () => {
+    mockIsLoggedIn = true;
+    mockPathname = "/";
+    const processingOrder: Order = {
+      ...mockActiveOrder,
+      status: "Pending",
+      payment_method: "online",
+      payment_status: "processing",
+    };
+    vi.spyOn(orderService, "getMyOrders").mockResolvedValue([processingOrder]);
+
+    render(<LiveOrderTrackerBar />);
+    await waitFor(() => {
+      expect(screen.queryByTestId("live-order-tracker-bar")).not.toBeInTheDocument();
+    });
+  });
+
+  it("does not render for cancelled orders", async () => {
+    mockIsLoggedIn = true;
+    mockPathname = "/";
+    const cancelledOrder: Order = {
+      ...mockActiveOrder,
+      status: "Cancelled",
+    };
+    vi.spyOn(orderService, "getMyOrders").mockResolvedValue([cancelledOrder]);
+
+    render(<LiveOrderTrackerBar />);
+    await waitFor(() => {
+      expect(screen.queryByTestId("live-order-tracker-bar")).not.toBeInTheDocument();
+    });
   });
 
   it("renders live activity bar on customer shopping pages when active order exists", async () => {

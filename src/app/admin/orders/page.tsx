@@ -13,6 +13,16 @@ import { AdminOrdersFilterBar } from "@/components/admin/AdminOrdersFilterBar";
 import { AdminOrdersTable } from "@/components/admin/AdminOrdersTable";
 import { deleteAdminOrder, type AdminOrder } from "@/services/adminService";
 
+type AdminFilterTab = "all" | "pending" | "processing" | "cancelled" | "delivered";
+
+const ADMIN_ORDER_TABS: { id: AdminFilterTab; label: string }[] = [
+  { id: "all", label: "All Orders" },
+  { id: "pending", label: "Pending" },
+  { id: "processing", label: "Processing" },
+  { id: "cancelled", label: "Cancelled" },
+  { id: "delivered", label: "Delivered" },
+];
+
 export default function AdminOrdersPage() {
   const {
     orders,
@@ -40,6 +50,43 @@ export default function AdminOrdersPage() {
   const [orderToView, setOrderToView] = useState<AdminOrder | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
 
+  const activeTab: AdminFilterTab =
+    paymentStatus.toLowerCase() === "processing"
+      ? "processing"
+      : status.toLowerCase() === "pending"
+      ? "pending"
+      : status.toLowerCase() === "cancelled"
+      ? "cancelled"
+      : status.toLowerCase() === "delivered"
+      ? "delivered"
+      : "all";
+
+  function handleTabClick(tabId: AdminFilterTab) {
+    let nextStatus = "";
+    let nextPaymentStatus = "";
+
+    if (tabId === "pending") {
+      nextStatus = "Pending";
+    } else if (tabId === "processing") {
+      nextPaymentStatus = "processing";
+    } else if (tabId === "cancelled") {
+      nextStatus = "Cancelled";
+    } else if (tabId === "delivered") {
+      nextStatus = "Delivered";
+    }
+
+    setStatus(nextStatus);
+    setPaymentStatus(nextPaymentStatus);
+    setPage(1);
+    void fetchOrders(
+      currentFilters({
+        status: nextStatus || undefined,
+        payment_status: nextPaymentStatus || undefined,
+        page: 1,
+      })
+    );
+  }
+
   async function handleConfirmDelete() {
     if (!orderToDelete) return;
 
@@ -64,6 +111,31 @@ export default function AdminOrdersPage() {
         title="Orders"
         description="Global platform orders dispatch & administration"
       />
+
+      {/* Audit & Support Filter Tabs */}
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Order Audit Filter Tabs">
+          {ADMIN_ORDER_TABS.map((tab) => {
+            const isSelected = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                type="button"
+                role="tab"
+                aria-selected={isSelected}
+                onClick={() => handleTabClick(tab.id)}
+                className={`px-4 py-2 text-xs sm:text-sm font-bold rounded-xl transition-all cursor-pointer ${
+                  isSelected
+                    ? "bg-zinc-900 text-white shadow-xs"
+                    : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200/80 hover:text-zinc-900"
+                }`}
+              >
+                {tab.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
 
       <AdminOrdersFilterBar
         q={q}

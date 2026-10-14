@@ -19,6 +19,8 @@ import {
   isCookingOrder,
   isReadyOrder,
   isOrderStale,
+  isCancelledOrRejected,
+  isOrderPaymentConfirmed,
 } from "@/lib/orderDomain";
 import type { Order } from "@/types";
 
@@ -41,13 +43,25 @@ export function KitchenDisplayBoard({
   const ordersList = Array.isArray(orders) ? orders : [];
 
   const pendingOrders = ordersList.filter(
-    (o) => isNewOrder(o.status) && !isOrderStale(o.created_at)
+    (o) =>
+      isNewOrder(o.status) &&
+      !isOrderStale(o.created_at) &&
+      !isCancelledOrRejected(o.status) &&
+      isOrderPaymentConfirmed(o.payment_method, o.payment_status)
   );
   const inKitchenOrders = ordersList.filter(
-    (o) => isCookingOrder(o.status) && !isOrderStale(o.created_at)
+    (o) =>
+      isCookingOrder(o.status) &&
+      !isOrderStale(o.created_at) &&
+      !isCancelledOrRejected(o.status) &&
+      isOrderPaymentConfirmed(o.payment_method, o.payment_status)
   );
   const readyOrders = ordersList.filter(
-    (o) => isReadyOrder(o.status) && !isOrderStale(o.created_at)
+    (o) =>
+      isReadyOrder(o.status) &&
+      !isOrderStale(o.created_at) &&
+      !isCancelledOrRejected(o.status) &&
+      isOrderPaymentConfirmed(o.payment_method, o.payment_status)
   );
 
   const totalActive =

@@ -29,40 +29,88 @@ async def get_dashboard(email: str):
 
     total_orders = await order_collection.count_documents(base_filter)
 
+    paid_online_or_cod_filter = {
+        "$or": [
+            {
+                "payment_method": {
+                    "$not": {
+                        "$regex": "^(online|online_payment|upi|card|net_banking|razorpay|stripe)$",
+                        "$options": "i",
+                    }
+                }
+            },
+            {
+                "payment_method": {
+                    "$regex": "^(online|online_payment|upi|card|net_banking|razorpay|stripe)$",
+                    "$options": "i",
+                },
+                "payment_status": {
+                    "$regex": "^(paid|completed|paid_online)$",
+                    "$options": "i",
+                },
+            },
+        ]
+    }
+
     pending_orders = await order_collection.count_documents(
         {
-            **base_filter,
-            "status": {"$in": ["Pending", "pending"]},
-            "created_at": {"$gte": today_start},
+            "$and": [
+                base_filter,
+                {"status": {"$in": ["Pending", "pending"]}},
+                {"created_at": {"$gte": today_start}},
+                paid_online_or_cod_filter,
+            ]
         }
     )
 
     cooking_orders = await order_collection.count_documents(
         {
-            **base_filter,
-            "status": {
-                "$in": [
-                    "Accepted",
-                    "Preparing",
-                    "Cooking",
-                    "In Prep",
-                    "accepted",
-                    "preparing",
-                    "cooking",
-                    "in_prep",
-                ]
-            },
-            "created_at": {"$gte": today_start},
+            "$and": [
+                base_filter,
+                {
+                    "status": {
+                        "$in": [
+                            "Accepted",
+                            "Preparing",
+                            "Cooking",
+                            "In Prep",
+                            "accepted",
+                            "preparing",
+                            "cooking",
+                            "in_prep",
+                        ]
+                    }
+                },
+                {"created_at": {"$gte": today_start}},
+                paid_online_or_cod_filter,
+            ]
         }
     )
 
     active_orders = await order_collection.count_documents(
         {
-            **base_filter,
-            "status": {
-                "$in": ACTIVE_STATUSES + [s.lower() for s in ACTIVE_STATUSES]
-            },
-            "created_at": {"$gte": today_start},
+            "$and": [
+                base_filter,
+                {
+                    "status": {
+                        "$in": ACTIVE_STATUSES + [s.lower() for s in ACTIVE_STATUSES]
+                    }
+                },
+                {
+                    "status": {
+                        "$nin": [
+                            "Cancelled",
+                            "cancelled",
+                            "CANCELLED",
+                            "Rejected",
+                            "rejected",
+                            "REJECTED",
+                        ]
+                    }
+                },
+                {"created_at": {"$gte": today_start}},
+                paid_online_or_cod_filter,
+            ]
         }
     )
 
