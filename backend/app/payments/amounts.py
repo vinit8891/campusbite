@@ -85,6 +85,83 @@ def calculate_batch_rider_earnings(
     return round(wages + max(0.0, float(total_tips or 0.0)), 2)
 
 
+def calculate_active_run_wages(orders: list[dict[str, Any]]) -> dict[str, Any]:
+    """
+    Computes wages for an active run where:
+    - The first order is computed as the Base order (RIDER_BASE_PAYOUT = ₹20.00).
+    - Subsequent orders to the same drop location / batch are computed as Batch Add-ons (RIDER_BATCH_ADDON_PAYOUT = ₹14.00).
+    """
+    if not orders:
+        return {"total_wages": 0.0, "total_tips": 0.0, "total_payout": 0.0, "order_payouts": []}
+
+    seen_drop_locations: set[str] = set()
+    seen_batches: set[str] = set()
+    order_payouts: list[dict[str, Any]] = []
+    total_wages = 0.0
+    total_tips = 0.0
+
+    for idx, o in enumerate(orders):
+        batch_id = str(o.get("batch_id") or "").strip()
+        loc = str(
+            (o.get("delivery_location") or {}).get("building")
+            or o.get("hostel_block")
+            or o.get("delivery_address")
+            or o.get("address")
+            or ""
+        ).lower().strip()
+
+        tip = float(o.get("tip_amount") or o.get("tip") or (o.get("pricing_breakdown") or {}).get("tip_amount") or 0.0)
+        subtotal = float(o.get("food_subtotal") or o.get("subtotal") or (o.get("pricing_breakdown") or {}).get("food_subtotal") or 0.0)
+        is_night_surge = bool(o.get("is_night_surge") or (o.get("pricing_breakdown") or {}).get("is_night_surge"))
+
+        # First order in run is Base order; subsequent orders to the same drop location/batch are Batch Add-ons
+        if idx == 0:
+            is_addon = False
+        elif batch_id and batch_id in seen_batches:
+            is_addon = True
+        elif loc and loc in seen_drop_locations:
+            is_addon = True
+        elif bool(o.get("is_batch_addon") or o.get("isBatchAddon")):
+            is_addon = True
+        elif o.get("is_primary_batch_order") is False:
+            is_addon = True
+        else:
+            is_addon = False
+
+        if batch_id:
+            seen_batches.add(batch_id)
+        if loc:
+            seen_drop_locations.add(loc)
+
+        payout = calculate_rider_payout(
+            subtotal=subtotal,
+            is_batch_addon=is_addon,
+            is_night_surge=is_night_surge,
+            tip=tip,
+        )
+        base_wage = round(payout - tip, 2)
+        total_wages += base_wage
+        total_tips += tip
+
+        order_payouts.append({
+            "order_id": str(o.get("_id") or o.get("id") or ""),
+            "is_base_order": not is_addon,
+            "is_batch_addon": is_addon,
+            "is_addon": is_addon,
+            "base_wage": base_wage,
+            "tip": tip,
+            "total_payout": payout,
+            "wage_label": "Base guaranteed run fee" if not is_addon else f"Batch add-on drop (+₹{int(RIDER_BATCH_ADDON_PAYOUT)})",
+        })
+
+    return {
+        "total_wages": round(total_wages, 2),
+        "total_tips": round(total_tips, 2),
+        "total_payout": round(total_wages + total_tips, 2),
+        "order_payouts": order_payouts,
+    }
+
+
 def get_calibrated_app_price(counter_price: float) -> int:
     """Returns calibrated menu price ensuring 100% canteen payout post 18% commission."""
     return math.ceil(counter_price / (1.0 - COMMISSION_RATE))

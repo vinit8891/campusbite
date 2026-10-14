@@ -333,12 +333,117 @@ async def test_delivery_dashboard_stats_aggregates_batch_wages():
         assert stats["cash_reconciliation"]["total_cod_collected"] == 270.00
         # Net Cash Due = 270 - 34 = ₹236.00
         assert stats["net_cash_due"] == 236.00
+        assert stats["cash_reconciliation"]["net_balance"] == 236.00
+        assert stats["cash_reconciliation"]["courier_dues_to_platform"] == 236.00
+        assert stats["cash_reconciliation"]["platform_payout_to_courier"] == 0.0
+        assert stats["cash_reconciliation"]["payout_status"] == "Remittance Due"
         assert stats["is_locked"] is False
+
+
+@pytest.mark.asyncio
+async def test_delivery_dashboard_stats_online_prepaid_reconciliation():
+    """Verifies that when orders are Online Pre-paid (Cash = 0), net_balance is negative,
+    meaning CampusBite owes courier (platform_payout_to_courier = abs(net_balance)) with
+    Pending Disbursement status."""
+    courier_phone = "9876500099"
+    batch_cluster_id = "BATCH_HOSTEL_PREPAID_10"
+
+    # 2 Delivered online pre-paid orders (Cash = 0) sharing the same batch/hostel
+    delivered_orders = [
+        {
+            "_id": ObjectId(),
+            "status": "Delivered",
+            "batch_id": batch_cluster_id,
+            "total": 180.0,
+            "payment_method": "Online Payment",
+            "payment_status": "PAID",
+            "delivery_location": {"building": "Hostel 5"},
+            "delivery_partner": {"phone": courier_phone, "accepted_at": datetime.now(UTC)},
+            "created_at": datetime.now(UTC),
+            "delivered_at": datetime.now(UTC),
+        },
+        {
+            "_id": ObjectId(),
+            "status": "Delivered",
+            "batch_id": batch_cluster_id,
+            "total": 120.0,
+            "payment_method": "Online",
+            "payment_status": "PAID",
+            "delivery_location": {"building": "Hostel 5"},
+            "delivery_partner": {"phone": courier_phone, "accepted_at": datetime.now(UTC)},
+            "created_at": datetime.now(UTC),
+            "delivered_at": datetime.now(UTC),
+        },
+    ]
+
+    mock_db = MagicMock()
+    mock_orders_collection = MagicMock()
+    mock_orders_collection.find = lambda query: MagicMock(sort=lambda field, order: MockAsyncCursor(delivered_orders))
+    mock_db["orders"] = mock_orders_collection
+    mock_db["delivery_partners"].find_one = AsyncMock(return_value={"phone": courier_phone, "total_remitted": 0.0})
+
+    with patch("app.routes.delivery_dashboard.database", mock_db), \
+         patch("app.routes.delivery_dashboard.orders", mock_orders_collection):
+
+        from app.routes.delivery_dashboard import delivery_stats
+        user_context = {"phone": courier_phone, "role": DELIVERY_PARTNER}
+        stats = await delivery_stats(phone=courier_phone, current_user=user_context)
+
+        assert stats["completed"] == 2
+        # Drop 1 gets ₹20, Drop 2 (same hostel/batch) gets ₹14 -> Total Wages = ₹34.00
+        assert stats["earnings"] == 34.00
+        # Online pre-paid -> ₹0 cash collected
+        assert stats["cash_in_hand"] == 0.0
+        assert stats["cash_reconciliation"]["total_cod_collected"] == 0.0
+        # net_balance = 0 - 34 = -34.00
+        assert stats["cash_reconciliation"]["net_balance"] == -34.00
+        # Platform owes courier ₹34.00
+        assert stats["cash_reconciliation"]["platform_payout_to_courier"] == 34.00
+        assert stats["cash_reconciliation"]["courier_dues_to_platform"] == 0.0
+        assert stats["cash_reconciliation"]["payout_status"] == "Pending Disbursement"
+        assert stats["net_cash_due"] == 0.0
+        assert stats["is_locked"] is False
+
+
+def test_calculate_active_run_wages_batch_addons():
+    """Verifies that calculate_active_run_wages computes first order as Base (₹20) and
+    subsequent orders to the same drop location as Batch Add-ons (₹14)."""
+    from app.payments.amounts import calculate_active_run_wages
+
+    orders = [
+        {
+            "_id": "order-1",
+            "batch_id": "BATCH-RUN-1",
+            "delivery_location": {"building": "Hostel 7", "block": "B"},
+            "food_subtotal": 120.0,
+            "tip_amount": 10.0,
+        },
+        {
+            "_id": "order-2",
+            "batch_id": "BATCH-RUN-1",
+            "delivery_location": {"building": "Hostel 7", "block": "B"},
+            "food_subtotal": 90.0,
+            "tip_amount": 0.0,
+        },
+    ]
+
+    res = calculate_active_run_wages(orders)
+    # Order 1: ₹20 base + ₹10 tip = ₹30 payout (₹20 wage)
+    # Order 2: ₹14 addon + ₹0 tip = ₹14 payout (₹14 wage)
+    # Total wages: ₹34.00, Total tips: ₹10.00, Total payout: ₹44.00
+    assert res["total_wages"] == 34.00
+    assert res["total_tips"] == 10.00
+    assert res["total_payout"] == 44.00
+    assert res["order_payouts"][0]["is_addon"] is False
+    assert res["order_payouts"][0]["base_wage"] == 20.00
+    assert res["order_payouts"][1]["is_addon"] is True
+    assert res["order_payouts"][1]["base_wage"] == 14.00
 
 
 # ==============================================================================
 # Scenario 5: Admin Financial Analytics & Delivery Pool Reconciliation
 # ==============================================================================
+
 
 @pytest.mark.asyncio
 async def test_admin_financial_analytics_and_pool_reconciliation():

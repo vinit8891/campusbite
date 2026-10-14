@@ -3,6 +3,7 @@ import {
   calculateOrderPricing,
   calculateRiderPayout,
   calculateBatchRiderEarnings,
+  calculateActiveRunWages,
   MIN_DELIVERY_SUBTOTAL,
   SMALL_CART_THRESHOLD,
   PLATFORM_FEE_STANDARD,
@@ -297,5 +298,37 @@ describe("orderPricing and pricingEngine thresholds & calculations", () => {
       // 3 drops with 1 large cart (+₹5), night surge (+₹10), and ₹20 tips: 48 + 5 + 10 + 20 = ₹83.00
       expect(calculateBatchRiderEarnings(3, 20.0, 1, true)).toBe(83.00);
     });
+
+    it("calculates active run wages ensuring first order is Base (₹20) and subsequent orders to same drop location are Batch Add-ons (₹14)", () => {
+      const orders = [
+        {
+          _id: "order-1",
+          batch_id: "BATCH-101",
+          delivery_location: { building: "Hostel 3", block: "A" },
+          food_subtotal: 100,
+          tip_amount: 5,
+        },
+        {
+          _id: "order-2",
+          batch_id: "BATCH-101",
+          delivery_location: { building: "Hostel 3", block: "A" },
+          food_subtotal: 80,
+          tip_amount: 0,
+        },
+      ];
+
+      const result = calculateActiveRunWages(orders);
+      // Order 1: ₹20 base + ₹5 tip = ₹25.00 (wage = 20)
+      // Order 2: ₹14 addon + ₹0 tip = ₹14.00 (wage = 14)
+      // Total wages = ₹34.00, total tips = ₹5.00, total payout = ₹39.00
+      expect(result.total_wages).toBe(34.00);
+      expect(result.total_tips).toBe(5.00);
+      expect(result.total_payout).toBe(39.00);
+      expect(result.order_payouts[0].is_addon).toBe(false);
+      expect(result.order_payouts[0].base_wage).toBe(20.00);
+      expect(result.order_payouts[1].is_addon).toBe(true);
+      expect(result.order_payouts[1].base_wage).toBe(14.00);
+    });
   });
 });
+

@@ -77,6 +77,120 @@ export function calculateBatchRiderEarnings(
   return Number((wages + Math.max(0, totalTips)).toFixed(2));
 }
 
+export interface ActiveRunOrderPayout {
+  order_id?: string;
+  is_base_order: boolean;
+  is_batch_addon: boolean;
+  is_addon: boolean;
+  base_wage: number;
+  tip: number;
+  total_payout: number;
+  wage_label: string;
+}
+
+/**
+ * Calculates wages for orders in an active run:
+ * - First order is computed as the Base order (₹20.00 base guaranteed run fee)
+ * - Subsequent orders to the same drop location / batch are computed as Batch Add-ons (₹14.00)
+ */
+export function calculateActiveRunWages(
+  orders: Array<{
+    _id?: string;
+    id?: string;
+    batch_id?: string;
+    delivery_location?: { building?: string };
+    hostel_block?: string;
+    delivery_address?: string;
+    address?: string;
+    food_subtotal?: number;
+    subtotal?: number;
+    total?: number;
+    tip_amount?: number;
+    tip?: number;
+    is_batch_addon?: boolean;
+    isBatchAddon?: boolean;
+    is_primary_batch_order?: boolean;
+    courier_earning?: number;
+  }>
+): {
+  total_wages: number;
+  total_tips: number;
+  total_payout: number;
+  order_payouts: ActiveRunOrderPayout[];
+} {
+  if (!orders || orders.length === 0) {
+    return { total_wages: 0, total_tips: 0, total_payout: 0, order_payouts: [] };
+  }
+
+  const seenDropLocations = new Set<string>();
+  const seenBatches = new Set<string>();
+  const orderPayouts: ActiveRunOrderPayout[] = [];
+  let totalWages = 0;
+  let totalTips = 0;
+
+  for (let idx = 0; idx < orders.length; idx++) {
+    const o = orders[idx];
+    const bId = String(o.batch_id || "").trim();
+    const loc = String(
+      o.delivery_location?.building ||
+        o.hostel_block ||
+        o.delivery_address ||
+        o.address ||
+        ""
+    )
+      .toLowerCase()
+      .trim();
+
+    let isAddon = false;
+    if (idx === 0) {
+      isAddon = false;
+    } else if (bId && seenBatches.has(bId)) {
+      isAddon = true;
+    } else if (loc && seenDropLocations.has(loc)) {
+      isAddon = true;
+    } else if (Boolean(o.is_batch_addon || o.isBatchAddon)) {
+      isAddon = true;
+    } else if (o.is_primary_batch_order === false) {
+      isAddon = true;
+    } else {
+      isAddon = false;
+    }
+
+    if (bId) seenBatches.add(bId);
+    if (loc) seenDropLocations.add(loc);
+
+    const tip = Math.max(0, Number(o.tip_amount ?? o.tip ?? 0));
+    const subtotal = Number(o.food_subtotal ?? o.subtotal ?? o.total ?? 0);
+    const base = isAddon ? RIDER_BATCH_ADDON_PAYOUT : RIDER_BASE_PAYOUT;
+    const heavyBonus = !isAddon && subtotal >= LARGE_CART_THRESHOLD ? LARGE_CART_RIDER_BONUS : 0;
+    const baseWage = Number((base + heavyBonus).toFixed(2));
+    const totalPayout = o.courier_earning !== undefined && Number(o.courier_earning) > 0
+      ? Number(o.courier_earning)
+      : Number((baseWage + tip).toFixed(2));
+
+    totalWages += baseWage;
+    totalTips += tip;
+
+    orderPayouts.push({
+      order_id: o._id || o.id,
+      is_base_order: !isAddon,
+      is_batch_addon: isAddon,
+      is_addon: isAddon,
+      base_wage: baseWage,
+      tip,
+      total_payout: totalPayout,
+      wage_label: !isAddon ? "Base guaranteed run fee" : `Batch add-on drop (+₹${RIDER_BATCH_ADDON_PAYOUT.toFixed(0)})`,
+    });
+  }
+
+  return {
+    total_wages: Number(totalWages.toFixed(2)),
+    total_tips: Number(totalTips.toFixed(2)),
+    total_payout: Number((totalWages + totalTips).toFixed(2)),
+    order_payouts: orderPayouts,
+  };
+}
+
 export type DeliveryType =
   | "delivery"
   | "takeaway"
@@ -236,3 +350,5 @@ export function calculateOrderPricing(
     net_platform_profit,
   };
 }
+
+

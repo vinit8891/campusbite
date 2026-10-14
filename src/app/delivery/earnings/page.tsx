@@ -85,15 +85,25 @@ export default function DeliveryEarningsPage() {
             if (wages === 12.75 || (typeof wages === "number" && (wages % 1 === 0.75 || wages % 1 === 0.25))) {
               wages = Math.max(1, currentCih.completed_deliveries || 1) * RIDER_BASE_PAYOUT;
             }
-            const net =
-              stats.net_cash_due !== undefined && stats.net_cash_due !== 131.25
-                ? Math.max(0, stats.net_cash_due)
-                : Math.max(0, Number((cash - wages).toFixed(2)));
+            const netBal = stats.net_balance !== undefined
+              ? stats.net_balance
+              : Number((cash - wages).toFixed(2));
+            const dues = stats.courier_dues_to_platform !== undefined
+              ? stats.courier_dues_to_platform
+              : Math.max(0, netBal);
+            const payout = stats.platform_payout_to_courier !== undefined
+              ? stats.platform_payout_to_courier
+              : (netBal < 0 ? Math.abs(netBal) : 0);
 
             setCih({
               cash_in_hand: cash,
               total_payout_earned: wages,
-              net_cash_due: net,
+              net_cash_due: dues,
+              net_balance: netBal,
+              courier_dues_to_platform: dues,
+              platform_payout_to_courier: payout,
+              payout_status: stats.payout_status,
+              total_cash_collected_cod: stats.total_cash_collected_cod ?? currentCih.total_cod_collected,
               total_cod_collected: currentCih.total_cod_collected,
               total_remitted: currentCih.total_remitted,
               completed_deliveries: currentCih.completed_deliveries,
@@ -171,30 +181,54 @@ export default function DeliveryEarningsPage() {
 
   let computedWages = 0;
   const seenBatches = new Set<string>();
-  for (const o of completedOrders) {
+  const seenDropLocations = new Set<string>();
+  for (let idx = 0; idx < completedOrders.length; idx++) {
+    const o = completedOrders[idx];
     const tip = Math.max(0, Number(o.tip_amount ?? o.tip ?? 0));
     let isAddon = Boolean(o.is_batch_addon || o.isBatchAddon);
     const bId = String(o.batch_id || "").trim();
-    if (bId) {
-      if (seenBatches.has(bId)) isAddon = true;
-      else seenBatches.add(bId);
+    const dropLoc = String(
+      (o.delivery_location as { building?: string } | undefined)?.building ||
+      (o as { hostel_block?: string }).hostel_block ||
+      (o as { delivery_address?: string }).delivery_address ||
+      o.address ||
+      ""
+    ).toLowerCase().trim();
+
+    if (idx === 0 && !o.is_batch_addon && !o.isBatchAddon) {
+      isAddon = false;
+    } else if (bId && seenBatches.has(bId)) {
+      isAddon = true;
+    } else if (dropLoc && seenDropLocations.has(dropLoc)) {
+      isAddon = true;
+    } else if (Boolean(o.is_batch_addon || o.isBatchAddon)) {
+      isAddon = true;
+    } else if (o.is_primary_batch_order === false) {
+      isAddon = true;
+    } else {
+      isAddon = false;
     }
+
+    if (bId) seenBatches.add(bId);
+    if (dropLoc) seenDropLocations.add(dropLoc);
     const baseWage = isAddon ? RIDER_BATCH_ADDON_PAYOUT : RIDER_BASE_PAYOUT;
     const payout = o.calculated_payout !== undefined && o.calculated_payout > 0 ? o.calculated_payout : baseWage + tip;
     computedWages += payout;
   }
 
-  const earnedWagesDeducted = completedOrders.length > 0
+  const totalEarnedWages = completedOrders.length > 0
     ? Number(computedWages.toFixed(2))
     : Number((cih.total_payout_earned || (completedCount * RIDER_BASE_PAYOUT) + totalTips).toFixed(2));
 
   const collectedCash = cih.cash_in_hand > 0 ? cih.cash_in_hand : (cih.total_cod_collected || 0);
   const totalRemitted = cih.total_remitted || 0;
-  const netCashDue = Math.max(0, Number((collectedCash - earnedWagesDeducted - totalRemitted).toFixed(2)));
-
-  const isDuesPending = netCashDue > 0;
+  const netBalance = Number((collectedCash - totalRemitted - totalEarnedWages).toFixed(2));
+  const courierDuesToPlatform = Math.max(0, netBalance);
+  const platformPayoutToCourier = netBalance < 0 ? Math.abs(netBalance) : 0;
+  const isCourierOwed = platformPayoutToCourier > 0;
+  const isDuesPending = courierDuesToPlatform > 0;
   const totalCompletedCount = completedOrders.length > 0 ? completedOrders.length : completedCount;
-  const totalFlatPayouts = earnedWagesDeducted;
+  const totalFlatPayouts = totalEarnedWages;
 
   return (
     <div className="flex min-h-screen bg-stone-50/70 text-stone-900 font-sans">
@@ -308,7 +342,7 @@ export default function DeliveryEarningsPage() {
                     ₹{totalFlatPayouts.toFixed(2)}
                   </p>
                   <p className="mt-1 text-xs text-stone-500">
-                    ₹20 base + ₹10 batch add-ons + customer tips
+                    ₹20 base + ₹{RIDER_BATCH_ADDON_PAYOUT.toFixed(0)} batch add-ons + customer tips
                   </p>
                 </div>
 
@@ -325,17 +359,25 @@ export default function DeliveryEarningsPage() {
                     <span
                       suppressHydrationWarning
                       className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-black uppercase tracking-wider ${
-                        isDuesPending
+                        isCourierOwed
+                          ? "bg-blue-100 text-blue-800"
+                          : isDuesPending
                           ? "bg-amber-100 text-amber-800"
                           : "bg-emerald-100 text-emerald-800"
                       }`}
                     >
                       <span className="h-2 w-2 rounded-full bg-current" />
-                      {isDuesPending ? "Dues Active" : "100% Reconciled"}
+                      {isCourierOwed
+                        ? "Pending Disbursement"
+                        : isDuesPending
+                        ? "Dues Active"
+                        : "100% Reconciled"}
                     </span>
                   </div>
                   <p className="mt-1 text-xs text-stone-500">
-                    {isDuesPending
+                    {isCourierOwed
+                      ? `Payout Receivable: ₹${platformPayoutToCourier.toFixed(2)}`
+                      : isDuesPending
                       ? "COD Remittance pending"
                       : "Zero outstanding dues"}
                   </p>
@@ -350,7 +392,7 @@ export default function DeliveryEarningsPage() {
                       Fulfilled Deliveries &amp; Wage Log
                     </h3>
                     <p className="text-xs sm:text-sm text-stone-500">
-                      Itemized breakdown of customer payments and your ₹20 base / ₹10 add-on wages
+                      Itemized breakdown of customer payments and your ₹20 base / ₹{RIDER_BATCH_ADDON_PAYOUT.toFixed(0)} add-on wages
                     </p>
                   </div>
 
@@ -427,7 +469,7 @@ export default function DeliveryEarningsPage() {
                             order.calculated_payout !== undefined && order.calculated_payout > 0
                               ? order.calculated_payout
                               : basePayout + tip;
-                          const wageLabel = isAddon ? "Batch Add-on: ₹10.00" : "Base Run: ₹20.00";
+                          const wageLabel = isAddon ? `Batch Add-on: ₹${RIDER_BATCH_ADDON_PAYOUT.toFixed(2)}` : `Base Run: ₹${RIDER_BASE_PAYOUT.toFixed(2)}`;
 
                           return (
                             <tr

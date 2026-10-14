@@ -216,13 +216,24 @@ export function DeliveryCashReconciliation({
     }
   }
 
-  const isDuesPending = cih.net_cash_due > 0;
+  const netBalance = cih.net_balance !== undefined
+    ? cih.net_balance
+    : Number(((cih.total_cod_collected ?? cih.cash_in_hand) - (cih.total_remitted || 0) - cih.total_payout_earned).toFixed(2));
+  const courierDuesToPlatform = cih.courier_dues_to_platform !== undefined
+    ? cih.courier_dues_to_platform
+    : Math.max(0, netBalance);
+  const platformPayoutToCourier = cih.platform_payout_to_courier !== undefined
+    ? cih.platform_payout_to_courier
+    : (netBalance < 0 ? Math.abs(netBalance) : 0);
+  const isCourierOwed = platformPayoutToCourier > 0;
+  const isDuesPending = courierDuesToPlatform > 0;
+
   const courier = {
     cash_collected: cih.cash_in_hand,
     wages_earned: cih.total_payout_earned,
     bonus_earned: (cih as any).bonus_earned ?? 0,
     unlocked_tier: (cih as any).unlocked_tier ?? "Milestone Tier",
-    net_due_amount: cih.net_cash_due,
+    net_due_amount: courierDuesToPlatform,
   };
   const currentRemitNum = parseFloat(remitAmount || "0");
   const upiQrAmount = isNaN(currentRemitNum) ? "0.00" : currentRemitNum.toFixed(2);
@@ -254,10 +265,22 @@ export function DeliveryCashReconciliation({
             </div>
 
             <h2 className="mt-2.5 text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white flex items-center gap-3">
-              {isDuesPending ? (
+              {isCourierOwed ? (
+                <>
+                  <span className="text-emerald-400">
+                    ₹{platformPayoutToCourier.toFixed(2)}
+                  </span>
+                  <span className="text-base sm:text-xl font-bold text-stone-300">
+                    Payout Receivable
+                  </span>
+                  <span className="rounded-full bg-emerald-500/20 px-3 py-1 text-xs font-bold text-emerald-300 border border-emerald-500/40">
+                    Pending Disbursement
+                  </span>
+                </>
+              ) : isDuesPending ? (
                 <>
                   <span className="text-amber-400">
-                    ₹{cih.net_cash_due.toFixed(2)}
+                    ₹{courierDuesToPlatform.toFixed(2)}
                   </span>
                   <span className="text-base sm:text-xl font-bold text-stone-300">
                     Net Cash Due to CampusBite
@@ -274,21 +297,25 @@ export function DeliveryCashReconciliation({
             </h2>
 
             <p className="mt-1.5 text-xs sm:text-sm text-stone-300 max-w-xl">
-              {isDuesPending
-                ? "You have collected customer cash on COD deliveries. Your earned ₹20 delivery wages are already deducted from the cash total."
+              {isCourierOwed
+                ? `CampusBite owes you ₹${platformPayoutToCourier.toFixed(2)} for delivered online pre-paid orders. Payout is in status Pending Disbursement.`
+                : isDuesPending
+                ? "You have collected customer cash on COD deliveries. Your earned delivery wages are already deducted from the cash total."
                 : "Your collected customer cash is completely balanced with your earned delivery wages. Your account is 100% in good standing."}
             </p>
           </div>
 
           <div className="flex flex-wrap items-center gap-3">
-            {/* Remit Dues Action Button (Always available for viewing UPI QR and settling dues) */}
-            <button
-              onClick={handleOpenRemitModal}
-              className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 px-5 sm:px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-orange-600/30 transition hover:from-orange-600 hover:to-orange-700 active:scale-98 cursor-pointer"
-            >
-              <QrCode className="h-5 w-5" />
-              Remit Dues via UPI ⚡
-            </button>
+            {/* Remit Dues Action Button: ONLY shown when courier has dues to platform (> 0) */}
+            {isDuesPending && (
+              <button
+                onClick={handleOpenRemitModal}
+                className="inline-flex items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-orange-500 to-orange-600 px-5 sm:px-6 py-3.5 text-sm font-black text-white shadow-lg shadow-orange-600/30 transition hover:from-orange-600 hover:to-orange-700 active:scale-98 cursor-pointer"
+              >
+                <QrCode className="h-5 w-5" />
+                Remit Dues via UPI ⚡
+              </button>
+            )}
 
             {/* Refresh Button */}
             <button
@@ -344,17 +371,21 @@ export function DeliveryCashReconciliation({
           </div>
         </div>
 
-        {/* Card 2: Earned Wages (Deducted) */}
-        <div className="p-4 sm:p-5 flex items-start gap-4 bg-white md:bg-transparent rounded-2xl md:rounded-none shadow-xs md:shadow-none mb-3 md:mb-0">
+        {/* Card 2: Total Earned Wages */}
+        <div
+          data-testid="card-2-earned-wages"
+          aria-label={`TOTAL EARNED WAGES: +₹${cih.total_payout_earned.toFixed(2)}`}
+          className="p-4 sm:p-5 flex items-start gap-4 bg-white md:bg-transparent rounded-2xl md:rounded-none shadow-xs md:shadow-none mb-3 md:mb-0"
+        >
           <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-emerald-100 text-emerald-800 shadow-xs">
             <ArrowUpRight className="h-6 w-6" />
           </div>
           <div>
             <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-stone-500">
-              Card 2: Earned Wages (Deducted)
+              Card 2: Total Earned Wages
             </span>
             <p className="mt-1 text-2xl sm:text-3xl font-black text-emerald-700">
-              -₹{cih.total_payout_earned.toFixed(2)}
+              +₹{cih.total_payout_earned.toFixed(2)}
             </p>
             <p className="mt-1 text-xs text-stone-500">
               ₹{RIDER_BASE_PAYOUT.toFixed(0)} base / ₹{RIDER_BATCH_ADDON_PAYOUT.toFixed(0)} batch drop wage + customer tips
@@ -362,16 +393,20 @@ export function DeliveryCashReconciliation({
           </div>
         </div>
 
-        {/* Card 3: Net Cash Due to CampusBite */}
+        {/* Card 3: Net Cash Due to CampusBite / Payout Receivable */}
         <div className="p-4 sm:p-5 flex items-start gap-4 bg-white md:bg-transparent rounded-2xl md:rounded-none shadow-xs md:shadow-none">
           <div
             className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl shadow-xs ${
-              isDuesPending
+              isCourierOwed
+                ? "bg-emerald-100 text-emerald-800"
+                : isDuesPending
                 ? "bg-rose-100 text-rose-800"
                 : "bg-teal-100 text-teal-800"
             }`}
           >
-            {isDuesPending ? (
+            {isCourierOwed ? (
+              <CheckCircle2 className="h-6 w-6" />
+            ) : isDuesPending ? (
               <AlertTriangle className="h-6 w-6" />
             ) : (
               <CheckCircle2 className="h-6 w-6" />
@@ -379,17 +414,25 @@ export function DeliveryCashReconciliation({
           </div>
           <div>
             <span className="text-[11px] sm:text-xs font-bold uppercase tracking-wider text-stone-500">
-              Card 3: Net Cash Due to CampusBite
+              {isCourierOwed ? "Card 3: Payout Receivable" : "Card 3: Net Cash Due to CampusBite"}
             </span>
             <p
               className={`mt-1 text-2xl sm:text-3xl font-black ${
-                isDuesPending ? "text-rose-700" : "text-teal-700"
+                isCourierOwed
+                  ? "text-emerald-700"
+                  : isDuesPending
+                  ? "text-rose-700"
+                  : "text-teal-700"
               }`}
             >
-              ₹{cih.net_cash_due.toFixed(2)}
+              {isCourierOwed
+                ? `₹${platformPayoutToCourier.toFixed(2)}`
+                : `₹${courierDuesToPlatform.toFixed(2)}`}
             </p>
             <p className="mt-1 text-xs text-stone-500">
-              {isDuesPending
+              {isCourierOwed
+                ? "Status: Pending Disbursement (CampusBite payout to courier)"
+                : isDuesPending
                 ? "Settle dues via UPI QR code before next payout cycle"
                 : "All collected cash is fully settled & reconciled"}
             </p>

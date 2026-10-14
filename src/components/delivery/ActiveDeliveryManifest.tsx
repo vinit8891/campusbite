@@ -293,8 +293,10 @@ export function ActiveDeliveryManifest({
     : "Assigned";
   const assignedAtTime = effectiveOrder.assigned_at || effectiveOrder.created_at;
 
-  // Resolve earning: fallback to ₹20.00 for the primary/first active order
-  const isFirstBatchOrder = index === 0 || effectiveOrder?.is_primary_batch_order !== false;
+  // Resolve earning: first order in active run is Base order (₹20.00), subsequent orders are Batch Add-ons (+₹14.00)
+  const isFirstBatchOrder = effectiveOrder?.is_primary_batch_order !== undefined
+    ? Boolean(effectiveOrder.is_primary_batch_order)
+    : (index === undefined ? true : index === 0);
   const earningAmount = effectiveOrder?.courier_earning 
     ? Number(effectiveOrder.courier_earning) 
     : (isFirstBatchOrder ? 20.00 : 14.00);

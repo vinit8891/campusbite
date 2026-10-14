@@ -97,4 +97,77 @@ describe("DeliveryCashReconciliation", () => {
       expect(dispatchSpy).toHaveBeenCalledWith(expect.any(Event));
     });
   });
+
+  it("when orders are Online Pre-paid (Cash = ₹0) and wages > 0, shows Payout Receivable, Pending Disbursement, and hides Remit Dues button", async () => {
+    localStorage.setItem(
+      "cb_cih_default",
+      JSON.stringify({
+        total_cod_collected: 0,
+        total_payout_earned: 28,
+        net_cash_due: 0,
+        completed_deliveries: 2,
+        net_balance: -28,
+        platform_payout_to_courier: 28,
+        courier_dues_to_platform: 0,
+        payout_status: "Pending Disbursement",
+      })
+    );
+
+    render(<DeliveryCashReconciliation />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Cash-In-Hand \(CIH\) Reconciliation/i)
+      ).toBeInTheDocument();
+    });
+
+    // Card 2 must display TOTAL EARNED WAGES: +₹28.00
+    expect(screen.getByLabelText("TOTAL EARNED WAGES: +₹28.00")).toBeInTheDocument();
+    expect(screen.getByText("+₹28.00")).toBeInTheDocument();
+    expect(screen.getByText(/Total Earned Wages/i)).toBeInTheDocument();
+
+    // Must show Payout Receivable, ₹28.00, and Pending Disbursement
+    expect(screen.getAllByText(/Payout Receivable/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("₹28.00").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText(/Pending Disbursement/i).length).toBeGreaterThanOrEqual(1);
+
+    // Must NOT show Remit Dues via UPI button
+    expect(screen.queryByRole("button", { name: /remit dues via upi/i })).not.toBeInTheDocument();
+  });
+
+  it("when orders are COD and courier owes platform, shows Remit Dues via UPI button and Net Cash Due", async () => {
+    localStorage.setItem(
+      "cb_cih_default",
+      JSON.stringify({
+        total_cod_collected: 100,
+        total_payout_earned: 28,
+        net_cash_due: 72,
+        completed_deliveries: 2,
+        net_balance: 72,
+        platform_payout_to_courier: 0,
+        courier_dues_to_platform: 72,
+        payout_status: "Dues Pending",
+      })
+    );
+
+    render(<DeliveryCashReconciliation />);
+
+    await waitFor(() => {
+      expect(
+        screen.getByText(/Cash-In-Hand \(CIH\) Reconciliation/i)
+      ).toBeInTheDocument();
+    });
+
+    // Card 2 shows +₹28.00
+    expect(screen.getByLabelText("TOTAL EARNED WAGES: +₹28.00")).toBeInTheDocument();
+    expect(screen.getByText("+₹28.00")).toBeInTheDocument();
+
+    // Must show Net Cash Due and ₹72.00
+    expect(screen.getAllByText(/Net Cash Due to CampusBite/i).length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("₹72.00").length).toBeGreaterThanOrEqual(1);
+
+    // Must show Remit Dues via UPI button
+    expect(screen.getByRole("button", { name: /remit dues via upi/i })).toBeInTheDocument();
+  });
 });
+

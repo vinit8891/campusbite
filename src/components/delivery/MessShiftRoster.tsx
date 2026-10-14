@@ -178,7 +178,7 @@ export function MessShiftRoster({
               Hostel Mess Wave Shift Roster
             </h2>
             <p className="text-xs text-amber-100 max-w-xl">
-              Claim lunch and dinner lobby batches ahead of time. Earn guaranteed ₹20 base + ₹10 per order add-on per hostel block.
+              Claim lunch and dinner lobby batches ahead of time. Earn guaranteed ₹20 base + ₹14 per order add-on per hostel block.
             </p>
           </div>
 
@@ -187,7 +187,7 @@ export function MessShiftRoster({
               ₹20
             </div>
             <div>
-              <span className="text-xs font-black block">+ ₹10/Order Add-On</span>
+              <span className="text-xs font-black block">+ ₹14/Order Add-On</span>
               <span className="text-[10px] text-amber-200 block">
                 Up to ₹60 – ₹100 per 20-min wave
               </span>

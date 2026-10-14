@@ -37,6 +37,13 @@ export type RiderCashReconciliation = {
   cash_in_hand: number;
   total_payout_earned: number;
   net_cash_due: number;
+  net_balance?: number;
+  courier_dues_to_platform?: number;
+  platform_payout_to_courier?: number;
+  payout_status?: string;
+  total_cash_collected_cod?: number;
+  earned_wages?: number;
+  rider_tips?: number;
   total_cod_collected?: number;
   total_remitted?: number;
   completed_deliveries?: number;
@@ -202,6 +209,11 @@ export type DeliveryDashboardStats = {
   cash_in_hand?: number;
   total_payout_earned?: number;
   net_cash_due?: number;
+  net_balance?: number;
+  courier_dues_to_platform?: number;
+  platform_payout_to_courier?: number;
+  payout_status?: string;
+  total_cash_collected_cod?: number;
   isLocked?: boolean;
   is_locked?: boolean;
   lockout_reason?: string;

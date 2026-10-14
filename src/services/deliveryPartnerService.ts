@@ -73,6 +73,11 @@ function getStoredDeliveredOrders(phone?: string): Array<{
   isBatchAddon?: boolean;
   batch_id?: string;
   calculated_payout?: number;
+  delivery_location?: { building?: string };
+  hostel_block?: string;
+  delivery_address?: string;
+  address?: string;
+  is_primary_batch_order?: boolean;
 }> {
   if (typeof window === "undefined") return [];
   const list: Array<{
@@ -87,6 +92,11 @@ function getStoredDeliveredOrders(phone?: string): Array<{
     isBatchAddon?: boolean;
     batch_id?: string;
     calculated_payout?: number;
+    delivery_location?: { building?: string };
+    hostel_block?: string;
+    delivery_address?: string;
+    address?: string;
+    is_primary_batch_order?: boolean;
   }> = [];
   const seenIds = new Set<string>();
 
@@ -169,20 +179,39 @@ export function getRiderCashReconciliation(phone?: string): RiderCashReconciliat
 
   if (completedOrders.length > 0) {
     completedCount = completedOrders.length;
-    // Track batch IDs to award ₹20 to primary drop and ₹10 to subsequent drops in the same batch
+    // Track batch IDs and drop locations to award ₹20 to primary drop and ₹14 to subsequent drops in the same batch / location
     const seenBatches = new Set<string>();
+    const seenDropLocations = new Set<string>();
     let totalWages = 0;
-    for (const o of completedOrders) {
+    for (let idx = 0; idx < completedOrders.length; idx++) {
+      const o = completedOrders[idx];
       const tip = Math.max(0, Number(o.tip_amount ?? o.tip ?? 0));
       let isAddon = Boolean(o.is_batch_addon || o.isBatchAddon);
       const bId = String(o.batch_id || "").trim();
-      if (bId) {
-        if (seenBatches.has(bId)) {
-          isAddon = true;
-        } else {
-          seenBatches.add(bId);
-        }
+      const dropLoc = String(
+        o.delivery_location?.building ||
+        o.hostel_block ||
+        o.delivery_address ||
+        o.address ||
+        ""
+      ).toLowerCase().trim();
+
+      if (idx === 0 && !o.is_batch_addon && !o.isBatchAddon) {
+        isAddon = false;
+      } else if (bId && seenBatches.has(bId)) {
+        isAddon = true;
+      } else if (dropLoc && seenDropLocations.has(dropLoc)) {
+        isAddon = true;
+      } else if (Boolean(o.is_batch_addon || o.isBatchAddon)) {
+        isAddon = true;
+      } else if (o.is_primary_batch_order === false) {
+        isAddon = true;
+      } else {
+        isAddon = false;
       }
+
+      if (bId) seenBatches.add(bId);
+      if (dropLoc) seenDropLocations.add(dropLoc);
       const wage = isAddon ? RIDER_BATCH_ADDON_PAYOUT : RIDER_BASE_PAYOUT;
       totalWages += (o.calculated_payout !== undefined && o.calculated_payout > 0 ? o.calculated_payout : wage + tip);
     }
@@ -219,24 +248,33 @@ export function getRiderCashReconciliation(phone?: string): RiderCashReconciliat
     Number((total_cod_collected - total_remitted).toFixed(2))
   );
 
-  // Recompute canonical net dues (e.g. 144 - 20 = 124.00)
-  const canonicalNetDue = Math.max(
-    0,
-    Number((total_cod_collected - canonicalPayoutEarned - total_remitted).toFixed(2))
-  );
+  // Net balance: net_balance = total_cash_collected_cod - (earned_wages + rider_tips)
+  const net_balance = Number((total_cod_collected - total_remitted - canonicalPayoutEarned).toFixed(2));
+  const courier_dues_to_platform = Math.max(0, net_balance);
+  const platform_payout_to_courier = net_balance < 0 ? Math.abs(net_balance) : 0;
+  const payout_status = platform_payout_to_courier > 0
+    ? "Pending Disbursement"
+    : courier_dues_to_platform > 0
+    ? "Action Required"
+    : "Settled";
 
-  const isLocked = canonicalNetDue >= MAX_UNREMITTED_CASH_LIMIT;
+  const isLocked = courier_dues_to_platform >= MAX_UNREMITTED_CASH_LIMIT;
   const lockout_reason = isLocked
     ? "Cash-in-Hand limit of ₹500 exceeded. Remit pending cash via UPI to unlock order claiming."
     : undefined;
   const excess_amount = isLocked
-    ? Math.max(0, Number((canonicalNetDue - MAX_UNREMITTED_CASH_LIMIT).toFixed(2)))
+    ? Math.max(0, Number((courier_dues_to_platform - MAX_UNREMITTED_CASH_LIMIT).toFixed(2)))
     : 0;
 
   const updatedRecon: RiderCashReconciliation = {
     cash_in_hand,
     total_payout_earned: canonicalPayoutEarned,
-    net_cash_due: canonicalNetDue,
+    net_cash_due: courier_dues_to_platform,
+    net_balance,
+    courier_dues_to_platform,
+    platform_payout_to_courier,
+    payout_status,
+    total_cash_collected_cod: total_cod_collected,
     total_cod_collected,
     total_remitted,
     completed_deliveries: completedCount,

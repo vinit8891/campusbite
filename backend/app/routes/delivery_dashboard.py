@@ -92,6 +92,8 @@ async def delivery_stats(
     pending = 0
     completed = 0
     earnings = 0.0
+    earned_wages = 0.0
+    rider_tips = 0.0
     total_cod_collected = 0.0
 
     assigned_orders = 0
@@ -107,6 +109,7 @@ async def delivery_stats(
     week_start = _start_of_week_utc()
     month_start = _start_of_month_utc()
     seen_batch_ids: set[str] = set()
+    seen_drop_locations: set[str] = set()
 
     async for order in partner_orders:
 
@@ -133,18 +136,33 @@ async def delivery_stats(
                 or order.get("tip")
                 or 0.0
             )
+            rider_tips += round(tip_amount, 2)
 
             batch_id = str(order.get("batch_id") or "").strip()
+            drop_loc = str(
+                (order.get("delivery_location") or {}).get("building")
+                or order.get("hostel_block")
+                or order.get("delivery_address")
+                or order.get("address")
+                or ""
+            ).lower().strip()
+
             is_batch_addon = bool(
                 order.get("is_batch_addon")
                 or order.get("isBatchAddon")
                 or pricing_breakdown.get("is_batch_addon")
             )
+            if batch_id and batch_id in seen_batch_ids:
+                is_batch_addon = True
+            elif drop_loc and drop_loc in seen_drop_locations:
+                is_batch_addon = True
+            elif order.get("is_primary_batch_order") is False:
+                is_batch_addon = True
+
             if batch_id:
-                if batch_id in seen_batch_ids:
-                    is_batch_addon = True
-                else:
-                    seen_batch_ids.add(batch_id)
+                seen_batch_ids.add(batch_id)
+            if drop_loc:
+                seen_drop_locations.add(drop_loc)
 
             subtotal = float(
                 order.get("food_subtotal")
@@ -166,6 +184,7 @@ async def delivery_stats(
                 )
 
             earnings += round(earning, 2)
+            earned_wages += round(earning - tip_amount, 2)
 
             pm = str(order.get("payment_method") or "").lower().strip()
             if "cod" in pm or "cash" in pm:
@@ -200,16 +219,36 @@ async def delivery_stats(
     )
 
     earnings = round(earnings, 2)
+    earned_wages = round(earned_wages, 2)
+    rider_tips = round(rider_tips, 2)
     total_cod_collected = round(total_cod_collected, 2)
-    net_cash_due = max(0.0, round(total_cod_collected - earnings - total_remitted, 2))
+    total_remitted = round(total_remitted, 2)
+
+    # Net balance calculation: net_balance = total_cash_collected_cod - (earned_wages + rider_tips)
+    net_balance = round((total_cod_collected - total_remitted) - (earned_wages + rider_tips), 2)
+
+    if net_balance < 0:
+        platform_payout_to_courier = round(abs(net_balance), 2)
+        courier_dues_to_platform = 0.0
+        payout_status = "Pending Disbursement"
+    elif net_balance > 0:
+        platform_payout_to_courier = 0.0
+        courier_dues_to_platform = round(net_balance, 2)
+        payout_status = "Remittance Due"
+    else:
+        platform_payout_to_courier = 0.0
+        courier_dues_to_platform = 0.0
+        payout_status = "Settled"
+
+    net_cash_due = courier_dues_to_platform
     unremitted_cod_balance = max(0.0, round(total_cod_collected - total_remitted, 2))
-    is_locked = net_cash_due >= MAX_UNREMITTED_CASH_LIMIT
+    is_locked = courier_dues_to_platform >= MAX_UNREMITTED_CASH_LIMIT
     lockout_reason = (
         f"Cash-in-Hand limit of ₹{int(MAX_UNREMITTED_CASH_LIMIT)} exceeded. Remit pending cash via UPI to unlock order claiming."
         if is_locked
         else None
     )
-    excess_amount = max(0.0, round(net_cash_due - MAX_UNREMITTED_CASH_LIMIT, 2))
+    excess_amount = max(0.0, round(courier_dues_to_platform - MAX_UNREMITTED_CASH_LIMIT, 2))
 
     result = {
         # Legacy fields (unchanged)
@@ -220,7 +259,13 @@ async def delivery_stats(
         "rating": 4.9,
         "cash_in_hand": total_cod_collected,
         "total_payout_earned": earnings,
-        "earned_wages": earnings,
+        "earned_wages": earned_wages,
+        "rider_tips": rider_tips,
+        "net_balance": net_balance,
+        "courier_dues_to_platform": courier_dues_to_platform,
+        "platform_payout_to_courier": platform_payout_to_courier,
+        "payout_status": payout_status,
+        "total_cash_collected_cod": total_cod_collected,
         "net_cash_due": net_cash_due,
         "unremitted_cod_balance": unremitted_cod_balance,
         "is_locked": is_locked,
@@ -230,7 +275,14 @@ async def delivery_stats(
         "max_limit": MAX_UNREMITTED_CASH_LIMIT,
         "cash_reconciliation": {
             "total_cod_collected": total_cod_collected,
+            "total_cash_collected_cod": total_cod_collected,
             "total_payout_earned": earnings,
+            "earned_wages": earned_wages,
+            "rider_tips": rider_tips,
+            "net_balance": net_balance,
+            "courier_dues_to_platform": courier_dues_to_platform,
+            "platform_payout_to_courier": platform_payout_to_courier,
+            "payout_status": payout_status,
             "net_cash_due": net_cash_due,
             "completed_deliveries": completed,
             "isLocked": is_locked,
