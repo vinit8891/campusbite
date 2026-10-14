@@ -34,12 +34,17 @@ export function loadRazorpayScript(): Promise<boolean> {
   if (window.Razorpay) return Promise.resolve(true);
 
   return new Promise((resolve) => {
-    const existing = document.querySelector(
-      'script[data-campusbite-razorpay="1"]'
+    const existing = document.querySelector<HTMLScriptElement>(
+      'script[data-campusbite-razorpay="1"], script[src*="checkout.razorpay.com"]'
     );
     if (existing) {
-      existing.addEventListener("load", () => resolve(true));
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      existing.addEventListener("load", () => resolve(Boolean(window.Razorpay)));
       existing.addEventListener("error", () => resolve(false));
+      setTimeout(() => resolve(Boolean(window.Razorpay)), 1500);
       return;
     }
 
@@ -47,7 +52,7 @@ export function loadRazorpayScript(): Promise<boolean> {
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.async = true;
     script.dataset.campusbiteRazorpay = "1";
-    script.onload = () => resolve(true);
+    script.onload = () => resolve(Boolean(window.Razorpay));
     script.onerror = () => resolve(false);
     document.body.appendChild(script);
   });

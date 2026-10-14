@@ -46,12 +46,17 @@ export function loadRazorpayScript(): Promise<boolean> {
   if (window.Razorpay) return Promise.resolve(true);
 
   return new Promise((resolve) => {
-    const existing = document.querySelector(
-      'script[data-campusbite-razorpay="1"]'
+    const existing = document.querySelector<HTMLScriptElement>(
+      'script[data-campusbite-razorpay="1"], script[src*="checkout.razorpay.com"]'
     );
     if (existing) {
-      existing.addEventListener("load", () => resolve(true));
+      if (window.Razorpay) {
+        resolve(true);
+        return;
+      }
+      existing.addEventListener("load", () => resolve(Boolean(window.Razorpay)));
       existing.addEventListener("error", () => resolve(false));
+      setTimeout(() => resolve(Boolean(window.Razorpay)), 1500);
       return;
     }
 
@@ -59,7 +64,7 @@ export function loadRazorpayScript(): Promise<boolean> {
     script.src = "https://checkout.razorpay.com/v1/checkout.js";
     script.async = true;
     script.dataset.campusbiteRazorpay = "1";
-    script.onload = () => resolve(true);
+    script.onload = () => resolve(Boolean(window.Razorpay));
     script.onerror = () => resolve(false);
     document.body.appendChild(script);
   });
@@ -125,21 +130,26 @@ export async function openRazorpayCheckout(args: OpenCheckoutArgs & {
     },
   };
 
-  const rzp = new window.Razorpay(options);
+  try {
+    const rzp = new window.Razorpay(options);
 
-  rzp.on("payment.failed", (response: unknown) => {
-    const reason =
-      typeof response === "object" &&
-      response &&
-      "error" in response &&
-      typeof (response as { error?: { description?: string } }).error
-        ?.description === "string"
-        ? (response as { error: { description: string } }).error.description
-        : "payment_failed";
-    args.onFailure?.(reason);
-  });
+    rzp.on("payment.failed", (response: unknown) => {
+      const reason =
+        typeof response === "object" &&
+        response &&
+        "error" in response &&
+        typeof (response as { error?: { description?: string } }).error
+          ?.description === "string"
+          ? (response as { error: { description: string } }).error.description
+          : "payment_failed";
+      args.onFailure?.(reason);
+    });
 
-  rzp.open();
+    rzp.open();
+  } catch (err) {
+    args.onDismiss?.();
+    throw err;
+  }
 }
 
 export type UpiIntentOptions = {
@@ -147,27 +157,25 @@ export type UpiIntentOptions = {
   orderId: string;
   vpa?: string;
   payeeName?: string;
-  app?: "generic" | "phonepe" | "gpay" | "paytm";
+  app?: "generic" | "upi";
 };
 
 /**
- * Builds a valid UPI intent URI (e.g. phonepe://pay?... or upi://pay?...).
+ * Builds a standard UPI URI (upi://pay?...).
+ * Manual paytmmp:// and phonepe:// schemes are removed in favor of
+ * Razorpay's native checkout modal.
  */
 export function buildUpiIntentUrl({
   amount,
   orderId,
   vpa = CAMPUSBITE_DEFAULT_UPI_ID,
   payeeName = "CampusBite Operations",
-  app = "generic",
 }: UpiIntentOptions): string {
   const encPayee = encodeURIComponent(payeeName);
   const encNote = encodeURIComponent(`CB-Order-${orderId.slice(-6).toUpperCase()}`);
   const amt = amount.toFixed(2);
   const upiParams = `pa=${vpa}&pn=${encPayee}&am=${amt}&cu=INR&tn=${encNote}`;
 
-  if (app === "phonepe") {
-    return `phonepe://pay?${upiParams}`;
-  }
   return `upi://pay?${upiParams}`;
 }
 
@@ -179,35 +187,20 @@ export type TriggerCheckoutArgs = OpenCheckoutArgs & {
 };
 
 export type TriggerCheckoutResult = {
-  mode: "mobile_intent" | "razorpay_modal" | "desktop_qr_modal";
+  mode: "razorpay_modal";
   intentUrl?: string;
 };
 
 /**
- * Handles mobile UPI intent links vs desktop PC browser fallback:
- * - On mobile devices (Android/iOS): continues opening the UPI app intent link.
- * - On desktop/PC browsers: launches standard Razorpay checkout modal (`new Razorpay(options).open()`)
- *   or renders a scannable UPI QR code modal so desktop users can scan it with their phone
- *   instead of failing with "scheme does not have a registered handler".
+ * Uses Razorpay's native checkout.js popup:
+ * - Call `new window.Razorpay(options).open()`.
+ * - On Desktop: Razorpay will natively display the UPI QR code for scanning.
+ * - On Mobile: Razorpay will natively present the installed UPI app options.
+ * No custom intent redirections or paytmmp:// / phonepe:// schemes.
  */
 export async function triggerUpiOrRazorpayCheckout(
   args: TriggerCheckoutArgs
 ): Promise<TriggerCheckoutResult> {
-  const isMobile = isMobileDevice(args.customUserAgent);
-
-  if (isMobile && args.upiIntentUrl) {
-    if (typeof window !== "undefined") {
-      window.location.href = args.upiIntentUrl;
-    }
-    return { mode: "mobile_intent", intentUrl: args.upiIntentUrl };
-  }
-
-  // Desktop or fallback request
-  if (!isMobile && args.onFallbackToDesktopModal) {
-    args.onFallbackToDesktopModal();
-    return { mode: "desktop_qr_modal" };
-  }
-
   await openRazorpayCheckout(args);
   return { mode: "razorpay_modal" };
 }

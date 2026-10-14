@@ -172,14 +172,15 @@ describe("openRazorpayCheckout", () => {
 });
 
 describe("buildUpiIntentUrl", () => {
-  it("generates valid phonepe:// intent URL with correct VPA, amount, and note", () => {
+  it("generates standard upi:// intent URL with correct VPA, amount, and note without phonepe:// or paytmmp:// schemes", () => {
     const url = buildUpiIntentUrl({
       amount: 146.5,
       orderId: "660c112233445566778899aa",
-      app: "phonepe",
     });
 
-    expect(url).toMatch(/^phonepe:\/\/pay\?/);
+    expect(url).toMatch(/^upi:\/\/pay\?/);
+    expect(url).not.toContain("phonepe://");
+    expect(url).not.toContain("paytmmp://");
     expect(url).toContain(`pa=${CAMPUSBITE_DEFAULT_UPI_ID}`);
     expect(url).toContain("am=146.50");
     expect(url).toContain("cu=INR");
@@ -199,7 +200,7 @@ describe("buildUpiIntentUrl", () => {
   });
 });
 
-describe("triggerUpiOrRazorpayCheckout (Mobile intent vs Desktop fallback)", () => {
+describe("triggerUpiOrRazorpayCheckout (Native Razorpay modal across devices)", () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     delete (window as unknown as { Razorpay?: unknown }).Razorpay;
@@ -214,11 +215,21 @@ describe("triggerUpiOrRazorpayCheckout (Mobile intent vs Desktop fallback)", () 
     payment_status: "pending",
   };
 
-  it("on mobile devices: opens direct UPI app intent link", async () => {
+  it("on mobile devices: opens native Razorpay modal instead of custom phonepe:// or paytmmp:// intent redirections", async () => {
     const mobileUserAgent =
       "Mozilla/5.0 (Linux; Android 13; SM-S918B) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Mobile Safari/537.36";
 
-    const intentUrl = "phonepe://pay?pa=campusbite.ops@okaxis&am=120.90&cu=INR";
+    let capturedOptions: any = null;
+    const mockOpen = vi.fn();
+    class MockRazorpay {
+      open = mockOpen;
+      on = vi.fn();
+      constructor(options: any) {
+        capturedOptions = options;
+      }
+    }
+    (window as unknown as { Razorpay?: unknown }).Razorpay = MockRazorpay;
+
     const onSuccess = vi.fn();
     const onDismiss = vi.fn();
 
@@ -226,17 +237,19 @@ describe("triggerUpiOrRazorpayCheckout (Mobile intent vs Desktop fallback)", () 
       keyId: "rzp_test_12345",
       payment: samplePayment,
       customerName: "Mobile User",
-      upiIntentUrl: intentUrl,
       customUserAgent: mobileUserAgent,
       onSuccess,
       onDismiss,
     });
 
-    expect(result.mode).toBe("mobile_intent");
-    expect(result.intentUrl).toBe(intentUrl);
+    expect(result.mode).toBe("razorpay_modal");
+    expect(mockOpen).toHaveBeenCalled();
+    expect(capturedOptions.order_id).toBe("rzp_order_456");
+    expect(capturedOptions.key).toBe("rzp_test_12345");
+    expect(capturedOptions.amount).toBe(12090);
   });
 
-  it("on desktop/PC browsers: avoids opening raw phonepe:// scheme and falls back to standard Razorpay modal", async () => {
+  it("on desktop/PC browsers: avoids opening raw phonepe:// scheme and opens native Razorpay modal", async () => {
     const desktopUserAgent =
       "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36";
 
@@ -251,14 +264,12 @@ describe("triggerUpiOrRazorpayCheckout (Mobile intent vs Desktop fallback)", () 
     }
     (window as unknown as { Razorpay?: unknown }).Razorpay = MockRazorpay;
 
-    const intentUrl = "phonepe://pay?pa=campusbite.ops@okaxis&am=120.90&cu=INR";
     const onDismiss = vi.fn();
 
     const result = await triggerUpiOrRazorpayCheckout({
       keyId: "rzp_test_12345",
       payment: samplePayment,
       customerName: "Desktop User",
-      upiIntentUrl: intentUrl,
       customUserAgent: desktopUserAgent,
       onSuccess: vi.fn(),
       onDismiss,
@@ -267,32 +278,11 @@ describe("triggerUpiOrRazorpayCheckout (Mobile intent vs Desktop fallback)", () 
     expect(result.mode).toBe("razorpay_modal");
     expect(mockOpen).toHaveBeenCalled();
     expect(capturedOptions.order_id).toBe("rzp_order_456");
+    expect(capturedOptions.amount).toBe(12090);
 
     // Test dismissal invokes onDismiss callback cleanly
     capturedOptions.modal.ondismiss();
     expect(onDismiss).toHaveBeenCalled();
-  });
-
-  it("on desktop/PC browsers: invokes onFallbackToDesktopModal when provided", async () => {
-    const desktopUserAgent =
-      "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/116.0.0.0 Safari/537.36";
-
-    const onFallbackToDesktopModal = vi.fn();
-    const intentUrl = "phonepe://pay?pa=campusbite.ops@okaxis&am=120.90&cu=INR";
-
-    const result = await triggerUpiOrRazorpayCheckout({
-      keyId: "rzp_test_12345",
-      payment: samplePayment,
-      customerName: "Desktop Mac User",
-      upiIntentUrl: intentUrl,
-      customUserAgent: desktopUserAgent,
-      onFallbackToDesktopModal,
-      onSuccess: vi.fn(),
-      onDismiss: vi.fn(),
-    });
-
-    expect(result.mode).toBe("desktop_qr_modal");
-    expect(onFallbackToDesktopModal).toHaveBeenCalled();
   });
 });
 
