@@ -968,24 +968,61 @@ async def get_courier_settlements_breakdown(
             ),
             2,
         )
-        # Calculate wages accurately: ₹20 for primary drops + ₹14 for bundled drops
-        wages_earned = round(
+        # Calculate base wages vs tips and bonuses accurately
+        base_wages = round(
             sum(
                 float(o.get("courier_earning", 20.0)) for o in matching
             ),
             2,
         )
+        tips_earned = round(
+            sum(
+                float(
+                    (o.get("pricing_breakdown") or {}).get("tip_amount")
+                    or o.get("tip_amount")
+                    or o.get("tip")
+                    or 0.0
+                )
+                for o in matching
+            ),
+            2,
+        )
+        bonus_earned = round(
+            sum(
+                float(o.get("bonus") or o.get("bonus_amount") or 0.0)
+                for o in matching
+            ),
+            2,
+        )
+        wages_earned = round(base_wages + tips_earned + bonus_earned, 2)
         net_cash_due = max(0.0, round(cod_collected - wages_earned, 2))
 
         # Check partner's recorded live values if matching orders is 0
-        if orders_completed == 0 and float(partner.get("cash_in_hand") or 0.0) > 0:
+        if orders_completed == 0 and (float(partner.get("cash_in_hand") or 0.0) > 0 or float(partner.get("total_payout_earned") or 0.0) > 0):
             cod_collected = float(partner.get("cash_in_hand") or 0.0)
             wages_earned = float(partner.get("total_payout_earned") or 0.0)
+            base_wages = float(partner.get("base_wages") or wages_earned)
+            tips_earned = float(partner.get("tips_earned") or partner.get("rider_tips") or 0.0)
+            bonus_earned = float(partner.get("bonus_earned") or 0.0)
             net_cash_due = float(
                 partner.get("net_cash_due")
                 if partner.get("net_cash_due") is not None
                 else max(0.0, cod_collected - wages_earned)
             )
+
+        courier_dues_to_platform = net_cash_due
+        platform_dues_to_courier = max(0.0, round(wages_earned - cod_collected, 2))
+        p_upi = str(
+            partner.get("payout_upi_id")
+            or partner.get("settlement_upi_id")
+            or partner.get("upi_id")
+            or partner.get("vpa")
+            or (f"{p_phone}@ybl" if p_phone else "")
+        ).strip()
+        wage_payout_status = partner.get("wage_payout_status") or (
+            "DISBURSED" if partner.get("wage_disbursed_at") else ("PENDING" if (courier_dues_to_platform == 0 and wages_earned > 0) else "CLEAR")
+        )
+        wage_disbursed_utr = str(partner.get("wage_disbursed_utr") or "")
 
         is_locked = bool(partner.get("is_locked")) if partner.get("is_locked") is not None else (net_cash_due >= 500.0)
         if is_locked:
@@ -1009,6 +1046,14 @@ async def get_courier_settlements_breakdown(
             "orders_completed": orders_completed,
             "cod_collected": cod_collected,
             "wages_earned": wages_earned,
+            "base_wages": base_wages,
+            "tips_earned": tips_earned,
+            "bonus_earned": bonus_earned,
+            "upi_id": p_upi,
+            "courier_dues_to_platform": courier_dues_to_platform,
+            "platform_dues_to_courier": platform_dues_to_courier,
+            "wage_payout_status": wage_payout_status,
+            "wage_disbursed_utr": wage_disbursed_utr,
             "net_cash_due_to_admin": net_cash_due,
             "is_locked": is_locked,
             "status": status,
@@ -1118,6 +1163,77 @@ async def acknowledge_courier_settlement_remittance(
         "message": f"Remittance of ₹{remit_amount:.2f} acknowledged for {partner_doc.get('name')}",
         "net_cash_due": round(new_due, 2),
         "is_locked": is_locked,
+    }
+
+
+@router.post("/settlements/couriers/{courier_id}/clear-wage-payout")
+@router.post("/settlements/couriers/{courier_id}/disburse-wages")
+async def clear_courier_wage_payout(
+    courier_id: str,
+    current_user: Annotated[dict, Depends(require_roles(ADMIN))],
+    payload: dict | None = None,
+):
+    """
+    Admin clears courier wage payout / records disbursal UTR when platform owes wages.
+    """
+    from datetime import datetime as dt, timezone as dt_tz
+    admin_email = (
+        current_user.get("email") or current_user.get("sub") or "admin@campusbite.in"
+    ).strip().lower()
+
+    payload = payload or {}
+    query = _id_filter(courier_id)
+    partner_doc = await database["delivery_partners"].find_one(query)
+    if not partner_doc:
+        partner_doc = await database["delivery_partners"].find_one({"phone": courier_id})
+
+    if not partner_doc:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Courier partner not found",
+        )
+
+    amount = float(payload.get("amount") or payload.get("wages_earned") or 0.0)
+    utr = str(payload.get("utr") or payload.get("transaction_ref") or f"WAGE/{dt.now().strftime('%Y%m%d%H%M%S')}")
+    disbursed_at = dt.now(dt_tz.utc).isoformat()
+
+    await database["delivery_partners"].update_one(
+        {"_id": partner_doc["_id"]},
+        {
+            "$set": {
+                "wage_payout_status": "DISBURSED",
+                "wage_disbursed_utr": utr,
+                "wage_disbursed_at": disbursed_at,
+                "wage_disbursed_amount": amount,
+            }
+        },
+    )
+
+    disbursal_record = {
+        "rider_id": str(partner_doc["_id"]),
+        "rider_name": partner_doc.get("name") or "",
+        "rider_phone": partner_doc.get("phone") or "",
+        "amount": amount,
+        "utr": utr,
+        "disbursed_by": admin_email,
+        "disbursed_at": disbursed_at,
+        "status": "DISBURSED",
+    }
+    await database["courier_wage_disbursals"].insert_one(disbursal_record)
+
+    await log_admin_action(
+        admin_email=admin_email,
+        action="clear_courier_wage_payout",
+        resource="delivery_partners",
+        resource_id=str(partner_doc["_id"]),
+        metadata={"amount": amount, "utr": utr, "rider_id": str(partner_doc["_id"])},
+    )
+
+    return {
+        "success": True,
+        "message": f"Wage payout of ₹{amount:.2f} disbursed for {partner_doc.get('name')} (UTR: {utr})",
+        "wage_payout_status": "DISBURSED",
+        "wage_disbursed_utr": utr,
     }
 
 

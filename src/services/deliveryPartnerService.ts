@@ -1,5 +1,7 @@
 import { authJson } from "@/services/authFetch";
 import { getDeliveryPartnerSession } from "@/lib/authTokens";
+import { removeInMemoryOrder } from "@/lib/inMemoryOrders";
+import { toast } from "sonner";
 import {
   RIDER_BASE_PAYOUT,
   RIDER_BATCH_ADDON_PAYOUT,
@@ -593,6 +595,113 @@ export async function getDeliveryStats(phone: string) {
       is_active: getDeliveryPartnerSession()?.is_active,
       is_on_duty: getDeliveryPartnerSession()?.is_on_duty,
     };
+  }
+}
+
+/**
+ * Checks if an error corresponds to a 404 (Not Found) or missing order.
+ */
+export function isOrderNotFoundError(err: unknown): boolean {
+  if (!err) return false;
+  if (typeof err === "object" && err !== null) {
+    const status =
+      (err as { status?: number; statusCode?: number }).status ??
+      (err as { statusCode?: number }).statusCode;
+    if (status === 404) return true;
+    const msg = String((err as { message?: string }).message || "").toLowerCase();
+    if (msg.includes("404") || msg.includes("not found")) return true;
+  }
+  return false;
+}
+
+/**
+ * Immediately purges any ghost active run from localStorage and in-memory caches,
+ * displays an admin removal toast, dispatches synchronization events,
+ * and routes the courier cleanly to Available Runs (/courier/runs).
+ */
+export function purgeGhostActiveRun(orderId?: string): void {
+  if (typeof window === "undefined") return;
+
+  try {
+    const keysToPurge = [
+      "active_run",
+      "active_runs",
+      "cb_active_run",
+      "cb_active_runs",
+      "cb_courier_active_runs",
+      "cb_active_order",
+      "cb_active_order_id",
+      "cb_last_order",
+      "cb_courier_orders",
+      "cb_active_orders",
+    ];
+    for (const k of keysToPurge) {
+      localStorage.removeItem(k);
+      sessionStorage.removeItem(k);
+    }
+
+    const partner = JSON.parse(
+      localStorage.getItem("cb_delivery_partner") || "null"
+    );
+    const phone = partner?.phone;
+    if (phone) {
+      const phoneKey = `cb_my_deliveries_${phone}`;
+      const raw = localStorage.getItem(phoneKey);
+      if (raw) {
+        try {
+          const list = JSON.parse(raw);
+          if (Array.isArray(list)) {
+            const filtered = orderId
+              ? list.filter((o: { _id?: string; id?: string }) => (o._id || o.id) !== orderId)
+              : [];
+            localStorage.setItem(phoneKey, JSON.stringify(filtered));
+          }
+        } catch {}
+      }
+    }
+
+    const globalRaw = localStorage.getItem("cb_accepted_deliveries");
+    if (globalRaw) {
+      try {
+        const list = JSON.parse(globalRaw);
+        if (Array.isArray(list)) {
+          const filtered = orderId
+            ? list.filter((o: { _id?: string; id?: string }) => (o._id || o.id) !== orderId)
+            : [];
+          localStorage.setItem("cb_accepted_deliveries", JSON.stringify(filtered));
+        }
+      } catch {}
+    }
+
+    for (const orderKey of ["cb_orders", "orders"]) {
+      const raw = localStorage.getItem(orderKey);
+      if (raw) {
+        try {
+          const list = JSON.parse(raw);
+          if (Array.isArray(list) && orderId) {
+            const filtered = list.filter((o: { _id?: string; id?: string }) => (o._id || o.id) !== orderId);
+            localStorage.setItem(orderKey, JSON.stringify(filtered));
+          }
+        } catch {}
+      }
+    }
+
+    if (orderId) {
+      removeInMemoryOrder(orderId);
+    }
+
+    toast.error("This order was removed or cancelled by Admin.");
+    window.dispatchEvent(new Event("delivery_state_changed"));
+    window.dispatchEvent(
+      new CustomEvent("order_purged", { detail: { orderId } })
+    );
+
+    // Route cleanly to Available Runs tab
+    setTimeout(() => {
+      window.location.href = "/courier/runs";
+    }, 350);
+  } catch (e) {
+    console.error("Failed to purge ghost active run:", e);
   }
 }
 

@@ -69,7 +69,7 @@ describe("Footer Component", () => {
     );
     expect(screen.getByRole("link", { name: /email help desk/i })).toHaveAttribute(
       "href",
-      "mailto:support@campusbite.in"
+      "mailto:campusbites.co.in@gmail.com"
     );
     expect(screen.getByRole("link", { name: /terms of service/i })).toHaveAttribute(
       "href",
@@ -91,13 +91,16 @@ describe("Footer Component", () => {
     );
     expect(screen.getByText(/zeal college campus network/i)).toBeInTheDocument();
 
+    // Founder & Leadership
+    expect(screen.getByText(/Founder & CEO: Vinit Awathare/i)).toBeInTheDocument();
+
     // Bottom Bar
     expect(
       screen.getByText(/© 2026 CampusBite Technologies\. Built for campus communities\./i)
     ).toBeInTheDocument();
     expect(
-      screen.getByText(/100% Encrypted UPI • FSSAI Verified/i)
-    ).toBeInTheDocument();
+      screen.getAllByText(/Verified Campus Food Aggregator \| Zeal Institutes Narhe Campus/i).length
+    ).toBeGreaterThanOrEqual(1);
   });
 
   it("unmounts/hides completely on /checkout route for a distraction-free funnel", () => {

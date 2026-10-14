@@ -32,17 +32,15 @@ export function MyDeliveryCard({
 
   function handleCopyUpi() {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText("campusbite.ops@okaxis");
+      navigator.clipboard.writeText("9404125117-2@ybl");
       setCopiedUpi(true);
       toast.success("CampusBite UPI ID copied to clipboard!");
       setTimeout(() => setCopiedUpi(false), 2000);
     }
   }
 
-  const upiUri = `upi://pay?pa=campusbite.ops@okaxis&pn=CampusBite%20Operations&am=${orderTotal}&cu=INR&tn=CB-Order-${orderIdSuffix}`;
-  const upiQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
-    upiUri
-  )}`;
+  const upiUri = `upi://pay?pa=9404125117-2@ybl&pn=Vinit%20Gurudeo%20Awathare&am=${orderTotal}&cu=INR&tn=CB-Order-${orderIdSuffix}`;
+  const upiQrUrl = "/images/campusbite-upi-qr.jpg";
 
   // Resolve earning: first order in active run is Base order (₹20.00), subsequent orders are Batch Add-ons (+₹14.00)
   const isFirstBatchOrder = order?.is_primary_batch_order !== undefined
@@ -176,7 +174,10 @@ export function MyDeliveryCard({
                   CampusBite Official UPI ID
                 </span>
                 <span className="font-mono text-xs sm:text-sm font-black text-stone-900 truncate block">
-                  campusbite.ops@okaxis
+                  9404125117-2@ybl
+                </span>
+                <span className="text-[11px] font-semibold text-stone-600 block">
+                  Payee: Vinit Gurudeo Awathare
                 </span>
               </div>
 
@@ -194,7 +195,7 @@ export function MyDeliveryCard({
                   ) : (
                     <>
                       <Copy className="h-3.5 w-3.5" />
-                      <span>📋 Copy UPI ID (campusbite.ops@okaxis)</span>
+                      <span>📋 Copy UPI ID (9404125117-2@ybl)</span>
                     </>
                   )}
                 </button>

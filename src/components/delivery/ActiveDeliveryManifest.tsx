@@ -33,7 +33,11 @@ import {
   verifyDeliveryOTP,
   getStatusProgressionRank,
 } from "@/services/deliveryService";
-import { recordDeliveredOrderCash } from "@/services/deliveryPartnerService";
+import {
+  recordDeliveredOrderCash,
+  isOrderNotFoundError,
+  purgeGhostActiveRun,
+} from "@/services/deliveryPartnerService";
 import { useCourierLocationStream } from "@/hooks/useCourierLocationStream";
 import type { DeliveryOrder } from "@/types";
 
@@ -67,7 +71,7 @@ export function ActiveDeliveryManifest({
 
   function handleCopyUpi() {
     if (typeof navigator !== "undefined" && navigator.clipboard) {
-      navigator.clipboard.writeText("campusbite.ops@okaxis");
+      navigator.clipboard.writeText("9404125117-2@ybl");
       setCopiedUpi(true);
       toast.success("CampusBite UPI ID copied to clipboard!");
       setTimeout(() => setCopiedUpi(false), 2000);
@@ -211,6 +215,10 @@ export function ActiveDeliveryManifest({
         setIsSubmitting(true);
         await updateStatus(orderId, "Out for Delivery");
       } catch (err) {
+        if (isOrderNotFoundError(err)) {
+          purgeGhostActiveRun(orderId);
+          return;
+        }
         console.debug("Background pickup update handled silently:", err);
       } finally {
         setIsSubmitting(false);
@@ -255,6 +263,10 @@ export function ActiveDeliveryManifest({
 
       toast.success("Delivery completed & verified successfully! 🎉");
     } catch (err: unknown) {
+      if (isOrderNotFoundError(err)) {
+        purgeGhostActiveRun(orderId);
+        return;
+      }
       setInlineOtpError(
         err instanceof Error ? err.message : "Invalid OTP code. Please retry."
       );
@@ -608,19 +620,11 @@ export function ActiveDeliveryManifest({
               <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 py-1">
                 <div className="bg-stone-50 p-2.5 rounded-2xl border border-stone-200 shadow-inner shrink-0">
                   <img
-                    src={`https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
-                      `upi://pay?pa=campusbite.ops@okaxis&pn=CampusBite%20Operations&am=${
-                        effectiveOrder.total ?? 0
-                      }&cu=INR&tn=CB-Order-${(
-                        effectiveOrder._id || (effectiveOrder as { id?: string }).id || ""
-                      ).slice(-6)}`
-                    )}`}
-                    alt={`UPI QR Code for CampusBite Order ${(
-                      effectiveOrder._id || (effectiveOrder as { id?: string }).id || ""
-                    ).slice(-6)}`}
+                    src="/images/campusbite-upi-qr.jpg"
+                    alt="CampusBite PhonePe UPI QR Code"
                     width={150}
                     height={150}
-                    className="rounded-xl"
+                    className="rounded-xl object-contain max-h-[150px] max-w-[150px]"
                   />
                 </div>
 
@@ -630,7 +634,10 @@ export function ActiveDeliveryManifest({
                       Official Payment VPA
                     </span>
                     <span className="font-mono text-xs sm:text-sm font-black text-stone-900 truncate block">
-                      campusbite.ops@okaxis
+                      9404125117-2@ybl
+                    </span>
+                    <span className="text-[11px] font-semibold text-stone-600 block">
+                      Payee: Vinit Gurudeo Awathare
                     </span>
                   </div>
 
@@ -648,7 +655,7 @@ export function ActiveDeliveryManifest({
                       ) : (
                         <>
                           <Copy className="h-3.5 w-3.5" />
-                          <span>📋 Copy UPI ID (campusbite.ops@okaxis)</span>
+                          <span>📋 Copy UPI ID (9404125117-2@ybl)</span>
                         </>
                       )}
                     </button>

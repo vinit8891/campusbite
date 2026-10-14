@@ -50,16 +50,37 @@ export default function ContactPage() {
           <div className="mt-6 rounded-2xl border border-orange-200 bg-orange-50/50 p-5">
             <div className="flex items-center gap-2 text-orange-900 font-bold text-xs uppercase tracking-wider">
               <ShieldCheck className="h-4 w-4 text-orange-600" />
-              <span>Regulatory Merchant Disclosure (RBI / Razorpay Guidelines)</span>
+              <span>Entity &amp; Leadership Disclosure</span>
             </div>
             <div className="mt-3 grid gap-3 sm:grid-cols-2 text-xs text-stone-700">
               <div>
-                <span className="font-semibold text-stone-900 block">Operating Entity Name:</span>
-                <span className="text-stone-800 font-medium">CampusBite (Zeal College Food Network)</span>
+                <span className="font-semibold text-stone-900 block">Organization:</span>
+                <span className="text-stone-800 font-medium">CampusBite — Built for Zeal College of Engineering &amp; Research, Pune</span>
               </div>
               <div>
-                <span className="font-semibold text-stone-900 block">Operating Hours:</span>
-                <span className="text-stone-800 font-medium">8:00 AM – 10:00 PM IST (Monday – Sunday)</span>
+                <span className="font-semibold text-stone-900 block">Founder &amp; CEO:</span>
+                <span className="text-stone-800 font-medium">Vinit Awathare</span>
+              </div>
+              <div>
+                <span className="font-semibold text-stone-900 block">Direct Calling Support:</span>
+                <a href="tel:9404125117" className="text-orange-600 font-bold hover:underline">+91 9404125117</a>
+              </div>
+              <div>
+                <span className="font-semibold text-stone-900 block">Customer Support WhatsApp:</span>
+                <a href="https://wa.me/919024197988" target="_blank" rel="noopener noreferrer" className="text-emerald-700 font-bold hover:underline">+91 9024197988</a>
+              </div>
+              <div>
+                <span className="font-semibold text-stone-900 block">Official Support Email:</span>
+                <a href="mailto:campusbites.co.in@gmail.com" className="text-orange-600 font-medium hover:underline">campusbites.co.in@gmail.com</a>
+              </div>
+              <div>
+                <span className="font-semibold text-stone-900 block">Official Instagram:</span>
+                <a href="https://instagram.com/campusbites.co.in" target="_blank" rel="noopener noreferrer" className="text-pink-600 font-medium hover:underline">@campusbites.co.in</a>
+              </div>
+              <div className="sm:col-span-2 pt-2 border-t border-orange-200/60">
+                <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 text-emerald-800 px-3 py-1 text-[11px] font-bold">
+                  <span>Verified Campus Food Aggregator | Zeal Institutes Narhe Campus</span>
+                </span>
               </div>
             </div>
           </div>
@@ -73,22 +94,30 @@ export default function ContactPage() {
               <div className="h-10 w-10 rounded-xl bg-orange-100 flex items-center justify-center text-orange-600 mb-4">
                 <Mail className="h-5 w-5" />
               </div>
-              <h2 className="text-base font-bold text-stone-900">Support Email</h2>
+              <h2 className="text-base font-bold text-stone-900">Email &amp; Direct Support</h2>
               <p className="mt-1 text-xs text-stone-500 leading-relaxed">
                 For order inquiries, payments, student refunds, or account support.
               </p>
               <div className="mt-4 space-y-1.5">
                 <a
-                  href="mailto:support@campusbites.co.in"
-                  className="block text-xs font-semibold text-orange-600 hover:text-orange-700 break-all"
+                  href="mailto:campusbites.co.in@gmail.com"
+                  className="block text-xs font-bold text-orange-600 hover:text-orange-700 break-all"
                 >
-                  support@campusbites.co.in
+                  campusbites.co.in@gmail.com
                 </a>
                 <a
-                  href="mailto:support@campusbite.in"
-                  className="block text-xs text-stone-600 hover:text-stone-900 break-all"
+                  href="tel:9404125117"
+                  className="block text-xs text-stone-700 font-medium hover:text-stone-900"
                 >
-                  support@campusbite.in
+                  Call: +91 9404125117
+                </a>
+                <a
+                  href="https://wa.me/919024197988"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-xs text-emerald-600 font-bold hover:text-emerald-700"
+                >
+                  WhatsApp: +91 9024197988
                 </a>
               </div>
             </div>

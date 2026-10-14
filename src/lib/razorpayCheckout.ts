@@ -3,7 +3,9 @@ import { isMobileDevice } from "@/lib/browserCapabilities";
 
 export { isMobileDevice };
 
-export const CAMPUSBITE_DEFAULT_UPI_ID = "campusbite.ops@okaxis";
+export const CAMPUSBITE_DEFAULT_UPI_ID =
+  process.env.NEXT_PUBLIC_CAMPUSBITE_OPS_VPA || "9404125117-2@ybl";
+export const CAMPUSBITE_DEFAULT_PAYEE_NAME = "Vinit Gurudeo Awathare";
 
 export type RazorpayCheckoutSuccess = {
   razorpay_order_id: string;
@@ -169,7 +171,7 @@ export function buildUpiIntentUrl({
   amount,
   orderId,
   vpa = CAMPUSBITE_DEFAULT_UPI_ID,
-  payeeName = "CampusBite Operations",
+  payeeName = CAMPUSBITE_DEFAULT_PAYEE_NAME,
 }: UpiIntentOptions): string {
   const encPayee = encodeURIComponent(payeeName);
   const encNote = encodeURIComponent(`CB-Order-${orderId.slice(-6).toUpperCase()}`);

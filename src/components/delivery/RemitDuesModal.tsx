@@ -10,8 +10,9 @@ import {
   type RiderCashReconciliation,
 } from "@/services/deliveryPartnerService";
 
-export const CAMPUSBITE_UPI_ID = "campusbite.ops@okaxis";
-export const CAMPUSBITE_UPI_NAME = "CampusBite Operations";
+export const CAMPUSBITE_UPI_ID =
+  process.env.NEXT_PUBLIC_CAMPUSBITE_OPS_VPA || "9404125117-2@ybl";
+export const CAMPUSBITE_UPI_NAME = "Vinit Gurudeo Awathare";
 
 export type CourierDueInfo = {
   cash_in_hand?: number;
@@ -174,8 +175,8 @@ export function RemitDuesModal({
 
   const vpa = CAMPUSBITE_UPI_ID;
   const cleanAmount = parseFloat(remitAmount) || 0;
-  const upiUri = `upi://pay?pa=${vpa}&pn=CampusBite%20Ops&am=${cleanAmount.toFixed(2)}&cu=INR&tn=Courier%20COD%20Remittance`;
-  const upiQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(upiUri)}`;
+  const upiUri = `upi://pay?pa=${vpa}&pn=Vinit%20Gurudeo%20Awathare&am=${cleanAmount.toFixed(2)}&cu=INR&tn=Courier%20COD%20Remittance`;
+  const upiQrUrl = "/images/campusbite-upi-qr.jpg";
 
   return (
     <div
@@ -206,7 +207,7 @@ export function RemitDuesModal({
             Remit Dues to CampusBite
           </h3>
           <p className="text-xs text-stone-500 mt-1">
-            Scan the dynamic UPI QR code or transfer directly to the official VPA to settle your collected COD cash.
+            Scan the official PhonePe UPI QR code or transfer directly to the official VPA to settle your collected COD cash.
           </p>
         </div>
 
@@ -214,11 +215,11 @@ export function RemitDuesModal({
         <div className="mt-5 flex flex-col items-center justify-center p-4 rounded-2xl bg-stone-50 border border-stone-200/80">
           <div className="bg-white p-3 rounded-xl shadow-xs border border-stone-200">
             <img
-              src={upiQrUrl}
-              alt={`UPI QR Code for ${CAMPUSBITE_UPI_ID}`}
+              src="/images/campusbite-upi-qr.jpg"
+              alt={`CampusBite PhonePe QR Code for ${CAMPUSBITE_UPI_ID}`}
               width={180}
               height={180}
-              className="rounded-lg"
+              className="rounded-lg object-contain max-h-[180px] max-w-[180px]"
             />
           </div>
 

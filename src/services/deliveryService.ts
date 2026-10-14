@@ -1,7 +1,11 @@
 import { authJson } from "@/services/authFetch";
 import { asPaginated, type Paginated } from "@/lib/pagination";
 import { withQuery } from "@/lib/formatters";
-import { getRiderCashReconciliation } from "@/services/deliveryPartnerService";
+import {
+  getRiderCashReconciliation,
+  isOrderNotFoundError,
+  purgeGhostActiveRun,
+} from "@/services/deliveryPartnerService";
 import { getInMemoryOrder, saveInMemoryOrder } from "@/lib/inMemoryOrders";
 import type {
   AvailableOrdersQuery,
@@ -656,6 +660,10 @@ export async function updateDeliveryOrderStatus(
         }
       );
     } catch (putStatusErr) {
+      if (isOrderNotFoundError(putStatusErr)) {
+        purgeGhostActiveRun(orderId);
+        throw putStatusErr;
+      }
       // Fallback A: Try PUT /orders/{order_id}/{status}
       try {
         return await authJson(
@@ -666,19 +674,35 @@ export async function updateDeliveryOrderStatus(
           }
         );
       } catch (putPathErr) {
+        if (isOrderNotFoundError(putPathErr)) {
+          purgeGhostActiveRun(orderId);
+          throw putPathErr;
+        }
         // Fallback B: Try PATCH /orders/{order_id}
-        return await authJson(
-          `/orders/${encodeURIComponent(orderId)}`,
-          {
-            role: "delivery_partner",
-            method: "PATCH",
-            body: JSON.stringify({ status }),
+        try {
+          return await authJson(
+            `/orders/${encodeURIComponent(orderId)}`,
+            {
+              role: "delivery_partner",
+              method: "PATCH",
+              body: JSON.stringify({ status }),
+            }
+          );
+        } catch (patchErr) {
+          if (isOrderNotFoundError(patchErr)) {
+            purgeGhostActiveRun(orderId);
+            throw patchErr;
           }
-        );
+          throw patchErr;
+        }
       }
     }
   } catch (err: unknown) {
-    // Silently capture 403, 404, or network errors; maintain local state progression
+    if (isOrderNotFoundError(err)) {
+      purgeGhostActiveRun(orderId);
+      throw err;
+    }
+    // Silently capture 403 or network errors; maintain local state progression
     console.debug("Backend status update handled locally:", err);
     return {
       success: true,

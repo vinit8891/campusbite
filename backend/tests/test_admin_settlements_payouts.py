@@ -217,3 +217,107 @@ async def test_mark_canteen_settlement_paid_syncs_settlements_collection():
         canteen_call_args = mock_canteen_settlements.update_one.call_args
         assert canteen_call_args[0][1]["$set"]["status"] == "paid"
         assert canteen_call_args[0][1]["$set"]["is_settled"] is True
+
+
+@pytest.mark.asyncio
+async def test_get_courier_settlements_breakdown_with_tips_and_bonus():
+    """Validates breakdown with base wages, tips, bonuses, and UPI details."""
+    from app.routers.admin import get_courier_settlements_breakdown
+
+    mock_db = {
+        "orders": AsyncMock(),
+        "delivery_partners": AsyncMock(),
+    }
+
+    mock_partners = [
+        {
+            "_id": "rider-2",
+            "name": "Sameer Joshi",
+            "phone": "9404125117",
+            "vehicle": "Hero Splendor",
+            "payout_upi_id": "9404125117-2@ybl",
+            "cash_in_hand": 0.0,
+            "total_payout_earned": 0.0,
+        }
+    ]
+    mock_orders = [
+        {
+            "_id": "ord-101",
+            "delivery_partner_id": "rider-2",
+            "status": "delivered",
+            "payment_method": "online",
+            "total_amount": 250.0,
+            "courier_earning": 20.0,
+            "tip_amount": 15.0,
+            "bonus_amount": 10.0,
+            "created_at": "2026-10-15T12:00:00Z",
+        }
+    ]
+
+    mock_db["delivery_partners"].find = lambda query: MockCursor(mock_partners)
+    mock_db["orders"].find = lambda query: MockCursor(mock_orders)
+
+    with patch("app.routers.admin.database", mock_db):
+        res = await get_courier_settlements_breakdown(
+            _={"role": "admin", "email": "admin@campusbite.in"},
+            date="2026-10-15",
+        )
+
+        assert len(res["couriers"]) == 1
+        rider = res["couriers"][0]
+        assert rider["name"] == "Sameer Joshi"
+        assert rider["base_wages"] == 20.0
+        assert rider["tips_earned"] == 15.0
+        assert rider["bonus_earned"] == 10.0
+        assert rider["wages_earned"] == 45.0
+        assert rider["cod_collected"] == 0.0
+        assert rider["courier_dues_to_platform"] == 0.0
+        assert rider["platform_dues_to_courier"] == 45.0
+        assert rider["upi_id"] == "9404125117-2@ybl"
+        assert rider["wage_payout_status"] == "PENDING"
+
+
+@pytest.mark.asyncio
+async def test_clear_courier_wage_payout():
+    """Validates clear_courier_wage_payout records UTR and marks status as DISBURSED."""
+    from app.routers.admin import clear_courier_wage_payout
+
+    mock_partners = AsyncMock()
+    mock_partners.find_one = AsyncMock(return_value={
+        "_id": "rider-2",
+        "name": "Sameer Joshi",
+        "phone": "9404125117",
+        "payout_upi_id": "9404125117-2@ybl",
+    })
+    mock_partners.update_one = AsyncMock()
+    mock_disbursals = AsyncMock()
+    mock_disbursals.insert_one = AsyncMock()
+
+    mock_db = {
+        "delivery_partners": mock_partners,
+        "courier_wage_disbursals": mock_disbursals,
+        "audit_logs": AsyncMock(),
+    }
+
+    with patch("app.routers.admin.database", mock_db):
+        res = await clear_courier_wage_payout(
+            courier_id="rider-2",
+            current_user={"role": "admin", "email": "admin@campusbite.in"},
+            payload={"amount": 45.0, "utr": "UPI/20261015/DISB123"},
+        )
+
+        assert res["success"] is True
+        assert res["wage_payout_status"] == "DISBURSED"
+        assert res["wage_disbursed_utr"] == "UPI/20261015/DISB123"
+
+        mock_partners.update_one.assert_called_once()
+        update_args = mock_partners.update_one.call_args[0][1]["$set"]
+        assert update_args["wage_payout_status"] == "DISBURSED"
+        assert update_args["wage_disbursed_utr"] == "UPI/20261015/DISB123"
+
+        mock_disbursals.insert_one.assert_called_once()
+        inserted = mock_disbursals.insert_one.call_args[0][0]
+        assert inserted["rider_id"] == "rider-2"
+        assert inserted["amount"] == 45.0
+        assert inserted["utr"] == "UPI/20261015/DISB123"
+

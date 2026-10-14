@@ -51,6 +51,27 @@ export function getInMemoryOrder(orderId: string): Order | undefined {
   return undefined;
 }
 
+export function removeInMemoryOrder(orderId: string): void {
+  if (!orderId) return;
+  const tid = String(orderId).toLowerCase().trim();
+  inMemoryOrders.delete(orderId);
+  inMemoryOrders.delete(tid);
+  for (const [key, order] of inMemoryOrders.entries()) {
+    const k = String(key).toLowerCase().trim();
+    const oid = String(order._id || order.id || "").toLowerCase().trim();
+    if (
+      k === tid ||
+      k.endsWith(tid) ||
+      oid === tid ||
+      oid.endsWith(tid) ||
+      (oid.length >= 6 && tid.includes(oid)) ||
+      (tid.length >= 6 && oid.includes(tid))
+    ) {
+      inMemoryOrders.delete(key);
+    }
+  }
+}
+
 export function getAllInMemoryOrders(): Order[] {
   // Deduplicate by _id
   const seen = new Set<string>();

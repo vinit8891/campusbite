@@ -35,6 +35,7 @@ import {
   settleAdminPayoutBatch,
   markCanteenSettlementPaidAdmin,
   acknowledgeCourierRemittanceAdmin,
+  clearCourierWagePayoutAdmin,
   toggleCourierLockAdmin,
   type CanteenSettlementItem,
   type CourierSettlementItem,
@@ -82,6 +83,11 @@ export default function AdminPayoutsPage() {
   const [remitAmount, setRemitAmount] = useState<string>("");
   const [remitUtr, setRemitUtr] = useState<string>("");
   const [isSubmittingRemit, setIsSubmittingRemit] = useState(false);
+
+  // Modal states for Courier Wage Payout Disbursal
+  const [selectedCourierForWagePayout, setSelectedCourierForWagePayout] = useState<CourierSettlementItem | null>(null);
+  const [wagePayoutUtr, setWagePayoutUtr] = useState<string>("");
+  const [isSubmittingWagePayout, setIsSubmittingWagePayout] = useState(false);
 
   const loadData = useCallback(async (dateStr: string) => {
     try {
@@ -489,6 +495,35 @@ export default function AdminPayoutsPage() {
       toast.error("Failed to acknowledge cash remittance");
     } finally {
       setIsSubmittingRemit(false);
+    }
+  };
+
+  // Courier Action: Open Wage Payout Disbursal Modal
+  const handleOpenWagePayoutModal = (courier: CourierSettlementItem) => {
+    setSelectedCourierForWagePayout(courier);
+    const dateFormatted = selectedDate.replace(/-/g, "");
+    setWagePayoutUtr(`WAGE/${dateFormatted}/${Math.floor(1000 + Math.random() * 9000)}`);
+  };
+
+  // Courier Action: Confirm Wage Payout Disbursal
+  const handleConfirmWagePayout = async () => {
+    if (!selectedCourierForWagePayout) return;
+    try {
+      setIsSubmittingWagePayout(true);
+      const amount = selectedCourierForWagePayout.platform_dues_to_courier ?? selectedCourierForWagePayout.wages_earned;
+      const utr = wagePayoutUtr.trim() || `WAGE/${Date.now()}`;
+      const res = await clearCourierWagePayoutAdmin(selectedCourierForWagePayout.id, {
+        amount,
+        utr,
+      });
+      toast.success(res.message || `Wage payout of ₹${formatINR(amount)} disbursed (UTR: ${utr}).`);
+      setSelectedCourierForWagePayout(null);
+      await loadData(selectedDate);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to clear courier wage payout");
+    } finally {
+      setIsSubmittingWagePayout(false);
     }
   };
 
@@ -1418,6 +1453,26 @@ export default function AdminPayoutsPage() {
                           </span>
                         </div>
                         <div className="text-[11px] text-zinc-500">{r.phone}</div>
+                        {/* Courier Payout UPI ID with 1-click copy */}
+                        <div className="mt-1 flex items-center gap-1.5">
+                          <span className="font-mono text-[10px] text-zinc-700 bg-zinc-100 px-1.5 py-0.5 rounded border border-zinc-200">
+                            UPI: {r.upi_id || (r.phone ? `${r.phone}@ybl` : "N/A")}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const upi = r.upi_id || (r.phone ? `${r.phone}@ybl` : "");
+                              if (upi) {
+                                navigator.clipboard.writeText(upi);
+                                toast.success(`Copied UPI ID: ${upi}`);
+                              }
+                            }}
+                            className="inline-flex items-center text-[10px] text-blue-600 hover:text-blue-800 font-bold hover:underline cursor-pointer"
+                            title="Copy UPI ID"
+                          >
+                            Copy UPI
+                          </button>
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-center">
                         <span className="inline-flex rounded-full bg-blue-50 px-2.5 py-0.5 font-bold text-blue-700 border border-blue-200">
@@ -1427,13 +1482,29 @@ export default function AdminPayoutsPage() {
                       <td className="px-4 py-3 text-right font-mono font-semibold text-zinc-900">
                         ₹{formatINR(r?.cod_collected)}
                       </td>
-                      <td className="px-4 py-3 text-right font-mono font-semibold text-emerald-600">
-                        ₹{formatINR(r?.wages_earned)}
+                      <td className="px-4 py-3 text-right">
+                        <div className="font-mono font-bold text-emerald-600">
+                          ₹{formatINR(r?.wages_earned)}
+                        </div>
+                        {/* Separate breakdown of base wages vs tips/bonuses earned */}
+                        <div className="text-[10px] text-zinc-500 font-mono mt-0.5 flex flex-col items-end">
+                          <span>Base: ₹{formatINR(r?.base_wages ?? r?.wages_earned)}</span>
+                          {((r?.tips_earned ?? 0) > 0 || (r?.bonus_earned ?? 0) > 0) && (
+                            <span className="text-amber-600 font-bold">
+                              Tips/Bonus: +₹{formatINR((r?.tips_earned ?? 0) + (r?.bonus_earned ?? 0))}
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="px-4 py-3 text-right font-mono font-bold text-sm">
                         <span className={(r?.net_cash_due_to_admin ?? 0) >= 500 ? "text-red-600" : (r?.net_cash_due_to_admin ?? 0) >= 400 ? "text-amber-600" : "text-zinc-900"}>
                           ₹{formatINR(r?.net_cash_due_to_admin)}
                         </span>
+                        {(r?.net_cash_due_to_admin ?? 0) === 0 && (r?.wages_earned ?? 0) > 0 && (
+                          <div className="text-[10px] font-semibold text-emerald-600">
+                            {r?.wage_payout_status === "DISBURSED" ? "Wages Disbursed" : "Payout Due"}
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3 text-center">
                         {r.is_locked || r.status === "LOCKED" ? (
@@ -1455,6 +1526,25 @@ export default function AdminPayoutsPage() {
                       </td>
                       <td className="px-4 py-3 text-right">
                         <div className="flex items-center justify-end gap-2">
+                          {/* Settlement Disbursal Action if CampusBite owes wages to runner */}
+                          {(r?.courier_dues_to_platform === 0 || (r?.net_cash_due_to_admin ?? 0) === 0) && (r?.wages_earned ?? 0) > 0 ? (
+                            r?.wage_payout_status === "DISBURSED" ? (
+                              <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-[11px] font-bold text-emerald-700">
+                                <CheckCircle2 className="h-3 w-3 text-emerald-600" />
+                                <span>Disbursed</span>
+                              </span>
+                            ) : (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenWagePayoutModal(r)}
+                                className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs hover:bg-emerald-700 active:scale-95 transition-all cursor-pointer"
+                              >
+                                <CheckCircle2 className="h-3 w-3 text-emerald-200" />
+                                <span>Clear Wage Payout</span>
+                              </button>
+                            )
+                          ) : null}
+
                           <button
                             type="button"
                             onClick={() => handleToggleBlock(r.id)}
@@ -1466,14 +1556,16 @@ export default function AdminPayoutsPage() {
                           >
                             {r.is_locked ? "Unblock Runner" : "Block Runner"}
                           </button>
-                          <button
-                            type="button"
-                            onClick={() => handleOpenRemitModal(r)}
-                            className="inline-flex items-center gap-1 rounded-lg bg-zinc-900 px-3 py-1 text-[11px] font-bold text-white shadow-xs hover:bg-zinc-800 active:scale-95 transition-all cursor-pointer"
-                          >
-                            <Wallet className="h-3 w-3 text-amber-400" />
-                            <span>Acknowledge Remittance</span>
-                          </button>
+                          {(r?.net_cash_due_to_admin ?? 0) > 0 && (
+                            <button
+                              type="button"
+                              onClick={() => handleOpenRemitModal(r)}
+                              className="inline-flex items-center gap-1 rounded-lg bg-zinc-900 px-3 py-1 text-[11px] font-bold text-white shadow-xs hover:bg-zinc-800 active:scale-95 transition-all cursor-pointer"
+                            >
+                              <Wallet className="h-3 w-3 text-amber-400" />
+                              <span>Acknowledge Remittance</span>
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -1763,6 +1855,98 @@ export default function AdminPayoutsPage() {
                 className="rounded-xl bg-zinc-900 px-5 py-2.5 text-xs font-bold text-white shadow-md hover:bg-zinc-800 disabled:opacity-50 cursor-pointer"
               >
                 {isSubmittingRemit ? "Processing..." : "Acknowledge Cash Handover"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 4: Courier Wage Payout Disbursal (Record UTR) */}
+      {selectedCourierForWagePayout && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-xs p-4 animate-in fade-in duration-200">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-zinc-200 space-y-4">
+            <div className="flex items-center justify-between border-b border-zinc-100 pb-3">
+              <div>
+                <h3 className="text-base font-bold text-zinc-900">
+                  Disburse Courier Wage Payout
+                </h3>
+                <p className="text-xs text-zinc-500">
+                  Rider: {selectedCourierForWagePayout.name} ({selectedCourierForWagePayout.phone})
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setSelectedCourierForWagePayout(null)}
+                className="rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600 cursor-pointer"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="rounded-xl bg-zinc-50 p-3.5 space-y-2 border border-zinc-200/80 text-xs">
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Completed Orders:</span>
+                <span className="font-bold text-zinc-900">{selectedCourierForWagePayout.orders_completed}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Base Wages:</span>
+                <span className="font-mono text-zinc-900">₹{formatINR(selectedCourierForWagePayout.base_wages ?? selectedCourierForWagePayout.wages_earned)}</span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-zinc-500">Tips / Bonus Earned:</span>
+                <span className="font-mono text-emerald-600">+₹{formatINR((selectedCourierForWagePayout.tips_earned ?? 0) + (selectedCourierForWagePayout.bonus_earned ?? 0))}</span>
+              </div>
+              <div className="flex justify-between border-t border-zinc-200 pt-2 font-bold text-sm">
+                <span className="text-zinc-900">Net Wage Disbursal Due:</span>
+                <span className="font-mono text-emerald-600">₹{formatINR(selectedCourierForWagePayout.platform_dues_to_courier ?? selectedCourierForWagePayout.wages_earned)}</span>
+              </div>
+              <div className="flex justify-between items-center pt-1 border-t border-zinc-100">
+                <span className="text-zinc-500">Runner UPI ID:</span>
+                <div className="flex items-center gap-1.5 font-mono text-xs font-semibold text-zinc-800">
+                  <span>{selectedCourierForWagePayout.upi_id || `${selectedCourierForWagePayout.phone}@ybl`}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const upi = selectedCourierForWagePayout.upi_id || `${selectedCourierForWagePayout.phone}@ybl`;
+                      navigator.clipboard.writeText(upi);
+                      toast.success(`Copied UPI: ${upi}`);
+                    }}
+                    className="text-[10px] text-blue-600 hover:underline cursor-pointer"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-xs font-bold text-zinc-700">
+                Banking UTR / Reference Number
+              </label>
+              <input
+                type="text"
+                value={wagePayoutUtr}
+                onChange={(e) => setWagePayoutUtr(e.target.value)}
+                className="h-10 w-full rounded-xl border border-zinc-300 px-3 text-xs font-mono font-medium outline-hidden focus:border-emerald-500 focus:ring-1 focus:ring-emerald-500"
+                placeholder="UPI/20261015/123456"
+              />
+            </div>
+
+            <div className="flex items-center justify-end gap-2 pt-2">
+              <button
+                type="button"
+                onClick={() => setSelectedCourierForWagePayout(null)}
+                className="rounded-xl border border-zinc-200 px-4 py-2.5 text-xs font-bold text-zinc-600 hover:bg-zinc-50 cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSubmittingWagePayout}
+                onClick={handleConfirmWagePayout}
+                className="rounded-xl bg-emerald-600 px-5 py-2.5 text-xs font-bold text-white shadow-md hover:bg-emerald-700 disabled:opacity-50 cursor-pointer"
+              >
+                {isSubmittingWagePayout ? "Recording..." : "Record UTR & Mark Disbursed"}
               </button>
             </div>
           </div>

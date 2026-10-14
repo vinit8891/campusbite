@@ -262,6 +262,14 @@ export type RiderReconciliationItem = {
   approved_remittances?: number;
   utr?: string;
   remitted_at?: string;
+  base_wages?: number;
+  tips_earned?: number;
+  bonus_earned?: number;
+  upi_id?: string;
+  courier_dues_to_platform?: number;
+  platform_dues_to_courier?: number;
+  wage_payout_status?: string;
+  wage_disbursed_utr?: string;
 };
 
 export type RiderReconciliationSummary = {

@@ -308,3 +308,42 @@ async def delivery_stats(
     logger.info("delivery_dashboard.stats completed successfully")
     return result
 
+
+@router.get("/active-run")
+async def get_active_run(
+    current_user: Annotated[
+        dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))
+    ],
+    phone: str | None = None,
+):
+    """
+    Returns the active assigned run for the courier partner.
+    Returns null if no active run order is assigned or if the assigned order
+    was cancelled or removed from MongoDB.
+    """
+    target_phone = phone or current_user.get("phone")
+    if not target_phone:
+        return None
+
+    active_order = await orders.find_one({
+        "$or": [
+            {"delivery_partner.phone": target_phone},
+            {"delivery_partner_phone": target_phone},
+        ],
+        "status": {
+            "$in": [
+                "Assigned",
+                "assigned",
+                "Picked Up",
+                "picked_up",
+                "Out for Delivery",
+                "out_for_delivery",
+            ]
+        },
+    })
+
+    if not active_order:
+        return None
+
+    return _serialize_order(active_order)
+

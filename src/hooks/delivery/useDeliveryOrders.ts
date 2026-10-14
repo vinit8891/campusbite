@@ -14,7 +14,11 @@ import {
   verifyDeliveryOTP,
   type MyDeliveriesQuery,
 } from "@/services/deliveryService";
-import { recordDeliveredOrderCash } from "@/services/deliveryPartnerService";
+import {
+  recordDeliveredOrderCash,
+  isOrderNotFoundError,
+  purgeGhostActiveRun,
+} from "@/services/deliveryPartnerService";
 import type { DeliveryOrder } from "@/types";
 
 export const DELIVERY_STATUS_OPTIONS = [
@@ -235,6 +239,15 @@ export function useDeliveryOrders() {
       }
       await loadOrders(currentFilters());
     } catch (err) {
+      if (isOrderNotFoundError(err)) {
+        purgeGhostActiveRun(id);
+        setOrders((prev) =>
+          prev.filter(
+            (ord) => ord._id !== id && (ord as { id?: string }).id !== id
+          )
+        );
+        return;
+      }
       console.warn("Status update fallback handled:", err);
       // Keep optimistic status on error, do NOT rollback
       setOrders((prev) =>

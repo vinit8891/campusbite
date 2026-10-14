@@ -330,18 +330,14 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
         )
       ).toBeInTheDocument();
 
-      // Dynamic QR image
-      const qrImg = screen.getByAltText(/UPI QR Code for CampusBite Order 554433/i);
+      // QR image
+      const qrImg = screen.getByAltText(/CampusBite PhonePe UPI QR Code/i);
       expect(qrImg).toBeInTheDocument();
-      expect(qrImg.getAttribute("src")).toContain(
-        encodeURIComponent(
-          "upi://pay?pa=campusbite.ops@okaxis&pn=CampusBite%20Operations&am=280&cu=INR&tn=CB-Order-554433"
-        )
-      );
+      expect(qrImg.getAttribute("src")).toContain("/images/campusbite-upi-qr.jpg");
 
       // 1-Tap Copy UPI ID button
       const copyBtn = screen.getByRole("button", {
-        name: /📋 Copy UPI ID \(campusbite\.ops@okaxis\)/i,
+        name: /📋 Copy UPI ID \(9404125117-2@ybl\)/i,
       });
       expect(copyBtn).toBeInTheDocument();
       await user.click(copyBtn);
@@ -450,14 +446,11 @@ describe("Campus Courier & Delivery Runner Portal Components", () => {
         screen.getByText(/Rider CIH physical cash remains ₹0\.00/i)
       ).toBeInTheDocument();
 
-      // Verify dynamic QR code image src has correct UPI URI
+      // Verify QR code image src has official PhonePe QR asset
       const qrImg = screen.getByAltText(/UPI QR Code for CampusBite Order 998877/i);
       expect(qrImg).toBeInTheDocument();
-      expect(qrImg.getAttribute("src")).toContain(
-        encodeURIComponent(
-          "upi://pay?pa=campusbite.ops@okaxis&pn=CampusBite%20Operations&am=350&cu=INR&tn=CB-Order-998877"
-        )
-      );
+      expect(qrImg.getAttribute("src")).toContain("/images/campusbite-upi-qr.jpg");
+      expect(screen.getByText(/VPA: 9404125117-2@ybl/i)).toBeInTheDocument();
 
       // Default UPI mode allows instant OTP verification
       const verifyBtn = screen.getByRole("button", { name: /verify & complete/i });

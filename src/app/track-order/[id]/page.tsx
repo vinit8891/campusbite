@@ -170,7 +170,16 @@ export default function TrackOrderPage() {
           </div>
         )}
 
-        <div className="mt-5 flex flex-col gap-3 pb-8 sm:flex-row sm:justify-end">
+        <div className="mt-5 flex flex-col gap-3 pb-8 sm:flex-row sm:items-center sm:justify-end">
+          <a
+            href={`https://wa.me/919024197988?text=${encodeURIComponent(`Hi CampusBite Support, I have a query about my order ${orderId ?? ""}`)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-center text-sm font-semibold text-white shadow-xs transition hover:bg-emerald-700 active:scale-95"
+          >
+            <span>💬 Chat on WhatsApp</span>
+          </a>
+
           <Link
             href={orderDetailsPath(orderId ?? "")}
             className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-center text-sm font-semibold text-gray-700 transition hover:border-orange-300 hover:text-orange-600"

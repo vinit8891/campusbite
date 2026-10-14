@@ -33,7 +33,7 @@ describe("DesktopUpiQrModal Component", () => {
 
     expect(screen.getByText("Scan UPI QR Code to Pay")).toBeInTheDocument();
     expect(screen.getByText("₹180.50")).toBeInTheDocument();
-    expect(screen.getByText("campusbite.ops@okaxis")).toBeInTheDocument();
+    expect(screen.getByText("9404125117-2@ybl")).toBeInTheDocument();
 
     const qrImg = screen.getByRole("img", { name: /UPI QR code for order ord_789012/i });
     expect(qrImg).toBeInTheDocument();
@@ -62,7 +62,7 @@ describe("DesktopUpiQrModal Component", () => {
     const copyBtn = screen.getByRole("button", { name: /Copy/i });
     await user.click(copyBtn);
 
-    expect(writeTextMock).toHaveBeenCalledWith("campusbite.ops@okaxis");
+    expect(writeTextMock).toHaveBeenCalledWith("9404125117-2@ybl");
     await waitFor(() => {
       expect(screen.getByText("Copied")).toBeInTheDocument();
     });

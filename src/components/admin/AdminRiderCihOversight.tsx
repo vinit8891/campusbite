@@ -26,6 +26,7 @@ import {
   getAdminRiderReconciliations,
   approveRiderRemittance,
   remitRiderDuesAdmin,
+  clearCourierWagePayoutAdmin,
   toggleCourierLockAdmin,
   type RiderReconciliationSummary,
   type RiderReconciliationItem,
@@ -43,6 +44,11 @@ export function AdminRiderCihOversight() {
   const [remitAmount, setRemitAmount] = useState<string>("");
   const [remitUtr, setRemitUtr] = useState<string>("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Wage Disbursal Modal State
+  const [modalWagePayoutRider, setModalWagePayoutRider] = useState<RiderReconciliationItem | null>(null);
+  const [wagePayoutUtr, setWagePayoutUtr] = useState<string>("");
+  const [isSubmittingWagePayout, setIsSubmittingWagePayout] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -119,6 +125,43 @@ export function AdminRiderCihOversight() {
       );
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const openWagePayoutModal = (rider: RiderReconciliationItem) => {
+    setModalWagePayoutRider(rider);
+    setWagePayoutUtr(`WAGE/${Date.now().toString().slice(-8)}`);
+  };
+
+  const closeWagePayoutModal = () => {
+    setModalWagePayoutRider(null);
+    setWagePayoutUtr("");
+    setIsSubmittingWagePayout(false);
+  };
+
+  const handleConfirmWagePayout = async () => {
+    if (!modalWagePayoutRider) return;
+    const amount = modalWagePayoutRider.platform_dues_to_courier ?? modalWagePayoutRider.wages_kept;
+    const utr = wagePayoutUtr.trim() || `WAGE/${Date.now()}`;
+
+    try {
+      setIsSubmittingWagePayout(true);
+      const res = await clearCourierWagePayoutAdmin(
+        modalWagePayoutRider.id || modalWagePayoutRider.phone,
+        { amount, utr }
+      );
+      toast.success(
+        res.message ||
+          `Wage payout of ₹${amount.toFixed(2)} recorded (UTR: ${utr}).`
+      );
+      closeWagePayoutModal();
+      await loadData();
+    } catch (err) {
+      toast.error(
+        err instanceof Error ? err.message : "Failed to record wage disbursal"
+      );
+    } finally {
+      setIsSubmittingWagePayout(false);
     }
   };
 
@@ -438,7 +481,7 @@ export function AdminRiderCihOversight() {
                             : "hover:bg-stone-50/50"
                         }`}
                       >
-                        {/* Rider Name & Phone */}
+                        {/* Rider Name & Phone & UPI */}
                         <td className="px-4 py-3 font-semibold text-stone-900">
                           <div className="flex items-center gap-1.5">
                             {isLocked && <Lock className="h-3.5 w-3.5 text-rose-600 shrink-0" />}
@@ -451,6 +494,26 @@ export function AdminRiderCihOversight() {
                               <span className="text-stone-400">· {rider.vehicle}</span>
                             )}
                           </div>
+                          {/* Courier Payout UPI ID with 1-click copy */}
+                          <div className="mt-1 flex items-center gap-1.5">
+                            <span className="font-mono text-[10px] text-stone-700 bg-stone-100 px-1.5 py-0.5 rounded border border-stone-200">
+                              UPI: {rider.upi_id || (rider.phone ? `${rider.phone}@ybl` : "N/A")}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const upi = rider.upi_id || (rider.phone ? `${rider.phone}@ybl` : "");
+                                if (upi) {
+                                  navigator.clipboard.writeText(upi);
+                                  toast.success(`Copied UPI ID: ${upi}`);
+                                }
+                              }}
+                              className="inline-flex items-center text-[10px] text-blue-600 hover:text-blue-800 font-bold hover:underline cursor-pointer"
+                              title="Copy UPI ID"
+                            >
+                              Copy UPI
+                            </button>
+                          </div>
                         </td>
 
                         {/* Collected COD Cash */}
@@ -459,8 +522,18 @@ export function AdminRiderCihOversight() {
                         </td>
 
                         {/* Earned Wages */}
-                        <td className="px-4 py-3 text-right font-medium text-teal-700">
-                          -₹{rider.wages_kept.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        <td className="px-4 py-3 text-right">
+                          <div className="font-medium text-teal-700">
+                            -₹{rider.wages_kept.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </div>
+                          <div className="text-[10px] text-stone-500 font-mono mt-0.5 flex flex-col items-end">
+                            <span>Base: ₹{(rider.base_wages ?? rider.wages_kept).toFixed(2)}</span>
+                            {((rider.tips_earned ?? 0) > 0 || (rider.bonus_earned ?? 0) > 0) && (
+                              <span className="text-amber-600 font-bold">
+                                Tips/Bonus: +₹{((rider.tips_earned ?? 0) + (rider.bonus_earned ?? 0)).toFixed(2)}
+                              </span>
+                            )}
+                          </div>
                         </td>
 
                         {/* Approved Remittances */}
@@ -523,6 +596,25 @@ export function AdminRiderCihOversight() {
                         {/* Inline Actions */}
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-1.5">
+                            {/* Settlement Disbursal Action if CampusBite owes wages to runner */}
+                            {(netDue === 0 || rider.courier_dues_to_platform === 0) && rider.wages_kept > 0 ? (
+                              rider.wage_payout_status === "DISBURSED" ? (
+                                <span className="inline-flex items-center gap-1 rounded-lg bg-emerald-50 border border-emerald-200 px-2.5 py-1 text-xs font-bold text-emerald-700">
+                                  <CheckCircle2 size={12} className="text-emerald-600" />
+                                  <span>Disbursed</span>
+                                </span>
+                              ) : (
+                                <button
+                                  type="button"
+                                  onClick={() => openWagePayoutModal(rider)}
+                                  className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-2.5 py-1.5 text-xs font-bold transition cursor-pointer select-none active:scale-95 shadow-xs"
+                                >
+                                  <CheckCircle2 size={12} />
+                                  <span>Clear Wage Payout</span>
+                                </button>
+                              )
+                            ) : null}
+
                             {/* Send Remit Alert */}
                             {(isLocked || isWarning || netDue >= 400.0) && (
                               <button
@@ -695,6 +787,126 @@ export function AdminRiderCihOversight() {
                   <Check size={13} />
                 )}
                 <span>Confirm &amp; Unlock</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Wage Payout Disbursal Modal */}
+      {modalWagePayoutRider && (
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="wage-modal-title"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-xs animate-in fade-in duration-150"
+        >
+          <div className="relative w-full max-w-md rounded-2xl border border-stone-200 bg-white p-6 shadow-xl space-y-5">
+            {/* Header */}
+            <div className="flex items-start justify-between border-b border-stone-100 pb-3">
+              <div>
+                <h3
+                  id="wage-modal-title"
+                  className="text-lg font-black text-stone-900 flex items-center gap-2"
+                >
+                  <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                  <span>Clear Courier Wage Payout</span>
+                </h3>
+                <p className="text-xs text-stone-500 mt-0.5">
+                  Record banking UTR / IMPS ref to settle earned courier wages.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={closeWagePayoutModal}
+                className="rounded-lg p-1 text-stone-400 hover:bg-stone-100 hover:text-stone-700 transition cursor-pointer"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Courier Context Card */}
+            <div className="rounded-xl bg-emerald-50/80 border border-emerald-200/80 p-3 space-y-1.5 text-xs">
+              <div className="flex items-center justify-between font-bold text-emerald-950">
+                <span>Courier: {modalWagePayoutRider.name}</span>
+                <span className="font-mono">{modalWagePayoutRider.phone}</span>
+              </div>
+              <div className="flex items-center justify-between text-emerald-900 pt-1 border-t border-emerald-200/60">
+                <span>Deliveries Completed:</span>
+                <span className="font-bold">{modalWagePayoutRider.orders_delivered}</span>
+              </div>
+              <div className="flex items-center justify-between text-emerald-900">
+                <span>Base Wages:</span>
+                <span className="font-mono font-semibold">₹{(modalWagePayoutRider.base_wages ?? modalWagePayoutRider.wages_kept).toFixed(2)}</span>
+              </div>
+              {((modalWagePayoutRider.tips_earned ?? 0) > 0 || (modalWagePayoutRider.bonus_earned ?? 0) > 0) && (
+                <div className="flex items-center justify-between text-amber-800">
+                  <span>Tips &amp; Bonuses:</span>
+                  <span className="font-mono font-bold">+₹{((modalWagePayoutRider.tips_earned ?? 0) + (modalWagePayoutRider.bonus_earned ?? 0)).toFixed(2)}</span>
+                </div>
+              )}
+              <div className="flex items-center justify-between border-t border-emerald-200/60 pt-1 font-bold text-sm text-emerald-950">
+                <span>Total Disbursal Due:</span>
+                <span className="font-mono text-emerald-700">₹{(modalWagePayoutRider.platform_dues_to_courier ?? modalWagePayoutRider.wages_kept).toFixed(2)}</span>
+              </div>
+              <div className="flex items-center justify-between pt-1 border-t border-emerald-200/60">
+                <span className="text-emerald-900">Runner UPI ID:</span>
+                <div className="flex items-center gap-1.5 font-mono text-xs font-bold text-emerald-950">
+                  <span>{modalWagePayoutRider.upi_id || `${modalWagePayoutRider.phone}@ybl`}</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const upi = modalWagePayoutRider.upi_id || `${modalWagePayoutRider.phone}@ybl`;
+                      navigator.clipboard.writeText(upi);
+                      toast.success(`Copied UPI: ${upi}`);
+                    }}
+                    className="text-[10px] text-blue-600 hover:underline cursor-pointer"
+                  >
+                    Copy
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* UTR Input */}
+            <div>
+              <label className="block text-xs font-bold text-stone-700 mb-1">
+                Banking UTR / Reference ID
+              </label>
+              <input
+                type="text"
+                value={wagePayoutUtr}
+                onChange={(e) => setWagePayoutUtr(e.target.value)}
+                className="h-9 w-full rounded-xl border border-stone-300 px-3 text-xs font-mono font-medium text-stone-900 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                placeholder="e.g. UPI/20261015/123456"
+              />
+              <p className="mt-1 text-[11px] text-stone-400">
+                Bank transaction reference ID recorded for audit reconciliation.
+              </p>
+            </div>
+
+            {/* Footer Buttons */}
+            <div className="flex items-center justify-end gap-2 pt-2 border-t border-stone-100">
+              <button
+                type="button"
+                onClick={closeWagePayoutModal}
+                disabled={isSubmittingWagePayout}
+                className="rounded-xl border border-stone-200 bg-white px-4 py-2 text-xs font-bold text-stone-700 hover:bg-stone-50 active:scale-95 transition cursor-pointer"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                disabled={isSubmittingWagePayout}
+                onClick={() => void handleConfirmWagePayout()}
+                className="inline-flex items-center gap-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 disabled:opacity-50 text-white px-4 py-2 text-xs font-bold shadow-xs active:scale-95 transition cursor-pointer"
+              >
+                {isSubmittingWagePayout ? (
+                  <RefreshCw size={13} className="animate-spin" />
+                ) : (
+                  <Check size={13} />
+                )}
+                <span>Confirm &amp; Disburse</span>
               </button>
             </div>
           </div>

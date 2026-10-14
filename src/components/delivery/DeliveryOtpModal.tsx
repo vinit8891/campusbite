@@ -13,8 +13,9 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
-export const CAMPUSBITE_UPI_ID = "campusbite.ops@okaxis";
-export const CAMPUSBITE_UPI_NAME = "CampusBite Operations";
+export const CAMPUSBITE_UPI_ID =
+  process.env.NEXT_PUBLIC_CAMPUSBITE_OPS_VPA || "9404125117-2@ybl";
+export const CAMPUSBITE_UPI_NAME = "Vinit Gurudeo Awathare";
 
 export type DeliveryOtpModalProps = {
   isOpen: boolean;
@@ -86,9 +87,7 @@ export function DeliveryOtpModal({
   const upiUri = `upi://pay?pa=${CAMPUSBITE_UPI_ID}&pn=${encodeURIComponent(
     CAMPUSBITE_UPI_NAME
   )}&am=${orderAmount}&cu=INR&tn=CB-Order-${orderIdSuffix}`;
-  const upiQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
-    upiUri
-  )}`;
+  const upiQrUrl = "/images/campusbite-upi-qr.jpg";
 
   const digits = [otp[0] || "", otp[1] || "", otp[2] || "", otp[3] || ""];
 

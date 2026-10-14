@@ -31,8 +31,9 @@ import { RIDER_BASE_PAYOUT, RIDER_BATCH_ADDON_PAYOUT } from "@/lib/orderPricing"
 import { ROUTES } from "@/lib/routes";
 import type { DeliveryPartner } from "@/types";
 
-export const CAMPUSBITE_UPI_ID = "campusbite.ops@okaxis";
-export const CAMPUSBITE_UPI_NAME = "CampusBite Operations";
+export const CAMPUSBITE_UPI_ID =
+  process.env.NEXT_PUBLIC_CAMPUSBITE_OPS_VPA || "9404125117-2@ybl";
+export const CAMPUSBITE_UPI_NAME = "Vinit Gurudeo Awathare";
 
 export type DeliveryCashReconciliationProps = {
   initialCih?: RiderCashReconciliation;
@@ -237,11 +238,7 @@ export function DeliveryCashReconciliation({
   };
   const currentRemitNum = parseFloat(remitAmount || "0");
   const upiQrAmount = isNaN(currentRemitNum) ? "0.00" : currentRemitNum.toFixed(2);
-  const upiQrUrl = `https://api.qrserver.com/v1/create-qr-code/?size=240x240&data=${encodeURIComponent(
-    `upi://pay?pa=${CAMPUSBITE_UPI_ID}&pn=${encodeURIComponent(
-      CAMPUSBITE_UPI_NAME
-    )}&am=${upiQrAmount}&cu=INR&tn=Rider%20COD%20Deposit`
-  )}`;
+  const upiQrUrl = "/images/campusbite-upi-qr.jpg";
 
   return (
     <section
@@ -518,11 +515,11 @@ export function DeliveryCashReconciliation({
             <div className="mt-5 flex flex-col items-center justify-center p-4 rounded-2xl bg-stone-50 border border-stone-200/80">
               <div className="bg-white p-3 rounded-xl shadow-xs border border-stone-200">
                 <img
-                  src={upiQrUrl}
-                  alt={`UPI QR Code for ${CAMPUSBITE_UPI_ID}`}
+                  src="/images/campusbite-upi-qr.jpg"
+                  alt={`PhonePe UPI QR Code for ${CAMPUSBITE_UPI_ID}`}
                   width={180}
                   height={180}
-                  className="rounded-lg"
+                  className="rounded-lg object-contain max-h-[180px] max-w-[180px]"
                 />
               </div>
 
