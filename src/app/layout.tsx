@@ -24,9 +24,9 @@ export const metadata: Metadata = {
   title: appConfig.name,
   description: appConfig.description,
   icons: {
-    icon: "/images/brand-logo.png",
-    shortcut: "/images/brand-logo.png",
-    apple: "/images/brand-logo.png",
+    icon: "/icon.png",
+    shortcut: "/icon.png",
+    apple: "/icon.png",
   },
 };
 

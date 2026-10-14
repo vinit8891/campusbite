@@ -51,12 +51,12 @@ export function Navbar() {
               <Image
                 src="/images/brand-logo.png"
                 alt="CampusBite Logo"
-                width={44}
-                height={44}
-                className="h-10 w-auto object-contain rounded-xl"
+                width={48}
+                height={48}
+                className="h-10 md:h-11 w-auto object-contain"
                 priority
               />
-              <span className="text-xl font-bold font-serif tracking-tight text-neutral-900 group-hover:text-orange-600 transition-colors">
+              <span className="text-xl md:text-2xl font-bold font-serif tracking-tight text-neutral-900 group-hover:text-orange-600 transition-colors">
                 Campus<span className="text-orange-600">Bite</span>
               </span>
             </Link>
