@@ -7,7 +7,6 @@ import AppProviders from "@/providers/AppProviders";
 import Footer from "@/components/layout/Footer";
 import { LiveOrderTrackerBar } from "@/components/orders/LiveOrderTrackerBar";
 import { LocationPickerModal } from "@/components/location/LocationPickerModal";
-import { FloatingWhatsAppButton } from "@/components/common/FloatingWhatsAppButton";
 
 import "./globals.css";
 
@@ -47,9 +46,6 @@ export default function RootLayout({
 
           {/* Location Selector Bottom Sheet Modal */}
           <LocationPickerModal />
-
-          {/* Floating WhatsApp Help Button */}
-          <FloatingWhatsAppButton />
 
           <Toaster
             position="top-center"

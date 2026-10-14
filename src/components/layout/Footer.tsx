@@ -62,9 +62,9 @@ export default function Footer() {
         </div>
 
         {/* Compact Multi-Column Navigation */}
-        <div className="mt-5 grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 md:grid-cols-4">
+        <div className="mt-6 grid grid-cols-2 md:grid-cols-4 gap-6 lg:gap-8">
           {/* Col 1: Explore */}
-          <div>
+          <div className="min-w-0">
             <h4 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-300">Explore</h4>
             <ul className="mt-2 space-y-1.5 text-xs">
               <li><Link className="hover:text-orange-400 transition-colors" href="/restaurants">Campus Canteens</Link></li>
@@ -74,7 +74,7 @@ export default function Footer() {
           </div>
 
           {/* Col 2: Partners */}
-          <div>
+          <div className="min-w-0">
             <h4 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-300">For Partners</h4>
             <ul className="mt-2 space-y-1.5 text-xs">
               <li><Link className="hover:text-orange-400 transition-colors" href="/restaurant/login">Canteen Login</Link></li>
@@ -85,7 +85,7 @@ export default function Footer() {
           </div>
 
           {/* Col 3: Support */}
-          <div>
+          <div className="min-w-0">
             <h4 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-300">Support</h4>
             <ul className="mt-2 space-y-1.5 text-xs">
               <li><Link className="hover:text-orange-400 transition-colors" href="/contact">Contact Us</Link></li>
@@ -97,40 +97,40 @@ export default function Footer() {
           </div>
 
           {/* Col 4: Contact & Operations */}
-          <div className="col-span-2 sm:col-span-1">
+          <div className="min-w-0">
             <h4 className="text-[11px] font-semibold uppercase tracking-wider text-zinc-300">Admin</h4>
             <ul className="mt-2 space-y-1.5 text-xs">
               <li>
                 <a href="tel:9404125117" className="hover:text-orange-400 transition-colors flex items-center gap-1.5">
-                  <Phone className="h-3 w-3 text-orange-400" />
-                  <span>Call: +91 9404125117</span>
+                  <Phone className="h-3 w-3 text-orange-400 shrink-0" />
+                  <span className="truncate">Call: +91 9404125117</span>
                 </a>
               </li>
               <li>
                 <a href="https://wa.me/919024197988" target="_blank" rel="noopener noreferrer" className="hover:text-orange-400 transition-colors flex items-center gap-1.5">
-                  <MessageCircle className="h-3 w-3 text-emerald-400" />
-                  <span>WhatsApp: +91 9024197988</span>
+                  <MessageCircle className="h-3 w-3 text-emerald-400 shrink-0" />
+                  <span className="truncate">WhatsApp: +91 9024197988</span>
                 </a>
               </li>
               <li>
-                <a href="mailto:campusbites.co.in@gmail.com" className="hover:text-orange-400 transition-colors flex items-center gap-1.5">
-                  <Mail className="h-3 w-3 text-amber-400" />
+                <a href="mailto:campusbites.co.in@gmail.com" className="hover:text-orange-400 transition-colors flex items-center gap-1.5" title="campusbites.co.in@gmail.com">
+                  <Mail className="h-3 w-3 text-amber-400 shrink-0" />
                   <span className="truncate">campusbites.co.in@gmail.com</span>
                 </a>
               </li>
               <li>
                 <a href="https://instagram.com/campusbites.co.in" target="_blank" rel="noopener noreferrer" className="hover:text-orange-400 transition-colors flex items-center gap-1.5">
-                  <InstagramIcon className="h-3 w-3 text-pink-400" />
-                  <span>@campusbites.co.in</span>
+                  <InstagramIcon className="h-3 w-3 text-pink-400 shrink-0" />
+                  <span className="truncate">@campusbites.co.in</span>
                 </a>
               </li>
               <li className="pt-1">
-                <Link className="hover:text-orange-400 transition-colors font-medium text-zinc-300" href="/admin/verifications">
+                <Link className="hover:text-orange-400 transition-colors font-medium text-zinc-300 block truncate" href="/admin/verifications">
                   Admin Verification Hub
                 </Link>
               </li>
               <li>
-                <span className="text-[11px] text-zinc-500">Zeal College Campus Network</span>
+                <span className="text-[11px] text-zinc-500 block truncate">Zeal College Campus Network</span>
               </li>
             </ul>
           </div>
