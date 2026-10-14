@@ -106,7 +106,7 @@ export default function AdminSettingsPage() {
               18% GST / Take-Rate
             </p>
             <p className="mt-1 text-xs text-stone-500">
-              9:00 PM automated batch ledgering
+              9:00 PM daily EOD ledgering & Tue/Fri batch disbursals.
             </p>
           </div>
         </div>

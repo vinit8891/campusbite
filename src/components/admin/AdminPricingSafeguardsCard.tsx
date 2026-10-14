@@ -48,7 +48,7 @@ export function AdminPricingSafeguardsCard() {
       value: `${(COMMISSION_RATE * 100).toFixed(1)}%`,
       badge: "Standardized Take Rate",
       badgeClass: "bg-orange-100 text-orange-800 border-orange-200",
-      description: "Standard 18.0% platform take rate deducted at 9:00 PM consolidated daily UPI settlements.",
+      description: "Standard 18.0% platform take rate ledgered daily at 9:00 PM; disbursed bi-weekly (Tue & Fri) per T+2 banking clearance.",
       icon: Percent,
       iconClass: "text-orange-600 bg-orange-50",
     },

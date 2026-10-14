@@ -85,6 +85,7 @@ from app.routes.settlements import (
     router as settlements_router,
     alias_router as settlements_alias_router,
 )
+from app.routes.canteen_payouts import router as canteen_payouts_router
 from app.routes.courier import router as courier_router
 from app.routes.subscription import router as subscription_router
 from app.routes.subscription_billing import router as subscription_billing_router
@@ -243,6 +244,7 @@ app.include_router(admin_alias_router)
 app.include_router(coupons_router)
 app.include_router(settlements_router)
 app.include_router(settlements_alias_router)
+app.include_router(canteen_payouts_router)
 app.include_router(courier_router)
 
 # Mount local uploads directory

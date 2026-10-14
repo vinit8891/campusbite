@@ -1,7 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { LayoutGrid, ChefHat, TableProperties } from "lucide-react";
+import Link from "next/link";
+import { LayoutGrid, ChefHat, TableProperties, Wallet } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { EmptyState } from "@/components/common";
 import { shortId } from "@/lib/formatters";
@@ -261,6 +262,15 @@ export default function OrdersPage() {
               {totalOrdersCount}
             </span>
           </button>
+
+          {/* Tab 3: Payouts & EOD */}
+          <Link
+            href="/restaurant/dashboard/settlements"
+            className="flex-1 sm:flex-initial flex items-center justify-center gap-1.5 px-3 sm:px-4 py-2.5 rounded-xl font-extrabold text-xs sm:text-sm text-stone-600 hover:text-stone-900 hover:bg-stone-200/60 transition-all cursor-pointer"
+          >
+            <Wallet className="h-4 w-4 text-emerald-600" />
+            <span>Payouts & EOD</span>
+          </Link>
         </div>
 
         {mainTab === "history" && (

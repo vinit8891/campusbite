@@ -22,6 +22,10 @@ import type {
   RiderReconciliationItem,
   RiderReconciliationSummary,
   CanteenDailySettlement,
+  AdminCurrentDisbursalBatchesResponse,
+  AdminDailyPlatformLedgerResponse,
+  AdminDisbursalBatchCanteen,
+  AdminDailyPlatformLedgerItem,
 } from "@/types";
 
 export type {
@@ -39,6 +43,10 @@ export type {
   RiderReconciliationItem,
   RiderReconciliationSummary,
   CanteenDailySettlement,
+  AdminCurrentDisbursalBatchesResponse,
+  AdminDailyPlatformLedgerResponse,
+  AdminDisbursalBatchCanteen,
+  AdminDailyPlatformLedgerItem,
 };
 export { AuthHttpError };
 
@@ -1021,6 +1029,91 @@ export async function markCanteenSettlementPaidAdmin(
     });
   }
 }
+
+export async function fetchAdminCurrentDisbursalBatches(): Promise<AdminCurrentDisbursalBatchesResponse | null> {
+  try {
+    const res = await authJson<AdminCurrentDisbursalBatchesResponse>(
+      "/api/v1/admin/payouts/current-batch",
+      ADMIN_JSON
+    );
+    if (res && Array.isArray(res.canteens)) {
+      return res;
+    }
+  } catch (_) {
+    try {
+      const fallbackRes = await authJson<AdminCurrentDisbursalBatchesResponse>(
+        "/admin/payouts/current-batch",
+        ADMIN_JSON
+      );
+      if (fallbackRes && Array.isArray(fallbackRes.canteens)) {
+        return fallbackRes;
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
+export async function fetchAdminDailyPlatformLedger(limit: number = 30): Promise<AdminDailyPlatformLedgerResponse | null> {
+  try {
+    const res = await authJson<AdminDailyPlatformLedgerResponse>(
+      withQuery("/api/v1/admin/payouts/daily-platform-ledger", { limit }),
+      ADMIN_JSON
+    );
+    if (res && Array.isArray(res.days)) {
+      return res;
+    }
+  } catch (_) {
+    try {
+      const fallbackRes = await authJson<AdminDailyPlatformLedgerResponse>(
+        withQuery("/admin/payouts/daily-platform-ledger", { limit }),
+        ADMIN_JSON
+      );
+      if (fallbackRes && Array.isArray(fallbackRes.days)) {
+        return fallbackRes;
+      }
+    } catch (_) {}
+  }
+  return null;
+}
+
+export async function settleAdminPayoutBatch(payload: {
+  canteen_id?: string;
+  canteen_ids?: string[];
+  scheduled_payout_date?: string;
+  batch_date?: string;
+  ledger_ids?: string[];
+  utr_number: string;
+  notes?: string;
+}): Promise<{ success: boolean; message: string; settled_count?: number; utr_number?: string }> {
+  try {
+    const res = await authJson<{ success: boolean; message: string; settled_count?: number; utr_number?: string }>(
+      "/api/v1/admin/payouts/settle-batch",
+      {
+        ...ADMIN_JSON,
+        method: "POST",
+        body: JSON.stringify(payload),
+      }
+    );
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("admin_settlement_changed"));
+    }
+    return res;
+  } catch (_) {
+    const fallbackRes = await authJson<{ success: boolean; message: string; settled_count?: number; utr_number?: string }>(
+      "/admin/payouts/settle-batch",
+      {
+        ...ADMIN_JSON,
+        method: "POST",
+        body: JSON.stringify(payload),
+      }
+    );
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event("admin_settlement_changed"));
+    }
+    return fallbackRes;
+  }
+}
+
 
 export async function fetchCourierSettlements(date?: string): Promise<SettlementsCouriersResponse> {
   try {

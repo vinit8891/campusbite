@@ -275,6 +275,144 @@ export type RiderReconciliationSummary = {
   riders: RiderReconciliationItem[];
 };
 
+export type DailyLedgerOrder = {
+  order_id: string;
+  order_number: string;
+  customer_name: string;
+  food_subtotal: number;
+  commission_amount: number;
+  net_payout: number;
+  items_summary: string;
+  payment_method: string;
+  delivered_at: string;
+  status: string;
+};
+
+export type DailyCanteenLedger = {
+  ledger_id: string;
+  canteen_id: string;
+  canteen_name: string;
+  date: string;
+  metrics: {
+    total_completed_orders: number;
+    gross_food_sales: number;
+    commission_rate: number;
+    commission_amount: number;
+    net_payout_accrued: number;
+  };
+  settlement_batch: {
+    cycle_day: "TUESDAY" | "FRIDAY" | string;
+    scheduled_payout_date: string;
+    status: "QUEUED" | "PROCESSING" | "SETTLED" | string;
+    utr_number: string | null;
+    settled_at: string | null;
+    notes?: string;
+  };
+  orders?: DailyLedgerOrder[];
+  created_at: string;
+  updated_at?: string;
+};
+
+export type CanteenUpcomingDisbursal = {
+  canteen_id: string;
+  canteen_name: string;
+  canteen_email?: string;
+  upi_id?: string;
+  next_disbursal_date: string;
+  next_disbursal_day: string;
+  formatted_payout_date: string;
+  accrued_net_balance: number;
+  accrued_net_earnings: number;
+  total_gross_sales: number;
+  commission_rate: number;
+  total_commission_amount: number;
+  status_badge: string;
+  status: "QUEUED" | "PROCESSING" | "SETTLED" | string;
+  pending_ledger_ids: string[];
+  daily_ledgers_count: number;
+  cycle_policy?: string;
+};
+
+export type AdminDisbursalBatchCanteen = {
+  canteen_id: string;
+  canteen_name: string;
+  canteen_email?: string;
+  upi_id?: string;
+  phone?: string;
+  orders_count: number;
+  gross_food_sales: number;
+  commission_amount: number;
+  net_owed?: number;
+  net_payout?: number;
+  ledger_ids?: string[];
+  unsettled_days_count: number;
+  status?: "QUEUED" | "SETTLED" | string;
+  cycle_day?: "TUESDAY" | "FRIDAY" | string;
+  scheduled_payout_date?: string;
+  account_number?: string;
+  bank_name?: string;
+  ifsc_code?: string;
+  dates?: string[];
+};
+
+export type AdminCurrentDisbursalBatchesResponse = {
+  scheduled_payout_date: string;
+  cycle_day?: string;
+  batch_day?: "TUESDAY" | "FRIDAY" | string;
+  formatted_payout_date?: string;
+  status_badge?: string;
+  canteens: AdminDisbursalBatchCanteen[];
+  summary?: {
+    total_canteens: number;
+    total_batch_net_owed: number;
+    total_food_sales: number;
+    total_commission: number;
+  };
+  success?: boolean;
+  total_canteens: number;
+  total_gross_food_sales?: number;
+  total_commission?: number;
+  total_net_payout?: number;
+};
+
+export type AdminDailyPlatformLedgerItem = {
+  date: string;
+  total_completed_orders: number;
+  gross_food_sales: number;
+  platform_take_rate_18?: number;
+  platform_tech_fees?: number;
+  total_platform_revenue: number;
+  canteen_net_accrued?: number;
+  canteen_payouts_accrued?: number;
+  cycle_day?: string;
+  scheduled_payout_date: string;
+  status?: string;
+  day_of_week?: string;
+  settlement_cycle_day?: "TUESDAY" | "FRIDAY" | string;
+  commission_take_rate?: number;
+  commission_earned?: number;
+  platform_fee_earned?: number;
+  active_canteens_count?: number;
+};
+
+export type AdminDailyPlatformLedgerResponse = {
+  days?: AdminDailyPlatformLedgerItem[];
+  ledgers?: AdminDailyPlatformLedgerItem[];
+  total_days?: number;
+  days_requested?: number;
+  summary?: {
+    total_gross_food_sales: number;
+    total_take_rate_18: number;
+    total_platform_tech_fees: number;
+    total_platform_revenue: number;
+    total_canteen_net_accrued: number;
+  };
+  success?: boolean;
+  total_platform_revenue?: number;
+  total_commission_earnings?: number;
+  total_platform_fee_earnings?: number;
+};
+
 export type CanteenDailySettlement = {
   restaurant_id?: string;
   restaurant_email: string;

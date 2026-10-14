@@ -197,6 +197,12 @@ async def ensure_app_indexes() -> None:
     )
     await _safe_create_index(roster, "status")
 
+    # daily canteen ledgers
+    daily_canteen_ledgers = database["daily_canteen_ledgers"]
+    await _safe_create_index(daily_canteen_ledgers, "ledger_id", unique=True, sparse=True)
+    await _safe_create_index(daily_canteen_ledgers, [("canteen_id", 1), ("date", -1)])
+    await _safe_create_index(daily_canteen_ledgers, [("settlement_batch.status", 1), ("settlement_batch.scheduled_payout_date", 1)])
+
     from app.db.init_indexes import ensure_database_indexes
     await ensure_database_indexes(database)
 

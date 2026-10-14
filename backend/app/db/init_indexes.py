@@ -62,6 +62,7 @@ async def ensure_database_indexes(db: Any = None) -> None:
     orders = _get_col(active_db, "orders")
     settlements = _get_col(active_db, "settlements")
     canteen_settlements = _get_col(active_db, "canteen_settlements")
+    daily_canteen_ledgers = _get_col(active_db, "daily_canteen_ledgers")
     users = _get_col(active_db, "users")
     couriers = _get_col(active_db, "couriers")
     delivery_partners = _get_col(active_db, "delivery_partners")
@@ -83,6 +84,10 @@ async def ensure_database_indexes(db: Any = None) -> None:
     if canteen_settlements is not None:
         await _safe_create_index(canteen_settlements, [("restaurant_id", 1), ("date", -1)])
         await _safe_create_index(canteen_settlements, [("date", -1), ("status", 1)])
+    if daily_canteen_ledgers is not None:
+        await _safe_create_index(daily_canteen_ledgers, [("ledger_id", 1)], unique=True, sparse=True)
+        await _safe_create_index(daily_canteen_ledgers, [("canteen_id", 1), ("date", -1)])
+        await _safe_create_index(daily_canteen_ledgers, [("settlement_batch.status", 1), ("settlement_batch.scheduled_payout_date", 1)])
 
     # 3. Couriers & Users: fast auth and phone/email uniqueness
     if users is not None:

@@ -6,6 +6,8 @@ import type {
   BackendMenuItem,
   BackendRestaurant,
   CanteenDailySettlement,
+  DailyCanteenLedger,
+  CanteenUpcomingDisbursal,
   Order,
   RestaurantsQuery,
 } from "@/types";
@@ -14,6 +16,8 @@ export type {
   BackendMenuItem,
   BackendRestaurant,
   CanteenDailySettlement,
+  DailyCanteenLedger,
+  CanteenUpcomingDisbursal,
   RestaurantsQuery,
 };
 
@@ -21,6 +25,8 @@ export interface RestaurantSettlementOverview {
   today: CanteenDailySettlement;
   history: CanteenDailySettlement[];
   liveOrders: Order[];
+  upcomingDisbursal?: CanteenUpcomingDisbursal;
+  dailyLedgers?: DailyCanteenLedger[];
 }
 
 export async function getRestaurantsPage(
@@ -453,4 +459,100 @@ export async function getRestaurantSettlements(
     history,
     liveOrders: todayDeliveredOrders,
   };
+}
+
+export async function getCanteenDailyLedgers(
+  canteenId: string,
+  params?: { date?: string; start_date?: string; end_date?: string; limit?: number }
+): Promise<{
+  canteen_id: string;
+  canteen_name: string;
+  ledgers: DailyCanteenLedger[];
+  total_ledgers: number;
+  summary: {
+    total_gross_sales: number;
+    total_commission_amount: number;
+    total_net_payout: number;
+    total_completed_orders: number;
+  };
+}> {
+  try {
+    const res = await authJson<{
+      canteen_id: string;
+      canteen_name: string;
+      ledgers: DailyCanteenLedger[];
+      total_ledgers: number;
+      summary: {
+        total_gross_sales: number;
+        total_commission_amount: number;
+        total_net_payout: number;
+        total_completed_orders: number;
+      };
+    }>(
+      withQuery(`/api/v1/payouts/canteen/${encodeURIComponent(canteenId)}/daily-ledgers`, params || {}),
+      { role: "restaurant_owner", cache: "no-store" }
+    );
+    if (res && Array.isArray(res.ledgers)) {
+      return res;
+    }
+  } catch (_) {
+    try {
+      const fallbackRes = await authJson<{
+        canteen_id: string;
+        canteen_name: string;
+        ledgers: DailyCanteenLedger[];
+        total_ledgers: number;
+        summary: {
+          total_gross_sales: number;
+          total_commission_amount: number;
+          total_net_payout: number;
+          total_completed_orders: number;
+        };
+      }>(
+        withQuery(`/payouts/canteen/${encodeURIComponent(canteenId)}/daily-ledgers`, params || {}),
+        { role: "restaurant_owner", cache: "no-store" }
+      );
+      if (fallbackRes && Array.isArray(fallbackRes.ledgers)) {
+        return fallbackRes;
+      }
+    } catch (_) {}
+  }
+
+  return {
+    canteen_id: canteenId,
+    canteen_name: canteenId,
+    ledgers: [],
+    total_ledgers: 0,
+    summary: {
+      total_gross_sales: 0,
+      total_commission_amount: 0,
+      total_net_payout: 0,
+      total_completed_orders: 0,
+    },
+  };
+}
+
+export async function getCanteenUpcomingDisbursal(
+  canteenId: string
+): Promise<CanteenUpcomingDisbursal | null> {
+  try {
+    const res = await authJson<CanteenUpcomingDisbursal>(
+      `/api/v1/payouts/canteen/${encodeURIComponent(canteenId)}/upcoming-disbursal`,
+      { role: "restaurant_owner", cache: "no-store" }
+    );
+    if (res && res.canteen_id) {
+      return res;
+    }
+  } catch (_) {
+    try {
+      const fallbackRes = await authJson<CanteenUpcomingDisbursal>(
+        `/payouts/canteen/${encodeURIComponent(canteenId)}/upcoming-disbursal`,
+        { role: "restaurant_owner", cache: "no-store" }
+      );
+      if (fallbackRes && fallbackRes.canteen_id) {
+        return fallbackRes;
+      }
+    } catch (_) {}
+  }
+  return null;
 }

@@ -125,4 +125,106 @@ describe("AdminPayoutsPage Component", () => {
     expect(screen.getAllByText("₹390.00").length).toBeGreaterThanOrEqual(2);
     expect(screen.getByRole("button", { name: /acknowledge remittance/i })).toBeInTheDocument();
   });
+
+  it("switches to Current Disbursal Batch tab and opens Disburse & Record UTR modal", async () => {
+    const mockBatchResponse: adminService.AdminCurrentDisbursalBatchesResponse = {
+      success: true,
+      batch_day: "FRIDAY",
+      scheduled_payout_date: "2026-10-16",
+      total_canteens: 1,
+      total_gross_food_sales: 5000.0,
+      total_commission: 900.0,
+      total_net_payout: 4100.0,
+      canteens: [
+        {
+          canteen_id: "rest-1",
+          canteen_name: "Zeal Central Canteen",
+          upi_id: "zeal@okaxis",
+          orders_count: 25,
+          gross_food_sales: 5000.0,
+          commission_amount: 900.0,
+          net_payout: 4100.0,
+          unsettled_days_count: 3,
+          dates: ["2026-10-12", "2026-10-13", "2026-10-14"],
+          ledger_ids: ["ledger_rest-1_2026-10-12", "ledger_rest-1_2026-10-13", "ledger_rest-1_2026-10-14"],
+        },
+      ],
+    };
+
+    vi.spyOn(adminService, "fetchAdminCurrentDisbursalBatches").mockResolvedValue(mockBatchResponse);
+    const settleBatchSpy = vi.spyOn(adminService, "settleAdminPayoutBatch").mockResolvedValue({
+      success: true,
+      settled_ledgers_count: 3,
+      batch_payout_date: "2026-10-16",
+      utr_number: "UTR/CB/TEST/123456",
+      status: "SETTLED",
+    });
+
+    const user = userEvent.setup();
+    render(<AdminPayoutsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Zeal Central Canteen")).toBeInTheDocument();
+    });
+
+    const batchTabBtn = screen.getByRole("button", { name: /current disbursal batch/i });
+    await user.click(batchTabBtn);
+
+    expect(screen.getByText(/Bi-Weekly Disbursal Batch: FRIDAY/i)).toBeInTheDocument();
+    expect(screen.getAllByText("₹4100.00").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("₹5000.00").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("₹900.00").length).toBeGreaterThanOrEqual(1);
+
+    const disburseBtn = screen.getByRole("button", { name: /disburse & record utr/i });
+    await user.click(disburseBtn);
+
+    expect(screen.getByText(/Banking UTR \/ UPI Reference ID/i)).toBeInTheDocument();
+    const confirmBtn = screen.getByRole("button", { name: /confirm & disburse batch/i });
+    await user.click(confirmBtn);
+
+    expect(settleBatchSpy).toHaveBeenCalled();
+  });
+
+  it("switches to Daily Platform Ledger tab and displays 18% take-rate revenue", async () => {
+    const mockLedgerResponse: adminService.AdminDailyPlatformLedgerResponse = {
+      success: true,
+      days_requested: 30,
+      total_platform_revenue: 1540.0,
+      total_commission_earnings: 1260.0,
+      total_platform_fee_earnings: 280.0,
+      ledgers: [
+        {
+          date: "2026-10-15",
+          day_of_week: "Thursday",
+          settlement_cycle_day: "TUESDAY",
+          scheduled_payout_date: "2026-10-20",
+          total_completed_orders: 40,
+          gross_food_sales: 7000.0,
+          commission_take_rate: 0.18,
+          commission_earned: 1260.0,
+          platform_fee_earned: 280.0,
+          total_platform_revenue: 1540.0,
+          canteen_payouts_accrued: 5740.0,
+          active_canteens_count: 3,
+        },
+      ],
+    };
+
+    vi.spyOn(adminService, "fetchAdminDailyPlatformLedger").mockResolvedValue(mockLedgerResponse);
+
+    const user = userEvent.setup();
+    render(<AdminPayoutsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Zeal Central Canteen")).toBeInTheDocument();
+    });
+
+    const ledgerTabBtn = screen.getByRole("button", { name: /daily platform ledger/i });
+    await user.click(ledgerTabBtn);
+
+    expect(screen.getByText(/Daily Platform Revenue & 18% Take-Rate Ledger/i)).toBeInTheDocument();
+    expect(screen.getAllByText("₹1540.00").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("₹1260.00").length).toBeGreaterThanOrEqual(1);
+    expect(screen.getAllByText("₹280.00").length).toBeGreaterThanOrEqual(1);
+  });
 });
