@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   calculateRiderEarnings,
   calculateBatchRiderEarnings,
@@ -9,6 +9,9 @@ import {
   MAX_UNREMITTED_CASH_LIMIT,
   RIDER_BASE_PAYOUT,
   RIDER_BATCH_ADDON_PAYOUT,
+  purgeGhostActiveRun,
+  syncCourierActiveRuns,
+  isOrderNotFoundError,
 } from "@/services/deliveryPartnerService";
 
 describe("deliveryPartnerService rider earnings and CIH calculations", () => {
@@ -380,4 +383,58 @@ describe("deliveryPartnerService rider earnings and CIH calculations", () => {
       expect(recon.net_cash_due).toBe(246.0);
     });
   });
+
+  describe("purgeGhostActiveRun & 404 eviction", () => {
+    it("clears cached active run keys and sessionStorage", () => {
+      localStorage.setItem("active_run", JSON.stringify({ _id: "order_ghost_1" }));
+      localStorage.setItem("cb_active_order_id", "order_ghost_1");
+      sessionStorage.setItem("active_run", JSON.stringify({ _id: "order_ghost_1" }));
+
+      purgeGhostActiveRun("order_ghost_1");
+
+      expect(localStorage.getItem("active_run")).toBeNull();
+      expect(localStorage.getItem("cb_active_order_id")).toBeNull();
+      expect(sessionStorage.getItem("active_run")).toBeNull();
+    });
+
+    it("filters out ghost order from delivery collections and dispatches order_purged", () => {
+      const phone = "+919876543210";
+      localStorage.setItem("cb_delivery_partner", JSON.stringify({ phone }));
+      localStorage.setItem(
+        `cb_my_deliveries_${phone}`,
+        JSON.stringify([
+          { _id: "ghost-1", status: "Assigned" },
+          { _id: "valid-1", status: "Delivered" },
+        ])
+      );
+
+      let eventFired = false;
+      const handler = (e: Event) => {
+        const ce = e as CustomEvent<{ orderId?: string }>;
+        if (ce.detail?.orderId === "ghost-1") {
+          eventFired = true;
+        }
+      };
+      window.addEventListener("order_purged", handler);
+
+      purgeGhostActiveRun("ghost-1");
+
+      const remaining = JSON.parse(localStorage.getItem(`cb_my_deliveries_${phone}`) || "[]");
+      expect(remaining.length).toBe(1);
+      expect(remaining[0]._id).toBe("valid-1");
+      expect(eventFired).toBe(true);
+
+      window.removeEventListener("order_purged", handler);
+    });
+
+    it("isOrderNotFoundError identifies 404 status codes and messages", () => {
+      expect(isOrderNotFoundError({ status: 404 })).toBe(true);
+      expect(isOrderNotFoundError({ statusCode: 404 })).toBe(true);
+      expect(isOrderNotFoundError(new Error("Order not found"))).toBe(true);
+      expect(isOrderNotFoundError(new Error("HTTP 404 error"))).toBe(true);
+      expect(isOrderNotFoundError({ status: 500 })).toBe(false);
+      expect(isOrderNotFoundError(null)).toBe(false);
+    });
+  });
 });
+

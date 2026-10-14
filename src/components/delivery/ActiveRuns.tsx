@@ -1,10 +1,11 @@
 "use client";
 
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { DeliveryOrder } from "@/types";
 import { DeliveryOrderTableView } from "@/components/delivery/DeliveryOrderTableView";
 import { DeliveryOrderCardList } from "@/components/delivery/DeliveryOrderCardList";
+import { syncCourierActiveRuns } from "@/services/deliveryPartnerService";
 
 export interface ActiveRunsProps {
   orders?: DeliveryOrder[];
@@ -17,6 +18,8 @@ export function ActiveRuns({
   onUpdateStatus,
   onOpenOtp,
 }: ActiveRunsProps) {
+  const [isSyncing, setIsSyncing] = useState(false);
+
   useEffect(() => {
     if (typeof window !== "undefined") {
       try {
@@ -25,6 +28,15 @@ export function ActiveRuns({
       } catch {}
     }
   }, []);
+
+  const handleSync = async () => {
+    try {
+      setIsSyncing(true);
+      await syncCourierActiveRuns();
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const activeRuns = useMemo(() => {
     return orders.filter((o) => {
@@ -49,13 +61,23 @@ export function ActiveRuns({
         <p className="text-[11px] text-zinc-400 mt-0.5 max-w-xs">
           You don&apos;t have any ongoing deliveries in progress. Check available orders to claim fresh runs.
         </p>
-        <div className="mt-4">
+        <div className="mt-4 flex items-center gap-2">
           <Link
             className="px-4 py-2 bg-orange-500 text-white rounded-xl text-xs font-bold shadow-sm hover:bg-orange-600 transition-colors"
             href="/delivery/available"
           >
             Browse Available Orders
           </Link>
+          <button
+            type="button"
+            onClick={handleSync}
+            disabled={isSyncing}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
+            title="Force flush local cache and query server"
+          >
+            <span>Sync Runs</span>
+            <span className={isSyncing ? "animate-spin" : ""}>🔄</span>
+          </button>
         </div>
       </div>
     );
@@ -79,6 +101,16 @@ export function ActiveRuns({
         <span className="text-xs font-bold text-zinc-700">
           Active Runs ({activeRuns.length})
         </span>
+        <button
+          type="button"
+          onClick={handleSync}
+          disabled={isSyncing}
+          className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded-xl text-xs font-bold transition-all shadow-sm active:scale-95 disabled:opacity-50 cursor-pointer"
+          title="Force flush local cache and query server"
+        >
+          <span>Sync Runs</span>
+          <span className={isSyncing ? "animate-spin" : ""}>🔄</span>
+        </button>
       </div>
       <DeliveryOrderTableView
         orders={activeRuns}

@@ -103,6 +103,28 @@ describe("Footer Component", () => {
     ).toBeGreaterThanOrEqual(1);
   });
 
+  it("aligns Support and Admin side-by-side in responsive grid without col-span-2", () => {
+    mockPath = "/";
+    const { container } = render(<Footer />);
+
+    // Verify 4-column responsive grid container exists
+    const gridContainer = container.querySelector(".grid.grid-cols-2.md\\:grid-cols-4");
+    expect(gridContainer).not.toBeNull();
+
+    // Verify all 4 column headings exist as direct children/descendants in order
+    const headings = gridContainer?.querySelectorAll("h4");
+    expect(headings?.length).toBe(4);
+    expect(headings?.[0].textContent).toBe("Explore");
+    expect(headings?.[1].textContent).toBe("For Partners");
+    expect(headings?.[2].textContent).toBe("Support");
+    expect(headings?.[3].textContent).toBe("Admin");
+
+    // Ensure Admin column does not have col-span-2 causing vertical stacking on mobile
+    const adminHeading = screen.getByText("Admin");
+    const adminCol = adminHeading.closest("div");
+    expect(adminCol?.className).not.toContain("col-span-2");
+  });
+
   it("unmounts/hides completely on /checkout route for a distraction-free funnel", () => {
     mockPath = "/checkout";
     const { container } = render(<Footer />);

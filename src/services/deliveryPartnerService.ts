@@ -615,7 +615,7 @@ export function isOrderNotFoundError(err: unknown): boolean {
 }
 
 /**
- * Immediately purges any ghost active run from localStorage and in-memory caches,
+ * Immediately purges any ghost active run from localStorage, sessionStorage, and in-memory caches,
  * displays an admin removal toast, dispatches synchronization events,
  * and routes the courier cleanly to Available Runs (/courier/runs).
  */
@@ -637,8 +637,8 @@ export function purgeGhostActiveRun(orderId?: string): void {
     ];
     for (const k of keysToPurge) {
       localStorage.removeItem(k);
-      sessionStorage.removeItem(k);
     }
+    sessionStorage.clear();
 
     const partner = JSON.parse(
       localStorage.getItem("cb_delivery_partner") || "null"
@@ -653,7 +653,10 @@ export function purgeGhostActiveRun(orderId?: string): void {
           if (Array.isArray(list)) {
             const filtered = orderId
               ? list.filter((o: { _id?: string; id?: string }) => (o._id || o.id) !== orderId)
-              : [];
+              : list.filter((o: { status?: string }) => {
+                  const s = String(o.status || "").toLowerCase().trim();
+                  return s === "delivered" || s === "completed";
+                });
             localStorage.setItem(phoneKey, JSON.stringify(filtered));
           }
         } catch {}
@@ -667,7 +670,10 @@ export function purgeGhostActiveRun(orderId?: string): void {
         if (Array.isArray(list)) {
           const filtered = orderId
             ? list.filter((o: { _id?: string; id?: string }) => (o._id || o.id) !== orderId)
-            : [];
+            : list.filter((o: { status?: string }) => {
+                const s = String(o.status || "").toLowerCase().trim();
+                return s === "delivered" || s === "completed";
+              });
           localStorage.setItem("cb_accepted_deliveries", JSON.stringify(filtered));
         }
       } catch {}
@@ -702,6 +708,130 @@ export function purgeGhostActiveRun(orderId?: string): void {
     }, 350);
   } catch (e) {
     console.error("Failed to purge ghost active run:", e);
+  }
+}
+
+/**
+ * Forces a cache flush of any local/session stored runs and synchronizes
+ * directly with backend active run endpoints.
+ * If backend returns 404 or active_run is null/empty, clears local ghost runs
+ * and triggers navigation to Available Runs.
+ */
+export async function syncCourierActiveRuns(): Promise<{
+  active_run: DeliveryDashboardOrder | null;
+  orders: DeliveryDashboardOrder[];
+  status: string;
+}> {
+  if (typeof window === "undefined") {
+    return { active_run: null, orders: [], status: "idle" };
+  }
+
+  // 1. Force flush local cached run keys & sessionStorage
+  const keysToPurge = [
+    "active_run",
+    "active_runs",
+    "cb_active_run",
+    "cb_active_runs",
+    "cb_courier_active_runs",
+    "cb_active_order",
+    "cb_active_order_id",
+    "cb_last_order",
+    "cb_courier_orders",
+    "cb_active_orders",
+  ];
+  for (const k of keysToPurge) {
+    try {
+      localStorage.removeItem(k);
+    } catch {}
+  }
+  try {
+    sessionStorage.clear();
+  } catch {}
+
+  try {
+    const res = await authJson<{
+      active_run?: DeliveryDashboardOrder | null;
+      orders?: DeliveryDashboardOrder[];
+      status?: string;
+      success?: boolean;
+    }>("/delivery-dashboard/active-run", {
+      role: "delivery_partner",
+      redirectOnAuthError: false,
+    });
+
+    const activeRun = res?.active_run || null;
+    const orders = Array.isArray(res?.orders)
+      ? res.orders
+      : (activeRun ? [activeRun] : []);
+
+    if (!activeRun || orders.length === 0) {
+      const partner = JSON.parse(
+        localStorage.getItem("cb_delivery_partner") || "null"
+      );
+      const phone = partner?.phone;
+      if (phone) {
+        localStorage.removeItem(`cb_my_deliveries_${phone}`);
+      }
+      localStorage.removeItem("cb_accepted_deliveries");
+      localStorage.removeItem("active_run");
+      sessionStorage.clear();
+
+      window.dispatchEvent(new Event("delivery_state_changed"));
+      window.dispatchEvent(new CustomEvent("order_purged", { detail: {} }));
+      toast.info("Sync complete: No active runs assigned.");
+      return { active_run: null, orders: [], status: "idle" };
+    }
+
+    localStorage.setItem("active_run", JSON.stringify(activeRun));
+    window.dispatchEvent(new Event("delivery_state_changed"));
+    toast.success("Active runs synchronized successfully!");
+    return {
+      active_run: activeRun,
+      orders,
+      status: res?.status || activeRun.status || "assigned",
+    };
+  } catch (err) {
+    if (isOrderNotFoundError(err)) {
+      purgeGhostActiveRun();
+      return { active_run: null, orders: [], status: "idle" };
+    }
+
+    try {
+      const courierRes = await authJson<{
+        success?: boolean;
+        orders?: DeliveryDashboardOrder[];
+        active_run?: DeliveryDashboardOrder | null;
+      }>("/courier/orders/active", {
+        role: "delivery_partner",
+        redirectOnAuthError: false,
+      });
+
+      const orders = Array.isArray(courierRes?.orders) ? courierRes.orders : [];
+      const activeRun = courierRes?.active_run || (orders.length > 0 ? orders[0] : null);
+
+      if (!activeRun || orders.length === 0) {
+        localStorage.removeItem("active_run");
+        sessionStorage.clear();
+        window.dispatchEvent(new Event("delivery_state_changed"));
+        window.dispatchEvent(new CustomEvent("order_purged", { detail: {} }));
+        toast.info("Sync complete: No active runs found.");
+        return { active_run: null, orders: [], status: "idle" };
+      }
+
+      localStorage.setItem("active_run", JSON.stringify(activeRun));
+      window.dispatchEvent(new Event("delivery_state_changed"));
+      toast.success("Active runs synchronized successfully!");
+      return {
+        active_run: activeRun,
+        orders,
+        status: activeRun.status || "assigned",
+      };
+    } catch {
+      localStorage.removeItem("active_run");
+      sessionStorage.clear();
+      window.dispatchEvent(new Event("delivery_state_changed"));
+      return { active_run: null, orders: [], status: "idle" };
+    }
   }
 }
 

@@ -37,6 +37,7 @@ import {
   recordDeliveredOrderCash,
   isOrderNotFoundError,
   purgeGhostActiveRun,
+  syncCourierActiveRuns,
 } from "@/services/deliveryPartnerService";
 import { useCourierLocationStream } from "@/hooks/useCourierLocationStream";
 import type { DeliveryOrder } from "@/types";
@@ -332,11 +333,25 @@ export function ActiveDeliveryManifest({
             {displayStatus}
           </span>
         </div>
-        <span className="text-[11px] text-zinc-400 font-medium shrink-0" suppressHydrationWarning>
-          {isMounted && assignedAtTime
-            ? new Date(assignedAtTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-            : 'Just now'}
-        </span>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={async (e) => {
+              e.stopPropagation();
+              await syncCourierActiveRuns();
+            }}
+            className="inline-flex items-center gap-1 px-2.5 py-1 bg-zinc-100 hover:bg-zinc-200 text-zinc-800 rounded-lg text-xs font-bold transition-all active:scale-95 cursor-pointer shadow-xs"
+            title="Force flush local cache and sync runs with server"
+          >
+            <span>Sync Runs</span>
+            <span>🔄</span>
+          </button>
+          <span className="text-[11px] text-zinc-400 font-medium shrink-0" suppressHydrationWarning>
+            {isMounted && assignedAtTime
+              ? new Date(assignedAtTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              : 'Just now'}
+          </span>
+        </div>
       </div>
 
       {/* 2. Financial Metrics Box: Courier Payout & Cash to Collect */}

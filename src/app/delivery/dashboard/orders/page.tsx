@@ -10,6 +10,7 @@ import { DeliveryOrdersFilterBar } from "@/components/delivery/DeliveryOrdersFil
 import { DeliveryOrderTableView } from "@/components/delivery/DeliveryOrderTableView";
 import { DeliveryOrderCardList } from "@/components/delivery/DeliveryOrderCardList";
 import { DeliveryOtpModal } from "@/components/delivery/DeliveryOtpModal";
+import { syncCourierActiveRuns } from "@/services/deliveryPartnerService";
 
 function OrdersSkeleton() {
   return (
@@ -25,6 +26,7 @@ function OrdersSkeleton() {
 export default function DeliveryOrdersPage() {
   const [isMounted, setIsMounted] = useState(false);
   const [selectedTab, setSelectedTab] = useState<'active' | 'history'>('active');
+  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     setIsMounted(true);
@@ -57,6 +59,16 @@ export default function DeliveryOrdersPage() {
     verifyOTP,
     handleSearchSubmit,
   } = useDeliveryOrders();
+
+  const handleManualSync = async () => {
+    try {
+      setIsSyncing(true);
+      await syncCourierActiveRuns();
+      void loadOrders(currentFilters(), { showLoading: true });
+    } finally {
+      setIsSyncing(false);
+    }
+  };
 
   const activeRuns = orders.filter((o) => {
     const s = (o.status || "").toLowerCase().trim();
@@ -101,43 +113,56 @@ export default function DeliveryOrdersPage() {
           onSubmit={handleSearchSubmit}
         />
 
-        {/* Dual-Tab Switcher (Matching Canteen KDS Design) */}
-        <div className="flex items-center gap-2 p-1.5 bg-zinc-100/80 rounded-2xl border border-zinc-200/60 my-3">
-          <button
-            type="button"
-            onClick={() => setSelectedTab('active')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-              selectedTab === 'active'
-                ? 'bg-orange-500 text-white shadow-sm'
-                : 'text-zinc-600 hover:text-zinc-900'
-            }`}
-          >
-            <span>🛵 Active Runs</span>
-            <span
-              aria-label={`Active Runs ${activeRuns.length}`}
-              className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-                selectedTab === 'active' ? 'bg-white text-orange-600' : 'bg-zinc-200 text-zinc-700'
+        {/* Dual-Tab Switcher & Sync Runs Button */}
+        <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap my-3">
+          <div className="flex-1 flex items-center gap-2 p-1.5 bg-zinc-100/80 rounded-2xl border border-zinc-200/60 w-full sm:w-auto">
+            <button
+              type="button"
+              onClick={() => setSelectedTab('active')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                selectedTab === 'active'
+                  ? 'bg-orange-500 text-white shadow-sm'
+                  : 'text-zinc-600 hover:text-zinc-900'
               }`}
             >
-              {activeRuns.length === 0 ? "Active Runs 0" : activeRuns.length}
-            </span>
-          </button>
+              <span>🛵 Active Runs</span>
+              <span
+                aria-label={`Active Runs ${activeRuns.length}`}
+                className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                  selectedTab === 'active' ? 'bg-white text-orange-600' : 'bg-zinc-200 text-zinc-700'
+                }`}
+              >
+                {activeRuns.length === 0 ? "Active Runs 0" : activeRuns.length}
+              </span>
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setSelectedTab('history')}
+              className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+                selectedTab === 'history'
+                  ? 'bg-zinc-900 text-white shadow-sm'
+                  : 'text-zinc-600 hover:text-zinc-900'
+              }`}
+            >
+              <span>📋 Run History</span>
+              <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                selectedTab === 'history' ? 'bg-zinc-700 text-white' : 'bg-zinc-200 text-zinc-700'
+              }`}>
+                {pastRuns.length}
+              </span>
+            </button>
+          </div>
 
           <button
             type="button"
-            onClick={() => setSelectedTab('history')}
-            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-              selectedTab === 'history'
-                ? 'bg-zinc-900 text-white shadow-sm'
-                : 'text-zinc-600 hover:text-zinc-900'
-            }`}
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white hover:bg-zinc-50 border border-zinc-200/80 text-zinc-800 rounded-2xl text-xs font-bold transition-all shadow-sm active:scale-95 disabled:opacity-50 shrink-0 cursor-pointer"
+            title="Force flush local cache and sync runs with server"
           >
-            <span>📋 Run History</span>
-            <span className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-              selectedTab === 'history' ? 'bg-zinc-700 text-white' : 'bg-zinc-200 text-zinc-700'
-            }`}>
-              {pastRuns.length}
-            </span>
+            <span>Sync Runs</span>
+            <span className={isSyncing ? "animate-spin" : ""}>🔄</span>
           </button>
         </div>
 

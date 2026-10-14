@@ -9,6 +9,7 @@ import { ActiveRunCard } from "@/components/delivery/ActiveRunCard";
 import { DeliveryOtpModal } from "@/components/delivery/DeliveryOtpModal";
 import { useDeliveryOrders } from "@/hooks/delivery/useDeliveryOrders";
 import { authJson } from "@/services/authFetch";
+import { syncCourierActiveRuns } from "@/services/deliveryPartnerService";
 
 export interface CourierOrdersProps {
   initialOrders?: DeliveryOrder[];
@@ -31,10 +32,11 @@ export function CourierOrders({ initialOrders, orders: propOrders }: CourierOrde
 
   const [selectedTab, setSelectedTab] = useState<"active" | "history">("active");
   const [fetchedActiveRuns, setFetchedActiveRuns] = useState<DeliveryOrder[] | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
 
   const fetchActiveRuns = useCallback(async () => {
     try {
-      const res = await authJson<{ success?: boolean; orders?: DeliveryOrder[] }>(
+      const res = await authJson<{ success?: boolean; orders?: DeliveryOrder[]; active_run?: DeliveryOrder | null }>(
         "/courier/orders/active",
         { role: "delivery_partner", redirectOnAuthError: false }
       );
@@ -42,17 +44,40 @@ export function CourierOrders({ initialOrders, orders: propOrders }: CourierOrde
       setFetchedActiveRuns(liveOrders);
 
       // Clear any stale local cache if server is empty
-      if (liveOrders.length === 0) {
+      if (liveOrders.length === 0 || res?.active_run === null) {
+        localStorage.removeItem("active_run");
         localStorage.removeItem("cb_courier_active_runs");
         localStorage.removeItem("cb_active_orders");
         localStorage.removeItem("cb_courier_orders");
-        sessionStorage.removeItem("cb_courier_orders");
+        sessionStorage.clear();
       }
     } catch {
       // On error, show empty array, DO NOT render 8 mock runs
       setFetchedActiveRuns([]);
     }
   }, []);
+
+  const handleManualSync = async () => {
+    try {
+      setIsSyncing(true);
+      const res = await syncCourierActiveRuns();
+      setFetchedActiveRuns((res.orders as DeliveryOrder[]) || []);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  useEffect(() => {
+    const handleSyncEvent = () => {
+      void fetchActiveRuns();
+    };
+    window.addEventListener("delivery_state_changed", handleSyncEvent);
+    window.addEventListener("order_purged", handleSyncEvent);
+    return () => {
+      window.removeEventListener("delivery_state_changed", handleSyncEvent);
+      window.removeEventListener("order_purged", handleSyncEvent);
+    };
+  }, [fetchActiveRuns]);
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -84,42 +109,55 @@ export function CourierOrders({ initialOrders, orders: propOrders }: CourierOrde
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center gap-2 p-1.5 bg-zinc-100/80 rounded-2xl border border-zinc-200/60 my-3">
-        <button
-          type="button"
-          onClick={() => setSelectedTab("active")}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-            selectedTab === "active"
-              ? "bg-orange-500 text-white shadow-sm"
-              : "text-zinc-600 hover:text-zinc-900"
-          }`}
-        >
-          <span>Active Runs</span>
-          <span
-            aria-label={`Active Runs ${activeRuns.length}`}
-            className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-orange-100 text-orange-700"
+      <div className="flex items-center justify-between gap-2 flex-wrap sm:flex-nowrap my-3">
+        <div className="flex-1 flex items-center gap-2 p-1.5 bg-zinc-100/80 rounded-2xl border border-zinc-200/60 w-full sm:w-auto">
+          <button
+            type="button"
+            onClick={() => setSelectedTab("active")}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+              selectedTab === "active"
+                ? "bg-orange-500 text-white shadow-sm"
+                : "text-zinc-600 hover:text-zinc-900"
+            }`}
           >
-            {activeRuns.length}
-          </span>
-        </button>
+            <span>Active Runs</span>
+            <span
+              aria-label={`Active Runs ${activeRuns.length}`}
+              className="ml-1.5 px-2 py-0.5 rounded-full text-xs bg-orange-100 text-orange-700"
+            >
+              {activeRuns.length}
+            </span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => setSelectedTab("history")}
+            className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
+              selectedTab === "history"
+                ? "bg-zinc-900 text-white shadow-sm"
+                : "text-zinc-600 hover:text-zinc-900"
+            }`}
+          >
+            <span>Run History</span>
+            <span
+              className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
+                selectedTab === "history" ? "bg-zinc-700 text-white" : "bg-zinc-200 text-zinc-700"
+              }`}
+            >
+              {pastRuns.length}
+            </span>
+          </button>
+        </div>
 
         <button
           type="button"
-          onClick={() => setSelectedTab("history")}
-          className={`flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-xl text-xs font-bold transition-all ${
-            selectedTab === "history"
-              ? "bg-zinc-900 text-white shadow-sm"
-              : "text-zinc-600 hover:text-zinc-900"
-          }`}
+          onClick={handleManualSync}
+          disabled={isSyncing}
+          className="inline-flex items-center gap-1.5 px-3.5 py-2.5 bg-white hover:bg-zinc-50 border border-zinc-200/80 text-zinc-800 rounded-2xl text-xs font-bold transition-all shadow-sm active:scale-95 disabled:opacity-50 shrink-0 cursor-pointer"
+          title="Force flush local cache and sync runs with server"
         >
-          <span>Run History</span>
-          <span
-            className={`px-1.5 py-0.5 rounded-full text-[10px] font-bold ${
-              selectedTab === "history" ? "bg-zinc-700 text-white" : "bg-zinc-200 text-zinc-700"
-            }`}
-          >
-            {pastRuns.length}
-          </span>
+          <span>Sync Runs</span>
+          <span className={isSyncing ? "animate-spin" : ""}>🔄</span>
         </button>
       </div>
 

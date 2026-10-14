@@ -310,6 +310,7 @@ async def delivery_stats(
 
 
 @router.get("/active-run")
+@router.get("/my-runs")
 async def get_active_run(
     current_user: Annotated[
         dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))
@@ -318,17 +319,127 @@ async def get_active_run(
 ):
     """
     Returns the active assigned run for the courier partner.
-    Returns null if no active run order is assigned or if the assigned order
-    was cancelled or removed from MongoDB.
+    Auto-heals ghost active orders: if order does not exist in MongoDB or is
+    cancelled, delivered, or rejected, unsets the fields on the courier doc
+    and returns { "active_run": null, "orders": [], "status": "idle" }.
     """
+    from bson import ObjectId
+
     target_phone = phone or current_user.get("phone")
+    courier_id = (
+        current_user.get("_id")
+        or current_user.get("id")
+        or current_user.get("courier_id")
+    )
+
+    unset_fields = {
+        "current_order_id": "",
+        "active_run": "",
+        "assigned_order_id": "",
+        "active_order_id": "",
+    }
+
+    async def _auto_heal_courier_docs():
+        c_ids = set()
+        if courier_id:
+            c_ids.add(str(courier_id))
+        if courier_doc and courier_doc.get("_id"):
+            c_ids.add(str(courier_doc["_id"]))
+
+        for col_name in ["couriers", "delivery_partners", "users"]:
+            try:
+                col = database[col_name]
+                for cid in c_ids:
+                    if ObjectId.is_valid(cid):
+                        c_filter = {
+                            "$or": [
+                                {"_id": ObjectId(cid)},
+                                {"_id": cid},
+                                {"id": cid},
+                            ]
+                        }
+                    else:
+                        c_filter = {
+                            "$or": [
+                                {"_id": cid},
+                                {"id": cid},
+                            ]
+                        }
+                    await col.update_many(c_filter, {"$unset": unset_fields})
+                if target_phone:
+                    await col.update_many({"phone": target_phone}, {"$unset": unset_fields})
+            except Exception:
+                pass
+
+    # 1. Check courier document for current_order_id / active_order_id / active_run
+    courier_doc = None
+    for col_name in ["couriers", "delivery_partners", "users"]:
+        try:
+            col = database[col_name]
+            if target_phone:
+                courier_doc = await col.find_one({"phone": target_phone})
+                if courier_doc:
+                    break
+            if not courier_doc and courier_id:
+                if ObjectId.is_valid(str(courier_id)):
+                    courier_doc = await col.find_one({"_id": ObjectId(str(courier_id))})
+                if not courier_doc:
+                    courier_doc = await col.find_one({"_id": str(courier_id)})
+                if courier_doc:
+                    break
+        except Exception:
+            pass
+
+    order_ref = None
+    if courier_doc:
+        order_ref = (
+            courier_doc.get("current_order_id")
+            or courier_doc.get("active_order_id")
+            or courier_doc.get("assigned_order_id")
+            or courier_doc.get("active_run")
+        )
+
+    # 2. If courier document has an order reference, verify order in orders collection
+    if order_ref:
+        order_ref_id = (
+            str(order_ref.get("_id") or order_ref.get("id") or "")
+            if isinstance(order_ref, dict)
+            else str(order_ref)
+        )
+        if order_ref_id:
+            order_query: list[dict[str, Any]] = [
+                {"_id": order_ref_id},
+                {"id": order_ref_id},
+            ]
+            if ObjectId.is_valid(order_ref_id):
+                order_query.append({"_id": ObjectId(order_ref_id)})
+
+            existing_order = await orders.find_one({"$or": order_query})
+            order_status = str((existing_order or {}).get("status", "")).strip().upper()
+
+            # If order does not exist or status is CANCELLED, DELIVERED, REJECTED
+            if not existing_order or order_status in ["CANCELLED", "DELIVERED", "REJECTED"]:
+                await _auto_heal_courier_docs()
+                return {"active_run": None, "orders": [], "status": "idle"}
+            elif order_status in ["ASSIGNED", "PICKED UP", "PICKED_UP", "OUT FOR DELIVERY", "OUT_FOR_DELIVERY"]:
+                serialized = _serialize_order(existing_order)
+                return {
+                    "active_run": serialized,
+                    "orders": [serialized],
+                    "status": serialized.get("status", "assigned"),
+                    **serialized,
+                }
+
+    # 3. Query orders collection for active order assigned to this courier phone
     if not target_phone:
-        return None
+        await _auto_heal_courier_docs()
+        return {"active_run": None, "orders": [], "status": "idle"}
 
     active_order = await orders.find_one({
         "$or": [
             {"delivery_partner.phone": target_phone},
             {"delivery_partner_phone": target_phone},
+            {"courier_phone": target_phone},
         ],
         "status": {
             "$in": [
@@ -343,7 +454,14 @@ async def get_active_run(
     })
 
     if not active_order:
-        return None
+        await _auto_heal_courier_docs()
+        return {"active_run": None, "orders": [], "status": "idle"}
 
-    return _serialize_order(active_order)
+    serialized = _serialize_order(active_order)
+    return {
+        "active_run": serialized,
+        "orders": [serialized],
+        "status": serialized.get("status", "assigned"),
+        **serialized,
+    }
 

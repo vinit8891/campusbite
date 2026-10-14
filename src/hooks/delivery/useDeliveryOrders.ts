@@ -73,6 +73,31 @@ export function useDeliveryOrders() {
     return () => clearTimeout(timer);
   }, [q]);
 
+  useEffect(() => {
+    const handlePurged = (e: Event) => {
+      const customEvent = e as CustomEvent<{ orderId?: string }>;
+      const purgedId = customEvent.detail?.orderId;
+      if (purgedId) {
+        setOrders((prev) =>
+          prev.filter(
+            (ord) => ord._id !== purgedId && (ord as { id?: string }).id !== purgedId
+          )
+        );
+      } else {
+        setOrders((prev) =>
+          prev.filter((ord) => {
+            const s = (ord.status || "").toLowerCase().trim();
+            return s === "delivered" || s === "completed";
+          })
+        );
+      }
+    };
+    window.addEventListener("order_purged", handlePurged);
+    return () => {
+      window.removeEventListener("order_purged", handlePurged);
+    };
+  }, []);
+
   function currentFilters(
     overrides: Partial<MyDeliveriesQuery> = {}
   ): MyDeliveriesQuery {
@@ -294,6 +319,15 @@ export function useDeliveryOrders() {
 
       toast.success("Delivery completed successfully");
     } catch (err: unknown) {
+      if (isOrderNotFoundError(err)) {
+        purgeGhostActiveRun(otpOrderId);
+        setOrders((prev) =>
+          prev.filter(
+            (ord) => ord._id !== otpOrderId && (ord as { id?: string }).id !== otpOrderId
+          )
+        );
+        return;
+      }
       setOtpError(err instanceof Error ? err.message : "Invalid OTP");
     } finally {
       setVerifying(false);

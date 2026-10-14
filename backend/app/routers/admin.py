@@ -465,6 +465,43 @@ async def delete_order(
 
     await database["orders"].delete_one({"_id": order_doc["_id"]})
 
+    # Automatically unassign any courier tied to the deleted order across collections
+    order_id_str = str(order_doc["_id"])
+    raw_order_id = str(order_doc.get("id") or order_id_str)
+    candidate_ids = list({order_id, order_id_str, raw_order_id})
+    unset_fields = {
+        "current_order_id": "",
+        "active_run": "",
+        "assigned_order_id": "",
+        "active_order_id": "",
+    }
+    courier_filter = {
+        "$or": [
+            {"current_order_id": {"$in": candidate_ids}},
+            {"assigned_order_id": {"$in": candidate_ids}},
+            {"active_order_id": {"$in": candidate_ids}},
+            {"active_run._id": {"$in": candidate_ids}},
+            {"active_run.id": {"$in": candidate_ids}},
+        ]
+    }
+    for col_name in ["couriers", "delivery_partners", "users"]:
+        try:
+            await database[col_name].update_many(courier_filter, {"$unset": unset_fields})
+        except Exception as exc:
+            logger.warning("Failed unassigning couriers from %s on order delete: %s", col_name, exc)
+
+    courier_phone = (
+        (order_doc.get("delivery_partner") or {}).get("phone")
+        or order_doc.get("delivery_partner_phone")
+        or order_doc.get("courier_phone")
+    )
+    if courier_phone:
+        for col_name in ["couriers", "delivery_partners", "users"]:
+            try:
+                await database[col_name].update_many({"phone": courier_phone}, {"$unset": unset_fields})
+            except Exception:
+                pass
+
     await log_admin_action(
         admin_email=admin_email,
         action="delete_order",

@@ -1061,6 +1061,38 @@ async def update_order_status(
         {"$set": update_data},
     )
 
+    if canonical_target in ["cancelled", "rejected"]:
+        try:
+            cand_ids = list({str(db_id), str(order_id), str(order.get("id") or "")})
+            u_filter = {
+                "$or": [
+                    {"current_order_id": {"$in": cand_ids}},
+                    {"assigned_order_id": {"$in": cand_ids}},
+                    {"active_order_id": {"$in": cand_ids}},
+                    {"active_run._id": {"$in": cand_ids}},
+                    {"active_run.id": {"$in": cand_ids}},
+                ]
+            }
+            u_fields = {
+                "current_order_id": "",
+                "active_run": "",
+                "assigned_order_id": "",
+                "active_order_id": "",
+            }
+            for c_name in ["couriers", "delivery_partners", "users"]:
+                await database[c_name].update_many(u_filter, {"$unset": u_fields})
+
+            c_phone = (
+                (order.get("delivery_partner") or {}).get("phone")
+                or order.get("delivery_partner_phone")
+                or order.get("courier_phone")
+            )
+            if c_phone:
+                for c_name in ["couriers", "delivery_partners", "users"]:
+                    await database[c_name].update_many({"phone": c_phone}, {"$unset": u_fields})
+        except Exception:
+            pass
+
     return result.matched_count > 0 or result.modified_count > 0
 
 

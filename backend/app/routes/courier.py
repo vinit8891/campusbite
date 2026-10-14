@@ -173,7 +173,27 @@ async def get_courier_active_orders(
 
     # NEVER fall back to mock data when database is empty
     if not raw_orders:
-        return {"success": True, "orders": [], "count": 0}
+        unset_fields = {
+            "current_order_id": "",
+            "active_run": "",
+            "assigned_order_id": "",
+            "active_order_id": "",
+        }
+        for col_name in ["couriers", "delivery_partners", "users"]:
+            try:
+                col = _get_col(active_db, col_name)
+                if col is not None:
+                    if target_courier_id:
+                        if ObjectId.is_valid(target_courier_id):
+                            c_filter = {"$or": [{"_id": ObjectId(target_courier_id)}, {"_id": target_courier_id}, {"id": target_courier_id}]}
+                        else:
+                            c_filter = {"$or": [{"_id": target_courier_id}, {"id": target_courier_id}]}
+                        await col.update_many(c_filter, {"$unset": unset_fields})
+                    if rider_phone:
+                        await col.update_many({"phone": rider_phone}, {"$unset": unset_fields})
+            except Exception:
+                pass
+        return {"success": True, "active_run": None, "orders": [], "count": 0, "status": "idle"}
 
     formatted_orders = []
     for o in raw_orders:
@@ -182,7 +202,14 @@ async def get_courier_active_orders(
         formatted_orders.append(normalize_order_financials(o_dict))
 
     orders = apply_courier_batch_wages(formatted_orders)
-    return {"success": True, "orders": orders, "count": len(orders)}
+    active_run = orders[0] if orders else None
+    return {
+        "success": True,
+        "active_run": active_run,
+        "orders": orders,
+        "count": len(orders),
+        "status": (active_run.get("status") if active_run else "idle"),
+    }
 
 
 

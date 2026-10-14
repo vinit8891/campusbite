@@ -618,6 +618,10 @@ export async function verifyDeliveryOTP(
       }
     );
   } catch (err) {
+    if (isOrderNotFoundError(err)) {
+      purgeGhostActiveRun(orderId);
+      throw err;
+    }
     return { success: true, message: "OTP Verified (local sync)" };
   }
 }

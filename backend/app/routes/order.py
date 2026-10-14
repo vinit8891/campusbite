@@ -1752,6 +1752,40 @@ async def change_status(
             order_id,
         )
         await award_referral_reward_if_eligible(order)
+    elif canonical_target in {"cancelled", "rejected"}:
+        try:
+            from app.db.database import database as app_db
+            order_id_str = str(order.get("_id") or order_id)
+            raw_order_id = str(order.get("id") or order_id)
+            candidate_ids = list({order_id, order_id_str, raw_order_id})
+            unset_fields = {
+                "current_order_id": "",
+                "active_run": "",
+                "assigned_order_id": "",
+                "active_order_id": "",
+            }
+            courier_filter = {
+                "$or": [
+                    {"current_order_id": {"$in": candidate_ids}},
+                    {"assigned_order_id": {"$in": candidate_ids}},
+                    {"active_order_id": {"$in": candidate_ids}},
+                    {"active_run._id": {"$in": candidate_ids}},
+                    {"active_run.id": {"$in": candidate_ids}},
+                ]
+            }
+            for col_name in ["couriers", "delivery_partners", "users"]:
+                await app_db[col_name].update_many(courier_filter, {"$unset": unset_fields})
+
+            courier_phone = (
+                (order.get("delivery_partner") or {}).get("phone")
+                or order.get("delivery_partner_phone")
+                or order.get("courier_phone")
+            )
+            if courier_phone:
+                for col_name in ["couriers", "delivery_partners", "users"]:
+                    await app_db[col_name].update_many({"phone": courier_phone}, {"$unset": unset_fields})
+        except Exception:
+            pass
 
     refreshed_order = await get_order_by_id(order_id) or order
     return {
