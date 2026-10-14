@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
@@ -188,9 +189,13 @@ export default function RestaurantDashboardLayout({
               href={ROUTES.RESTAURANT_DASHBOARD}
               className="flex items-center gap-2.5"
             >
-              <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-600 text-white shadow-sm shadow-orange-600/30">
-                <Store className="h-5 w-5" />
-              </div>
+              <Image
+                src="/images/brand-logo.png"
+                alt="CampusBite Logo"
+                width={40}
+                height={40}
+                className="h-10 w-auto object-contain rounded-xl"
+              />
               <div>
                 <h1 className="text-lg font-black tracking-tight text-stone-900">
                   CampusBite
@@ -268,7 +273,13 @@ export default function RestaurantDashboardLayout({
         <header className="sticky top-0 z-30 flex h-16 items-center justify-between border-b border-amber-200/50 bg-white/90 px-4 sm:px-6 lg:px-8 backdrop-blur-md">
           {/* Left Title / Branding for Mobile */}
           <div className="flex items-center gap-2 md:hidden">
-            <span className="text-xl">🍲</span>
+            <Image
+              src="/images/brand-logo.png"
+              alt="CampusBite Logo"
+              width={32}
+              height={32}
+              className="h-8 w-auto object-contain rounded-lg"
+            />
             <span className="text-base font-black tracking-tight text-stone-900">
               CampusBite Partner
             </span>

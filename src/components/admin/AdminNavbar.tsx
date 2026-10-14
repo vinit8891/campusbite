@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Menu, ShieldCheck } from "lucide-react";
 import { ROUTES } from "@/lib/routes";
 
@@ -27,9 +28,13 @@ export function AdminNavbar({ onOpenDrawer }: AdminNavbarProps) {
           className="flex items-center gap-2 group"
           aria-label="CampusBite Admin Console Home"
         >
-          <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-xs">
-            <ShieldCheck className="h-4 w-4" />
-          </div>
+          <Image
+            src="/images/brand-logo.png"
+            alt="CampusBite Logo"
+            width={32}
+            height={32}
+            className="h-8 w-auto object-contain rounded-xl"
+          />
           <div>
             <span className="text-sm font-black tracking-tight text-stone-900 block leading-tight">
               CampusBite

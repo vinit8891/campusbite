@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Phone, MessageCircle, Mail, ShieldCheck } from "lucide-react";
 
@@ -36,9 +37,15 @@ export default function Footer() {
         {/* Top Bar: Brand, Mission & Live Status */}
         <div className="flex flex-wrap items-center justify-between gap-3 border-b border-zinc-800/80 pb-5">
           <div>
-            <Link className="flex items-center gap-2 text-white font-bold text-base" href="/">
-              <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-orange-600 text-sm">🔥</span>
-              CampusBite
+            <Link className="flex items-center gap-2.5 text-white font-bold text-base" href="/">
+              <Image
+                src="/images/brand-logo.png"
+                alt="CampusBite Logo"
+                width={28}
+                height={28}
+                className="h-7 w-auto object-contain rounded-lg"
+              />
+              <span>CampusBite</span>
             </Link>
             <p className="mt-1 text-xs text-zinc-400">
               CampusBite — Built for Zeal College of Engineering &amp; Research, Pune

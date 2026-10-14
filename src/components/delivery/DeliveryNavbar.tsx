@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { ROUTES } from "@/lib/routes";
 import { getDeliveryPartnerSession } from "@/lib/authTokens";
 import { updateDeliveryStatus } from "@/services/deliveryPartnerService";
@@ -73,9 +74,13 @@ export function DeliveryNavbar({ activeRunsCount, isUnverified: propIsUnverified
           href={ROUTES.DELIVERY_DASHBOARD}
           className="flex items-center gap-2"
         >
-          <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-orange-600 text-white text-lg shadow-xs shadow-orange-600/30">
-            🛵
-          </span>
+          <Image
+            src="/images/brand-logo.png"
+            alt="CampusBite Logo"
+            width={36}
+            height={36}
+            className="h-9 w-auto object-contain rounded-xl"
+          />
           <div>
             <span className="text-sm font-black tracking-tight text-stone-900 block leading-tight">
               CampusBite

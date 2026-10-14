@@ -2,6 +2,7 @@
 
 import React, { useEffect, useCallback } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   Home,
@@ -171,13 +172,19 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
           <Link
             href={ROUTES.HOME}
             onClick={onClose}
-            className="flex items-center gap-2 text-xl font-bold text-orange-600 hover:opacity-90 transition-opacity"
+            className="flex items-center gap-2.5 text-xl font-bold hover:opacity-90 transition-opacity"
             aria-label="CampusBite Home"
           >
-            <span className="text-2xl" role="img" aria-label="Plate and cutlery">
-              🍽️
+            <Image
+              src="/images/brand-logo.png"
+              alt="CampusBite Logo"
+              width={36}
+              height={36}
+              className="h-8 w-auto object-contain rounded-lg"
+            />
+            <span className="tracking-tight text-neutral-900 font-serif">
+              CampusBite
             </span>
-            <span className="tracking-tight">CampusBite</span>
           </Link>
 
           <button

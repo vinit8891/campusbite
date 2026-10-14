@@ -2,6 +2,7 @@
 
 import React, { useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { Menu, ShoppingCart, MapPin, ChevronDown } from "lucide-react";
 
@@ -47,12 +48,15 @@ export function Navbar() {
               className="flex items-center gap-2.5 group shrink-0"
               aria-label="CampusBite Home"
             >
-              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 text-white shadow-sm shadow-orange-500/20 group-hover:scale-105 transition-transform">
-                <span className="text-lg" role="img" aria-label="Plate and cutlery">
-                  🍽️
-                </span>
-              </div>
-              <span className="text-xl font-bold tracking-tight text-gray-900 group-hover:text-orange-600 transition-colors">
+              <Image
+                src="/images/brand-logo.png"
+                alt="CampusBite Logo"
+                width={44}
+                height={44}
+                className="h-10 w-auto object-contain rounded-xl"
+                priority
+              />
+              <span className="text-xl font-bold font-serif tracking-tight text-neutral-900 group-hover:text-orange-600 transition-colors">
                 Campus<span className="text-orange-600">Bite</span>
               </span>
             </Link>

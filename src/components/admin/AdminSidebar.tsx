@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 import {
   LayoutDashboard,
@@ -147,9 +148,13 @@ export function AdminSidebar({
             onClick={onClose}
             className="flex items-center gap-3 group"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500 to-orange-600 text-white shadow-md shadow-orange-950/40 transition-transform group-hover:scale-105">
-              <ShieldCheck className="h-5 w-5" />
-            </div>
+            <Image
+              src="/images/brand-logo.png"
+              alt="CampusBite Logo"
+              width={40}
+              height={40}
+              className="h-10 w-auto object-contain rounded-xl"
+            />
             <div>
               <h1 className="text-base font-black tracking-tight text-white flex items-center gap-1.5">
                 CampusBite

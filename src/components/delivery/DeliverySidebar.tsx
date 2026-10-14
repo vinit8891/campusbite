@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import {
@@ -84,9 +85,13 @@ export function DeliverySidebar({
             href={ROUTES.DELIVERY_DASHBOARD}
             className="flex items-center gap-2.5"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-orange-600 text-white shadow-sm shadow-orange-600/30">
-              <Bike className="h-5 w-5" />
-            </div>
+            <Image
+              src="/images/brand-logo.png"
+              alt="CampusBite Logo"
+              width={40}
+              height={40}
+              className="h-10 w-auto object-contain rounded-xl"
+            />
             <div>
               <h1 className="text-lg font-black tracking-tight text-stone-900">
                 CampusBite
