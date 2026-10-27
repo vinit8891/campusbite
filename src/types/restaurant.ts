@@ -47,6 +47,10 @@ export type BackendRestaurant = {
   is_open?: boolean;
   min_order_amount?: number;
   price_for_two?: number;
+  agreement_signed?: boolean;
+  fssai_number?: string;
+  agreement_version?: string;
+  agreement_signed_at?: string;
   menu?: BackendMenuItem[];
 };
 

@@ -247,7 +247,10 @@ export function middleware(request: NextRequest) {
     }
   }
 
-  if (pathname.startsWith(ROUTES.RESTAURANT_DASHBOARD)) {
+  if (
+    pathname.startsWith(ROUTES.RESTAURANT_DASHBOARD) ||
+    pathname.startsWith("/partner")
+  ) {
     if (!isRestaurant) {
       return NextResponse.redirect(
         new URL(ROUTES.RESTAURANT_LOGIN, request.url)
@@ -288,6 +291,8 @@ export function middleware(request: NextRequest) {
 export const config = {
   matcher: [
     "/admin/:path*",
+    "/partner/:path*",
+    "/partner",
     "/restaurant/dashboard/:path*",
     "/delivery/dashboard/:path*",
     "/delivery/earnings/:path*",

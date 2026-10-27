@@ -67,6 +67,8 @@ async def ensure_database_indexes(db: Any = None) -> None:
     couriers = _get_col(active_db, "couriers")
     delivery_partners = _get_col(active_db, "delivery_partners")
     restaurants = _get_col(active_db, "restaurants")
+    canteens = _get_col(active_db, "canteens")
+    merchant_agreements = _get_col(active_db, "merchant_agreements")
     coupons = _get_col(active_db, "coupons")
 
     # 1. Orders collection: critical for active runs, tracking, and daily settlements
@@ -106,6 +108,13 @@ async def ensure_database_indexes(db: Any = None) -> None:
         await _safe_create_index(restaurants, [("slug", 1)], unique=True, sparse=True)
         await _safe_create_index(restaurants, [("is_accepting_orders", 1)])
         await _safe_create_index(restaurants, [("verification_status", 1)])
+        await _safe_create_index(restaurants, [("agreement_signed", 1)])
+    if canteens is not None:
+        await _safe_create_index(canteens, [("slug", 1)], unique=True, sparse=True)
+        await _safe_create_index(canteens, [("agreement_signed", 1)])
+    if merchant_agreements is not None:
+        await _safe_create_index(merchant_agreements, [("canteen_id", 1), ("accepted_at", -1)])
+        await _safe_create_index(merchant_agreements, [("terms_version", 1)])
 
     # 5. Coupons: fast code lookup and default welcome coupon seed
     if coupons is not None:

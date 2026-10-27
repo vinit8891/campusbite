@@ -33,6 +33,11 @@ export const ROUTES = {
   RESTAURANT_SUBSCRIPTION_PLANS: "/restaurant/dashboard/subscription-plans",
   RESTAURANT_SUBSCRIPTIONS: "/restaurant/dashboard/subscriptions",
 
+  // Partner Aliases
+  PARTNER: "/partner",
+  PARTNER_DASHBOARD: "/partner/dashboard",
+  PARTNER_PAYOUTS: "/partner/payouts",
+
   // Delivery & Courier
   DELIVERY_LOGIN: "/delivery/login",
   DELIVERY_REGISTER: "/delivery/register",

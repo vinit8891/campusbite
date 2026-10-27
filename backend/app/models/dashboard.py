@@ -164,9 +164,12 @@ async def get_dashboard(email: str):
     rating = rating_data.get("rating") or 0
     review_count = rating_data.get("count") or 0
 
+    restaurant = await restaurant_collection.find_one({"email": email})
+    if not restaurant:
+        restaurant = await database["canteens"].find_one({"email": email})
+
     # Fallback to restaurant listing rating when no reviews yet
     if not review_count:
-        restaurant = await restaurant_collection.find_one({"email": email})
         if restaurant and restaurant.get("rating") is not None:
             try:
                 rating = float(restaurant["rating"])
@@ -189,4 +192,8 @@ async def get_dashboard(email: str):
         "today_revenue": round(today_revenue, 2),
         "today_subscription_meals": today_subscription_meals,
         "review_count": review_count,
+        # Merchant agreement status
+        "agreement_signed": bool(restaurant.get("agreement_signed", False)) if restaurant else False,
+        "fssai_number": restaurant.get("fssai_number") if restaurant else None,
+        "canteen_id": str(restaurant.get("_id", "")) if restaurant else None,
     }

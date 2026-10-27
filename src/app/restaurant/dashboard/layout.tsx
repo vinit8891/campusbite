@@ -25,6 +25,8 @@ import {
 } from "@/lib/authTokens";
 import { authJson } from "@/services/authFetch";
 import { usePolling } from "@/hooks/usePolling";
+import { PartnerAgreementModal } from "@/components/partner/PartnerAgreementModal";
+import { usePartnerAgreementGuard } from "@/hooks/partner/usePartnerAgreementGuard";
 
 type NavItem = {
   label: string;
@@ -44,6 +46,16 @@ export default function RestaurantDashboardLayout({
   const [isStoreOpen, setIsStoreOpen] = useState(true);
   const [pendingCount, setPendingCount] = useState(0);
   const [ownerEmail, setOwnerEmail] = useState("");
+
+  const {
+    showModal: showAgreementModal,
+    canteenId: agreementCanteenId,
+    canteenName: agreementCanteenName,
+    initialFssai: agreementFssai,
+    initialPhone: agreementPhone,
+    initialSignatory: agreementSignatory,
+    handleAgreementSuccess,
+  } = usePartnerAgreementGuard();
 
   useEffect(() => {
     const token = localStorage.getItem(AUTH_STORAGE_KEYS.restaurantToken);
@@ -320,10 +332,25 @@ export default function RestaurantDashboardLayout({
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 md:pb-8 overflow-y-auto">
+        <main
+          className={`flex-1 p-4 sm:p-6 lg:p-8 pb-24 md:pb-8 overflow-y-auto transition-all duration-300 ${
+            showAgreementModal ? "filter blur-md pointer-events-none select-none" : ""
+          }`}
+        >
           {children}
         </main>
       </div>
+
+      {/* Non-dismissible Click-Wrap Agreement Modal */}
+      <PartnerAgreementModal
+        isOpen={showAgreementModal}
+        canteenId={agreementCanteenId || ownerEmail}
+        canteenName={agreementCanteenName}
+        initialFssai={agreementFssai}
+        initialPhone={agreementPhone}
+        initialSignatory={agreementSignatory}
+        onSuccess={handleAgreementSuccess}
+      />
 
       {/* Mobile / Tablet Fixed Bottom Navigation Bar */}
       <nav
