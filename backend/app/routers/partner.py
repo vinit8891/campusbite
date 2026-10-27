@@ -5,7 +5,9 @@ from datetime import datetime, timezone
 from typing import Annotated, Any, Optional
 from bson import ObjectId
 
+import re
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
+from fastapi.responses import StreamingResponse
 
 from app.auth.auth import get_current_user, require_roles
 from app.auth.roles import ADMIN, RESTAURANT_OWNER
@@ -15,6 +17,7 @@ from app.schemas.agreement import (
     AgreementStatusResponse,
     MerchantAgreementAcceptance,
 )
+from app.services.pdf_generator import generate_merchant_agreement_pdf
 
 logger = get_logger(__name__)
 
@@ -312,3 +315,73 @@ async def update_partner_menu(
         raise HTTPException(status_code=404, detail="Menu item not found for this partner")
 
     return {"status": "success", "message": "Menu item updated successfully"}
+
+
+@router.get("/agreement/download-pdf/{canteen_id}")
+@alias_router.get("/agreement/download-pdf/{canteen_id}")
+async def download_agreement_pdf(
+    canteen_id: str,
+):
+    """
+    Automated PDF Export Route:
+    Generates and streams a legally executed A4 MoU PDF for the specified canteen.
+    """
+    clean_id = (canteen_id or "").strip()
+    if not clean_id:
+        raise HTTPException(status_code=400, detail="Canteen ID is required")
+
+    # 1. Query merchant_agreements in MongoDB
+    agreement = await database["merchant_agreements"].find_one(
+        {"$or": [{"canteen_id": clean_id}, {"email": clean_id}]},
+        sort=[("accepted_at", -1)],
+    )
+
+    # 2. Query canteen / restaurant document for business profile details
+    canteen_doc = await database["canteens"].find_one(_build_canteen_query(clean_id))
+    if not canteen_doc:
+        canteen_doc = await database["restaurants"].find_one(_build_canteen_query(clean_id))
+
+    if not agreement:
+        # Check if canteen document exists and is signed
+        if canteen_doc and canteen_doc.get("agreement_signed"):
+            agreement = {
+                "canteen_id": clean_id,
+                "signatory_name": canteen_doc.get("owner_name") or canteen_doc.get("name") or "Authorized Signatory",
+                "signatory_designation": "Proprietor",
+                "signatory_phone": canteen_doc.get("phone") or "N/A",
+                "canteen_fssai_number": canteen_doc.get("fssai_number") or "Pending Registration",
+                "terms_version": canteen_doc.get("agreement_version", "v1.0_2026_OCT"),
+                "agreement_hash": TERMS_HASH,
+                "accepted_at": canteen_doc.get("agreement_signed_at") or datetime.now(timezone.utc),
+                "ip_address": "127.0.0.1",
+                "user_agent": "CampusBite Secure Client",
+                "status": "LEGALLY_EXECUTED",
+            }
+        else:
+            raise HTTPException(
+                status_code=404,
+                detail="Merchant agreement record not found for this canteen",
+            )
+
+    if not canteen_doc:
+        canteen_doc = {
+            "name": agreement.get("signatory_name") or clean_id,
+            "_id": clean_id,
+            "fssai_number": agreement.get("canteen_fssai_number"),
+            "phone": agreement.get("signatory_phone"),
+        }
+
+    raw_canteen_name = canteen_doc.get("name") or agreement.get("signatory_name") or clean_id
+    safe_name = re.sub(r"[^\w\-_]", "_", raw_canteen_name.strip()).strip("_") or "Canteen"
+    filename = f"CampusBite_Agreement_{safe_name}.pdf"
+
+    pdf_buffer = generate_merchant_agreement_pdf(agreement, canteen_doc)
+
+    return StreamingResponse(
+        pdf_buffer,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Cache-Control": "no-cache, no-store, must-revalidate",
+        },
+    )

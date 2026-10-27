@@ -15,6 +15,7 @@ import {
   Calendar,
   Wallet,
   ArrowRight,
+  FileDown,
 } from "lucide-react";
 
 import { usePartnerAgreementGuard } from "@/hooks/partner/usePartnerAgreementGuard";
@@ -23,6 +24,7 @@ import { useRestaurantDashboard } from "@/hooks/restaurant/useRestaurantDashboar
 import { getRestaurantByEmail } from "@/services/restaurantService";
 import { getRestaurantOwnerEmail } from "@/lib/authTokens";
 import { ROUTES } from "@/lib/routes";
+import { API_URL } from "@/services/apiConfig";
 
 export default function PartnerDashboardPage() {
   const [canteenProfile, setCanteenProfile] = useState<{
@@ -122,6 +124,22 @@ export default function PartnerDashboardPage() {
               <p className="text-xs sm:text-sm text-amber-100/90 font-medium">
                 CampusBite Partner Operations Hub • Orders, KDS Kitchen Management, Menu Updates & Financial Disbursals.
               </p>
+
+              {isAgreementSigned && (
+                <div className="pt-2">
+                  <a
+                    id="hero-download-signed-mou-btn"
+                    href={`${API_URL}/api/partner/agreement/download-pdf/${encodeURIComponent(effectiveCanteenId)}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    download
+                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white text-orange-700 hover:bg-amber-50 text-xs sm:text-sm font-extrabold shadow-md hover:shadow-lg transition-all active:scale-95 border border-white/40 cursor-pointer"
+                  >
+                    <FileDown className="w-4 h-4 text-orange-600" />
+                    <span>Download Signed MoU (PDF)</span>
+                  </a>
+                </div>
+              )}
             </div>
 
             {/* Quick Badges */}
@@ -161,18 +179,35 @@ export default function PartnerDashboardPage() {
             </div>
           </div>
 
-          <div className="p-5 rounded-2xl bg-white border border-stone-200/80 shadow-xs flex items-center gap-3.5">
-            <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600">
-              <ShieldCheck className="w-6 h-6" />
-            </div>
-            <div>
-              <div className="text-xs font-bold text-stone-500 uppercase tracking-wider">
-                Legal Status
+          <div className="p-5 rounded-2xl bg-white border border-stone-200/80 shadow-xs flex items-center justify-between gap-3.5">
+            <div className="flex items-center gap-3.5">
+              <div className="p-3 rounded-xl bg-emerald-50 text-emerald-600">
+                <ShieldCheck className="w-6 h-6" />
               </div>
-              <div className="font-extrabold text-stone-900 text-sm mt-0.5">
-                {isAgreementSigned ? "IT Act Sec 10A Compliant" : "Pending Signature"}
+              <div>
+                <div className="text-xs font-bold text-stone-500 uppercase tracking-wider">
+                  Legal Status
+                </div>
+                <div className="font-extrabold text-stone-900 text-sm mt-0.5">
+                  {isAgreementSigned ? "IT Act Sec 10A Compliant" : "Pending Signature"}
+                </div>
               </div>
             </div>
+            {isAgreementSigned && (
+              <a
+                id="legal-card-download-signed-mou-btn"
+                href={`${API_URL}/api/partner/agreement/download-pdf/${encodeURIComponent(effectiveCanteenId)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                download
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 text-xs font-bold transition-all border border-orange-200/60 shadow-xs shrink-0 cursor-pointer"
+                title="Download Signed MoU (PDF)"
+              >
+                <FileDown className="w-3.5 h-3.5 text-orange-600" />
+                <span className="hidden sm:inline">Download Signed MoU (PDF)</span>
+                <span className="sm:hidden">PDF</span>
+              </a>
+            )}
           </div>
 
           <div className="p-5 rounded-2xl bg-white border border-stone-200/80 shadow-xs flex items-center gap-3.5">

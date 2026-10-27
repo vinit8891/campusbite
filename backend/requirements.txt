@@ -32,3 +32,4 @@ six==1.17.0
 typing-inspection==0.4.2
 razorpay==2.0.1
 slowapi>=0.1.9
+reportlab>=4.0.0
