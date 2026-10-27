@@ -566,55 +566,60 @@ export default function OrderSummary() {
 
   return (
     <>
-      <section className="rounded-2xl border border-stone-200 bg-white p-4 shadow-2xs space-y-4">
+      <section className="rounded-2xl border border-gray-200/80 bg-white p-3.5 shadow-2xs space-y-3 font-sans">
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-stone-900">Order Summary</h2>
-          <span className="text-xs text-stone-500 font-medium">
+          <h2 className="text-sm font-bold text-gray-900">Order Summary</h2>
+          <span className="text-[11px] text-gray-500 font-medium">
             {cart.length} {cart.length === 1 ? "item" : "items"}
           </span>
         </div>
 
-        {/* Streamlined Fulfillment Toggle Card */}
-        <div className="grid grid-cols-2 gap-3 p-1 bg-zinc-100 rounded-2xl" role="group" aria-label="Fulfillment mode">
+        {/* Segmented Mode Switcher (Delivery vs Takeaway) */}
+        <div className="bg-gray-100 p-1 rounded-xl flex gap-1 mb-3" role="group" aria-label="Fulfillment mode">
           <button
             type="button"
+            aria-label="Campus Delivery"
             onClick={() =>
               setCheckout((prev) => ({
                 ...prev,
                 delivery_type: "HOSTEL_BATCH",
+                hostel_block:
+                  prev.hostel_block === "Zeal Main Canteen Pickup"
+                    ? "Boys Hostel 1 Gate"
+                    : prev.hostel_block || "Boys Hostel 1 Gate",
               }))
             }
-            className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all cursor-pointer ${
+            className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer ${
               !isTakeaway
-                ? "bg-white shadow-sm border border-orange-500/20 text-orange-600 font-bold"
-                : "text-zinc-600 hover:text-zinc-900 font-medium"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-800"
             }`}
           >
-            <span className="text-sm font-bold flex items-center gap-1.5">🛵 Campus Delivery</span>
-            <span className="text-xs text-zinc-500 mt-0.5">₹15 • 20-30 mins</span>
+            <span>🛵</span> Delivery <span className="text-[10px] text-orange-600 font-bold bg-orange-50 px-1.5 py-0.5 rounded">₹15</span>
           </button>
 
           <button
             type="button"
+            aria-label="Takeaway"
             onClick={() =>
               setCheckout((prev) => ({
                 ...prev,
                 delivery_type: "COUNTER_TAKEAWAY",
+                hostel_block: "Zeal Main Canteen Pickup",
               }))
             }
-            className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all cursor-pointer ${
+            className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer ${
               isTakeaway
-                ? "bg-white shadow-sm border border-orange-500/20 text-orange-600 font-bold"
-                : "text-zinc-600 hover:text-zinc-900 font-medium"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-800"
             }`}
           >
-            <span className="text-sm font-bold flex items-center gap-1.5">🛍️ Takeaway</span>
-            <span className="text-xs text-emerald-600 font-semibold mt-0.5">FREE • 10-15 mins</span>
+            <span>🥡</span> Takeaway <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">FREE</span>
           </button>
         </div>
 
         {/* Cart Items List */}
-        <div className="space-y-2 border-b border-stone-100 pb-3">
+        <div className="space-y-1.5 border-b border-gray-100 pb-2.5">
           {cart.map((item) => {
             const calibratedUnit = getCalibratedAppPrice(item.price);
             return (
@@ -622,10 +627,10 @@ export default function OrderSummary() {
                 key={item.id}
                 className="flex justify-between items-center text-xs"
               >
-                <span className="text-stone-700 font-medium truncate max-w-[220px]">
+                <span className="text-gray-700 font-medium truncate max-w-[220px]">
                   {item.name} × {item.quantity}
                 </span>
-                <span className="font-semibold text-stone-900">
+                <span className="font-semibold text-gray-900">
                   ₹{(calibratedUnit * item.quantity).toFixed(2)}
                 </span>
               </div>
@@ -634,12 +639,12 @@ export default function OrderSummary() {
         </div>
 
         {/* Courier Tip Selector - Compact Inline Pills */}
-        <div className="rounded-xl border border-amber-100 bg-amber-50/50 p-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-stone-800 flex items-center gap-1">
+        <div className="rounded-xl border border-orange-100 bg-orange-50/40 p-2.5">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-bold text-gray-800 flex items-center gap-1">
               🛵 Rider Tip
             </span>
-            <span className="text-[10px] font-bold text-amber-700">
+            <span className="text-[10px] font-bold text-orange-700">
               100% to student courier
             </span>
           </div>
@@ -654,8 +659,8 @@ export default function OrderSummary() {
                 }
                 className={`py-1.5 rounded-lg text-xs font-bold transition-all cursor-pointer ${
                   checkout.tip_amount === tip.value
-                    ? "bg-amber-600 text-white shadow-2xs"
-                    : "bg-white text-stone-700 border border-stone-200 hover:border-amber-300"
+                    ? "bg-orange-600 text-white shadow-2xs"
+                    : "bg-white text-gray-700 border border-gray-200/80 hover:border-orange-300"
                 }`}
               >
                 {tip.label}
@@ -665,9 +670,9 @@ export default function OrderSummary() {
         </div>
 
         {/* Apply Promo / Voucher Coupon Box */}
-        <div className="rounded-xl border border-stone-200 bg-stone-50/70 p-3">
-          <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-stone-800 flex items-center gap-1.5">
+        <div className="rounded-xl border border-gray-200/80 bg-gray-50/70 p-2.5">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-bold text-gray-800 flex items-center gap-1.5">
               <span>🎟️</span> Promo Coupon
             </span>
             {appliedCoupon && (
@@ -678,7 +683,7 @@ export default function OrderSummary() {
           </div>
 
           {appliedCoupon ? (
-            <div className="flex items-center justify-between bg-white border border-emerald-200 rounded-xl px-3 py-2">
+            <div className="flex items-center justify-between bg-white border border-emerald-200 rounded-xl px-3 py-1.5">
               <div className="flex items-center gap-2">
                 <span className="font-mono text-xs font-black tracking-wide text-emerald-800 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-100">
                   {appliedCoupon.code}
@@ -690,7 +695,7 @@ export default function OrderSummary() {
               <button
                 type="button"
                 onClick={handleRemoveCoupon}
-                className="text-xs font-bold text-stone-400 hover:text-rose-600 transition cursor-pointer"
+                className="text-xs font-bold text-gray-400 hover:text-rose-600 transition cursor-pointer"
               >
                 Remove
               </button>
@@ -702,12 +707,12 @@ export default function OrderSummary() {
                 value={couponCodeInput}
                 onChange={(e) => setCouponCodeInput(e.target.value.toUpperCase())}
                 placeholder="Enter code (e.g. CAMPUS30)"
-                className="flex-1 h-9 px-3 rounded-xl border border-stone-200 bg-white text-xs font-mono font-bold uppercase text-stone-900 placeholder:normal-case placeholder:font-normal placeholder:text-stone-400 focus:border-amber-500 focus:outline-none"
+                className="flex-1 h-8.5 px-3 rounded-lg border border-gray-200 bg-white text-xs font-mono font-bold uppercase text-gray-900 placeholder:normal-case placeholder:font-normal placeholder:text-gray-400 focus:border-orange-500 focus:outline-none"
               />
               <button
                 type="submit"
                 disabled={isValidatingCoupon || !couponCodeInput.trim()}
-                className="h-9 px-4 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-bold transition disabled:opacity-50 cursor-pointer"
+                className="h-8.5 px-3.5 rounded-lg bg-orange-600 hover:bg-orange-700 text-white text-xs font-bold transition disabled:opacity-50 cursor-pointer"
               >
                 {isValidatingCoupon ? "Checking..." : "Apply"}
               </button>
@@ -716,17 +721,17 @@ export default function OrderSummary() {
         </div>
 
         {/* Bill Breakdown from pricingEngine */}
-        <div className="space-y-2 text-xs text-stone-600">
+        <div className="space-y-1.5 text-xs text-gray-600">
           <div className="flex justify-between">
             <span>Items Subtotal</span>
-            <span className="font-semibold text-stone-900">
+            <span className="font-semibold text-gray-900">
               ₹{pricing.appSubtotal.toFixed(2)}
             </span>
           </div>
 
           <div className="flex justify-between">
             <span>Food GST (5%)</span>
-            <span className="font-semibold text-stone-900">
+            <span className="font-semibold text-gray-900">
               ₹{pricing.gstAmount.toFixed(2)}
             </span>
           </div>
@@ -751,20 +756,20 @@ export default function OrderSummary() {
                 </span>
               )}
             </div>
-            <span className="font-semibold text-stone-900">
+            <span className="font-semibold text-gray-900">
               ₹{pricing.deliveryFee.toFixed(2)}
             </span>
           </div>
 
           <div className="flex justify-between">
             <span>Platform Fee</span>
-            <span className="font-semibold text-stone-900">
+            <span className="font-semibold text-gray-900">
               ₹{pricing.platformTechFee.toFixed(2)}
             </span>
           </div>
 
           {Number(checkout.tip_amount || 0) > 0 && !isTakeaway && (
-            <div className="flex justify-between text-amber-700 font-bold">
+            <div className="flex justify-between text-orange-700 font-bold">
               <span>Rider Tip</span>
               <span>+₹{Number(checkout.tip_amount || 0).toFixed(2)}</span>
             </div>
@@ -779,12 +784,12 @@ export default function OrderSummary() {
 
           {/* COD Round Off Line Item */}
           {isCod && (
-            <div className="flex justify-between text-stone-600">
+            <div className="flex justify-between text-gray-600">
               <div className="flex items-center gap-1">
                 <span>Round Off</span>
-                <span className="text-[10px] text-stone-400">(Cash Payment)</span>
+                <span className="text-[10px] text-gray-400">(Cash Payment)</span>
               </div>
-              <span className="font-semibold text-stone-900">
+              <span className="font-semibold text-gray-900">
                 {roundOff > 0
                   ? `+₹${roundOff.toFixed(2)}`
                   : roundOff < 0
@@ -794,25 +799,25 @@ export default function OrderSummary() {
             </div>
           )}
 
-          <div className="border-t border-stone-100 pt-2.5 flex justify-between items-center text-sm font-black text-stone-900">
+          <div className="border-t border-gray-100 pt-2 flex justify-between items-center text-sm font-black text-gray-900">
             <span>Total Payable</span>
-            <span className="text-amber-600 text-base">₹{formattedFinalTotal}</span>
+            <span className="text-orange-600 text-base">₹{formattedFinalTotal}</span>
           </div>
         </div>
 
         {/* Destination preview badge */}
-        <div className="rounded-xl bg-stone-50 p-2.5 text-[11px] text-stone-600 border border-stone-200/60">
-          <div className="flex items-center justify-between font-bold text-stone-800">
+        <div className="rounded-xl bg-gray-50 p-2 text-[11px] text-gray-600 border border-gray-200/60">
+          <div className="flex items-center justify-between font-bold text-gray-800">
             <span>
               {isTakeaway
                 ? "🛍️ Quick Self-Pickup (Takeaway)"
                 : "🛵 Campus Delivery"}
             </span>
-            <span className="text-amber-700">
+            <span className="text-orange-700 font-semibold">
               {isTakeaway ? "Canteen Counter" : checkout.hostel_block}
             </span>
           </div>
-          <p className="truncate mt-0.5 text-stone-500">
+          <p className="truncate mt-0.5 text-gray-500">
             {isTakeaway
               ? "Skip the counter queue • Pick up when ready"
               : checkout.address || "Hostel Lobby Drop"}
@@ -824,28 +829,28 @@ export default function OrderSummary() {
       {/* =========================================================
           5. STICKY MOBILE BOTTOM CTA BAR
       ========================================================== */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-stone-200 p-4 shadow-xl z-50">
+      <div className="fixed bottom-0 left-0 right-0 bg-white/95 backdrop-blur-md border-t border-gray-200 p-3 sm:p-4 shadow-xl z-50 font-sans">
         <div className="max-w-lg mx-auto space-y-2">
           {isSubmitting && isOnline && (
-            <div className="flex items-center justify-center gap-2 py-1.5 px-3 rounded-xl bg-amber-50 border border-amber-200/80 text-xs font-semibold text-amber-800 animate-pulse">
-              <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-amber-600 border-t-transparent" />
+            <div className="flex items-center justify-center gap-2 py-1.5 px-3 rounded-xl bg-orange-50 border border-orange-200/80 text-xs font-semibold text-orange-800 animate-pulse">
+              <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-orange-600 border-t-transparent" />
               <span>Processing your payment... Please do not refresh.</span>
             </div>
           )}
           <div className="flex items-center justify-between gap-4">
             <div>
-              <p className="text-xs text-stone-500 font-medium">To Pay</p>
-              <p className="text-xl font-black text-stone-900">₹{formattedFinalTotal}</p>
+              <p className="text-[10px] text-gray-500 font-semibold uppercase tracking-wider">To Pay</p>
+              <p className="text-xl font-black text-gray-900">₹{formattedFinalTotal}</p>
             </div>
             <button
               type="button"
               onClick={handlePlaceOrder}
               disabled={isSubmitting || !canSubmit}
               aria-label={`Place ${paymentMethod.toUpperCase()} Order • ₹${formattedFinalTotal}`}
-              className={`flex-1 py-3.5 px-6 rounded-xl font-bold text-white shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              className={`flex-1 py-3 px-5 rounded-xl font-bold text-white shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 !canSubmit
-                  ? "bg-amber-600/50 cursor-not-allowed text-white/80"
-                  : "bg-amber-600 hover:bg-amber-700"
+                  ? "bg-orange-600/50 cursor-not-allowed text-white/80"
+                  : "bg-orange-600 hover:bg-orange-700"
               }`}
             >
               {ctaButtonText}

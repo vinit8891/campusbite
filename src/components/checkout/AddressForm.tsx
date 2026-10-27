@@ -128,25 +128,29 @@ export default function AddressForm() {
     }));
   }
 
+  const deliveryType = isTakeaway ? "COUNTER_TAKEAWAY" : "HOSTEL_BATCH";
+
   return (
-    <section className="space-y-4">
+    <section className="space-y-3 font-sans">
       {/* Header */}
-      <div>
-        <h2 className="text-lg font-bold text-stone-900">Campus Delivery Details</h2>
-        <p className="text-xs text-stone-500">
-          Zeal Narhe Campus • 1-tap delivery spot &amp; recipient details
-        </p>
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-sm font-bold text-gray-900">Campus Delivery Details</h2>
+          <p className="text-[11px] text-gray-500">
+            Zeal Narhe Campus • 1-tap spot selection
+          </p>
+        </div>
+        <span className="text-[10px] font-bold text-orange-600 bg-orange-50 px-2 py-0.5 rounded-full border border-orange-100">
+          Zeal Narhe Campus
+        </span>
       </div>
 
-      {/* Streamlined Modern Toggle Card (Campus Delivery vs Takeaway) */}
-      <div
-        className="grid grid-cols-2 gap-3 p-1 bg-zinc-100 rounded-2xl"
-        role="group"
-        aria-label="Fulfillment mode"
-      >
+      {/* Segmented Mode Switcher (Delivery vs Takeaway) */}
+      <div className="bg-gray-100 p-1 rounded-xl flex gap-1 mb-4" role="group" aria-label="Fulfillment mode">
         <button
           type="button"
-          aria-pressed={!isTakeaway}
+          aria-label="Campus Delivery"
+          aria-pressed={deliveryType === "HOSTEL_BATCH"}
           onClick={() => {
             setCheckout((prev) => ({
               ...prev,
@@ -157,19 +161,18 @@ export default function AddressForm() {
                   : prev.hostel_block || "Boys Hostel 1 Gate",
             }));
           }}
-          className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all cursor-pointer ${
-            !isTakeaway
-              ? "bg-white shadow-sm border border-orange-500/20 text-orange-600 font-bold"
-              : "text-zinc-600 hover:text-zinc-900 font-medium"
+          className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+            deliveryType === "HOSTEL_BATCH"
+              ? "bg-white text-gray-900 shadow-sm"
+              : "text-gray-500 hover:text-gray-800"
           }`}
         >
-          <span className="text-sm font-bold flex items-center gap-1.5">🛵 Campus Delivery</span>
-          <span className="text-xs text-zinc-500 mt-0.5">₹15 • 20-30 mins</span>
+          <span>🛵</span> Delivery <span className="text-[10px] text-orange-600 font-bold bg-orange-50 px-1.5 py-0.5 rounded">₹15</span>
         </button>
-
         <button
           type="button"
-          aria-pressed={isTakeaway}
+          aria-label="Takeaway"
+          aria-pressed={deliveryType === "COUNTER_TAKEAWAY"}
           onClick={() => {
             setCheckout((prev) => ({
               ...prev,
@@ -177,30 +180,29 @@ export default function AddressForm() {
               hostel_block: "Zeal Main Canteen Pickup",
             }));
           }}
-          className={`flex flex-col items-center justify-center p-3 rounded-xl transition-all cursor-pointer ${
-            isTakeaway
-              ? "bg-white shadow-sm border border-orange-500/20 text-orange-600 font-bold"
-              : "text-zinc-600 hover:text-zinc-900 font-medium"
+          className={`flex-1 py-2 px-3 rounded-lg text-xs font-semibold transition flex items-center justify-center gap-1.5 cursor-pointer ${
+            deliveryType === "COUNTER_TAKEAWAY"
+              ? "bg-white text-gray-900 shadow-sm"
+              : "text-gray-500 hover:text-gray-800"
           }`}
         >
-          <span className="text-sm font-bold flex items-center gap-1.5">🛍️ Takeaway</span>
-          <span className="text-xs text-emerald-600 font-semibold mt-0.5">FREE • 10-15 mins</span>
+          <span>🥡</span> Takeaway <span className="text-[10px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded">FREE</span>
         </button>
       </div>
 
       {/* Campus Delivery Spot Selector (Pills + Dropdown) */}
-      <div className="rounded-2xl border border-stone-200 bg-white p-4 shadow-2xs space-y-3.5">
+      <div className="rounded-2xl border border-gray-200/80 bg-white p-3.5 shadow-2xs space-y-3">
         <div className="flex items-center justify-between">
-          <label className="text-xs font-bold uppercase tracking-wider text-stone-600">
+          <label className="text-[11px] font-bold uppercase tracking-wider text-gray-500">
             Campus Delivery Spot
           </label>
-          <span className="text-[11px] font-semibold text-amber-700 bg-amber-50 px-2 py-0.5 rounded-md border border-amber-200/60">
-            Zeal Narhe Campus
+          <span className="text-[10px] font-semibold text-gray-400">
+            Choose drop point
           </span>
         </div>
 
         {/* 1-Tap Pills */}
-        <div className="flex flex-wrap gap-2" role="group" aria-label="Campus Delivery Spot Pills">
+        <div className="flex flex-wrap gap-1.5" role="group" aria-label="Campus Delivery Spot Pills">
           {ZEAL_CAMPUS_SPOTS.map((spot) => {
             const isSelected = checkout.hostel_block === spot.value;
             return (
@@ -208,10 +210,10 @@ export default function AddressForm() {
                 key={spot.value}
                 type="button"
                 onClick={() => handleSpotChange(spot.value)}
-                className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs transition-all cursor-pointer ${
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg text-xs transition-all cursor-pointer ${
                   isSelected
-                    ? "bg-amber-600 text-white font-bold shadow-xs scale-[1.02]"
-                    : "bg-stone-100 hover:bg-stone-200 text-stone-700 border border-stone-200/80 font-medium"
+                    ? "bg-amber-600 text-white font-bold shadow-xs scale-[1.01]"
+                    : "bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200/60 font-medium"
                 }`}
               >
                 <span>{spot.icon}</span>
@@ -225,7 +227,7 @@ export default function AddressForm() {
         <div>
           <label
             htmlFor="campus-spot-dropdown"
-            className="mb-1 block text-[11px] font-semibold text-stone-600"
+            className="mb-1 block text-[11px] font-medium text-gray-500"
           >
             Or choose spot from list
           </label>
@@ -233,7 +235,7 @@ export default function AddressForm() {
             id="campus-spot-dropdown"
             value={checkout.hostel_block || "Boys Hostel 1 Gate"}
             onChange={(e) => handleSpotChange(e.target.value)}
-            className="w-full h-10 px-3 rounded-xl border border-stone-200 bg-white text-xs font-semibold text-stone-800 focus:border-amber-500 focus:outline-none transition cursor-pointer"
+            className="w-full h-9 px-3 rounded-xl border border-gray-200 bg-white text-xs font-semibold text-gray-800 focus:border-orange-500 focus:outline-none transition cursor-pointer"
           >
             {ZEAL_CAMPUS_SPOTS.map((spot) => (
               <option key={spot.value} value={spot.value}>
@@ -244,10 +246,10 @@ export default function AddressForm() {
         </div>
 
         {/* Single Optional Input: Hostel Room No. / Dept & Floor (Optional) */}
-        <div className="pt-1 border-t border-stone-100">
+        <div className="pt-2 border-t border-gray-100">
           <label
             htmlFor="checkout-room-number"
-            className="mb-1 block text-xs font-bold text-stone-700"
+            className="mb-1 block text-xs font-bold text-gray-700"
           >
             Hostel Room No. / Dept &amp; Floor (Optional)
           </label>
@@ -255,32 +257,32 @@ export default function AddressForm() {
             id="checkout-room-number"
             placeholder="e.g. Room 302 or Computer Dept 2nd Floor (Optional)"
             value={checkout.address || ""}
-            className="h-10 text-xs"
+            className="h-9 text-xs"
             onChange={(e) => {
               const val = e.target.value;
               setCheckout((prev) => ({ ...prev, address: val }));
             }}
           />
-          <p className="mt-1 text-[11px] text-stone-500">
+          <p className="mt-1 text-[11px] text-gray-400">
             Optional • Courier meets you directly at the selected campus spot gate or porch.
           </p>
         </div>
       </div>
 
       {/* Recipient Details */}
-      <div className="rounded-2xl border border-stone-200 bg-white p-3.5 shadow-2xs space-y-3">
+      <div className="rounded-2xl border border-gray-200/80 bg-white p-3.5 shadow-2xs space-y-2.5">
         <div className="flex items-center justify-between gap-2">
-          <div className="flex rounded-xl bg-stone-100 p-1 border border-stone-200/60 text-xs font-semibold">
+          <div className="flex rounded-lg bg-gray-100 p-0.5 border border-gray-200/60 text-xs font-semibold">
             <button
               type="button"
               onClick={() => {
                 setCheckout((prev) => ({ ...prev, delivery_for: "self" }));
                 setIsEditingRecipient(false);
               }}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                 checkout.delivery_for === "self"
-                  ? "bg-white text-amber-700 shadow-2xs font-bold"
-                  : "text-stone-600 hover:text-stone-900"
+                  ? "bg-white text-gray-900 shadow-2xs font-bold"
+                  : "text-gray-500 hover:text-gray-900"
               }`}
             >
               🧑 Myself
@@ -294,10 +296,10 @@ export default function AddressForm() {
                 }));
                 setIsEditingRecipient(true);
               }}
-              className={`px-3 py-1 rounded-lg transition-all cursor-pointer ${
+              className={`px-2.5 py-1 rounded-md transition-all cursor-pointer ${
                 checkout.delivery_for === "someone_else"
-                  ? "bg-white text-amber-700 shadow-2xs font-bold"
-                  : "text-stone-600 hover:text-stone-900"
+                  ? "bg-white text-gray-900 shadow-2xs font-bold"
+                  : "text-gray-500 hover:text-gray-900"
               }`}
             >
               👤 Someone Else
@@ -308,7 +310,7 @@ export default function AddressForm() {
             <button
               type="button"
               onClick={() => setIsEditingRecipient((prev) => !prev)}
-              className="text-xs font-bold text-amber-600 hover:text-amber-700 hover:underline cursor-pointer"
+              className="text-xs font-semibold text-orange-600 hover:text-orange-700 hover:underline cursor-pointer"
             >
               {isEditingRecipient ? "Done" : "Change"}
             </button>
@@ -319,29 +321,29 @@ export default function AddressForm() {
         {checkout.delivery_for === "self" &&
         !isEditingRecipient &&
         hasSelfRecipientDetails ? (
-          <div className="flex items-center justify-between rounded-xl bg-stone-50 px-3 py-2 border border-stone-200/80 text-xs">
+          <div className="flex items-center justify-between rounded-xl bg-gray-50 px-3 py-2 border border-gray-200/60 text-xs">
             <div className="flex items-center gap-2 truncate">
-              <span className="font-semibold text-stone-900 truncate">
+              <span className="font-semibold text-gray-800 truncate">
                 {recipientName} {recipientPhone ? `(${recipientPhone})` : ""}
               </span>
-              <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+              <span className="rounded-md bg-orange-100 px-1.5 py-0.5 text-[10px] font-bold text-orange-800">
                 Self
               </span>
             </div>
             <button
               type="button"
               onClick={() => setIsEditingRecipient(true)}
-              className="text-xs font-bold text-amber-600 hover:text-amber-700 ml-2 cursor-pointer"
+              className="text-xs font-semibold text-orange-600 hover:text-orange-700 ml-2 cursor-pointer"
             >
               Change
             </button>
           </div>
         ) : (
-          <div className="grid gap-2.5 pt-1 sm:grid-cols-2">
+          <div className="grid gap-2 pt-1 sm:grid-cols-2">
             <div>
               <label
                 htmlFor="checkout-customer-name"
-                className="mb-1 block text-xs font-bold text-stone-700"
+                className="mb-1 block text-xs font-semibold text-gray-700"
               >
                 Recipient Name
               </label>
@@ -373,7 +375,7 @@ export default function AddressForm() {
             <div>
               <label
                 htmlFor="checkout-phone"
-                className="mb-1 block text-xs font-bold text-stone-700"
+                className="mb-1 block text-xs font-semibold text-gray-700"
               >
                 Recipient Mobile Number
               </label>

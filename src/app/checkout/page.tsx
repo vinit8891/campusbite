@@ -56,23 +56,20 @@ function CheckoutContent() {
   }
 
   return (
-    <main className="w-full max-w-lg mx-auto px-4 pt-4 pb-32 min-h-screen bg-stone-50">
+    <main className="w-full max-w-lg mx-auto px-4 pt-3 pb-32 min-h-screen bg-gray-50 font-sans antialiased text-gray-900">
       {/* Header */}
-      <div className="mb-4">
-        <button
-          type="button"
-          onClick={() => router.back()}
-          className="mb-2 inline-flex items-center gap-1 text-xs font-semibold text-stone-500 transition hover:text-amber-700 cursor-pointer"
-        >
-          ← Back to Cart
-        </button>
-
-        <h1 className="text-2xl font-extrabold tracking-tight text-stone-900">
-          Checkout
-        </h1>
-        <p className="mt-0.5 text-xs text-stone-500">
-          Review your order, campus drop spot, and payment method.
-        </p>
+      <div className="mb-3 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={() => router.back()}
+            className="h-8 w-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition shadow-2xs cursor-pointer"
+            aria-label="Back to Cart"
+          >
+            ←
+          </button>
+          <h1 className="text-xl font-bold text-gray-900 tracking-tight">Checkout</h1>
+        </div>
       </div>
 
       {/* Streamlined Checkout Stack */}
