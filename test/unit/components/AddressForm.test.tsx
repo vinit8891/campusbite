@@ -87,4 +87,32 @@ describe("AddressForm Component", () => {
     expect(Array.isArray(ZEAL_CAMPUS_SPOTS)).toBe(true);
     expect(ZEAL_CAMPUS_SPOTS.length).toBeGreaterThan(0);
   });
+
+  it("auto-detects campus location using GPS coordinates when Auto-Detect GPS button is clicked", async () => {
+    const user = userEvent.setup();
+    const mockGetCurrentPosition = (success: (pos: any) => void) => {
+      success({
+        coords: {
+          latitude: 18.4482,
+          longitude: 73.8265,
+        },
+      });
+    };
+    Object.defineProperty(global.navigator, "geolocation", {
+      value: {
+        getCurrentPosition: mockGetCurrentPosition,
+      },
+      writable: true,
+      configurable: true,
+    });
+
+    renderAddressForm();
+
+    const gpsBtn = screen.getByRole("button", { name: /Auto-detect location using GPS/i });
+    await user.click(gpsBtn);
+
+    const buildingInput = screen.getByLabelText(/Hostel \/ Building \/ Department/i);
+    expect(buildingInput).toHaveValue("Boys Hostel 1 Gate");
+    expect(screen.getByText(/Auto-detected: Boys Hostel 1 Gate/i)).toBeInTheDocument();
+  });
 });

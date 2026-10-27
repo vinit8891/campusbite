@@ -300,6 +300,8 @@ export function MyDeliveryCard({
         )}
 
         <button
+          type="button"
+          aria-label="Launch Google Maps Navigation"
           onClick={() => {
             if (order.latitude != null && order.longitude != null) {
               window.open(
@@ -315,9 +317,10 @@ export function MyDeliveryCard({
               );
             }
           }}
-          className="rounded-lg bg-purple-600 px-4 py-2 text-white hover:bg-purple-700"
+          className="rounded-lg bg-blue-600 hover:bg-blue-700 active:scale-[0.98] transition px-4 py-2 text-white font-bold text-xs shadow-xs cursor-pointer inline-flex items-center gap-1.5"
         >
-          🗺 Navigate
+          <span>🗺️</span>
+          <span>Google Maps Navigation</span>
         </button>
       </div>
     </div>

@@ -1,6 +1,8 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
+import { toast } from "sonner";
+import { MapPin, Navigation } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useCheckout } from "@/context/CheckoutContext";
 import { useAuth } from "@/context/AuthContext";
@@ -39,10 +41,83 @@ export default function AddressForm() {
   const { user } = useSafeAuth();
 
   const [isEditingRecipient, setIsEditingRecipient] = useState(false);
+  const [isDetectingLocation, setIsDetectingLocation] = useState(false);
+  const [detectedLocationMsg, setDetectedLocationMsg] = useState<string | null>(null);
   const [errors, setErrors] = useState({
     customer_name: "",
     phone: "",
   });
+
+  const handleDetectLocation = async () => {
+    if (typeof window === "undefined" || !navigator.geolocation) {
+      toast.error("Geolocation is not supported by your browser.");
+      return;
+    }
+
+    setIsDetectingLocation(true);
+    setDetectedLocationMsg(null);
+
+    try {
+      const coords = await new Promise<GeolocationCoordinates>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(
+          (pos) => resolve(pos.coords),
+          (err) => reject(err),
+          { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 }
+        );
+      });
+
+      const lat = coords.latitude;
+      const lng = coords.longitude;
+
+      const CAMPUS_BENCHMARKS = [
+        { name: "Hostel Block A", lat: 18.4485, lng: 73.8267 },
+        { name: "Boys Hostel 1 Gate", lat: 18.4482, lng: 73.8265 },
+        { name: "Boys Hostel 2 Gate", lat: 18.4488, lng: 73.8270 },
+        { name: "Girls Hostel Reception", lat: 18.4475, lng: 73.8258 },
+        { name: "Central Library Porch", lat: 18.4490, lng: 73.8260 },
+        { name: "Engineering Building Front", lat: 18.4495, lng: 73.8265 },
+        { name: "Zeal Polytechnic Lawn", lat: 18.4480, lng: 73.8275 },
+      ];
+
+      let closestSpot = CAMPUS_BENCHMARKS[0].name;
+      let minDistance = Number.MAX_VALUE;
+
+      for (const spot of CAMPUS_BENCHMARKS) {
+        const dLat = (lat - spot.lat) * 111000;
+        const dLng = (lng - spot.lng) * 111000 * Math.cos((lat * Math.PI) / 180);
+        const dist = Math.sqrt(dLat * dLat + dLng * dLng);
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestSpot = spot.name;
+        }
+      }
+
+      const assignedBuilding =
+        minDistance <= 500
+          ? closestSpot
+          : `Campus Spot (${lat.toFixed(4)}, ${lng.toFixed(4)})`;
+
+      setCheckout((prev) => ({
+        ...prev,
+        hostel_block: assignedBuilding,
+        latitude: lat,
+        longitude: lng,
+        landmark: prev.landmark || `Near ${closestSpot}`,
+      }));
+
+      setDetectedLocationMsg(`📍 ${assignedBuilding}`);
+      toast.success(`Location detected: ${assignedBuilding}`);
+    } catch (err: unknown) {
+      const geoErr = err as { code?: number };
+      if (geoErr?.code === 1) {
+        toast.error("Location permission denied. Please enter your building manually.");
+      } else {
+        toast.info("Could not pinpoint GPS indoors. Please enter your building manually.");
+      }
+    } finally {
+      setIsDetectingLocation(false);
+    }
+  };
 
   const normType = String(checkout.delivery_type || "delivery").toLowerCase();
   const isTakeaway =
@@ -187,12 +262,33 @@ export default function AddressForm() {
         <div className="rounded-2xl border border-gray-200/80 bg-white p-3.5 shadow-2xs space-y-3">
           {/* Hostel / Building Name */}
           <div>
-            <label
-              htmlFor="checkout-building"
-              className="mb-1 block text-xs font-semibold text-gray-700"
-            >
-              Hostel / Building / Department
-            </label>
+            <div className="flex items-center justify-between mb-1">
+              <label
+                htmlFor="checkout-building"
+                className="block text-xs font-semibold text-gray-700"
+              >
+                Hostel / Building / Department
+              </label>
+              <button
+                type="button"
+                onClick={handleDetectLocation}
+                disabled={isDetectingLocation}
+                aria-label="Auto-detect location using GPS"
+                className="inline-flex items-center gap-1 text-[11px] font-bold text-orange-600 hover:text-orange-700 bg-orange-50 hover:bg-orange-100 px-2 py-0.5 rounded-lg border border-orange-200/60 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {isDetectingLocation ? (
+                  <>
+                    <span className="inline-block h-3 w-3 animate-spin rounded-full border border-orange-600 border-t-transparent" />
+                    <span>Detecting...</span>
+                  </>
+                ) : (
+                  <>
+                    <Navigation size={11} className="text-orange-600" />
+                    <span>Auto-Detect GPS</span>
+                  </>
+                )}
+              </button>
+            </div>
             <Input
               id="checkout-building"
               placeholder="e.g. Hostel Block A or Mechanical Dept"
@@ -203,6 +299,12 @@ export default function AddressForm() {
                 setCheckout((prev) => ({ ...prev, hostel_block: val }));
               }}
             />
+            {detectedLocationMsg && (
+              <p className="mt-1 flex items-center gap-1 text-[11px] font-semibold text-emerald-700">
+                <MapPin size={11} className="text-emerald-600 shrink-0" />
+                <span>Auto-detected: {checkout.hostel_block}</span>
+              </p>
+            )}
           </div>
 
           {/* Flat / Room No. / Floor */}

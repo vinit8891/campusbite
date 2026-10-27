@@ -126,6 +126,7 @@ export type DeliveryOrder = {
   _id: string;
   customer_name?: string;
   customer_email?: string;
+  customer_phone?: string;
   phone?: string;
   address?: string;
   payment_method?: string;
@@ -140,6 +141,10 @@ export type DeliveryOrder = {
   isBatchAddon?: boolean;
   is_primary_batch_order?: boolean;
   batch_id?: string;
+  batch_window_id?: string;
+  scheduled_wave?: string;
+  landmark?: string;
+  delivery_instructions?: string;
   calculated_payout?: number;
   courier_earning?: number;
   wage_type?: string;

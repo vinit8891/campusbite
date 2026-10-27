@@ -554,6 +554,8 @@ export default function OrderSummary() {
   );
 
   const formattedFinalTotal = isCod ? `${roundedTotal}` : unroundedPayable.toFixed(2);
+  const totalAmount = formattedFinalTotal;
+  const building = checkout.hostel_block || "";
 
   const ctaButtonText = (() => {
     if (isSubmitting) return isOnline ? "Processing your payment..." : "Placing Order...";
@@ -843,17 +845,13 @@ export default function OrderSummary() {
               <p className="text-xl font-black text-gray-900">₹{formattedFinalTotal}</p>
             </div>
             <button
-              type="button"
+              type="submit"
               onClick={handlePlaceOrder}
-              disabled={isSubmitting || !canSubmit}
+              disabled={isSubmitting || !building.trim() || !canSubmit}
               aria-label={`Place ${paymentMethod.toUpperCase()} Order • ₹${formattedFinalTotal}`}
-              className={`flex-1 py-3 px-5 rounded-xl font-bold text-white shadow-sm active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer ${
-                !canSubmit
-                  ? "bg-orange-600/50 cursor-not-allowed text-white/80"
-                  : "bg-orange-600 hover:bg-orange-700"
-              }`}
+              className="bg-orange-600 hover:bg-orange-700 active:scale-[0.98] disabled:bg-gray-300 disabled:cursor-not-allowed text-white font-bold text-sm px-7 py-3 rounded-xl shadow-lg shadow-orange-600/25 transition flex items-center justify-center gap-2 cursor-pointer w-full sm:w-auto"
             >
-              {ctaButtonText}
+              {isSubmitting ? "Placing Order..." : `Place Order • ₹${formattedFinalTotal}`}
             </button>
           </div>
         </div>
