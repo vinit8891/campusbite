@@ -334,8 +334,8 @@ export default function OrderSummary() {
       return;
     }
 
-    if (!checkout.hostel_block?.trim()) {
-      toast.error("Please select a campus delivery spot.");
+    if (!isTakeaway && !checkout.hostel_block?.trim() && !checkout.address?.trim()) {
+      toast.error("Please enter your delivery address.");
       return;
     }
 

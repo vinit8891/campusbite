@@ -25,7 +25,7 @@ describe("AddressForm Component", () => {
     localStorage.clear();
   });
 
-  it("renders clean header without redundant subtitles, segmented mode switcher, and GPS detector with auto-batching", () => {
+  it("renders clean header, segmented mode switcher, and standard manual address entry form", () => {
     renderAddressForm();
 
     // Clean header
@@ -36,27 +36,29 @@ describe("AddressForm Component", () => {
     expect(screen.getByRole("button", { name: /Campus Delivery/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Takeaway/i })).toBeInTheDocument();
 
-    // GPS Location Detector & Auto-Batching indicator
-    expect(screen.getAllByText(/Hostel Block A/i).length).toBeGreaterThan(0);
-    expect(screen.getByText(/Auto-Batched Delivery Active/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Re-detect GPS location/i })).toBeInTheDocument();
-
-    // Optional room number input
-    expect(screen.getByLabelText(/Hostel Room No\. \/ Dept & Floor \(Optional\)/i)).toBeInTheDocument();
+    // Standard manual address entry fields
+    expect(screen.getByLabelText(/Hostel \/ Building \/ Department/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Room \/ Flat \/ Floor No\. \(Optional\)/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Landmark \/ Campus Area \(Optional\)/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/Delivery Instructions \(Optional\)/i)).toBeInTheDocument();
   });
 
-  it("allows switching campus building via Change selector to update batch location", async () => {
+  it("allows entering manual address fields cleanly", async () => {
     const user = userEvent.setup();
     renderAddressForm();
 
-    const changeBtn = screen.getByRole("button", { name: /Change delivery location/i });
-    await user.click(changeBtn);
+    const buildingInput = screen.getByLabelText(/Hostel \/ Building \/ Department/i);
+    await user.clear(buildingInput);
+    await user.type(buildingInput, "Hostel Block C");
+    expect(buildingInput).toHaveValue("Hostel Block C");
 
-    const selector = screen.getByLabelText(/Select Campus Building \/ Drop Point/i);
-    expect(selector).toBeInTheDocument();
+    const roomInput = screen.getByLabelText(/Room \/ Flat \/ Floor No\. \(Optional\)/i);
+    await user.type(roomInput, "Room 402");
+    expect(roomInput).toHaveValue("Room 402");
 
-    await user.selectOptions(selector, "Hostel Block B");
-    expect(screen.getAllByText(/Hostel Block B/i).length).toBeGreaterThan(0);
+    const landmarkInput = screen.getByLabelText(/Landmark \/ Campus Area \(Optional\)/i);
+    await user.type(landmarkInput, "Near Reading Hall");
+    expect(landmarkInput).toHaveValue("Near Reading Hall");
   });
 
   it("allows switching to Takeaway mode with zero delivery fee counter pickup card", async () => {

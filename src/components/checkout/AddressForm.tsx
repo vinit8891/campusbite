@@ -1,25 +1,10 @@
 "use client";
 
-import React, { useEffect, useState, useCallback } from "react";
-import {
-  MapPin,
-  Crosshair,
-  Loader2,
-  CheckCircle2,
-  Navigation,
-} from "lucide-react";
+import React, { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { useCheckout } from "@/context/CheckoutContext";
 import { useAuth } from "@/context/AuthContext";
 import { useCart } from "@/context/CartContext";
-import {
-  useLocation,
-  matchNearestCampusLocation,
-  CAMPUS_PRESETS,
-  type DeliveryAddress,
-} from "@/context/LocationContext";
-import { requestGeolocation } from "@/hooks/useUserLocation";
-import { toast } from "sonner";
 
 // Backwards compatibility export
 export const ZEAL_CAMPUS_SPOTS = [
@@ -48,45 +33,11 @@ function useSafeCart() {
   }
 }
 
-function useSafeLocation() {
-  try {
-    return useLocation();
-  } catch {
-    return {
-      activeAddress: {
-        id: "default-active",
-        tag: "hostel" as const,
-        roomOrFlat: "Rm 304",
-        buildingOrSociety: "Hostel Block A",
-        areaOrLandmark: "Campus Wing A",
-        city: "Pune",
-        lat: 18.4482,
-        lng: 73.826,
-        isDefault: true,
-      },
-      openLocationModal: () => {},
-      detectGpsLocation: async () => null,
-      isDetectingGps: false,
-      setActiveAddress: () => {},
-    };
-  }
-}
-
 export default function AddressForm() {
   const { checkout, setCheckout } = useCheckout();
   useSafeCart();
   const { user } = useSafeAuth();
-  const {
-    activeAddress,
-    openLocationModal,
-    detectGpsLocation,
-    isDetectingGps: locationDetectingGps,
-    setActiveAddress,
-  } = useSafeLocation();
 
-  const [isLocating, setIsLocating] = useState(false);
-  const [isGpsVerified, setIsGpsVerified] = useState(false);
-  const [isChangingLocation, setIsChangingLocation] = useState(false);
   const [isEditingRecipient, setIsEditingRecipient] = useState(false);
   const [errors, setErrors] = useState({
     customer_name: "",
@@ -121,65 +72,7 @@ export default function AddressForm() {
     }
   }
 
-  // GPS Detection Handler
-  const handleDetectGps = useCallback(
-    async (isManual = false) => {
-      setIsLocating(true);
-      try {
-        const coords = await requestGeolocation(isManual);
-        if (coords) {
-          const lat = coords.latitude;
-          const lng = coords.longitude;
-          const matched = matchNearestCampusLocation(lat, lng);
-
-          const campusBuilding = matched.preset.name || "Hostel Block A";
-
-          setCheckout((prev) => ({
-            ...prev,
-            hostel_block: campusBuilding,
-            latitude: lat,
-            longitude: lng,
-          }));
-
-          const newAddr: DeliveryAddress = {
-            id: `gps-${Date.now()}`,
-            tag: "hostel",
-            type: "hostel",
-            label: campusBuilding,
-            roomOrFlat: checkout.address || "Room",
-            buildingOrSociety: campusBuilding,
-            areaOrLandmark: matched.preset.tag || "Narhe Campus",
-            city: "Pune",
-            lat,
-            lng,
-          };
-          setActiveAddress?.(newAddr);
-          setIsGpsVerified(true);
-
-          if (isManual) {
-            toast.success(`GPS verified: ${campusBuilding}`);
-          }
-        } else {
-          // Fallback to campus benchmark
-          if (!checkout.hostel_block || checkout.hostel_block === "Zeal Main Canteen Pickup") {
-            setCheckout((prev) => ({
-              ...prev,
-              hostel_block: "Hostel Block A",
-              latitude: prev.latitude ?? 18.4482,
-              longitude: prev.longitude ?? 73.826,
-            }));
-          }
-        }
-      } catch (err) {
-        console.warn("GPS detection failed:", err);
-      } finally {
-        setIsLocating(false);
-      }
-    },
-    [checkout.address, checkout.hostel_block, setActiveAddress, setCheckout]
-  );
-
-  // Auto-detect GPS on initial load if delivery mode and coordinates not yet set
+  // Load from localStorage or initialize defaults on mount
   useEffect(() => {
     try {
       const cached = localStorage.getItem("cb_last_address");
@@ -189,11 +82,11 @@ export default function AddressForm() {
           ...prev,
           hostel_block: prev.hostel_block || data.hostel_block || "Hostel Block A",
           address: prev.address ?? data.address ?? "",
+          landmark: prev.landmark ?? data.landmark ?? "",
+          delivery_instructions: prev.delivery_instructions ?? data.delivery_instructions ?? "",
           delivery_for: prev.delivery_for || data.delivery_for || "self",
           customer_name: prev.customer_name || data.customer_name || "",
           phone: prev.phone || data.phone || "",
-          latitude: prev.latitude ?? data.latitude ?? 18.4482,
-          longitude: prev.longitude ?? data.longitude ?? 73.826,
         }));
         return;
       }
@@ -201,27 +94,24 @@ export default function AddressForm() {
       // ignore
     }
 
-    if (!checkout.hostel_block) {
-      setCheckout((prev) => ({
-        ...prev,
-        hostel_block: "Hostel Block A",
-        latitude: prev.latitude ?? 18.4482,
-        longitude: prev.longitude ?? 73.826,
-      }));
-    }
-  }, [setCheckout, checkout.hostel_block]);
+    setCheckout((prev) => ({
+      ...prev,
+      hostel_block: prev.hostel_block || "Hostel Block A",
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Persist address fields to localStorage on change
   useEffect(() => {
-    if (checkout.hostel_block || checkout.address) {
+    if (checkout.hostel_block || checkout.address || checkout.landmark) {
       const cacheData = {
         hostel_block: checkout.hostel_block,
         address: checkout.address,
+        landmark: checkout.landmark,
+        delivery_instructions: checkout.delivery_instructions,
         delivery_for: checkout.delivery_for,
         customer_name: checkout.customer_name,
         phone: checkout.phone,
-        latitude: checkout.latitude,
-        longitude: checkout.longitude,
       };
       try {
         localStorage.setItem("cb_last_address", JSON.stringify(cacheData));
@@ -232,11 +122,11 @@ export default function AddressForm() {
   }, [
     checkout.hostel_block,
     checkout.address,
+    checkout.landmark,
+    checkout.delivery_instructions,
     checkout.delivery_for,
     checkout.customer_name,
     checkout.phone,
-    checkout.latitude,
-    checkout.longitude,
   ]);
 
   // Auto-fill recipient name and phone if ordering for self
@@ -256,29 +146,12 @@ export default function AddressForm() {
     (checkout.customer_name || user?.name) && (checkout.phone || user?.phone)
   );
 
-  const detectedBuilding =
-    checkout.hostel_block && checkout.hostel_block !== "Zeal Main Canteen Pickup"
-      ? checkout.hostel_block
-      : activeAddress?.buildingOrSociety || "Hostel Block A";
-
-  const coordinatesDisplay =
-    checkout.latitude != null && checkout.longitude != null
-      ? `${Number(checkout.latitude).toFixed(4)}° N, ${Number(checkout.longitude).toFixed(4)}° E`
-      : "18.4482° N, 73.8260° E";
-
-  const isDetecting = isLocating || locationDetectingGps;
-
   return (
     <section className="space-y-3 font-sans">
-      {/* Header - clean & compact, no redundant subtitles */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <h2 className="text-sm font-bold text-gray-900">Delivery Details</h2>
-        {deliveryType !== "COUNTER_TAKEAWAY" && (
-          <span className="inline-flex items-center gap-1.5 text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-full border border-emerald-100">
-            <span className="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse" />
-            GPS Auto-Batched
-          </span>
-        )}
+        <span className="text-[11px] text-gray-500 font-medium">Campus Drop</span>
       </div>
 
       {/* Segmented Mode Switcher (Delivery vs Takeaway) */}
@@ -309,114 +182,40 @@ export default function AddressForm() {
         </button>
       </div>
 
-      {/* Delivery Mode: Automatic GPS / Google Maps Location Detector & Batching */}
+      {/* Delivery Mode: Standard Manual Address Entry Form */}
       {deliveryType !== "COUNTER_TAKEAWAY" ? (
         <div className="rounded-2xl border border-gray-200/80 bg-white p-3.5 shadow-2xs space-y-3">
-          {/* Detected Campus Location Card */}
-          <div className="flex items-start justify-between gap-3">
-            <div className="flex items-start gap-2.5 min-w-0">
-              <div className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-xl bg-orange-50 text-orange-600 border border-orange-100">
-                <MapPin className="h-4 w-4" />
-              </div>
-              <div className="min-w-0">
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs font-bold text-gray-900 truncate">
-                    {detectedBuilding}
-                  </span>
-                  <span className="text-[10px] font-semibold text-emerald-600 bg-emerald-50 px-1.5 py-0.2 rounded border border-emerald-100">
-                    {isGpsVerified ? "● GPS Verified" : "● Campus Zone"}
-                  </span>
-                </div>
-                <p className="text-[11px] text-gray-500 truncate mt-0.5">
-                  {coordinatesDisplay} • Zeal Narhe Campus
-                </p>
-              </div>
-            </div>
-
-            {/* GPS Actions: Re-detect & Change */}
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                type="button"
-                onClick={() => handleDetectGps(true)}
-                disabled={isDetecting}
-                aria-label="Re-detect GPS location"
-                className="px-2.5 py-1 rounded-lg text-xs font-semibold text-orange-600 bg-orange-50 hover:bg-orange-100 border border-orange-200/60 transition flex items-center gap-1 cursor-pointer disabled:opacity-60"
-              >
-                {isDetecting ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <Crosshair className="h-3 w-3" />
-                )}
-                <span>{isDetecting ? "Locating..." : "Re-detect"}</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsChangingLocation((prev) => !prev)}
-                aria-label={isChangingLocation ? "Done selecting location" : "Change delivery location"}
-                className="px-2 py-1 rounded-lg text-xs font-semibold text-gray-600 hover:text-gray-900 bg-gray-100 hover:bg-gray-200 transition cursor-pointer"
-              >
-                {isChangingLocation ? "Done" : "Change"}
-              </button>
-            </div>
+          {/* Hostel / Building Name */}
+          <div>
+            <label
+              htmlFor="checkout-building"
+              className="mb-1 block text-xs font-semibold text-gray-700"
+            >
+              Hostel / Building / Department
+            </label>
+            <Input
+              id="checkout-building"
+              placeholder="e.g. Hostel Block A or Mechanical Dept"
+              value={checkout.hostel_block || ""}
+              className="h-9 text-xs"
+              onChange={(e) => {
+                const val = e.target.value;
+                setCheckout((prev) => ({ ...prev, hostel_block: val }));
+              }}
+            />
           </div>
 
-          {/* Quick Campus Preset Switcher (when Change is clicked) */}
-          {isChangingLocation && (
-            <div className="p-2.5 bg-gray-50 rounded-xl border border-gray-200/80 space-y-1.5 animate-in fade-in duration-150">
-              <label
-                htmlFor="campus-preset-selector"
-                className="block text-[11px] font-bold text-gray-700"
-              >
-                Select Campus Building / Drop Point
-              </label>
-              <select
-                id="campus-preset-selector"
-                value={checkout.hostel_block || "Hostel Block A"}
-                onChange={(e) => {
-                  const val = e.target.value;
-                  const foundPreset = CAMPUS_PRESETS.find((p) => p.name === val);
-                  setCheckout((prev) => ({
-                    ...prev,
-                    hostel_block: val,
-                    latitude: foundPreset?.lat ?? prev.latitude,
-                    longitude: foundPreset?.lng ?? prev.longitude,
-                  }));
-                  setIsChangingLocation(false);
-                }}
-                className="w-full h-8 px-2.5 rounded-lg border border-gray-200 bg-white text-xs font-semibold text-gray-800 focus:border-orange-500 focus:outline-none transition cursor-pointer"
-              >
-                {CAMPUS_PRESETS.map((preset) => (
-                  <option key={preset.id} value={preset.name}>
-                    {preset.icon} {preset.name} ({preset.tag})
-                  </option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          {/* Automatic Backend Order Batching Notification */}
-          <div className="flex items-center gap-2 rounded-xl bg-blue-50/80 px-2.5 py-2 border border-blue-100/80 text-[11px] text-blue-900">
-            <span className="text-sm">⚡</span>
-            <div className="flex-1 min-w-0">
-              <span className="font-bold">Auto-Batched Delivery Active:</span>{" "}
-              <span className="text-blue-700">
-                Orders to {detectedBuilding} are automatically clustered into 15-min campus waves for hot, grouped delivery.
-              </span>
-            </div>
-          </div>
-
-          {/* Room / Dept & Floor (Optional) */}
-          <div className="pt-2 border-t border-gray-100">
+          {/* Flat / Room No. / Floor */}
+          <div>
             <label
               htmlFor="checkout-room-number"
-              className="mb-1 block text-xs font-bold text-gray-700"
+              className="mb-1 block text-xs font-semibold text-gray-700"
             >
-              Hostel Room No. / Dept &amp; Floor (Optional)
+              Room / Flat / Floor No. (Optional)
             </label>
             <Input
               id="checkout-room-number"
-              placeholder="e.g. Room 304, Wing B or Engineering Dept 2nd Floor"
+              placeholder="e.g. Room 304, 3rd Floor, Wing B"
               value={checkout.address || ""}
               className="h-9 text-xs"
               onChange={(e) => {
@@ -424,9 +223,46 @@ export default function AddressForm() {
                 setCheckout((prev) => ({ ...prev, address: val }));
               }}
             />
-            <p className="mt-1 text-[11px] text-gray-400">
-              Optional • Courier delivers directly to your room or floor upon arrival.
-            </p>
+          </div>
+
+          {/* Landmark / Campus Area */}
+          <div>
+            <label
+              htmlFor="checkout-landmark"
+              className="mb-1 block text-xs font-semibold text-gray-700"
+            >
+              Landmark / Campus Area (Optional)
+            </label>
+            <Input
+              id="checkout-landmark"
+              placeholder="e.g. Near Central Library / Main Gate"
+              value={checkout.landmark || ""}
+              className="h-9 text-xs"
+              onChange={(e) => {
+                const val = e.target.value;
+                setCheckout((prev) => ({ ...prev, landmark: val }));
+              }}
+            />
+          </div>
+
+          {/* Delivery Instructions */}
+          <div>
+            <label
+              htmlFor="checkout-instructions"
+              className="mb-1 block text-xs font-semibold text-gray-700"
+            >
+              Delivery Instructions (Optional)
+            </label>
+            <Input
+              id="checkout-instructions"
+              placeholder="e.g. Call before coming downstairs, leave with security"
+              value={checkout.delivery_instructions || ""}
+              className="h-9 text-xs"
+              onChange={(e) => {
+                const val = e.target.value;
+                setCheckout((prev) => ({ ...prev, delivery_instructions: val }));
+              }}
+            />
           </div>
         </div>
       ) : (

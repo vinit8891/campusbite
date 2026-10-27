@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ROUTES } from "@/lib/routes";
 
+import { ArrowLeft } from "lucide-react";
 import AddressForm from "@/components/checkout/AddressForm";
 import PaymentMethods from "@/components/checkout/PaymentMethods";
 import OrderSummary from "@/components/checkout/OrderSummary";
@@ -58,18 +59,16 @@ function CheckoutContent() {
   return (
     <main className="w-full max-w-lg mx-auto px-4 pt-3 pb-32 min-h-screen bg-gray-50 font-sans antialiased text-gray-900">
       {/* Header */}
-      <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-2.5">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            className="h-8 w-8 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-700 hover:bg-gray-100 hover:text-gray-900 transition shadow-2xs cursor-pointer"
-            aria-label="Back to Cart"
-          >
-            ←
-          </button>
-          <h1 className="text-xl font-bold text-gray-900 tracking-tight">Checkout</h1>
-        </div>
+      <div className="flex items-center gap-3 mb-4">
+        <button
+          type="button"
+          onClick={() => router.back()}
+          className="p-2 rounded-full hover:bg-gray-100 transition cursor-pointer"
+          aria-label="Back"
+        >
+          <ArrowLeft className="w-5 h-5 text-gray-700" />
+        </button>
+        <h1 className="text-xl font-bold text-gray-900 tracking-tight">Checkout</h1>
       </div>
 
       {/* Streamlined Checkout Stack */}
