@@ -143,11 +143,11 @@ export function PartnerAgreementModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="partner-agreement-title"
-      className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-5 md:p-6 bg-stone-950/80 backdrop-blur-md animate-in fade-in duration-300"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-0 sm:p-5 md:p-6 bg-stone-950/80 backdrop-blur-md animate-in fade-in duration-300"
       onClick={(e) => e.stopPropagation()}
     >
       <div
-        className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-amber-200/60 overflow-hidden flex flex-col max-h-[92vh] animate-in zoom-in-95 duration-200"
+        className="w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] max-w-2xl rounded-none sm:rounded-2xl bg-white shadow-2xl flex flex-col overflow-hidden border border-amber-200/60 animate-in zoom-in-95 duration-200"
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header: Branded Orange Header with Section 10A Legal Notice */}
@@ -178,7 +178,7 @@ export function PartnerAgreementModal({
         </div>
 
         {/* Modal Scrollable Body */}
-        <div className="p-5 sm:p-6 space-y-5 overflow-y-auto flex-1">
+        <div className="p-5 sm:p-6 space-y-5 overflow-y-auto overscroll-contain flex-1">
           {/* Scrollable Terms & Clauses Container */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between text-xs font-bold text-stone-700 px-0.5">
@@ -280,7 +280,7 @@ export function PartnerAgreementModal({
                     placeholder="e.g. Rajesh Kumar Sharma"
                     value={signatoryName}
                     onChange={(e) => setSignatoryName(e.target.value)}
-                    className="w-full pl-9 pr-8 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm text-stone-900 placeholder:text-stone-400 focus:outline-hidden focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
+                    className="w-full min-h-[44px] h-11 pl-9 pr-8 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm text-stone-900 placeholder:text-stone-400 focus:outline-hidden focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-all"
                   />
                   {isSignatoryValid && (
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center text-emerald-600">
@@ -309,12 +309,15 @@ export function PartnerAgreementModal({
                     id="canteen-fssai-input"
                     type="text"
                     inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoCapitalize="none"
+                    autoCorrect="off"
                     maxLength={14}
                     required
                     placeholder="14-digit numeric license"
                     value={fssaiNumber}
                     onChange={handleFssaiChange}
-                    className="w-full pl-9 pr-8 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm text-stone-900 placeholder:text-stone-400 focus:outline-hidden focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 font-mono transition-all"
+                    className="w-full min-h-[44px] h-11 pl-9 pr-8 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm text-stone-900 placeholder:text-stone-400 focus:outline-hidden focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 font-mono transition-all"
                   />
                   {isFssaiValid && (
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center text-emerald-600">
@@ -346,12 +349,14 @@ export function PartnerAgreementModal({
                     id="signatory-phone-input"
                     type="tel"
                     inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="tel"
                     maxLength={10}
                     required
                     placeholder="10-digit Indian mobile"
                     value={phone}
                     onChange={handlePhoneChange}
-                    className="w-full pl-9 pr-8 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm text-stone-900 placeholder:text-stone-400 focus:outline-hidden focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 font-mono transition-all"
+                    className="w-full min-h-[44px] h-11 pl-9 pr-8 py-2.5 rounded-xl border border-stone-200 text-xs sm:text-sm text-stone-900 placeholder:text-stone-400 focus:outline-hidden focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 font-mono transition-all"
                   />
                   {isPhoneValid && (
                     <div className="absolute inset-y-0 right-0 pr-3 flex items-center text-emerald-600">
@@ -372,7 +377,7 @@ export function PartnerAgreementModal({
             <div className="pt-2">
               <label
                 htmlFor="partner-agreement-consent-checkbox"
-                className="flex items-start gap-3 p-3.5 rounded-2xl bg-amber-50/60 border border-amber-200/80 cursor-pointer hover:bg-amber-100/50 transition-colors"
+                className="flex items-start gap-3 min-h-[44px] active:bg-gray-100 transition rounded-lg p-2 bg-amber-50/60 border border-amber-200/80 cursor-pointer hover:bg-amber-100/50 select-none"
               >
                 <input
                   id="partner-agreement-consent-checkbox"
@@ -393,7 +398,7 @@ export function PartnerAgreementModal({
                 id="partner-agreement-submit-btn"
                 type="submit"
                 disabled={!isFormValid || isSubmitting}
-                className={`w-full py-3.5 px-6 rounded-2xl font-bold text-sm text-white shadow-md flex items-center justify-center gap-2 transition-all ${
+                className={`w-full min-h-[44px] h-12 py-3.5 px-6 rounded-2xl font-bold text-sm text-white shadow-md flex items-center justify-center gap-2 transition-all ${
                   isFormValid && !isSubmitting
                     ? "bg-gradient-to-r from-orange-600 via-amber-600 to-orange-500 hover:from-orange-700 hover:to-orange-600 hover:shadow-lg active:scale-[0.99] cursor-pointer"
                     : "bg-stone-300 text-stone-500 cursor-not-allowed opacity-80"

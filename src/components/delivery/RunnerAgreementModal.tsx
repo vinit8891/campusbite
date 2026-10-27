@@ -179,9 +179,9 @@ export function RunnerAgreementModal({
       role="dialog"
       aria-modal="true"
       aria-labelledby="runner-agreement-title"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/85 backdrop-blur-md p-3 sm:p-5 overflow-y-auto animate-in fade-in duration-200"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/85 backdrop-blur-md p-0 sm:p-5 animate-in fade-in duration-200"
     >
-      <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl border border-stone-200 overflow-hidden my-6">
+      <div className="relative w-full h-[100dvh] sm:h-auto sm:max-h-[90vh] max-w-2xl rounded-none sm:rounded-2xl bg-white shadow-2xl flex flex-col overflow-hidden border border-stone-200">
         {/* Header: Branded Green/Orange Gradient */}
         <div className="bg-gradient-to-r from-emerald-800 via-teal-700 to-orange-600 p-6 text-white relative">
           <div className="flex items-start justify-between gap-4">
@@ -207,7 +207,7 @@ export function RunnerAgreementModal({
         </div>
 
         {/* Scrollable Terms & Form Body */}
-        <div className="p-5 sm:p-7 space-y-6 max-h-[75vh] overflow-y-auto">
+        <div className="p-5 sm:p-7 space-y-6 overflow-y-auto overscroll-contain flex-1">
           {/* Scrollable Clauses Box */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs font-bold text-stone-600 px-1">
@@ -297,7 +297,7 @@ export function RunnerAgreementModal({
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="e.g. Aman Sharma"
-                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-stone-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-medium"
+                    className="w-full min-h-[44px] h-11 pl-9 pr-3 py-2.5 text-xs sm:text-sm rounded-xl border border-stone-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-medium"
                   />
                 </div>
                 {!isNameValid && fullName.length > 0 && (
@@ -324,7 +324,7 @@ export function RunnerAgreementModal({
                     value={collegeId}
                     onChange={(e) => setCollegeId(e.target.value)}
                     placeholder="e.g. 2024CS042 / SEAT102"
-                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-stone-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-medium font-mono uppercase"
+                    className="w-full min-h-[44px] h-11 pl-9 pr-3 py-2.5 text-xs sm:text-sm rounded-xl border border-stone-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-medium font-mono uppercase"
                   />
                 </div>
                 {!isCollegeIdValid && collegeId.length > 0 && (
@@ -347,12 +347,15 @@ export function RunnerAgreementModal({
                   <input
                     id="runner-agreement-phone-input"
                     type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="tel"
                     required
                     maxLength={10}
                     value={phone}
                     onChange={handlePhoneChange}
                     placeholder="10-digit mobile (e.g. 9876543210)"
-                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-stone-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-medium font-mono"
+                    className="w-full min-h-[44px] h-11 pl-9 pr-3 py-2.5 text-xs sm:text-sm rounded-xl border border-stone-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-medium font-mono"
                   />
                 </div>
                 {!isPhoneValid && phone.length > 0 && (
@@ -375,12 +378,15 @@ export function RunnerAgreementModal({
                   <input
                     id="runner-agreement-emergency-input"
                     type="tel"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    autoComplete="tel"
                     required
                     maxLength={10}
                     value={emergencyContact}
                     onChange={handleEmergencyChange}
                     placeholder="Parent / Guardian phone"
-                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-stone-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-medium font-mono"
+                    className="w-full min-h-[44px] h-11 pl-9 pr-3 py-2.5 text-xs sm:text-sm rounded-xl border border-stone-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-medium font-mono"
                   />
                 </div>
                 {!isEmergencyValid && emergencyContact.length > 0 && (
@@ -406,8 +412,11 @@ export function RunnerAgreementModal({
                     required
                     value={upiId}
                     onChange={(e) => setUpiId(e.target.value)}
-                    placeholder="e.g. name@okaxis / number@ybl"
-                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-stone-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-medium font-mono"
+                    autoCapitalize="none"
+                    autoCorrect="off"
+                    spellCheck={false}
+                    placeholder="name@bank / number@upi"
+                    className="w-full min-h-[44px] h-11 pl-9 pr-3 py-2.5 text-xs sm:text-sm rounded-xl border border-stone-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-medium font-mono"
                   />
                 </div>
                 {!isUpiValid && upiId.length > 0 && (
@@ -434,7 +443,7 @@ export function RunnerAgreementModal({
                     value={hostelBlock}
                     onChange={(e) => setHostelBlock(e.target.value)}
                     placeholder="e.g. Aryabhatta Hall Room B-204"
-                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-stone-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-medium"
+                    className="w-full min-h-[44px] h-11 pl-9 pr-3 py-2.5 text-xs sm:text-sm rounded-xl border border-stone-300 focus:outline-hidden focus:ring-2 focus:ring-emerald-500 font-medium"
                   />
                 </div>
                 {!isHostelValid && hostelBlock.length > 0 && (
@@ -452,21 +461,24 @@ export function RunnerAgreementModal({
             )}
 
             {/* Affirmative Consent Checkbox */}
-            <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 space-y-2">
-              <label className="flex items-start gap-3 cursor-pointer select-none">
+            <div className="p-3 sm:p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200/80 space-y-2">
+              <label
+                htmlFor="runner-agreement-consent-checkbox"
+                className="flex items-start gap-3 min-h-[44px] active:bg-gray-100 transition rounded-lg p-2 cursor-pointer select-none"
+              >
                 <input
                   id="runner-agreement-consent-checkbox"
                   type="checkbox"
                   checked={consentChecked}
                   onChange={(e) => setConsentChecked(e.target.checked)}
-                  className="mt-0.5 h-4 w-4 rounded-md border-stone-300 text-emerald-600 focus:ring-emerald-500"
+                  className="mt-0.5 h-4 w-4 rounded-md border-stone-300 text-emerald-600 focus:ring-emerald-500 shrink-0 cursor-pointer"
                 />
                 <span className="text-xs font-medium text-stone-800 leading-snug">
                   I agree to the CampusBite Runner Code of Conduct, Gate Drop rules, ₹500 COD remittance limit, and work-study terms.
                 </span>
               </label>
 
-              <div className="flex items-center gap-1.5 text-[11px] text-emerald-800 font-semibold pl-7">
+              <div className="flex items-center gap-1.5 text-[11px] text-emerald-800 font-semibold pl-2 sm:pl-3">
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" />
                 <span>Electronic signature binding under Section 10A of the IT Act, 2000.</span>
               </div>
@@ -478,7 +490,7 @@ export function RunnerAgreementModal({
                 id="runner-agreement-submit-btn"
                 type="submit"
                 disabled={!isFormValid || isSubmitting}
-                className="w-full py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-orange-600 hover:from-emerald-700 hover:to-orange-700 text-white font-extrabold text-sm shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
+                className="w-full min-h-[44px] h-12 py-3.5 px-6 rounded-2xl bg-gradient-to-r from-emerald-600 via-teal-600 to-orange-600 hover:from-emerald-700 hover:to-orange-700 text-white font-extrabold text-sm shadow-md transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 active:scale-98 cursor-pointer"
               >
                 {isSubmitting ? (
                   <>

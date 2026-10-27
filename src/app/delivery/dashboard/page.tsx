@@ -316,7 +316,7 @@ export default function DeliveryDashboard() {
             target="_blank"
             rel="noopener noreferrer"
             download
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 hover:text-orange-800 text-xs font-extrabold border border-orange-200/80 shadow-xs transition-all active:scale-98 cursor-pointer shrink-0"
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 min-h-[44px] rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 hover:text-orange-800 text-xs font-extrabold border border-orange-200/80 shadow-xs transition-all active:scale-98 cursor-pointer shrink-0"
           >
             <FileDown className="w-4 h-4 text-orange-600" />
             <span>Download Signed Agreement (PDF)</span>

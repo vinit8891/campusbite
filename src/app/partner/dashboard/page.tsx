@@ -133,7 +133,7 @@ export default function PartnerDashboardPage() {
                     target="_blank"
                     rel="noopener noreferrer"
                     download
-                    className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-white text-orange-700 hover:bg-amber-50 text-xs sm:text-sm font-extrabold shadow-md hover:shadow-lg transition-all active:scale-95 border border-white/40 cursor-pointer"
+                    className="inline-flex items-center gap-2 px-4 py-2.5 min-h-[44px] rounded-2xl bg-white text-orange-700 hover:bg-amber-50 text-xs sm:text-sm font-extrabold shadow-md hover:shadow-lg transition-all active:scale-95 border border-white/40 cursor-pointer"
                   >
                     <FileDown className="w-4 h-4 text-orange-600" />
                     <span>Download Signed MoU (PDF)</span>
@@ -200,7 +200,7 @@ export default function PartnerDashboardPage() {
                 target="_blank"
                 rel="noopener noreferrer"
                 download
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 text-xs font-bold transition-all border border-orange-200/60 shadow-xs shrink-0 cursor-pointer"
+                className="inline-flex items-center gap-1.5 px-3 py-2 min-h-[44px] rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 text-xs font-bold transition-all border border-orange-200/60 shadow-xs shrink-0 cursor-pointer"
                 title="Download Signed MoU (PDF)"
               >
                 <FileDown className="w-3.5 h-3.5 text-orange-600" />
