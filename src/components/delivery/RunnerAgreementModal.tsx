@@ -130,18 +130,30 @@ export function RunnerAgreementModal({
       terms_version: "v1.0_RUNNER_2026_OCT",
       status: "LEGALLY_EXECUTED",
     };
-
     try {
       let res;
       try {
-        res = await authJson("/api/delivery/accept-agreement", {
+        res = await authJson<{
+          status?: string;
+          message?: string;
+          detail?: string;
+          agreement_hash?: string;
+        }>("/api/delivery/accept-agreement", {
+          role: "delivery_partner",
           method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
       } catch {
         // Fallback to alias endpoint
-        res = await publicJson("/api/delivery/accept-agreement", {
+        res = await publicJson<{
+          status?: string;
+          message?: string;
+          detail?: string;
+          agreement_hash?: string;
+        }>("/api/delivery/accept-agreement", {
           method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload),
         });
       }
