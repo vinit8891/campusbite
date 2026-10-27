@@ -1,8 +1,8 @@
 "use client";
 
-import { useMemo } from "react";
+import { Suspense, useMemo } from "react";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Minus, Plus, Trash2 } from "lucide-react";
 
 import { useCart } from "@/context/CartContext";
@@ -16,8 +16,11 @@ import {
   type CartItemInput,
 } from "@/lib/pricingEngine";
 
-export default function CartPage() {
+function CartContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const query = searchParams?.get("q") || "";
+  const menuHref = query ? `${ROUTES.MENU}?q=${encodeURIComponent(query)}` : ROUTES.MENU;
 
   const {
     cart,
@@ -106,12 +109,22 @@ export default function CartPage() {
               Discover delicious dishes and add your favorites.
             </p>
 
-            <Button
-              className="mt-8 rounded-full bg-orange-500 px-8 py-6 text-base font-semibold shadow-md transition-all duration-200 hover:scale-105 hover:bg-orange-600"
-              onClick={() => router.push(ROUTES.RESTAURANTS)}
-            >
-              Browse Restaurants
-            </Button>
+            <div className="mt-8 flex flex-col sm:flex-row items-center justify-center gap-3">
+              <Button
+                className="w-full sm:w-auto rounded-full bg-orange-500 px-8 py-6 text-base font-semibold shadow-md transition-all duration-200 hover:scale-105 hover:bg-orange-600 flex items-center justify-center gap-2 cursor-pointer"
+                onClick={() => router.push(menuHref)}
+              >
+                <span>🍽️</span>
+                <span>Browse Campus Menu</span>
+              </Button>
+              <Button
+                variant="outline"
+                className="w-full sm:w-auto rounded-full px-6 py-6 text-base font-semibold cursor-pointer"
+                onClick={() => router.push(ROUTES.RESTAURANTS)}
+              >
+                Browse Restaurants
+              </Button>
+            </div>
           </div>
         </div>
       </main>
@@ -349,5 +362,19 @@ export default function CartPage() {
         </div>
       </div>
     </main>
+  );
+}
+
+export default function CartPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="min-h-screen bg-[#fffaf3] flex items-center justify-center">
+          <div className="text-sm font-semibold text-gray-500">Loading cart...</div>
+        </main>
+      }
+    >
+      <CartContent />
+    </Suspense>
   );
 }

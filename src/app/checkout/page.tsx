@@ -1,6 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
+import { Suspense } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ROUTES } from "@/lib/routes";
 
 import AddressForm from "@/components/checkout/AddressForm";
@@ -8,9 +9,15 @@ import PaymentMethods from "@/components/checkout/PaymentMethods";
 import OrderSummary from "@/components/checkout/OrderSummary";
 import { useCart } from "@/context/CartContext";
 
-export default function CheckoutPage() {
+function CheckoutContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { cart } = useCart();
+
+  const query = searchParams?.get("q") || "";
+  const menuHref = query
+    ? `${ROUTES.MENU}?q=${encodeURIComponent(query)}`
+    : ROUTES.MENU;
 
   if (cart.length === 0) {
     return (
@@ -23,16 +30,26 @@ export default function CheckoutPage() {
           </h2>
 
           <p className="mt-1 text-xs text-stone-500">
-            Add some delicious food before checking out.
+            Add delicious dishes from campus canteens before checking out.
           </p>
 
-          <button
-            type="button"
-            onClick={() => router.push(ROUTES.RESTAURANTS)}
-            className="mt-6 rounded-xl bg-amber-600 hover:bg-amber-700 px-6 py-2.5 text-xs font-bold text-white shadow-xs transition-all cursor-pointer"
-          >
-            Browse Restaurants
-          </button>
+          <div className="mt-6 flex flex-col sm:flex-row items-center justify-center gap-3">
+            <button
+              type="button"
+              onClick={() => router.push(menuHref)}
+              className="w-full sm:w-auto rounded-xl bg-amber-600 hover:bg-amber-700 px-6 py-2.5 text-xs font-bold text-white shadow-xs transition-all cursor-pointer flex items-center justify-center gap-1.5"
+            >
+              <span>🍽️</span>
+              <span>Browse Campus Menu</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => router.push(ROUTES.RESTAURANTS)}
+              className="w-full sm:w-auto rounded-xl border border-stone-200 bg-white hover:bg-stone-50 px-5 py-2.5 text-xs font-bold text-stone-700 transition-all cursor-pointer"
+            >
+              Browse Restaurants
+            </button>
+          </div>
         </div>
       </main>
     );
@@ -54,13 +71,13 @@ export default function CheckoutPage() {
           Checkout
         </h1>
         <p className="mt-0.5 text-xs text-stone-500">
-          Review your order, hostel drop point, and payment method.
+          Review your order, campus drop spot, and payment method.
         </p>
       </div>
 
       {/* Streamlined Checkout Stack */}
       <div className="space-y-4">
-        {/* 1. Delivery Details (Address, Campus Preset Chips, Recipient Badge) */}
+        {/* 1. Delivery Details (Campus Delivery Spot Pills & Dropdown, Recipient Badge) */}
         <AddressForm />
 
         {/* 2. Payment Method Selector */}
@@ -72,5 +89,19 @@ export default function CheckoutPage() {
         <OrderSummary />
       </div>
     </main>
+  );
+}
+
+export default function CheckoutPage() {
+  return (
+    <Suspense
+      fallback={
+        <main className="flex min-h-screen items-center justify-center bg-stone-50">
+          <div className="text-sm font-semibold text-stone-500">Loading checkout...</div>
+        </main>
+      }
+    >
+      <CheckoutContent />
+    </Suspense>
   );
 }

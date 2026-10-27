@@ -99,7 +99,7 @@ export function TrackOrderLocationsGrid({
         phone={location.delivery_partner_phone}
         vehicle={location.delivery_partner_vehicle}
         variant="card"
-        showCallButton={false}
+        showCallButton={true}
       />
 
       {/* Customer */}

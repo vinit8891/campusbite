@@ -27,6 +27,8 @@ describe("Next.js Edge Route Protection Middleware", () => {
     it("exports config matcher containing all required route patterns", () => {
       expect(config.matcher).toEqual([
         "/admin/:path*",
+        "/partner/:path*",
+        "/partner",
         "/restaurant/dashboard/:path*",
         "/delivery/dashboard/:path*",
         "/delivery/earnings/:path*",

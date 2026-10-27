@@ -335,12 +335,7 @@ export default function OrderSummary() {
     }
 
     if (!checkout.hostel_block?.trim()) {
-      toast.error("Please enter your hostel or building name.");
-      return;
-    }
-
-    if (!checkout.address?.trim()) {
-      toast.error("Please enter your room or flat number.");
+      toast.error("Please select a campus delivery spot.");
       return;
     }
 
@@ -566,7 +561,7 @@ export default function OrderSummary() {
     if (paymentState === "failed") {
       return isOnline ? "Retry Online Payment" : "Retry COD Order";
     }
-    return `Place ${paymentMethod.toUpperCase()} Order`;
+    return `Place Order • ₹${formattedFinalTotal}`;
   })();
 
   return (
@@ -736,6 +731,13 @@ export default function OrderSummary() {
             </span>
           </div>
 
+          <div className="flex justify-between items-center">
+            <span>Packaging</span>
+            <span className="font-semibold text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded text-[11px]">
+              ₹0.00 (Free)
+            </span>
+          </div>
+
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-1.5">
               <span>Delivery Fee</span>
@@ -839,6 +841,7 @@ export default function OrderSummary() {
               type="button"
               onClick={handlePlaceOrder}
               disabled={isSubmitting || !canSubmit}
+              aria-label={`Place ${paymentMethod.toUpperCase()} Order • ₹${formattedFinalTotal}`}
               className={`flex-1 py-3.5 px-6 rounded-xl font-bold text-white shadow-md active:scale-[0.98] transition-all flex items-center justify-center gap-2 cursor-pointer ${
                 !canSubmit
                   ? "bg-amber-600/50 cursor-not-allowed text-white/80"

@@ -87,6 +87,12 @@ export function MobileDrawer({ isOpen, onClose }: MobileDrawerProps) {
       badge: null,
     },
     {
+      label: "Campus Menu",
+      href: ROUTES.MENU,
+      icon: UtensilsCrossed,
+      badge: null,
+    },
+    {
       label: "Restaurants",
       href: ROUTES.RESTAURANTS,
       icon: UtensilsCrossed,

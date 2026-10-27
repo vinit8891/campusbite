@@ -31,7 +31,7 @@ export function OrderActions({
       {isPending && (
         <button
           type="button"
-          className="rounded-full bg-red-600 px-7 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-red-700"
+          className="min-h-[44px] inline-flex items-center justify-center rounded-full bg-red-600 px-7 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-red-700 cursor-pointer"
         >
           Cancel Order
         </button>
@@ -40,7 +40,7 @@ export function OrderActions({
       {!isDelivered && !isCancelled && (
         <Link
           href={orderId ? trackOrderPath(orderId) : ROUTES.MY_ORDERS}
-          className="rounded-full bg-blue-600 px-7 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+          className="min-h-[44px] inline-flex items-center justify-center rounded-full bg-blue-600 px-7 py-3 text-center text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
         >
           Track Order
         </Link>
@@ -54,7 +54,7 @@ export function OrderActions({
                 ? restaurantDetailsPath(order.restaurant_slug)
                 : ROUTES.RESTAURANTS
             }
-            className="rounded-full bg-orange-500 px-7 py-3 text-center text-sm font-semibold text-white shadow-md transition hover:bg-orange-600"
+            className="min-h-[44px] inline-flex items-center justify-center rounded-full bg-orange-500 px-7 py-3 text-center text-sm font-semibold text-white shadow-md transition hover:bg-orange-600"
           >
             Order Again
           </Link>
@@ -68,7 +68,7 @@ export function OrderActions({
               onSuccess={onRefreshOrder}
             />
           ) : (
-            <span className="rounded-full bg-gray-100 px-7 py-3 text-center text-sm font-semibold text-gray-500">
+            <span className="min-h-[44px] inline-flex items-center justify-center rounded-full bg-gray-100 px-7 py-3 text-center text-sm font-semibold text-gray-500">
               ✓ Reviewed
             </span>
           )}
@@ -77,7 +77,7 @@ export function OrderActions({
 
       <Link
         href={ROUTES.HOME}
-        className="rounded-full border border-gray-200 bg-white px-7 py-3 text-center text-sm font-semibold text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-100"
+        className="min-h-[44px] inline-flex items-center justify-center rounded-full border border-gray-200 bg-white px-7 py-3 text-center text-sm font-semibold text-gray-700 shadow-sm transition hover:border-gray-300 hover:bg-gray-100"
       >
         Back Home
       </Link>

@@ -12,6 +12,7 @@ vi.mock("next/navigation", () => ({
     replace: vi.fn(),
     back: mockBack,
   }),
+  useSearchParams: () => new URLSearchParams(),
 }));
 
 const mockCart = [

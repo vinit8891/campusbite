@@ -17,24 +17,25 @@ export function TrackOrderHeader({
 }: TrackOrderHeaderProps) {
   return (
     <>
-      <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+      {/* Sticky Header with Proper Stacking Context */}
+      <div className="sticky top-0 z-30 backdrop-blur-md bg-gray-50/90 py-3 px-4 -mx-4 sm:-mx-6 lg:-mx-8 border-b border-gray-200/60 mb-4 flex flex-wrap items-center justify-between gap-3">
         <Link
           href={ROUTES.MY_ORDERS}
-          className="inline-flex items-center text-sm font-semibold text-gray-500 transition hover:text-orange-600"
+          className="inline-flex items-center text-sm font-semibold text-gray-600 transition hover:text-orange-600"
         >
           ← Back to Orders
         </Link>
 
         <span
           suppressHydrationWarning
-          className="text-xs font-medium text-gray-400"
+          className="text-xs font-medium text-gray-500 bg-white/80 px-2.5 py-0.5 rounded-full border border-gray-200"
           aria-live="polite"
         >
           {formatUpdatedTime(lastUpdated)}
         </span>
       </div>
 
-      <div className="w-full rounded-3xl bg-zinc-900 text-white p-5 sm:p-6 shadow-lg border border-zinc-800 relative overflow-hidden">
+      <div className="relative z-10 w-full rounded-3xl bg-zinc-900 text-white p-5 sm:p-6 shadow-lg border border-zinc-800 overflow-hidden">
         {/* Subtle background glow */}
         <div className="absolute -top-12 -right-12 h-36 w-36 rounded-full bg-orange-500/15 blur-2xl pointer-events-none" />
 

@@ -246,15 +246,20 @@ export default function OrderDetailsPage() {
   const receiptId = ((order._id || (order as unknown as { id?: string }).id || orderId || "").slice(-8)).toUpperCase();
 
   return (
-    <main className="min-h-screen bg-gray-50">
-      <div className="mx-auto max-w-6xl px-4 py-8 sm:px-6 lg:px-8">
-        {/* Back */}
-        <Link
-          href={ROUTES.MY_ORDERS}
-          className="inline-flex items-center text-sm font-medium text-gray-500 transition hover:text-orange-600"
-        >
-          ← Back to My Orders
-        </Link>
+    <main className="min-h-screen bg-gray-50 pb-32 sm:pb-16">
+      <div className="mx-auto max-w-6xl px-4 py-4 sm:px-6 lg:px-8">
+        {/* Sticky Header */}
+        <div className="sticky top-0 z-30 backdrop-blur-md bg-gray-50/90 py-3 border-b border-gray-200/60 mb-4 px-4 sm:px-6 lg:px-8 -mx-4 sm:-mx-6 lg:-mx-8 flex items-center justify-between">
+          <Link
+            href={ROUTES.MY_ORDERS}
+            className="inline-flex items-center text-sm font-semibold text-gray-600 transition hover:text-orange-600"
+          >
+            ← Back to My Orders
+          </Link>
+          <span className="text-xs font-bold text-stone-600 bg-white px-2.5 py-1 rounded-full border border-stone-200 shadow-2xs">
+            Order #{receiptId}
+          </span>
+        </div>
 
         {/* Dedicated Celebratory Delivered Banner */}
         {isDelivered && (

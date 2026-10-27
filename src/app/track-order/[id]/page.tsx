@@ -86,7 +86,7 @@ export default function TrackOrderPage() {
   }
 
   return (
-    <main className="min-h-screen bg-gray-50 px-4 py-8 sm:px-6 lg:px-8">
+    <main className="min-h-screen bg-gray-50 px-4 pt-4 pb-32 sm:pb-20 sm:px-6 lg:px-8">
       <div className="mx-auto max-w-7xl">
         <TrackOrderHeader
           lastUpdated={lastUpdated}
@@ -97,7 +97,7 @@ export default function TrackOrderPage() {
           <LiveDeliveryNotification status={location.status} />
         </div>
 
-        <section className="mt-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+        <section className="relative z-10 mt-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
             <div aria-live="polite">
               <p className="text-xs font-semibold uppercase tracking-wide text-gray-400">
@@ -123,7 +123,7 @@ export default function TrackOrderPage() {
           </div>
         </section>
 
-        <section className="mt-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+        <section className="relative z-10 mt-4 rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
           <div className="mb-4">
             <h2 className="text-lg font-bold text-gray-900">
               Order Progress
@@ -135,21 +135,25 @@ export default function TrackOrderPage() {
           <OrderTimeline status={location.status} />
         </section>
 
-        <TrackOrderLocationsGrid
-          location={location}
-          restaurantName={restaurantName}
-          restaurantCuisine={restaurantCuisine}
-          partnerName={partnerName}
-          customerName={customerName}
-          partnerHasLocation={partnerHasLocation}
-        />
+        <div className="relative z-10">
+          <TrackOrderLocationsGrid
+            location={location}
+            restaurantName={restaurantName}
+            restaurantCuisine={restaurantCuisine}
+            partnerName={partnerName}
+            customerName={customerName}
+            partnerHasLocation={partnerHasLocation}
+          />
+        </div>
 
         {showOtp && (
-          <CustomerOtpCard
-            otp={orderOtp?.otp}
-            variant="compact"
-            className="mt-4"
-          />
+          <div className="relative z-10">
+            <CustomerOtpCard
+              otp={orderOtp?.otp}
+              variant="compact"
+              className="mt-4"
+            />
+          </div>
         )}
 
         <TrackOrderMapSection
@@ -170,29 +174,32 @@ export default function TrackOrderPage() {
           </div>
         )}
 
-        <div className="mt-5 flex flex-col gap-3 pb-8 sm:flex-row sm:items-center sm:justify-end">
-          <a
-            href={`https://wa.me/919024197988?text=${encodeURIComponent(`Hi CampusBite Support, I have a query about my order ${orderId ?? ""}`)}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 text-center text-sm font-semibold text-white shadow-xs transition hover:bg-emerald-700 active:scale-95"
-          >
-            <span>💬 Chat on WhatsApp</span>
-          </a>
+        {/* Fixed Bottom Action Bar (z-40) with min 44px tap targets */}
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t border-gray-200/80 bg-white/95 px-4 py-3 backdrop-blur-md shadow-lg sm:px-6">
+          <div className="mx-auto flex max-w-7xl flex-wrap items-center justify-between gap-3 sm:justify-end">
+            <a
+              href={`https://wa.me/919024197988?text=${encodeURIComponent(`Hi CampusBite Support, I have a query about my order ${orderId ?? ""}`)}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="min-h-[44px] inline-flex items-center justify-center gap-2 rounded-xl bg-emerald-600 px-5 py-2.5 text-center text-sm font-semibold text-white shadow-xs transition hover:bg-emerald-700 active:scale-95"
+            >
+              <span>💬 Chat on WhatsApp</span>
+            </a>
 
-          <Link
-            href={orderDetailsPath(orderId ?? "")}
-            className="rounded-xl border border-gray-200 bg-white px-5 py-3 text-center text-sm font-semibold text-gray-700 transition hover:border-orange-300 hover:text-orange-600"
-          >
-            View Order Details
-          </Link>
+            <Link
+              href={orderDetailsPath(orderId ?? "")}
+              className="min-h-[44px] inline-flex items-center justify-center rounded-xl border border-gray-200 bg-white px-5 py-2.5 text-center text-sm font-semibold text-gray-700 transition hover:border-orange-300 hover:text-orange-600"
+            >
+              View Order Details
+            </Link>
 
-          <Link
-            href={ROUTES.MY_ORDERS}
-            className="rounded-xl bg-orange-500 px-5 py-3 text-center text-sm font-semibold text-white transition hover:bg-orange-600"
-          >
-            Back to Orders
-          </Link>
+            <Link
+              href={ROUTES.MY_ORDERS}
+              className="min-h-[44px] inline-flex items-center justify-center rounded-xl bg-orange-500 px-5 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-orange-600"
+            >
+              Back to Orders
+            </Link>
+          </div>
         </div>
       </div>
     </main>

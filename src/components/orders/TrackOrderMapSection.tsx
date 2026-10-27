@@ -37,7 +37,7 @@ export function TrackOrderMapSection({
     "Zeal Campus Eatery";
 
   return (
-    <section className="mt-4 overflow-hidden rounded-3xl border border-gray-100 bg-white p-2 shadow-sm sm:p-3">
+    <section className="relative z-0 mt-4 overflow-hidden rounded-3xl border border-gray-100 bg-white p-2 shadow-sm sm:p-3">
       <div className="rounded-2xl bg-gray-50 p-4">
         <div className="mb-3 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
           <div>

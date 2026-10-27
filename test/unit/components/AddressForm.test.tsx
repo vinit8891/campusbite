@@ -1,9 +1,9 @@
 import React from "react";
 import { describe, it, expect, beforeEach } from "vitest";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
-import AddressForm from "@/components/checkout/AddressForm";
+import AddressForm, { ZEAL_CAMPUS_SPOTS } from "@/components/checkout/AddressForm";
 import { CheckoutProvider } from "@/context/CheckoutContext";
 import { LocationProvider } from "@/context/LocationContext";
 import { AuthProvider } from "@/context/AuthContext";
@@ -25,75 +25,48 @@ describe("AddressForm Component", () => {
     localStorage.clear();
   });
 
-  it("renders streamlined delivery mode toggles, campus quick-chips, and address inputs", () => {
+  it("renders streamlined delivery mode toggles, Zeal campus spots, dropdown, and optional room input", () => {
     renderAddressForm();
 
     // Header and delivery modes
-    expect(screen.getByText("Delivery Details")).toBeInTheDocument();
-    expect(screen.getByText(/Campus Delivery/i)).toBeInTheDocument();
-    expect(screen.getByText(/Takeaway/i)).toBeInTheDocument();
+    expect(screen.getByText("Campus Delivery Details")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Campus Delivery/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Takeaway/i })).toBeInTheDocument();
 
-    // Campus hostel pills
-    expect(screen.getByRole("button", { name: /Block A/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Block B/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Library \/ Main Gate/i })).toBeInTheDocument();
+    // Zeal campus delivery spot pills
+    expect(screen.getByRole("button", { name: /Boys Hostel 1 Gate/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Boys Hostel 2 Gate/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Girls Hostel Reception/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Zeal Polytechnic Lawn/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Central Library Porch/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Engineering Building Front/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Zeal Main Canteen Pickup/i })).toBeInTheDocument();
 
-    // Room number input
-    expect(screen.getByLabelText(/room number/i)).toBeInTheDocument();
+    // Dropdown selector
+    expect(screen.getByLabelText(/Or choose spot from list/i)).toBeInTheDocument();
 
-    // Collapsible note toggle button
-    expect(
-      screen.getByRole("button", { name: /\+ Add delivery note \/ landmark/i })
-    ).toBeInTheDocument();
+    // Optional room number input
+    expect(screen.getByLabelText(/Hostel Room No\. \/ Dept & Floor \(Optional\)/i)).toBeInTheDocument();
   });
 
-  it("allows selecting campus chip to populate hostel / building field", async () => {
+  it("allows selecting campus spot pill to update delivery spot", async () => {
     const user = userEvent.setup();
     renderAddressForm();
 
-    const blockBChip = screen.getByRole("button", { name: /Block B/i });
-    await user.click(blockBChip);
+    const spotBtn = screen.getByRole("button", { name: /Girls Hostel Reception/i });
+    await user.click(spotBtn);
 
-    expect(blockBChip).toHaveClass("bg-amber-600");
+    expect(spotBtn).toHaveClass("bg-amber-600");
   });
 
-  it("allows switching between Campus Hostel and Outside PG/Flat tabs", async () => {
+  it("allows selecting Zeal Main Canteen Pickup to switch to takeaway", async () => {
     const user = userEvent.setup();
     renderAddressForm();
 
-    const outsideTab = screen.getByRole("button", { name: /Outside \(PG \/ Flat\)/i });
-    await user.click(outsideTab);
+    const canteenBtn = screen.getByRole("button", { name: /Zeal Main Canteen Pickup/i });
+    await user.click(canteenBtn);
 
-    expect(screen.getByText(/Select Area/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /College Road/i })).toBeInTheDocument();
-    expect(screen.getByLabelText(/Building \/ PG Name/i)).toBeInTheDocument();
-  });
-
-  it("expands delivery note / landmark inputs and selects quick instruction chip", async () => {
-    const user = userEvent.setup();
-    renderAddressForm();
-
-    const expandBtn = screen.getByRole("button", {
-      name: /\+ Add delivery note \/ landmark/i,
-    });
-    await user.click(expandBtn);
-
-    expect(
-      screen.getByLabelText(/nearby landmark/i)
-    ).toBeInTheDocument();
-    expect(
-      screen.getByLabelText(/courier instructions/i)
-    ).toBeInTheDocument();
-
-    const chip = screen.getByRole("button", {
-      name: /\+ Call when downstairs/i,
-    });
-    fireEvent.click(chip);
-
-    const instructionsInput = screen.getByLabelText(
-      /courier instructions/i
-    ) as HTMLInputElement;
-    expect(instructionsInput.value).toBe("Call when downstairs");
+    expect(canteenBtn).toHaveClass("bg-amber-600");
   });
 
   it("supports toggling between Myself and Someone Else recipient modes", async () => {

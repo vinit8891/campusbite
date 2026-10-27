@@ -14,7 +14,7 @@ import {
 
 export default function PaymentMethods() {
   const { checkout, setCheckout } = useCheckout();
-  const [config, setConfig] = useState<RazorpayPublicConfig | null>(null);
+  const [, setConfig] = useState<RazorpayPublicConfig | null>(null);
   const [configError, setConfigError] = useState("");
 
   useEffect(() => {
@@ -30,7 +30,6 @@ export default function PaymentMethods() {
       } catch {
         if (!cancelled) {
           setConfig(null);
-          // Keep error banner clean so checkout is never blocked
           setConfigError("");
         }
       }
@@ -42,21 +41,33 @@ export default function PaymentMethods() {
     };
   }, []);
 
-  // Online payment is enabled via NEXT_PUBLIC_RAZORPAY_KEY_ID or by default (disabled: false)
-  const onlineEnabled = Boolean(
-    process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID ||
-      (config?.enabled && config.key_id) ||
-      true
-  );
   const isOnline = checkout.payment_method === ONLINE_PAYMENT_METHOD;
   const isCod = checkout.payment_method === COD_PAYMENT_METHOD;
+
+  function selectOnline() {
+    setCheckout((prev) => ({
+      ...prev,
+      payment_method: ONLINE_PAYMENT_METHOD,
+      online_confirmed: true,
+      cod_confirmed: false,
+    }));
+  }
+
+  function selectCod() {
+    setCheckout((prev) => ({
+      ...prev,
+      payment_method: COD_PAYMENT_METHOD,
+      cod_confirmed: true,
+      online_confirmed: false,
+    }));
+  }
 
   return (
     <div className="space-y-3">
       <div>
         <h2 className="text-lg font-bold text-stone-900">Payment Method</h2>
         <p className="text-xs text-stone-500">
-          Choose your preferred mode of payment
+          Direct toggle • Choose instant UPI or Cash on Delivery
         </p>
       </div>
 
@@ -66,39 +77,40 @@ export default function PaymentMethods() {
         </div>
       ) : null}
 
-      <div className="space-y-2">
-        {/* COD Option */}
+      <div className="space-y-2.5" role="radiogroup" aria-label="Payment Method Selector">
+        {/* Cash on Delivery (COD) Option */}
         <label
-          className={`flex cursor-pointer items-center justify-between rounded-xl border p-3 transition-all ${
+          onClick={selectCod}
+          className={`flex cursor-pointer items-start justify-between rounded-2xl border p-3.5 transition-all ${
             isCod
-              ? "border-amber-500 bg-amber-50/60 shadow-2xs ring-1 ring-amber-500/20"
+              ? "border-amber-500 bg-amber-50/70 shadow-sm ring-1 ring-amber-500/30"
               : "border-stone-200 bg-white hover:border-amber-300"
           }`}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-start gap-3">
             <input
               type="radio"
               name="payment"
-              className="accent-amber-600 cursor-pointer"
+              className="mt-1 accent-amber-600 cursor-pointer h-4 w-4"
               checked={isCod}
-              onChange={() =>
-                setCheckout((prev) => ({
-                  ...prev,
-                  payment_method: COD_PAYMENT_METHOD,
-                  cod_confirmed: true,
-                  online_confirmed: false,
-                }))
-              }
+              onChange={selectCod}
             />
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-base">💵</span>
-                <h3 className="text-xs font-bold text-stone-900">
+                <h3 className="text-xs sm:text-sm font-bold text-stone-900">
                   Cash on Delivery (COD)
                 </h3>
+                <span className="rounded-md bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold text-amber-800">
+                  Exact Cash
+                </span>
               </div>
-              <p className="mt-0.5 text-[11px] text-stone-500">
-                Pay in cash directly to student courier on arrival
+              {/* Mandatory Note for COD */}
+              <div className="mt-1.5 rounded-lg bg-amber-100/80 border border-amber-300/80 px-2.5 py-1 text-[11px] font-bold text-amber-900">
+                ⚠️ Note: Keep exact change under ₹500 ready
+              </div>
+              <p className="mt-1 text-[11px] text-stone-500">
+                Pay in cash directly to student courier upon arrival at your drop spot.
               </p>
             </div>
           </div>
@@ -106,85 +118,42 @@ export default function PaymentMethods() {
 
         {/* Online Payment Option */}
         <label
-          className={`flex items-center justify-between rounded-xl border p-3 transition-all ${
+          onClick={selectOnline}
+          className={`flex cursor-pointer items-start justify-between rounded-2xl border p-3.5 transition-all ${
             isOnline
-              ? "cursor-pointer border-amber-500 bg-amber-50/60 shadow-2xs ring-1 ring-amber-500/20"
-              : "cursor-pointer border-stone-200 bg-white hover:border-amber-300"
+              ? "border-amber-500 bg-amber-50/70 shadow-sm ring-1 ring-amber-500/30"
+              : "border-stone-200 bg-white hover:border-amber-300"
           }`}
         >
-          <div className="flex items-center gap-3">
+          <div className="flex items-start gap-3">
             <input
               type="radio"
               name="payment"
-              className="accent-amber-600 cursor-pointer"
-              disabled={false}
+              className="mt-1 accent-amber-600 cursor-pointer h-4 w-4"
               checked={isOnline}
-              onChange={() =>
-                setCheckout((prev) => ({
-                  ...prev,
-                  payment_method: ONLINE_PAYMENT_METHOD,
-                  online_confirmed: true,
-                  cod_confirmed: false,
-                }))
-              }
+              onChange={selectOnline}
             />
             <div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-base">💳</span>
-                <h3 className="text-xs font-bold text-stone-900">
+                <h3 className="text-xs sm:text-sm font-bold text-stone-900">
                   Online Payment (UPI / Cards / Net Banking)
                 </h3>
-                <span className="rounded-md bg-emerald-100 px-1.5 py-0.2 text-[10px] font-bold text-emerald-800">
+                <span className="rounded-md bg-emerald-100 px-1.5 py-0.5 text-[10px] font-bold text-emerald-800">
                   Fastest
                 </span>
               </div>
-              <p className="mt-0.5 text-[11px] text-stone-500">
+              <p className="mt-1 text-[11px] text-stone-600 font-medium">
                 UPI (GPay, PhonePe, Paytm), Cards &amp; Net Banking
               </p>
+              {isOnline && (
+                <p className="mt-1.5 text-[11px] text-amber-800 font-semibold bg-amber-100/70 px-2 py-0.5 rounded-md inline-block">
+                  ✓ I confirm I will complete payment securely via Razorpay.
+                </p>
+              )}
             </div>
           </div>
         </label>
-
-        {/* Confirmation Checkboxes */}
-        {isCod && (
-          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl bg-stone-50 p-2.5 border border-stone-200/80 text-xs">
-            <input
-              type="checkbox"
-              className="mt-0.5 accent-amber-600"
-              checked={checkout.cod_confirmed}
-              onChange={(e) =>
-                setCheckout((prev) => ({
-                  ...prev,
-                  payment_method: COD_PAYMENT_METHOD,
-                  cod_confirmed: e.target.checked,
-                }))
-              }
-            />
-            <span className="text-stone-700 text-[11px] leading-tight">
-              I confirm I will pay <strong>Cash on Delivery (₹)</strong> upon courier arrival.
-            </span>
-          </label>
-        )}
-
-        {isOnline && (
-          <label className="flex cursor-pointer items-start gap-2.5 rounded-xl bg-stone-50 p-2.5 border border-stone-200/80 text-xs">
-            <input
-              type="checkbox"
-              className="mt-0.5 accent-amber-600"
-              checked={checkout.online_confirmed}
-              onChange={(e) =>
-                setCheckout((prev) => ({
-                  ...prev,
-                  payment_method: ONLINE_PAYMENT_METHOD,
-                  online_confirmed: e.target.checked,
-                }))
-              }
-            />
-            <span className="text-stone-700 text-[11px] leading-tight">
-              I confirm I will complete payment securely via Razorpay.
-            </span>
-          </label>
-        )}
       </div>
     </div>
   );
