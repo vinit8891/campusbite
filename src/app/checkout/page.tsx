@@ -74,7 +74,7 @@ function CheckoutContent() {
 
       {/* Streamlined Checkout Stack */}
       <div className="space-y-4">
-        {/* 1. Delivery Details (Campus Delivery Spot Pills & Dropdown, Recipient Badge) */}
+        {/* 1. Delivery Details (Automatic GPS Location Detector & Batching, Recipient Badge) */}
         <AddressForm />
 
         {/* 2. Payment Method Selector */}

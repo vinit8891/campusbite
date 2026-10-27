@@ -25,48 +25,49 @@ describe("AddressForm Component", () => {
     localStorage.clear();
   });
 
-  it("renders streamlined delivery mode toggles, Zeal campus spots, dropdown, and optional room input", () => {
+  it("renders clean header without redundant subtitles, segmented mode switcher, and GPS detector with auto-batching", () => {
     renderAddressForm();
 
-    // Header and delivery modes
-    expect(screen.getByText("Campus Delivery Details")).toBeInTheDocument();
+    // Clean header
+    expect(screen.getByText("Delivery Details")).toBeInTheDocument();
+    expect(screen.queryByText(/Zeal Narhe Campus • 1-tap spot selection/i)).not.toBeInTheDocument();
+
+    // Segmented mode switcher
     expect(screen.getByRole("button", { name: /Campus Delivery/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Takeaway/i })).toBeInTheDocument();
 
-    // Zeal campus delivery spot pills
-    expect(screen.getByRole("button", { name: /Boys Hostel 1 Gate/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Boys Hostel 2 Gate/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Girls Hostel Reception/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Zeal Polytechnic Lawn/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Central Library Porch/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Engineering Building Front/i })).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /Zeal Main Canteen Pickup/i })).toBeInTheDocument();
-
-    // Dropdown selector
-    expect(screen.getByLabelText(/Or choose spot from list/i)).toBeInTheDocument();
+    // GPS Location Detector & Auto-Batching indicator
+    expect(screen.getAllByText(/Hostel Block A/i).length).toBeGreaterThan(0);
+    expect(screen.getByText(/Auto-Batched Delivery Active/i)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Re-detect GPS location/i })).toBeInTheDocument();
 
     // Optional room number input
     expect(screen.getByLabelText(/Hostel Room No\. \/ Dept & Floor \(Optional\)/i)).toBeInTheDocument();
   });
 
-  it("allows selecting campus spot pill to update delivery spot", async () => {
+  it("allows switching campus building via Change selector to update batch location", async () => {
     const user = userEvent.setup();
     renderAddressForm();
 
-    const spotBtn = screen.getByRole("button", { name: /Girls Hostel Reception/i });
-    await user.click(spotBtn);
+    const changeBtn = screen.getByRole("button", { name: /Change delivery location/i });
+    await user.click(changeBtn);
 
-    expect(spotBtn).toHaveClass("bg-amber-600");
+    const selector = screen.getByLabelText(/Select Campus Building \/ Drop Point/i);
+    expect(selector).toBeInTheDocument();
+
+    await user.selectOptions(selector, "Hostel Block B");
+    expect(screen.getAllByText(/Hostel Block B/i).length).toBeGreaterThan(0);
   });
 
-  it("allows selecting Zeal Main Canteen Pickup to switch to takeaway", async () => {
+  it("allows switching to Takeaway mode with zero delivery fee counter pickup card", async () => {
     const user = userEvent.setup();
     renderAddressForm();
 
-    const canteenBtn = screen.getByRole("button", { name: /Zeal Main Canteen Pickup/i });
-    await user.click(canteenBtn);
+    const takeawayBtn = screen.getByRole("button", { name: /Takeaway/i });
+    await user.click(takeawayBtn);
 
-    expect(canteenBtn).toHaveClass("bg-amber-600");
+    expect(screen.getByText(/Canteen Counter Pickup \(Takeaway\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/No delivery fee/i)).toBeInTheDocument();
   });
 
   it("supports toggling between Myself and Someone Else recipient modes", async () => {
@@ -78,5 +79,10 @@ describe("AddressForm Component", () => {
 
     expect(screen.getByLabelText(/recipient name/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/recipient mobile number/i)).toBeInTheDocument();
+  });
+
+  it("exports backwards compatible ZEAL_CAMPUS_SPOTS array", () => {
+    expect(Array.isArray(ZEAL_CAMPUS_SPOTS)).toBe(true);
+    expect(ZEAL_CAMPUS_SPOTS.length).toBeGreaterThan(0);
   });
 });
