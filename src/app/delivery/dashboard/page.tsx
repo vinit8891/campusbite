@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
-import { Package, Bike, ArrowRight, ShieldCheck } from "lucide-react";
+import { Package, Bike, ArrowRight, ShieldCheck, FileDown, CheckCircle2 } from "lucide-react";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ROUTES } from "@/lib/routes";
 import { useDeliveryDashboard } from "@/hooks/delivery/useDeliveryDashboard";
@@ -10,12 +10,14 @@ import { DeliveryDashboardHeader } from "@/components/delivery/DeliveryDashboard
 import { DeliveryDashboardStatCards } from "@/components/delivery/DeliveryDashboardStatCards";
 import { RecentAssignedOrdersSection } from "@/components/delivery/RecentAssignedOrdersSection";
 import { RemitDuesModal } from "@/components/delivery/RemitDuesModal";
+import { RunnerAgreementModal } from "@/components/delivery/RunnerAgreementModal";
 import {
   getRiderCashReconciliation,
   MAX_UNREMITTED_CASH_LIMIT,
 } from "@/services/deliveryPartnerService";
 import { MessShiftRoster } from "@/components/delivery/MessShiftRoster";
 import { RiderStreakMilestoneCard } from "@/components/delivery/RiderStreakMilestoneCard";
+import { API_URL } from "@/services/apiConfig";
 
 function DashboardSkeleton() {
   return (
@@ -50,6 +52,70 @@ export default function DeliveryDashboard() {
   const [localRecon, setLocalRecon] = useState(() =>
     partner?.phone ? getRiderCashReconciliation(partner.phone) : null
   );
+
+  const [agreementSigned, setAgreementSigned] = useState<boolean>(true);
+  const [agreementChecked, setAgreementChecked] = useState(false);
+
+  useEffect(() => {
+    let active = true;
+    async function checkAgreement() {
+      const runnerId = partner?.id || partner?._id || partner?.phone || partner?.email;
+      if (!runnerId) return;
+
+      if (
+        partner?.agreement_signed === true ||
+        (stats as { agreement_signed?: boolean })?.agreement_signed === true
+      ) {
+        if (active) {
+          setAgreementSigned(true);
+          setAgreementChecked(true);
+        }
+        return;
+      }
+
+      if (partner?.agreement_signed === false) {
+        if (active) {
+          setAgreementSigned(false);
+          setAgreementChecked(true);
+        }
+        return;
+      }
+
+      try {
+        const queryParams = new URLSearchParams();
+        if (partner?.phone) queryParams.set("phone", partner.phone);
+        if (runnerId) queryParams.set("runner_id", runnerId);
+
+        const res = await fetch(
+          `${API_URL}/api/delivery/agreement/status?${queryParams.toString()}`
+        );
+        if (res.ok) {
+          const data = await res.json();
+          if (active) {
+            setAgreementSigned(Boolean(data.agreement_signed));
+            setAgreementChecked(true);
+          }
+        } else {
+          if (active) {
+            setAgreementSigned(partner?.agreement_signed ?? true);
+            setAgreementChecked(true);
+          }
+        }
+      } catch {
+        if (active) {
+          setAgreementSigned(partner?.agreement_signed ?? true);
+          setAgreementChecked(true);
+        }
+      }
+    }
+
+    if (partner) {
+      void checkAgreement();
+    }
+    return () => {
+      active = false;
+    };
+  }, [partner, stats]);
 
   useEffect(() => {
     if (partner?.phone) {
@@ -102,8 +168,17 @@ export default function DeliveryDashboard() {
     stats.verification_status === "PENDING_VERIFICATION" ||
     stats.is_verified === false;
 
+  const showAgreementModal = agreementChecked && !agreementSigned;
+  const effectiveRunnerId =
+    partner?.id || partner?._id || partner?.phone || partner?.email || "runner-partner";
+
   return (
-    <div className="space-y-6 sm:space-y-8">
+    <div className="relative min-h-screen">
+      <div
+        className={`space-y-6 sm:space-y-8 transition-all duration-300 ${
+          showAgreementModal ? "filter blur-md pointer-events-none select-none" : ""
+        }`}
+      >
       {/* ⏳ Courier Application Under Review Banner */}
       {isUnverified ? (
         <div className="rounded-2xl sm:rounded-3xl bg-amber-500/10 border-2 border-amber-400/80 p-5 sm:p-6 text-stone-900 shadow-sm">
@@ -211,6 +286,43 @@ export default function DeliveryDashboard() {
 
       {/* Warm Greeting Header */}
       <DeliveryDashboardHeader partner={partner} error={error} />
+
+      {/* 📜 Legal MoU & Signed Agreement Download Card */}
+      {agreementSigned && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 p-4 sm:p-5 rounded-2xl bg-white border border-stone-200/80 shadow-xs">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-emerald-50 text-emerald-600 shrink-0">
+              <ShieldCheck className="w-5 h-5" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-stone-900">
+                  Campus Runner Engagement MoU
+                </span>
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-100 text-[10px] font-extrabold text-emerald-800">
+                  <CheckCircle2 className="w-3 h-3" />
+                  <span>IT Act Sec 10A Executed</span>
+                </span>
+              </div>
+              <p className="text-[11px] text-stone-500 mt-0.5">
+                Work-study terms, gate drop safety mandate, and verified bi-weekly earnings ledger.
+              </p>
+            </div>
+          </div>
+
+          <a
+            id="download-runner-signed-agreement-btn"
+            href={`${API_URL}/api/delivery/agreement/download-pdf/${encodeURIComponent(effectiveRunnerId)}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            download
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-orange-50 hover:bg-orange-100 text-orange-700 hover:text-orange-800 text-xs font-extrabold border border-orange-200/80 shadow-xs transition-all active:scale-98 cursor-pointer shrink-0"
+          >
+            <FileDown className="w-4 h-4 text-orange-600" />
+            <span>Download Signed Agreement (PDF)</span>
+          </a>
+        </div>
+      )}
 
       {/* Glanceable 2-Column Mobile Metrics Grid */}
       <DeliveryDashboardStatCards
@@ -344,6 +456,23 @@ export default function DeliveryDashboard() {
           }
         }}
       />
+      </div>
+
+      {showAgreementModal && (
+        <RunnerAgreementModal
+          isOpen={showAgreementModal}
+          runnerId={effectiveRunnerId}
+          initialFullName={partner?.full_name || partner?.name || ""}
+          initialPhone={partner?.phone || ""}
+          initialCollegeId={partner?.college_id || ""}
+          initialUpiId={partner?.payout_upi_id || partner?.upi_id || ""}
+          initialHostelBlock={partner?.hostel_block || ""}
+          initialEmergencyContact={partner?.emergency_contact || ""}
+          onSuccess={() => {
+            setAgreementSigned(true);
+          }}
+        />
+      )}
     </div>
   );
 }

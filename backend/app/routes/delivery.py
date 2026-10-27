@@ -6,6 +6,7 @@ from app.auth.auth import require_roles
 from app.auth.roles import ADMIN, CUSTOMER, DELIVERY_PARTNER, RESTAURANT_OWNER
 from app.core.logging import get_logger
 from app.models.order import get_order_by_id
+from app.routers.delivery import ensure_runner_agreement_signed
 from app.services.location_service import (
     get_courier_location_and_proximity,
     update_courier_location_service,
@@ -256,7 +257,7 @@ async def trigger_clustered_mess_batch_dispatch(
 @router.get("/available")
 @router.get("/orders/available")
 async def get_available_delivery_orders(
-    current_user: Annotated[dict, Depends(require_roles(DELIVERY_PARTNER, ADMIN))],
+    current_user: Annotated[dict, Depends(ensure_runner_agreement_signed)],
     q: Annotated[str | None, Query()] = None,
     restaurant: Annotated[str | None, Query()] = None,
     payment_method: Annotated[str | None, Query()] = None,
@@ -373,12 +374,12 @@ async def update_delivery_duty_status(
 async def claim_delivery_order(
     order_id: str,
     background_tasks: BackgroundTasks,
-    current_user: Annotated[dict, Depends(require_roles(DELIVERY_PARTNER))],
+    current_user: Annotated[dict, Depends(ensure_runner_agreement_signed)],
     partner: dict | None = Body(default=None),
 ):
     """
     Accepts / claims an order run for delivery.
-    Blocks the claim with HTTP 403 Forbidden if courier is not verified.
+    Blocks the claim with HTTP 403 Forbidden if courier is not verified or agreement unsigned.
     """
     from app.routes.order import accept_delivery
     return await accept_delivery(
@@ -387,4 +388,23 @@ async def claim_delivery_order(
         current_user=current_user,
         partner=partner,
     )
+
+
+@router.post("/orders/{order_id}/complete")
+@router.put("/orders/{order_id}/complete")
+async def complete_delivery_order(
+    order_id: str,
+    current_user: Annotated[dict, Depends(ensure_runner_agreement_signed)],
+    payload: dict | None = Body(default=None),
+):
+    """
+    Marks delivery run complete upon successful recipient handover.
+    Blocks if courier agreement is unsigned.
+    """
+    from app.models.order import update_order_status
+    updated = await update_order_status(order_id, "Delivered")
+    if not updated:
+        raise HTTPException(status_code=404, detail="Order not found")
+    return {"status": "success", "message": "Order marked as delivered", "order_id": order_id}
+
 

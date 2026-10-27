@@ -78,6 +78,10 @@ from app.routes.review import (
 from app.routes.health import router as health_router
 from app.routers.admin import router as admin_router, alias_router as admin_alias_router
 from app.routers.partner import router as partner_router, alias_router as partner_alias_router
+from app.routers.delivery import (
+    router as delivery_agreement_router,
+    alias_router as delivery_agreement_alias_router,
+)
 from app.routes.partner_onboarding import router as partner_onboarding_router
 from app.routes.coupons import router as coupons_router
 from app.routes.payment import router as payment_router
@@ -242,6 +246,8 @@ app.include_router(
 app.include_router(partner_onboarding_router)
 app.include_router(partner_router)
 app.include_router(partner_alias_router)
+app.include_router(delivery_agreement_router)
+app.include_router(delivery_agreement_alias_router)
 app.include_router(admin_router)
 app.include_router(admin_alias_router)
 app.include_router(coupons_router)

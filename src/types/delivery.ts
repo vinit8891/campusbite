@@ -31,6 +31,15 @@ export type DeliveryPartner = {
   is_on_duty?: boolean;
   is_verified?: boolean;
   verification_status?: string;
+  agreement_signed?: boolean;
+  agreement_signed_at?: string;
+  _id?: string;
+  full_name?: string;
+  upi_id?: string;
+  payout_upi_id?: string;
+  college_id?: string;
+  emergency_contact?: string;
+  hostel_block?: string;
 };
 
 export type RiderCashReconciliation = {
